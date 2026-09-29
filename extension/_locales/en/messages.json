@@ -1,0 +1,203 @@
+{
+  "extensionDescription": {
+    "message": "Save job postings to your self-hosted JobWarden in one click."
+  },
+  "jobTitle": {
+    "message": "Job title"
+  },
+  "company": {
+    "message": "Company"
+  },
+  "location": {
+    "message": "Location"
+  },
+  "description": {
+    "message": "Job description"
+  },
+  "descriptionPlaceholder": {
+    "message": "Not found on the page. Paste it here, or select it on the page and open JobWarden again."
+  },
+  "link": {
+    "message": "Link"
+  },
+  "profileId": {
+    "message": "Profile id"
+  },
+  "includeTime": {
+    "message": "Include the time"
+  },
+  "apply": {
+    "message": "I applied"
+  },
+  "bookmark": {
+    "message": "Bookmark"
+  },
+  "openApplication": {
+    "message": "Open in JobWarden"
+  },
+  "openSettings": {
+    "message": "Open settings"
+  },
+  "settings": {
+    "message": "Settings"
+  },
+  "setupNeeded": {
+    "message": "Set the server and your profile id in the settings first."
+  },
+  "pageUnreadable": {
+    "message": "JobWarden can’t read this page. Open a job posting and try again."
+  },
+  "saving": {
+    "message": "Saving…"
+  },
+  "savedApplied": {
+    "message": "Saved as applied."
+  },
+  "savedBookmarked": {
+    "message": "Bookmarked."
+  },
+  "alreadySaved": {
+    "message": "Already in JobWarden."
+  },
+  "markedApplied": {
+    "message": "Marked as applied."
+  },
+  "serverUnreachable": {
+    "message": "Can’t reach JobWarden at $1. Is it running?"
+  },
+  "permissionMissing": {
+    "message": "JobWarden isn’t allowed to reach $1 yet. Save the settings again to allow it."
+  },
+  "unexpectedResponse": {
+    "message": "The server answered with an error ($1)."
+  },
+  "settingsTitle": {
+    "message": "JobWarden settings"
+  },
+  "serverUrl": {
+    "message": "Server URL"
+  },
+  "serverUrlHint": {
+    "message": "Where JobWarden runs. On this computer, that’s usually http://localhost:8080."
+  },
+  "profileIdHint": {
+    "message": "JobWarden shows it on its Profiles page."
+  },
+  "openProfiles": {
+    "message": "Open the Profiles page"
+  },
+  "save": {
+    "message": "Save"
+  },
+  "saved": {
+    "message": "Saved."
+  },
+  "notSaved": {
+    "message": "Couldn’t save the settings."
+  },
+  "serverUrlInvalid": {
+    "message": "Enter an address that starts with http:// or https://."
+  },
+  "permissionDenied": {
+    "message": "Not saved: JobWarden needs your permission to reach $1."
+  },
+  "remote": {
+    "message": "Remote"
+  },
+  "salaryPer_HOUR": {
+    "message": "per hour"
+  },
+  "salaryPer_DAY": {
+    "message": "per day"
+  },
+  "salaryPer_WEEK": {
+    "message": "per week"
+  },
+  "salaryPer_MONTH": {
+    "message": "per month"
+  },
+  "salaryPer_YEAR": {
+    "message": "per year"
+  },
+  "employmentType_FULL_TIME": {
+    "message": "Full-time"
+  },
+  "employmentType_PART_TIME": {
+    "message": "Part-time"
+  },
+  "employmentType_CONTRACTOR": {
+    "message": "Contractor"
+  },
+  "employmentType_TEMPORARY": {
+    "message": "Temporary"
+  },
+  "employmentType_INTERN": {
+    "message": "Internship"
+  },
+  "employmentType_VOLUNTEER": {
+    "message": "Volunteer"
+  },
+  "employmentType_PER_DIEM": {
+    "message": "Per diem"
+  },
+  "employmentType_OTHER": {
+    "message": "Other"
+  },
+  "checking": {
+    "message": "Checking JobWarden…"
+  },
+  "reading": {
+    "message": "Reading the page…"
+  },
+  "status_SAVED": {
+    "message": "Bookmarked"
+  },
+  "status_APPLIED": {
+    "message": "Applied"
+  },
+  "status_INTERVIEWING": {
+    "message": "Interviewing"
+  },
+  "status_OFFER": {
+    "message": "Offer"
+  },
+  "status_REJECTED": {
+    "message": "Rejected"
+  },
+  "status_WITHDRAWN": {
+    "message": "Withdrawn"
+  },
+  "moveBackToBookmarks": {
+    "message": "Move back to bookmarks"
+  },
+  "removeBookmark": {
+    "message": "Remove bookmark"
+  },
+  "removeApplication": {
+    "message": "Remove application"
+  },
+  "remove": {
+    "message": "Remove"
+  },
+  "cancel": {
+    "message": "Cancel"
+  },
+  "confirmRemoveBookmark": {
+    "message": "Remove this bookmark from JobWarden?"
+  },
+  "confirmRemoveApplication": {
+    "message": "Remove this application and its timeline from JobWarden? This can’t be undone."
+  },
+  "removed": {
+    "message": "Removed from JobWarden."
+  },
+  "movedBack": {
+    "message": "Moved back to bookmarks."
+  },
+  "showOnIcon": {
+    "message": "Show on the toolbar icon whether a page is already in JobWarden"
+  },
+  "showOnIconHint": {
+    "message": "★ bookmarked, ✓ applied. Chrome asks you to let JobWarden see your tabs’ addresses; each page you open is then looked up on your server."
+  }
+}

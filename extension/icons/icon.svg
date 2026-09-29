@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- JobWarden: a shield (the warden) guarding a briefcase (the job). The PNGs next to it are rendered from this. -->
+  <defs>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <path d="M64 5 C80 13 96 17 113 18 C115 22 115 30 115 56 C115 90 93 111 64 123 C35 111 13 90 13 56 C13 30 13 22 15 18 C32 17 48 13 64 5 Z"
+        fill="url(#shield)"/>
+  <path d="M52 51 V45 C52 41.5 54.5 39 58 39 H70 C73.5 39 76 41.5 76 45 V51"
+        fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="round"/>
+  <rect x="33" y="51" width="62" height="41" rx="8" fill="#fff"/>
+  <rect x="58" y="62" width="12" height="9" rx="2" fill="#2563eb"/>
+</svg>

@@ -90,6 +90,15 @@ class DefaultApplicationService implements ApplicationService {
 		return application;
 	}
 
+	@Override
+	public Optional<ApplicationDetails> findByLink(long userId, String link) {
+		Optional<ApplicationDetails> application = this.applications.findFirstByUserIdAndLink(userId, link)
+			.map(ApplicationMapper::toApplicationDetails);
+		log.debug("Looked up a link for profile {}: {}", userId,
+				application.map(found -> "application " + found.id()).orElse("not tracked"));
+		return application;
+	}
+
 	/**
 	 * @throws ApplicationNotFoundException if the user has no such application
 	 * @throws BusinessRuleException if the event has a rejection reason but isn't a rejection
@@ -108,6 +117,23 @@ class DefaultApplicationService implements ApplicationService {
 			log.debug("Added a {} event to application {}; its status stays {}", event.stageCategory(),
 					applicationId, previousStatus);
 		}
+	}
+
+	/**
+	 * @throws ApplicationNotFoundException if the user has no such application
+	 * @throws BusinessRuleException if it isn't APPLIED, or its timeline has more than SAVED and APPLIED events
+	 */
+	@Override
+	@Transactional
+	public void moveBackToSaved(long userId, long applicationId) {
+		ApplicationEntity application = getOwnedApplication(userId, applicationId);
+		if (!application.canMoveBackToSaved()) {
+			throw new BusinessRuleException(JobsErrorCode.CANNOT_MOVE_BACK_TO_SAVED, "Application " + applicationId
+					+ " can't move back to SAVED: it's " + application.getCurrentStatus()
+					+ ", or its timeline has more than SAVED and APPLIED events");
+		}
+		application.moveBackToSaved();
+		log.info("Application {} moved back from APPLIED to SAVED", applicationId);
 	}
 
 	/**

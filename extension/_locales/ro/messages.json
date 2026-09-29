@@ -1,0 +1,203 @@
+{
+  "extensionDescription": {
+    "message": "Salvează anunțuri de angajare în JobWarden-ul tău self-hosted, dintr-un clic."
+  },
+  "jobTitle": {
+    "message": "Titlul postului"
+  },
+  "company": {
+    "message": "Companie"
+  },
+  "location": {
+    "message": "Locație"
+  },
+  "description": {
+    "message": "Descrierea postului"
+  },
+  "descriptionPlaceholder": {
+    "message": "Nu a fost găsită pe pagină. Lipește-o aici sau selecteaz-o pe pagină și deschide din nou JobWarden."
+  },
+  "link": {
+    "message": "Link"
+  },
+  "profileId": {
+    "message": "ID-ul profilului"
+  },
+  "includeTime": {
+    "message": "Include ora"
+  },
+  "apply": {
+    "message": "Am aplicat"
+  },
+  "bookmark": {
+    "message": "Salvează"
+  },
+  "openApplication": {
+    "message": "Deschide în JobWarden"
+  },
+  "openSettings": {
+    "message": "Deschide setările"
+  },
+  "settings": {
+    "message": "Setări"
+  },
+  "setupNeeded": {
+    "message": "Setează mai întâi serverul și ID-ul profilului în setări."
+  },
+  "pageUnreadable": {
+    "message": "JobWarden nu poate citi această pagină. Deschide un anunț de angajare și încearcă din nou."
+  },
+  "saving": {
+    "message": "Se salvează…"
+  },
+  "savedApplied": {
+    "message": "Salvată ca trimisă."
+  },
+  "savedBookmarked": {
+    "message": "Salvată."
+  },
+  "alreadySaved": {
+    "message": "Există deja în JobWarden."
+  },
+  "markedApplied": {
+    "message": "Marcată ca trimisă."
+  },
+  "serverUnreachable": {
+    "message": "JobWarden nu răspunde la $1. Rulează?"
+  },
+  "permissionMissing": {
+    "message": "JobWarden nu are încă permisiunea să acceseze $1. Salvează din nou setările ca să o acorzi."
+  },
+  "unexpectedResponse": {
+    "message": "Serverul a răspuns cu o eroare ($1)."
+  },
+  "settingsTitle": {
+    "message": "Setări JobWarden"
+  },
+  "serverUrl": {
+    "message": "Adresa serverului"
+  },
+  "serverUrlHint": {
+    "message": "Unde rulează JobWarden. Pe acest calculator, de obicei http://localhost:8080."
+  },
+  "profileIdHint": {
+    "message": "JobWarden îl afișează pe pagina Profiluri."
+  },
+  "openProfiles": {
+    "message": "Deschide pagina Profiluri"
+  },
+  "save": {
+    "message": "Salvează"
+  },
+  "saved": {
+    "message": "Salvat."
+  },
+  "notSaved": {
+    "message": "Setările nu au putut fi salvate."
+  },
+  "serverUrlInvalid": {
+    "message": "Introdu o adresă care începe cu http:// sau https://."
+  },
+  "permissionDenied": {
+    "message": "Nesalvat: JobWarden are nevoie de permisiunea ta ca să acceseze $1."
+  },
+  "remote": {
+    "message": "Remote"
+  },
+  "salaryPer_HOUR": {
+    "message": "pe oră"
+  },
+  "salaryPer_DAY": {
+    "message": "pe zi"
+  },
+  "salaryPer_WEEK": {
+    "message": "pe săptămână"
+  },
+  "salaryPer_MONTH": {
+    "message": "pe lună"
+  },
+  "salaryPer_YEAR": {
+    "message": "pe an"
+  },
+  "employmentType_FULL_TIME": {
+    "message": "Normă întreagă"
+  },
+  "employmentType_PART_TIME": {
+    "message": "Normă parțială"
+  },
+  "employmentType_CONTRACTOR": {
+    "message": "Colaborator"
+  },
+  "employmentType_TEMPORARY": {
+    "message": "Temporar"
+  },
+  "employmentType_INTERN": {
+    "message": "Stagiu"
+  },
+  "employmentType_VOLUNTEER": {
+    "message": "Voluntariat"
+  },
+  "employmentType_PER_DIEM": {
+    "message": "Plată pe zi"
+  },
+  "employmentType_OTHER": {
+    "message": "Altul"
+  },
+  "checking": {
+    "message": "Se verifică în JobWarden…"
+  },
+  "reading": {
+    "message": "Se citește pagina…"
+  },
+  "status_SAVED": {
+    "message": "Salvată"
+  },
+  "status_APPLIED": {
+    "message": "Trimisă"
+  },
+  "status_INTERVIEWING": {
+    "message": "Interviu"
+  },
+  "status_OFFER": {
+    "message": "Ofertă"
+  },
+  "status_REJECTED": {
+    "message": "Respinsă"
+  },
+  "status_WITHDRAWN": {
+    "message": "Retrasă"
+  },
+  "moveBackToBookmarks": {
+    "message": "Înapoi la salvate"
+  },
+  "removeBookmark": {
+    "message": "Elimină din salvate"
+  },
+  "removeApplication": {
+    "message": "Șterge candidatura"
+  },
+  "remove": {
+    "message": "Șterge"
+  },
+  "cancel": {
+    "message": "Anulează"
+  },
+  "confirmRemoveBookmark": {
+    "message": "Elimini acest anunț salvat din JobWarden?"
+  },
+  "confirmRemoveApplication": {
+    "message": "Ștergi candidatura și cronologia ei din JobWarden? Nu se poate anula."
+  },
+  "removed": {
+    "message": "Ștearsă din JobWarden."
+  },
+  "movedBack": {
+    "message": "Mutată înapoi la salvate."
+  },
+  "showOnIcon": {
+    "message": "Arată pe iconița din bara de instrumente dacă o pagină e deja în JobWarden"
+  },
+  "showOnIconHint": {
+    "message": "★ salvată, ✓ trimisă. Chrome îți cere să-i permiți lui JobWarden să vadă adresele filelor; fiecare pagină deschisă e apoi căutată pe serverul tău."
+  }
+}

@@ -23,7 +23,7 @@
     <!--/* The id as text, so it shows 1000 and not 1,000 */-->
     <p class="mt-4 text-sm text-gray-500" th:if="${currentProfile}"
        th:text="#{profiles.idHint(${#strings.toString(currentProfile.id)})}">
-        Your profile id is 1. The browser extension asks for it on its options page.</p>
+        Your profile id is 1. The browser extension asks for it in its settings.</p>
 
     <form class="mt-8 flex gap-2" method="post" th:action="@{/profiles}">
         <input class="rounded border px-3 py-2" type="text" name="name" maxlength="100" required th:value="${name}"

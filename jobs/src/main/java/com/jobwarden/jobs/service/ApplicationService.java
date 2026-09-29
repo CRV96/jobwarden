@@ -40,9 +40,20 @@ public interface ApplicationService {
 	Optional<ApplicationDetails> findById(long userId, long applicationId);
 
 	/**
+	 * The application tracking this link, if the profile has one. The extension looks up the page it's on with it.
+	 */
+	Optional<ApplicationDetails> findByLink(long userId, String link);
+
+	/**
 	 * Adds an event to the timeline. The application's status follows its latest event.
 	 */
 	void addEvent(long userId, long applicationId, NewTimelineEvent event);
+
+	/**
+	 * Takes back "I applied", for an application that got no further: it goes back to
+	 * {@link ApplicationStatus#SAVED}, as if it had only been bookmarked, and its APPLIED events leave the timeline.
+	 */
+	void moveBackToSaved(long userId, long applicationId);
 
 	void delete(long userId, long applicationId);
 

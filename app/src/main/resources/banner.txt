@@ -9,7 +9,7 @@
 ${application.title} ${application.version}
 Powered by Spring Boot ${spring-boot.version}
 
-Repository: https://github.com/CRV96/job_tracker
+Repository: https://github.com/CRV96/jobwarden
 
 Author
 Developer by CRV

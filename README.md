@@ -28,7 +28,27 @@ Pages are server-rendered with Thymeleaf; HTMX handles partial updates without a
 
 ### Browser extension
 
-Open `chrome://extensions`, turn on Developer mode, click **Load unpacked** and pick the `extension/` folder. Set the server URL and your profile id on the extension's options page; the Profiles page shows your id. The extension posts to `/api/captures`, set by `jobwarden.capture.path` in [application.properties](app/src/main/resources/application.properties); if you change it, change the extension too. Saving a posting you already saved doesn't create a duplicate, and clicking I applied on a posting you bookmarked marks it applied.
+Open `chrome://extensions`, turn on Developer mode, click **Load unpacked** and pick the `extension/` folder. In the extension's settings (⚙ in the popup, or **Options** in its menu), set the server URL and your profile id; the Profiles page shows your id. Chrome asks you to allow any server other than `http://localhost:8080`.
+
+On a job posting, click the extension's icon. It first looks the page up in JobWarden:
+
+- **Not saved yet:** it reads the posting and shows the title, company, location and description, which you can correct or paste in. Then click **I applied** or **Bookmark**.
+- **Bookmarked** (★): **I applied**, or **Remove bookmark**.
+- **Applied** (✓): **Move back to bookmarks**, for an application you didn't actually send, or **Remove application**. Moving back removes the Applied entries from the timeline; it's only offered while nothing else has happened since.
+- **Further along** (interviewing, offer, rejected, withdrawn): only **Open in JobWarden**. The timeline says more than a click in the extension should undo.
+
+Removing asks for a second click, and can't be undone. **Include the time** adds the time of day to the timeline entry, not only the date, and the extension remembers the choice.
+
+In the settings, **Show on the toolbar icon whether a page is already in JobWarden** puts ★ or ✓ on the icon of every tab showing a saved posting, as you browse. Chrome asks you to let the extension see your tabs' addresses for it, and each page you open is then looked up on your server.
+
+- **What it reads:** each field from the first of these that has it:
+  - Text you selected on the page before clicking the icon, as the description. Use it where nothing else finds the description.
+  - The posting's schema.org `JobPosting`, which most job boards and career sites include for Google's job search, as JSON-LD or microdata. It has every field, and the whole object is kept as the application's raw payload.
+  - On LinkedIn, which doesn't include it for signed-in members: the job's public page (what visitors who aren't signed in see), then what's on screen, then the page title.
+  - The page itself: the Open Graph tags, a block marked as the job description, the `h1` heading, the page title.
+- **One posting, one application:** the server matches captures on the exact link. So the extension drops tracking parameters (`utm_*`, `trackingId`...), and on LinkedIn and Indeed it saves the job's own link, even from a search page. Saving a posting you already saved doesn't create a duplicate, and clicking **I applied** on a posting you bookmarked marks it applied.
+- **The API it uses:** under `/api/captures`, set by `jobwarden.capture.path` in [application.properties](app/src/main/resources/application.properties); if you change it, change `CAPTURE_PATH` in [settings.js](extension/settings.js) too. `POST` saves a posting; `GET ?userId=&link=` looks a link up (204 if it isn't saved); `POST /{id}/move-back-to-saved` takes back "I applied"; `DELETE /{id}?userId=` removes an application. Each answers with the application's current state: its id, title, company, status, and when it got that status.
+- **Languages:** the app's, in `extension/_locales/<language>/messages.json`. Chrome uses the browser's language.
 
 ## Project structure
 
@@ -115,7 +135,8 @@ The pages are in English, Romanian, French, German, Polish, Spanish and Portugue
 - **Where the texts live:** `web/src/main/resources/i18n/web.properties` (pages, form validation, status and rejection reason names), and each module's error messages next to its code in `<module>/src/main/resources/i18n/<module>-errors.properties`, under `error.<code>` (e.g. `error.JOBS-001`). Each has one file per language, e.g. `web_ro.properties`. English is the file without a suffix, and the fallback for everything.
 - **In templates:** `th:text="#{applications.title}"`; with arguments `#{application.added(${date})}`; an enum value `#{${'status.' + status}}`. Validation messages refer to a key: `@NotBlank(message = "{validation.profile.name.required}")`. The modules' exceptions carry arguments for their message's `{0}`, `{1}`...
 - **Adding a text:** add the key to the English file and to every translation. [MessageBundlesTests](app/src/test/java/com/jobwarden/MessageBundlesTests.java) fails if a translation is missing a key, or if an error code has no message.
-- **Adding a language:** a constant in `Language`, and a file per bundle.
+- **The extension:** its texts are in `extension/_locales/<language>/messages.json`; pages name them with `data-i18n="key"`, scripts with `message('key')`. [ExtensionMessagesTests](app/src/test/java/com/jobwarden/ExtensionMessagesTests.java) checks them the same way, and that every message they name exists.
+- **Adding a language:** a constant in `Language`, a file per bundle, and a folder in `extension/_locales`.
 - **Adding a module with error codes:** its `i18n/<module>-errors` files, plus the bundle in `spring.messages.basename` (application.properties) and in `MessageBundlesTests`.
 - **Apostrophes:** write `’`, not `'`. In a message with `{0}`, Java's `MessageFormat` treats `'` as a quote character and swallows text.
 - **Logs stay in English:** they're for whoever runs the app, not for users.

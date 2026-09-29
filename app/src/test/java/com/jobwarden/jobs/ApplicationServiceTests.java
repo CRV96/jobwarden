@@ -272,6 +272,74 @@ class ApplicationServiceTests {
 		assertThat(application.timeline()).hasSize(2);
 	}
 
+	@Test
+	void findsTheApplicationTrackingALink() {
+		long id = this.applications.track(newApplication(this.userId, "Backend engineer", ApplicationStatus.SAVED))
+			.id();
+
+		assertThat(this.applications.findByLink(this.userId, "https://example.com/jobs/1"))
+			.hasValueSatisfying(application -> assertThat(application.id()).isEqualTo(id));
+		assertThat(this.applications.findByLink(this.userId, "https://example.com/jobs/2")).isEmpty();
+		assertThat(this.applications.findByLink(this.otherUserId, "https://example.com/jobs/1")).isEmpty();
+	}
+
+	@Test
+	void movesABookmarkAppliedToByMistakeBackToSaved() {
+		long id = this.applications.track(newApplication(this.userId, "Backend engineer", ApplicationStatus.SAVED))
+			.id();
+		this.applications.track(newApplication(this.userId, "Backend engineer", ApplicationStatus.APPLIED));
+
+		this.applications.moveBackToSaved(this.userId, id);
+
+		ApplicationDetails application = this.applications.findById(this.userId, id).orElseThrow();
+		assertThat(application.status()).isEqualTo(ApplicationStatus.SAVED);
+		assertThat(application.timeline()).extracting(TimelineEvent::stageCategory)
+			.containsExactly(ApplicationStatus.SAVED);
+	}
+
+	@Test
+	void movesAnApplicationSavedAsAppliedBackToSavedAtTheSameMoment() {
+		long id = this.applications.create(NewApplication.builder()
+			.userId(this.userId)
+			.title("Backend engineer")
+			.initialStatus(ApplicationStatus.APPLIED)
+			.initialStatusDate(TODAY.minusDays(2))
+			.initialStatusTime(LocalTime.of(10, 30))
+			.build());
+
+		this.applications.moveBackToSaved(this.userId, id);
+
+		ApplicationDetails application = this.applications.findById(this.userId, id).orElseThrow();
+		assertThat(application.status()).isEqualTo(ApplicationStatus.SAVED);
+		assertThat(application.timeline()).extracting(TimelineEvent::stageCategory, TimelineEvent::eventDate,
+				TimelineEvent::eventTime)
+			.containsExactly(tuple(ApplicationStatus.SAVED, TODAY.minusDays(2), LocalTime.of(10, 30)));
+	}
+
+	@Test
+	void movesBackToSavedOnlyAnApplicationThatGotNoFurtherThanApplied() {
+		long bookmarked = create(this.userId, "Bookmarked", ApplicationStatus.SAVED);
+		long interviewing = create(this.userId, "Interviewing", ApplicationStatus.APPLIED);
+		this.applications.addEvent(this.userId, interviewing, event(TODAY, ApplicationStatus.INTERVIEWING));
+		// Back at APPLIED, but the interview stays on the timeline
+		this.applications.addEvent(this.userId, interviewing, event(TODAY.plusDays(1), ApplicationStatus.APPLIED));
+
+		for (long id : new long[] { bookmarked, interviewing }) {
+			assertThatThrownBy(() -> this.applications.moveBackToSaved(this.userId, id))
+				.isInstanceOfSatisfying(BusinessRuleException.class, exception -> assertThat(exception.getErrorCode())
+					.isEqualTo(JobsErrorCode.CANNOT_MOVE_BACK_TO_SAVED));
+		}
+		assertThat(this.applications.findById(this.userId, interviewing).orElseThrow().timeline()).hasSize(3);
+	}
+
+	@Test
+	void movesBackOnlyTheProfilesOwnApplications() {
+		long id = create(this.userId, "Backend engineer", ApplicationStatus.APPLIED);
+
+		assertThatExceptionOfType(ApplicationNotFoundException.class)
+			.isThrownBy(() -> this.applications.moveBackToSaved(this.otherUserId, id));
+	}
+
 	private long insertProfile(String name) {
 		return this.jdbc.sql("INSERT INTO users (name) VALUES (?) RETURNING id")
 			.param(name)

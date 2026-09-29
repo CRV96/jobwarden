@@ -1,0 +1,203 @@
+{
+  "extensionDescription": {
+    "message": "Guarde anúncios de emprego no seu JobWarden auto-alojado com um clique."
+  },
+  "jobTitle": {
+    "message": "Cargo"
+  },
+  "company": {
+    "message": "Empresa"
+  },
+  "location": {
+    "message": "Localização"
+  },
+  "description": {
+    "message": "Descrição da vaga"
+  },
+  "descriptionPlaceholder": {
+    "message": "Não encontrada na página. Cole-a aqui, ou selecione-a na página e abra o JobWarden novamente."
+  },
+  "link": {
+    "message": "Link"
+  },
+  "profileId": {
+    "message": "Identificador do perfil"
+  },
+  "includeTime": {
+    "message": "Incluir a hora"
+  },
+  "apply": {
+    "message": "Candidatura enviada"
+  },
+  "bookmark": {
+    "message": "Guardar"
+  },
+  "openApplication": {
+    "message": "Abrir no JobWarden"
+  },
+  "openSettings": {
+    "message": "Abrir as definições"
+  },
+  "settings": {
+    "message": "Definições"
+  },
+  "setupNeeded": {
+    "message": "Primeiro indique o servidor e o identificador do seu perfil nas definições."
+  },
+  "pageUnreadable": {
+    "message": "O JobWarden não consegue ler esta página. Abra um anúncio de emprego e tente novamente."
+  },
+  "saving": {
+    "message": "A guardar…"
+  },
+  "savedApplied": {
+    "message": "Guardada como enviada."
+  },
+  "savedBookmarked": {
+    "message": "Guardada."
+  },
+  "alreadySaved": {
+    "message": "Já está no JobWarden."
+  },
+  "markedApplied": {
+    "message": "Marcada como enviada."
+  },
+  "serverUnreachable": {
+    "message": "Não é possível contactar o JobWarden em $1. Está a correr?"
+  },
+  "permissionMissing": {
+    "message": "O JobWarden ainda não tem permissão para aceder a $1. Guarde as definições novamente para a conceder."
+  },
+  "unexpectedResponse": {
+    "message": "O servidor respondeu com um erro ($1)."
+  },
+  "settingsTitle": {
+    "message": "Definições do JobWarden"
+  },
+  "serverUrl": {
+    "message": "Endereço do servidor"
+  },
+  "serverUrlHint": {
+    "message": "Onde o JobWarden está a correr. Neste computador, normalmente é http://localhost:8080."
+  },
+  "profileIdHint": {
+    "message": "O JobWarden mostra-o na página Perfis."
+  },
+  "openProfiles": {
+    "message": "Abrir a página Perfis"
+  },
+  "save": {
+    "message": "Guardar"
+  },
+  "saved": {
+    "message": "Guardado."
+  },
+  "notSaved": {
+    "message": "Não foi possível guardar as definições."
+  },
+  "serverUrlInvalid": {
+    "message": "Introduza um endereço que comece por http:// ou https://."
+  },
+  "permissionDenied": {
+    "message": "Não guardado: o JobWarden precisa da sua autorização para aceder a $1."
+  },
+  "remote": {
+    "message": "Remoto"
+  },
+  "salaryPer_HOUR": {
+    "message": "por hora"
+  },
+  "salaryPer_DAY": {
+    "message": "por dia"
+  },
+  "salaryPer_WEEK": {
+    "message": "por semana"
+  },
+  "salaryPer_MONTH": {
+    "message": "por mês"
+  },
+  "salaryPer_YEAR": {
+    "message": "por ano"
+  },
+  "employmentType_FULL_TIME": {
+    "message": "Tempo inteiro"
+  },
+  "employmentType_PART_TIME": {
+    "message": "Tempo parcial"
+  },
+  "employmentType_CONTRACTOR": {
+    "message": "Prestação de serviços"
+  },
+  "employmentType_TEMPORARY": {
+    "message": "Temporário"
+  },
+  "employmentType_INTERN": {
+    "message": "Estágio"
+  },
+  "employmentType_VOLUNTEER": {
+    "message": "Voluntariado"
+  },
+  "employmentType_PER_DIEM": {
+    "message": "À jorna"
+  },
+  "employmentType_OTHER": {
+    "message": "Outro"
+  },
+  "checking": {
+    "message": "A verificar no JobWarden…"
+  },
+  "reading": {
+    "message": "A ler a página…"
+  },
+  "status_SAVED": {
+    "message": "Guardada"
+  },
+  "status_APPLIED": {
+    "message": "Enviada"
+  },
+  "status_INTERVIEWING": {
+    "message": "Entrevista"
+  },
+  "status_OFFER": {
+    "message": "Oferta"
+  },
+  "status_REJECTED": {
+    "message": "Rejeitada"
+  },
+  "status_WITHDRAWN": {
+    "message": "Retirada"
+  },
+  "moveBackToBookmarks": {
+    "message": "Voltar a guardada"
+  },
+  "removeBookmark": {
+    "message": "Remover das guardadas"
+  },
+  "removeApplication": {
+    "message": "Eliminar candidatura"
+  },
+  "remove": {
+    "message": "Eliminar"
+  },
+  "cancel": {
+    "message": "Cancelar"
+  },
+  "confirmRemoveBookmark": {
+    "message": "Remover este anúncio guardado do JobWarden?"
+  },
+  "confirmRemoveApplication": {
+    "message": "Eliminar esta candidatura e o seu histórico do JobWarden? Não é possível anular."
+  },
+  "removed": {
+    "message": "Removida do JobWarden."
+  },
+  "movedBack": {
+    "message": "De volta a guardada."
+  },
+  "showOnIcon": {
+    "message": "Mostrar no ícone da barra de ferramentas se uma página já está no JobWarden"
+  },
+  "showOnIconHint": {
+    "message": "★ guardada, ✓ enviada. O Chrome pede autorização para o JobWarden ver os endereços dos separadores; cada página aberta é então consultada no seu servidor."
+  }
+}

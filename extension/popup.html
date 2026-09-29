@@ -4,29 +4,118 @@
     <meta charset="UTF-8">
     <title>JobWarden</title>
     <style>
-        body { width: 320px; margin: 0; padding: 16px; font: 14px system-ui, sans-serif; }
-        h1 { margin: 0 0 12px; font-size: 16px; }
-        dt { color: #6b7280; font-size: 12px; }
-        dd { margin: 0 0 8px; }
+        body { width: 320px; margin: 0; padding: 16px; font: 14px system-ui, sans-serif; color: #111827; }
+        header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        h1 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; }
+        #settings { flex: none; display: flex; padding: 4px; border: 0; border-radius: 4px; background: none;
+            color: #6b7280; }
+        #settings:hover { background: #f3f4f6; color: #111827; }
+        p { margin: 0; }
+        label { display: block; margin-bottom: 8px; color: #6b7280; font-size: 12px; }
+        input[type="text"], textarea { display: block; width: 100%; margin-top: 2px; padding: 6px; box-sizing: border-box;
+            border: 1px solid #d1d5db; border-radius: 4px; font: 14px system-ui, sans-serif; color: #111827; }
+        textarea { resize: vertical; }
+        .checkbox { display: flex; align-items: center; gap: 6px; margin: 12px 0; font-size: 13px; color: #111827; }
         .actions { display: flex; gap: 8px; }
-        button { flex: 1; padding: 8px; cursor: pointer; }
+        button { flex: 1; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
+            font: inherit; cursor: pointer; }
+        button.primary { border-color: #111827; background: #111827; color: #fff; }
+        button.danger { border-color: #fca5a5; color: #b91c1c; }
+        button.destructive { border-color: #b91c1c; background: #b91c1c; color: #fff; }
+        button:disabled { opacity: 0.5; cursor: default; }
+
+        /* The application this page is already saved as */
+        .card { margin-bottom: 12px; padding: 10px 12px; border: 1px solid; border-radius: 6px; }
+        .card.saved { border-color: #fcd34d; background: #fffbeb; }
+        .card.applied { border-color: #86efac; background: #f0fdf4; }
+        .card.closed { border-color: #e5e7eb; background: #f9fafb; }
+        .card .state { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+        .card.saved .state { color: #b45309; }
+        .card.applied .state { color: #15803d; }
+        .card.closed .state { color: #4b5563; }
+        .card .job { margin-top: 4px; }
+        .card .when { margin-top: 2px; color: #6b7280; font-size: 12px; }
+
+        .confirm { padding: 10px 12px; border: 1px solid #fecaca; border-radius: 6px; background: #fef2f2; }
+        .confirm p { margin-bottom: 8px; }
+
+        #status { margin-top: 12px; }
+        #status:empty { display: none; }
+        #status.info { color: #6b7280; }
+        #status.success { color: #15803d; }
+        #status.error { color: #dc2626; }
+        .links { display: flex; gap: 12px; margin-top: 8px; }
+        .links button { flex: none; padding: 0; border: 0; background: none; color: #2563eb; text-decoration: underline; }
+        a { color: #2563eb; }
+        [hidden] { display: none !important; }
     </style>
 </head>
 <body>
-<h1>JobWarden</h1>
+<header>
+    <h1><img src="icons/icon.svg" alt="" width="20" height="20">JobWarden</h1>
+    <!-- Opens the settings page (the server and the profile). Its title also says which ones are in use. -->
+    <button id="settings" type="button">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="3.338 3.338"/>
+            <circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="3"/>
+        </svg>
+    </button>
+</header>
 
-<dl id="preview">
-    <dt>Title</dt><dd id="title">-</dd>
-    <dt>Company</dt><dd id="company">-</dd>
-    <dt>Location</dt><dd id="location">-</dd>
-</dl>
+<!-- When JobWarden already has this page: which job, and where it's at -->
+<section id="card" class="card" hidden>
+    <p class="state"><span id="card-mark" aria-hidden="true"></span><span id="card-status"></span></p>
+    <p class="job" id="card-job"></p>
+    <p class="when" id="card-when"></p>
+</section>
 
-<div class="actions">
-    <button id="apply" type="button">I applied</button>
-    <button id="bookmark" type="button">Bookmark</button>
+<!-- When it doesn't: what extract.js found, for the user to correct before saving -->
+<form id="capture" hidden>
+    <label>
+        <span data-i18n="jobTitle">Job title</span>
+        <input type="text" name="title" required>
+    </label>
+    <label>
+        <span data-i18n="company">Company</span>
+        <input type="text" name="company">
+    </label>
+    <label>
+        <span data-i18n="location">Location</span>
+        <input type="text" name="location">
+    </label>
+    <label>
+        <span data-i18n="description">Job description</span>
+        <textarea name="description" rows="4" data-i18n-placeholder="descriptionPlaceholder"></textarea>
+    </label>
+</form>
+
+<!-- For I applied -->
+<label class="checkbox" id="include-time-option" hidden>
+    <input type="checkbox" id="include-time">
+    <span data-i18n="includeTime">Include the time</span>
+</label>
+
+<!-- Which buttons show depends on the state. None submits the form: Enter in a field would click it. -->
+<div class="actions" id="actions">
+    <button class="primary" type="button" id="apply" data-i18n="apply" hidden>I applied</button>
+    <button type="button" id="bookmark" data-i18n="bookmark" hidden>Bookmark</button>
+    <button type="button" id="move-back" data-i18n="moveBackToBookmarks" hidden>Move back to bookmarks</button>
+    <button class="danger" type="button" id="remove" hidden></button>
+</div>
+
+<div class="confirm" id="confirm" hidden>
+    <p id="confirm-question"></p>
+    <div class="actions">
+        <button class="destructive" type="button" id="confirm-remove" data-i18n="remove">Remove</button>
+        <button type="button" id="cancel-remove" data-i18n="cancel">Cancel</button>
+    </div>
 </div>
 
 <p id="status" role="status"></p>
+<div class="links">
+    <a id="open-application" target="_blank" hidden data-i18n="openApplication">Open in JobWarden</a>
+    <button id="open-settings" type="button" hidden data-i18n="openSettings">Open settings</button>
+</div>
 
 <script type="module" src="popup.js"></script>
 </body>

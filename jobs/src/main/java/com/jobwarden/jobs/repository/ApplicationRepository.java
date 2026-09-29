@@ -42,6 +42,11 @@ public interface ApplicationRepository extends JpaRepository<ApplicationEntity, 
 	@EntityGraph(attributePaths = "events")
 	Optional<ApplicationEntity> findByIdAndUserId(long id, long userId);
 
+	/**
+	 * With the timeline, like {@link #findByIdAndUserId}: capturing may add an event to it, and looking a link up
+	 * shows when its status changed last.
+	 */
+	@EntityGraph(attributePaths = "events")
 	Optional<ApplicationEntity> findFirstByUserIdAndLink(long userId, String link);
 
 }

@@ -2,12 +2,29 @@
   "manifest_version": 3,
   "name": "JobWarden",
   "version": "0.0.1",
-  "description": "Save job postings to your self-hosted JobWarden in one click.",
+  "description": "__MSG_extensionDescription__",
+  "default_locale": "en",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
   "action": {
+    "default_title": "JobWarden",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    },
     "default_popup": "popup.html"
   },
   "options_page": "options.html",
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
   "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": ["http://localhost:8080/*"],
-  "optional_host_permissions": ["http://*/*", "https://*/*"]
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "optional_permissions": ["tabs"]
 }

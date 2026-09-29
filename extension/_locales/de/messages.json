@@ -1,0 +1,203 @@
+{
+  "extensionDescription": {
+    "message": "Speichere Stellenanzeigen mit einem Klick in deinem selbst gehosteten JobWarden."
+  },
+  "jobTitle": {
+    "message": "Stellentitel"
+  },
+  "company": {
+    "message": "Unternehmen"
+  },
+  "location": {
+    "message": "Ort"
+  },
+  "description": {
+    "message": "Stellenbeschreibung"
+  },
+  "descriptionPlaceholder": {
+    "message": "Nicht auf der Seite gefunden. Füge sie hier ein oder markiere sie auf der Seite und öffne JobWarden erneut."
+  },
+  "link": {
+    "message": "Link"
+  },
+  "profileId": {
+    "message": "Profil-ID"
+  },
+  "includeTime": {
+    "message": "Uhrzeit mitspeichern"
+  },
+  "apply": {
+    "message": "Beworben"
+  },
+  "bookmark": {
+    "message": "Merken"
+  },
+  "openApplication": {
+    "message": "In JobWarden öffnen"
+  },
+  "openSettings": {
+    "message": "Einstellungen öffnen"
+  },
+  "settings": {
+    "message": "Einstellungen"
+  },
+  "setupNeeded": {
+    "message": "Gib zuerst den Server und deine Profil-ID in den Einstellungen an."
+  },
+  "pageUnreadable": {
+    "message": "JobWarden kann diese Seite nicht lesen. Öffne eine Stellenanzeige und versuche es noch einmal."
+  },
+  "saving": {
+    "message": "Wird gespeichert…"
+  },
+  "savedApplied": {
+    "message": "Als beworben gespeichert."
+  },
+  "savedBookmarked": {
+    "message": "Gemerkt."
+  },
+  "alreadySaved": {
+    "message": "Schon in JobWarden."
+  },
+  "markedApplied": {
+    "message": "Als beworben markiert."
+  },
+  "serverUnreachable": {
+    "message": "JobWarden ist unter $1 nicht erreichbar. Läuft es?"
+  },
+  "permissionMissing": {
+    "message": "JobWarden darf $1 noch nicht erreichen. Speichere die Einstellungen noch einmal, um es zu erlauben."
+  },
+  "unexpectedResponse": {
+    "message": "Der Server hat mit einem Fehler geantwortet ($1)."
+  },
+  "settingsTitle": {
+    "message": "JobWarden-Einstellungen"
+  },
+  "serverUrl": {
+    "message": "Server-URL"
+  },
+  "serverUrlHint": {
+    "message": "Wo JobWarden läuft. Auf diesem Computer meist http://localhost:8080."
+  },
+  "profileIdHint": {
+    "message": "JobWarden zeigt sie auf der Seite Profile."
+  },
+  "openProfiles": {
+    "message": "Seite Profile öffnen"
+  },
+  "save": {
+    "message": "Speichern"
+  },
+  "saved": {
+    "message": "Gespeichert."
+  },
+  "notSaved": {
+    "message": "Die Einstellungen konnten nicht gespeichert werden."
+  },
+  "serverUrlInvalid": {
+    "message": "Gib eine Adresse ein, die mit http:// oder https:// beginnt."
+  },
+  "permissionDenied": {
+    "message": "Nicht gespeichert: JobWarden braucht deine Erlaubnis, um $1 zu erreichen."
+  },
+  "remote": {
+    "message": "Remote"
+  },
+  "salaryPer_HOUR": {
+    "message": "pro Stunde"
+  },
+  "salaryPer_DAY": {
+    "message": "pro Tag"
+  },
+  "salaryPer_WEEK": {
+    "message": "pro Woche"
+  },
+  "salaryPer_MONTH": {
+    "message": "pro Monat"
+  },
+  "salaryPer_YEAR": {
+    "message": "pro Jahr"
+  },
+  "employmentType_FULL_TIME": {
+    "message": "Vollzeit"
+  },
+  "employmentType_PART_TIME": {
+    "message": "Teilzeit"
+  },
+  "employmentType_CONTRACTOR": {
+    "message": "Freiberuflich"
+  },
+  "employmentType_TEMPORARY": {
+    "message": "Befristet"
+  },
+  "employmentType_INTERN": {
+    "message": "Praktikum"
+  },
+  "employmentType_VOLUNTEER": {
+    "message": "Ehrenamtlich"
+  },
+  "employmentType_PER_DIEM": {
+    "message": "Tageweise"
+  },
+  "employmentType_OTHER": {
+    "message": "Sonstiges"
+  },
+  "checking": {
+    "message": "Wird in JobWarden geprüft…"
+  },
+  "reading": {
+    "message": "Seite wird gelesen…"
+  },
+  "status_SAVED": {
+    "message": "Gemerkt"
+  },
+  "status_APPLIED": {
+    "message": "Beworben"
+  },
+  "status_INTERVIEWING": {
+    "message": "Vorstellungsgespräch"
+  },
+  "status_OFFER": {
+    "message": "Angebot"
+  },
+  "status_REJECTED": {
+    "message": "Abgelehnt"
+  },
+  "status_WITHDRAWN": {
+    "message": "Zurückgezogen"
+  },
+  "moveBackToBookmarks": {
+    "message": "Zurück zu Gemerkt"
+  },
+  "removeBookmark": {
+    "message": "Nicht mehr merken"
+  },
+  "removeApplication": {
+    "message": "Bewerbung löschen"
+  },
+  "remove": {
+    "message": "Löschen"
+  },
+  "cancel": {
+    "message": "Abbrechen"
+  },
+  "confirmRemoveBookmark": {
+    "message": "Diese gemerkte Stelle aus JobWarden löschen?"
+  },
+  "confirmRemoveApplication": {
+    "message": "Diese Bewerbung samt Verlauf aus JobWarden löschen? Das lässt sich nicht rückgängig machen."
+  },
+  "removed": {
+    "message": "Aus JobWarden gelöscht."
+  },
+  "movedBack": {
+    "message": "Zurück auf Gemerkt."
+  },
+  "showOnIcon": {
+    "message": "Am Symbol in der Symbolleiste zeigen, ob eine Seite schon in JobWarden ist"
+  },
+  "showOnIconHint": {
+    "message": "★ gemerkt, ✓ beworben. Chrome fragt, ob JobWarden die Adressen deiner Tabs sehen darf; jede geöffnete Seite wird dann auf deinem Server nachgeschlagen."
+  }
+}

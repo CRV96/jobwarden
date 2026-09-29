@@ -2,27 +2,51 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>JobWarden options</title>
+    <title data-i18n="settingsTitle">JobWarden settings</title>
     <style>
-        body { max-width: 420px; padding: 16px; font: 14px system-ui, sans-serif; }
-        label { display: block; margin-bottom: 12px; }
-        input { display: block; width: 100%; margin-top: 4px; padding: 6px; box-sizing: border-box; }
+        body { max-width: 420px; padding: 16px; font: 14px system-ui, sans-serif; color: #111827; }
+        h1 { display: flex; align-items: center; gap: 10px; }
+        label { display: block; font-weight: 500; }
+        input { display: block; width: 100%; margin-top: 4px; padding: 6px; box-sizing: border-box; font: inherit; }
+        .hint { margin: 4px 0 16px; color: #6b7280; font-size: 13px; }
+        .checkbox { display: flex; align-items: flex-start; gap: 8px; margin-top: 24px; }
+        .checkbox input { width: auto; margin: 3px 0 0; }
+        .checkbox + .hint { margin-left: 21px; }
+        button { padding: 8px 16px; border: 1px solid #111827; border-radius: 4px; background: #111827; color: #fff;
+            font: inherit; cursor: pointer; }
+        #status.success { color: #15803d; }
+        #status.error { color: #dc2626; }
+        a { color: #2563eb; }
     </style>
 </head>
 <body>
-<h1>JobWarden options</h1>
+<h1><img src="icons/icon.svg" alt="" width="28" height="28"><span data-i18n="settingsTitle">JobWarden settings</span></h1>
 
 <form id="options">
     <label>
-        Server URL
+        <span data-i18n="serverUrl">Server URL</span>
         <input type="url" name="serverUrl" placeholder="http://localhost:8080" required>
     </label>
+    <p class="hint" data-i18n="serverUrlHint">Where JobWarden runs. On this computer, that’s usually http://localhost:8080.</p>
+
     <label>
-        Profile id
-        <input type="number" name="userId" min="1" required>
+        <span data-i18n="profileId">Profile id</span>
+        <input type="number" name="userId" min="1" step="1" required>
     </label>
-    <button type="submit">Save</button>
+    <p class="hint">
+        <span data-i18n="profileIdHint">JobWarden shows it on its Profiles page.</span>
+        <a id="open-profiles" target="_blank" data-i18n="openProfiles">Open the Profiles page</a>
+    </p>
+
+    <button type="submit" data-i18n="save">Save</button>
 </form>
+
+<!-- Applies at once: Chrome asks for the permission on the click -->
+<label class="checkbox">
+    <input type="checkbox" id="show-on-icon">
+    <span data-i18n="showOnIcon">Show on the toolbar icon whether a page is already in JobWarden</span>
+</label>
+<p class="hint" data-i18n="showOnIconHint">★ bookmarked, ✓ applied. Chrome asks you to let JobWarden see your tabs’ addresses; each page you open is then looked up on your server.</p>
 
 <p id="status" role="status"></p>
 

@@ -1,4 +1,3 @@
-# Shared formatting rules. IntelliJ, VS Code and most editors apply them automatically.
 root = true
 
 [*]

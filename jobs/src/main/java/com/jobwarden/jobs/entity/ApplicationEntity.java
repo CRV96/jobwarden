@@ -112,4 +112,36 @@ public class ApplicationEntity {
 		}
 	}
 
+	/**
+	 * Whether "I applied" can be taken back: the application is APPLIED, and its timeline has nothing but the SAVED
+	 * and APPLIED events that bookmarking and applying add. Once something else happened, the timeline tells more
+	 * than a status change can undo.
+	 */
+	public boolean canMoveBackToSaved() {
+		return this.currentStatus == ApplicationStatus.APPLIED && this.events.stream()
+			.allMatch(event -> event.getStageCategory() == ApplicationStatus.SAVED
+					|| event.getStageCategory() == ApplicationStatus.APPLIED);
+	}
+
+	/**
+	 * Takes back "I applied": removes the APPLIED events, so the application is SAVED again, as if it had only been
+	 * bookmarked. One saved as applied straight away has no SAVED event to go back to, so it gets one, at the moment
+	 * of its first APPLIED event. Only when {@link #canMoveBackToSaved()}.
+	 */
+	public void moveBackToSaved() {
+		TimelineEventEntity firstApplied = this.events.stream()
+			.filter(event -> event.getStageCategory() == ApplicationStatus.APPLIED)
+			.findFirst()
+			.orElseThrow();
+		this.events.removeIf(event -> event.getStageCategory() == ApplicationStatus.APPLIED);
+		if (this.events.isEmpty()) {
+			this.events.add(new TimelineEventEntity(this, NewTimelineEvent.builder()
+				.eventDate(firstApplied.getEventDate())
+				.eventTime(firstApplied.getEventTime())
+				.stageCategory(ApplicationStatus.SAVED)
+				.build()));
+		}
+		this.currentStatus = ApplicationStatus.SAVED;
+	}
+
 }
