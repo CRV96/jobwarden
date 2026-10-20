@@ -8,6 +8,7 @@ import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.enums.IdentityErrorCode;
 import com.jobwarden.identity.service.UserService;
+import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.web.user.CurrentUser;
 import org.junit.jupiter.api.Test;
 
@@ -36,6 +37,10 @@ class ProfileControllerTests {
 
 	@MockitoBean
 	private CurrentUser currentUser;
+
+	// For the sidebar, which every page controller fills in
+	@MockitoBean
+	private ApplicationService applications;
 
 	@Test
 	void listsTheProfiles() {
@@ -73,11 +78,11 @@ class ProfileControllerTests {
 	}
 
 	@Test
-	void showsTheSelectedProfilesIdForTheExtension() {
+	void showsEachProfilesIdForTheExtension() {
 		given(this.users.findAll()).willReturn(List.of(ROBERT));
 		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
 
-		assertThat(this.mvc.get().uri("/profiles")).hasStatusOk().bodyText().contains("Your profile id is");
+		assertThat(this.mvc.get().uri("/profiles")).hasStatusOk().bodyText().contains("Profile id 1");
 	}
 
 	@Test

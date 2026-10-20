@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<!--/* The layout of the profile picker: the page alone in the middle of the screen, without the sidebar, which is
+       about a profile. The head is the same as layout.html's. */-->
+<html lang="en" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org" th:fragment="bare(title, content)">
+<head th:replace="~{layout :: head(${title})}">
+    <title>JobWarden</title>
+</head>
+
+<body class="grid min-h-screen place-items-center p-6">
+<main th:replace="${content}"></main>
+</body>
+</html>

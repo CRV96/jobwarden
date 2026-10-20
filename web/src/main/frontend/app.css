@@ -1,5 +1,694 @@
 /* Compiled by Tailwind at build time into target/classes/static/css/app.css (see package.json). */
 @import "tailwindcss" source(none);
 
-/* Scan the templates for the class names they use. */
+/* Scan the templates, and the script that adds classes, for the class names they use. */
 @source "../resources/templates/**/*.html";
+@source "../resources/static/js/**/*.js";
+
+/*
+ * The JobWarden theme, from its design in Claude Design (built on the Nocturne design system): one set of tokens, in
+ * a light and a dark version. <html data-theme="light|dark"> picks one; the script in layout.html sets it before the
+ * page paints. The --jw-* variables hold the values; @theme below turns them into Tailwind utilities, e.g. bg-surface,
+ * border-line, or text-ink/60 for the text colour at 60%.
+ */
+:root,
+[data-theme="light"] {
+	color-scheme: light;
+	--jw-canvas: #ffffff;
+	--jw-surface: #ffffff;
+	--jw-ink: #1d1d1f;
+	--jw-line: rgb(0 0 0 / 0.1);
+	--jw-accent: #007aff;
+	/* Accent text on the page: links on hover */
+	--jw-accent-strong: #0062cc;
+	/* A tinted fill and the text on it, e.g. the avatars */
+	--jw-accent-tint: rgb(0 122 255 / 0.12);
+	--jw-accent-ink: #0058b8;
+	--jw-sidebar: #f3f3f5;
+	/* Secondary buttons, the selected option of a segmented control, form fields */
+	--jw-control: #ffffff;
+	--jw-control-on: #ffffff;
+	--jw-field: #ffffff;
+	--jw-shadow-sm: 0 0 0 0.5px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.04);
+	--jw-shadow-md: 0 0 0 0.5px rgb(0 0 0 / 0.1), 0 4px 14px rgb(0 0 0 / 0.08);
+	--jw-shadow-lg: 0 0 0 0.5px rgb(0 0 0 / 0.12), 0 20px 50px rgb(0 0 0 / 0.18);
+	/* One colour per status, see .st-* below */
+	--jw-gray: #8e8e93;
+	--jw-blue: #007aff;
+	--jw-orange: #c56a00;
+	--jw-green: #1f9e45;
+	--jw-red: #e0302a;
+}
+
+[data-theme="dark"] {
+	color-scheme: dark;
+	--jw-canvas: #1e1e1e;
+	--jw-surface: #2a2a2c;
+	--jw-ink: #f5f5f7;
+	--jw-line: rgb(255 255 255 / 0.1);
+	--jw-accent: #0a84ff;
+	--jw-accent-strong: #64b0ff;
+	--jw-accent-tint: rgb(10 132 255 / 0.22);
+	--jw-accent-ink: #9ecbff;
+	--jw-sidebar: #28282a;
+	--jw-control: #48484a;
+	--jw-control-on: #636366;
+	--jw-field: rgb(255 255 255 / 0.06);
+	--jw-shadow-sm: 0 0 0 0.5px rgb(255 255 255 / 0.12);
+	--jw-shadow-md: 0 0 0 0.5px rgb(255 255 255 / 0.14), 0 4px 14px rgb(0 0 0 / 0.4);
+	--jw-shadow-lg: 0 0 0 0.5px rgb(255 255 255 / 0.16), 0 20px 50px rgb(0 0 0 / 0.55);
+	--jw-gray: #98989d;
+	--jw-blue: #0a84ff;
+	--jw-orange: #ff9f0a;
+	--jw-green: #30d158;
+	--jw-red: #ff453a;
+}
+
+@theme inline {
+	--font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
+	--color-canvas: var(--jw-canvas);
+	--color-surface: var(--jw-surface);
+	--color-ink: var(--jw-ink);
+	--color-line: var(--jw-line);
+	--color-accent: var(--jw-accent);
+	--color-accent-strong: var(--jw-accent-strong);
+	--color-accent-tint: var(--jw-accent-tint);
+	--color-accent-ink: var(--jw-accent-ink);
+	--color-sidebar: var(--jw-sidebar);
+	--color-danger: var(--jw-red);
+	--color-success: var(--jw-green);
+	--shadow-sm: var(--jw-shadow-sm);
+	--shadow-md: var(--jw-shadow-md);
+	--shadow-lg: var(--jw-shadow-lg);
+	--radius-md: 7px;
+	--radius-lg: 12px;
+}
+
+/* The sidebar folded to its icons, by its button. On a narrow screen it's always folded: use max-md: too. */
+@custom-variant folded (&:where([data-sidebar="folded"] *));
+
+@layer base {
+	html {
+		background: var(--jw-canvas);
+		color: var(--jw-ink);
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+	}
+
+	body {
+		font-size: 13px;
+		line-height: 1.55;
+		letter-spacing: -0.005em;
+	}
+
+	/* Never the browser's default ring: the accent, softened */
+	:focus-visible {
+		outline: 3px solid color-mix(in srgb, var(--jw-accent) 45%, transparent);
+		outline-offset: 1px;
+	}
+
+	::selection {
+		background: color-mix(in srgb, var(--jw-accent) 30%, transparent);
+	}
+}
+
+@layer components {
+	/* — Text — */
+	.page-title {
+		font-size: 28px;
+		font-weight: 700;
+		line-height: 1.12;
+		letter-spacing: -0.02em;
+		text-wrap: balance;
+	}
+
+	.section-title {
+		font-size: 13px;
+		font-weight: 600;
+		color: color-mix(in srgb, var(--jw-ink) 60%, transparent);
+	}
+
+	.link {
+		color: var(--jw-accent);
+		text-underline-offset: 3px;
+	}
+
+	.link:hover {
+		color: var(--jw-accent-strong);
+		text-decoration: underline;
+	}
+
+	/* — Buttons: primary is a filled accent, secondary a raised control, ghost only accent text — */
+	.btn {
+		display: inline-flex;
+		flex: none;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		padding: 5px 12px;
+		border: 1px solid transparent;
+		border-radius: 6px;
+		background: transparent;
+		color: var(--jw-ink);
+		font: inherit;
+		font-size: 13px;
+		font-weight: 500;
+		line-height: 1.2;
+		white-space: nowrap;
+		text-decoration: none;
+		cursor: pointer;
+	}
+
+	.btn:disabled,
+	.btn[aria-disabled="true"] {
+		opacity: 0.45;
+		cursor: not-allowed;
+	}
+
+	.btn-primary,
+	.btn-danger {
+		--btn: var(--jw-accent);
+		background: var(--btn);
+		color: #fff;
+		box-shadow: 0 0.5px 1px rgb(0 0 0 / 0.15);
+	}
+
+	.btn-danger {
+		--btn: var(--jw-red);
+	}
+
+	.btn-primary:hover,
+	.btn-danger:hover {
+		background: color-mix(in srgb, var(--btn) 88%, #fff);
+	}
+
+	.btn-primary:active,
+	.btn-danger:active {
+		background: color-mix(in srgb, var(--btn) 80%, #000);
+	}
+
+	.btn-secondary {
+		background: var(--jw-control);
+		box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.18), 0 0.5px 1.5px rgb(0 0 0 / 0.12);
+	}
+
+	.btn-secondary:hover {
+		background: color-mix(in srgb, var(--jw-control) 92%, var(--jw-ink));
+	}
+
+	.btn-ghost {
+		padding-inline: 6px;
+		color: var(--jw-accent);
+	}
+
+	.btn-ghost:hover {
+		background: color-mix(in srgb, var(--jw-accent) 10%, transparent);
+	}
+
+	.btn-ghost:active {
+		background: color-mix(in srgb, var(--jw-accent) 18%, transparent);
+	}
+
+	/* A square button holding only an icon; give it a title for its name */
+	.btn-icon {
+		width: 32px;
+		height: 32px;
+		padding: 0;
+	}
+
+	/* — Form fields — */
+	.field-label {
+		display: block;
+		margin-bottom: 5px;
+		font-size: 12px;
+		color: color-mix(in srgb, var(--jw-ink) 70%, transparent);
+	}
+
+	.input {
+		width: 100%;
+		min-height: 30px;
+		padding: 5px 9px;
+		border: 0.5px solid color-mix(in srgb, var(--jw-ink) 22%, transparent);
+		border-radius: 6px;
+		background: var(--jw-field);
+		color: var(--jw-ink);
+		caret-color: var(--jw-accent);
+		font: inherit;
+		font-size: 13px;
+	}
+
+	.input::placeholder {
+		color: color-mix(in srgb, var(--jw-ink) 45%, transparent);
+	}
+
+	.input:hover {
+		border-color: color-mix(in srgb, var(--jw-ink) 45%, transparent);
+	}
+
+	.input:focus,
+	.input:focus-visible {
+		outline: none;
+		border-color: var(--jw-accent);
+		box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--jw-accent) 40%, transparent);
+	}
+
+	textarea.input {
+		min-height: 90px;
+		resize: vertical;
+	}
+
+	.field-error {
+		margin-top: 4px;
+		font-size: 12px;
+		color: var(--jw-red);
+	}
+
+	.check {
+		flex: none;
+		width: 15px;
+		height: 15px;
+		margin: 0;
+		accent-color: var(--jw-accent);
+		cursor: pointer;
+	}
+
+	/* A segmented control: radio buttons, one label each */
+	.seg {
+		display: inline-flex;
+		gap: 2px;
+		padding: 2px;
+		border-radius: 8px;
+		background: color-mix(in srgb, var(--jw-ink) 9%, transparent);
+	}
+
+	.seg-opt {
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 3px 14px;
+		border-radius: 6px;
+		font-size: 13px;
+		cursor: pointer;
+	}
+
+	.seg-opt input {
+		position: absolute;
+		width: 0;
+		height: 0;
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.seg-opt:has(input:checked) {
+		background: var(--jw-control-on);
+		box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.12), 0 1px 3px rgb(0 0 0 / 0.15);
+	}
+
+	.seg-opt:not(:has(input:checked)):hover {
+		background: color-mix(in srgb, var(--jw-ink) 7%, transparent);
+	}
+
+	.seg-opt:has(input:focus-visible) {
+		outline: 3px solid color-mix(in srgb, var(--jw-accent) 45%, transparent);
+	}
+
+	/* — Chips: the list's status filter and the status picker — */
+	.chip {
+		display: inline-flex;
+		flex: none;
+		align-items: center;
+		gap: 6px;
+		padding: 6px 10px;
+		border: 1px solid var(--jw-line);
+		border-radius: var(--radius-md);
+		background: transparent;
+		color: color-mix(in srgb, var(--jw-ink) 72%, transparent);
+		font: inherit;
+		font-size: 13px;
+		white-space: nowrap;
+		text-decoration: none;
+		cursor: pointer;
+	}
+
+	.chip:hover {
+		background: color-mix(in srgb, var(--jw-ink) 7%, transparent);
+	}
+
+	.chip[aria-current="true"],
+	.chip[aria-pressed="true"] {
+		border-color: var(--jw-accent);
+		color: var(--jw-accent);
+	}
+
+	.chip[aria-pressed="true"] {
+		background: color-mix(in srgb, var(--jw-accent) 12%, transparent);
+		cursor: default;
+	}
+
+	.chip-small {
+		padding: 5px 10px;
+		font-size: 12px;
+	}
+
+	.chip-count {
+		font-size: 11px;
+		opacity: 0.6;
+	}
+
+	/* — Tags, and the colour of each status — */
+	.tag {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		padding: 2px 9px;
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--st, var(--jw-gray)) 15%, transparent);
+		color: var(--st, var(--jw-gray));
+		font-size: 11px;
+		font-weight: 500;
+		line-height: 1.45;
+		white-space: nowrap;
+	}
+
+	.st-saved,
+	.st-withdrawn {
+		--st: var(--jw-gray);
+	}
+
+	.st-applied {
+		--st: var(--jw-blue);
+	}
+
+	.st-interviewing {
+		--st: var(--jw-orange);
+	}
+
+	.st-offer {
+		--st: var(--jw-green);
+	}
+
+	.st-rejected {
+		--st: var(--jw-red);
+	}
+
+	/* — Surfaces — */
+	.card {
+		border-radius: 10px;
+		background: var(--jw-surface);
+		box-shadow: var(--jw-shadow-sm);
+	}
+
+	.avatar {
+		display: grid;
+		flex: none;
+		place-items: center;
+		border-radius: 50%;
+		background: var(--jw-accent-tint);
+		color: var(--jw-accent-ink);
+		font-size: 12px;
+	}
+
+	.brand-mark {
+		display: grid;
+		flex: none;
+		place-items: center;
+		border-radius: var(--radius-md);
+		background: linear-gradient(180deg, color-mix(in srgb, var(--jw-accent) 80%, #fff), var(--jw-accent));
+		box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+		color: #fff;
+	}
+
+	/* A rule that fades out over 48px at each end instead of stopping: the Nocturne signature */
+	.rule-fade {
+		background-image: linear-gradient(to right, transparent, var(--rule, var(--jw-line)) 48px,
+			var(--rule, var(--jw-line)) calc(100% - 48px), transparent);
+		background-position: bottom;
+		background-repeat: no-repeat;
+		background-size: 100% 1px;
+	}
+
+	.rule-soft {
+		--rule: color-mix(in srgb, var(--jw-ink) 8%, transparent);
+	}
+
+	/* — Sidebar — */
+	.nav-item {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		width: 100%;
+		padding: 8px 12px;
+		border-radius: var(--radius-md);
+		color: color-mix(in srgb, var(--jw-ink) 72%, transparent);
+		font-size: 14px;
+		text-decoration: none;
+	}
+
+	.nav-item:hover {
+		background: color-mix(in srgb, var(--jw-ink) 7%, transparent);
+	}
+
+	.nav-item[aria-current="page"] {
+		background: color-mix(in srgb, var(--jw-ink) 10%, transparent);
+		color: var(--jw-ink);
+	}
+
+	.nav-item .ph {
+		flex: none;
+		color: var(--jw-accent);
+		font-size: 16px;
+	}
+
+	/* — The application list — */
+	.jobs-table {
+		width: 100%;
+		min-width: 720px;
+		border-collapse: collapse;
+		table-layout: fixed;
+	}
+
+	.jobs-table th {
+		padding: 6px 8px;
+		color: color-mix(in srgb, var(--jw-ink) 60%, transparent);
+		font-size: 11px;
+		font-weight: 400;
+		letter-spacing: 0.08em;
+		text-align: left;
+		text-transform: uppercase;
+	}
+
+	.jobs-table td {
+		padding: 8px;
+	}
+
+	.jobs-table tbody tr {
+		cursor: pointer;
+	}
+
+	.jobs-table tbody tr:hover {
+		background-color: color-mix(in srgb, var(--jw-ink) 4%, transparent);
+	}
+
+	/* The row whose application is open in the side panel */
+	.jobs-table tbody tr.is-open td:first-child {
+		box-shadow: inset 2px 0 0 var(--jw-accent);
+	}
+
+	.sort-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.sort-link:hover,
+	.sort-link.is-sorted {
+		color: var(--jw-ink);
+	}
+
+	.sort-link .ph {
+		font-size: 11px;
+		opacity: 0.35;
+	}
+
+	.sort-link.is-sorted .ph {
+		opacity: 1;
+	}
+
+	.page-link {
+		display: inline-grid;
+		min-width: 28px;
+		height: 28px;
+		padding: 0 6px;
+		place-items: center;
+		border-radius: 6px;
+		color: var(--jw-ink);
+		font-size: 13px;
+		font-variant-numeric: tabular-nums;
+		font-weight: 500;
+		text-decoration: none;
+	}
+
+	.page-link:hover {
+		box-shadow: inset 0 0 0 0.5px var(--jw-line);
+	}
+
+	.page-link[aria-current="page"] {
+		background: var(--jw-accent);
+		color: #fff;
+	}
+
+	/* A pipeline column's heading: a rule in the status's colour, fading to the right */
+	.column-rule {
+		background: linear-gradient(to right, var(--st, var(--jw-gray)), transparent) no-repeat bottom / 100% 1px;
+	}
+
+	/* — Timeline: a line down the left, fading out at the bottom, with a ring for each event — */
+	.timeline {
+		--timeline-indent: 12px;
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		padding-left: var(--timeline-indent);
+		background: linear-gradient(to bottom, var(--jw-line), var(--jw-line) calc(100% - 24px), transparent)
+			no-repeat left / 1px 100%;
+	}
+
+	.timeline-dot {
+		position: absolute;
+		top: 7px;
+		left: calc(var(--timeline-indent) * -1 - 3px);
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: var(--jw-surface);
+		box-shadow: inset 0 0 0 1.5px var(--jw-accent);
+	}
+
+	/* — Dialogs, the side panel and menus — */
+	.dialog {
+		display: none;
+		width: min(440px, calc(100% - 32px));
+		flex-direction: column;
+		gap: 12px;
+		padding: 16px;
+		border: 0;
+		border-radius: var(--radius-lg);
+		background: var(--jw-surface);
+		color: var(--jw-ink);
+		box-shadow: var(--jw-shadow-lg);
+	}
+
+	.dialog[open] {
+		display: flex;
+	}
+
+	.dialog::backdrop {
+		background: rgb(0 0 0 / 0.3);
+	}
+
+	.dialog-title {
+		font-size: 20px;
+		font-weight: 500;
+	}
+
+	.dialog-actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: 6px;
+		margin-top: 6px;
+	}
+
+	.drawer {
+		inset: 0 0 0 auto;
+		width: min(440px, 100vw);
+		max-width: none;
+		height: 100dvh;
+		max-height: none;
+		margin: 0;
+		padding: 0;
+		border: 0;
+		background: var(--jw-surface);
+		color: var(--jw-ink);
+		box-shadow: var(--jw-shadow-lg);
+		overflow-y: auto;
+	}
+
+	.drawer[open] {
+		animation: drawer-in 0.2s ease;
+	}
+
+	.drawer::backdrop {
+		background: color-mix(in srgb, var(--jw-canvas) 40%, transparent);
+	}
+
+	/* A popover menu; the script in app.js puts it next to its button */
+	.menu {
+		inset: auto;
+		width: 250px;
+		margin: 0;
+		padding: 5px;
+		border: 0;
+		border-radius: 10px;
+		background: var(--jw-surface);
+		color: var(--jw-ink);
+		box-shadow: var(--jw-shadow-lg);
+	}
+
+	.menu:popover-open {
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+	}
+
+	.menu-item {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		width: 100%;
+		padding: 6px 8px;
+		border: 0;
+		border-radius: 6px;
+		background: transparent;
+		color: var(--jw-ink);
+		font: inherit;
+		font-size: 13px;
+		text-align: left;
+		text-decoration: none;
+		cursor: pointer;
+	}
+
+	.menu-item:hover,
+	.menu-item:focus-visible {
+		outline: none;
+		background: var(--jw-accent);
+		color: #fff;
+	}
+
+	.menu-label {
+		padding: 6px 8px 2px;
+		color: color-mix(in srgb, var(--jw-ink) 50%, transparent);
+		font-size: 11px;
+		font-weight: 600;
+	}
+
+	.menu-separator {
+		height: 0.5px;
+		margin: 2px 8px;
+		background: var(--jw-line);
+	}
+}
+
+@keyframes drawer-in {
+	from {
+		translate: 100% 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.drawer[open] {
+		animation: none;
+	}
+}

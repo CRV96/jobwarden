@@ -1,5 +1,7 @@
 package com.jobwarden.web.controller;
 
+import com.jobwarden.identity.service.UserService;
+import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.web.user.CurrentUser;
 import org.junit.jupiter.api.Test;
 
@@ -18,9 +20,15 @@ class HomeControllerTests {
 	@Autowired
 	private MockMvcTester mvc;
 
-	// Every page controller extends BaseController, which needs it
+	// Every page controller extends BaseController, which needs them for the sidebar
 	@MockitoBean
 	private CurrentUser currentUser;
+
+	@MockitoBean
+	private UserService users;
+
+	@MockitoBean
+	private ApplicationService applications;
 
 	@Test
 	void redirectsToApplications() {

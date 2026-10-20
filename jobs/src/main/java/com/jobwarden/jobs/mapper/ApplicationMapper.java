@@ -28,6 +28,7 @@ public final class ApplicationMapper {
 			.salary(application.getSalary())
 			.employmentType(application.getEmploymentType())
 			.source(application.getSource())
+			.notes(application.getNotes())
 			.status(application.getCurrentStatus())
 			.capturedAt(application.getCapturedAt())
 			.timeline(application.getEvents().stream().map(ApplicationMapper::toTimelineEvent).toList())

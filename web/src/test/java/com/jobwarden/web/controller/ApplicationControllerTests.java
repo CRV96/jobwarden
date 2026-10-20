@@ -3,16 +3,21 @@ package com.jobwarden.web.controller;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.identity.dto.User;
+import com.jobwarden.identity.service.UserService;
 import com.jobwarden.jobs.dto.ApplicationDetails;
+import com.jobwarden.jobs.dto.ApplicationQuery;
 import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
 import com.jobwarden.jobs.dto.TimelineEvent;
+import com.jobwarden.jobs.enums.ApplicationSort;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.exception.JobsErrorCode;
 import com.jobwarden.jobs.service.ApplicationService;
@@ -23,6 +28,9 @@ import org.mockito.ArgumentCaptor;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
@@ -68,6 +76,17 @@ class ApplicationControllerTests {
 					.build()))
 		.build();
 
+	private static final ApplicationSummary SUMMARY = ApplicationSummary.builder()
+		.id(7)
+		.title("Backend engineer")
+		.company("Acme")
+		.location("Remote")
+		.salary("€5,000 a month")
+		.source("example.com")
+		.status(ApplicationStatus.INTERVIEWING)
+		.capturedAt(Instant.now())
+		.build();
+
 	@Autowired
 	private MockMvcTester mvc;
 
@@ -76,6 +95,10 @@ class ApplicationControllerTests {
 
 	@MockitoBean
 	private CurrentUser currentUser;
+
+	// For the sidebar, which every page controller fills in
+	@MockitoBean
+	private UserService users;
 
 	@BeforeEach
 	void selectRobert() {
@@ -100,20 +123,65 @@ class ApplicationControllerTests {
 	}
 
 	@Test
-	void listsTheProfilesApplicationsWithTheChosenStatus() {
-		ApplicationSummary summary = ApplicationSummary.builder()
-			.id(7)
-			.title("Backend engineer")
-			.company("Acme")
-			.location("Remote")
-			.status(ApplicationStatus.INTERVIEWING)
-			.capturedAt(Instant.now())
-			.build();
-		given(this.applications.findAll(1, ApplicationStatus.INTERVIEWING)).willReturn(List.of(summary));
+	void listsTheApplicationsTheAddressAsksFor() {
+		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of(SUMMARY), PageRequest.of(1, 50), 51));
+		given(this.applications.countByStatus(1, "engineer")).willReturn(counts(ApplicationStatus.INTERVIEWING, 51));
 
-		assertThat(this.mvc.get().uri("/applications").param("status", "INTERVIEWING")).hasStatusOk()
+		assertThat(this.mvc.get()
+			.uri("/applications")
+			.param("q", " engineer ")
+			.param("status", "INTERVIEWING")
+			.param("sort", "TITLE")
+			.param("page", "2")
+			.param("size", "50")).hasStatusOk()
 			.bodyText()
-			.contains("Backend engineer", "Acme", "/applications/7");
+			.contains("Backend engineer", "Acme", "/applications/7", "/applications/7/drawer", "51–51 of 51",
+					"/applications?q=engineer&amp;status=INTERVIEWING&amp;sort=TITLE&amp;dir=ASC&amp;size=50",
+					"aria-sort=\"ascending\"");
+		ApplicationQuery expected = ApplicationQuery.builder()
+			.search("engineer")
+			.status(ApplicationStatus.INTERVIEWING)
+			.sort(ApplicationSort.TITLE)
+			.direction(Sort.Direction.ASC)
+			.page(1)
+			.size(50)
+			.build();
+		then(this.applications).should().find(1, expected);
+	}
+
+	@Test
+	void listsTheNewestFirstByDefault() {
+		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of(SUMMARY)));
+		given(this.applications.countByStatus(1, null)).willReturn(counts(ApplicationStatus.INTERVIEWING, 1));
+
+		assertThat(this.mvc.get().uri("/applications")).hasStatusOk();
+
+		ArgumentCaptor<ApplicationQuery> query = ArgumentCaptor.captor();
+		then(this.applications).should().find(eq(1L), query.capture());
+		assertThat(query.getValue()).isEqualTo(ApplicationQuery.builder()
+			.sort(ApplicationSort.ADDED)
+			.direction(Sort.Direction.DESC)
+			.page(0)
+			.size(20)
+			.build());
+	}
+
+	@Test
+	void goesToTheLastPageFromAPageThatIsGone() {
+		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of(), PageRequest.of(4, 20), 41));
+
+		assertThat(this.mvc.get().uri("/applications").param("page", "5").param("status", "APPLIED"))
+			.hasRedirectedUrl("/applications?status=APPLIED&page=3");
+	}
+
+	@Test
+	void saysSoWhenTheSearchFindsNothing() {
+		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of()));
+		given(this.applications.countByStatus(1, "nothing")).willReturn(counts(ApplicationStatus.APPLIED, 0));
+
+		assertThat(this.mvc.get().uri("/applications").param("q", "nothing")).hasStatusOk()
+			.bodyText()
+			.contains("No postings match", "Try a different search or status filter.");
 	}
 
 	@Test
@@ -138,7 +206,7 @@ class ApplicationControllerTests {
 		assertThat(this.mvc.get().uri("/applications/new")).hasStatusOk()
 			.hasViewName("applications/new")
 			.bodyText()
-			.contains("Add an application", "name=\"statusTime\"", "Clear time");
+			.contains("Add a job", "name=\"statusTime\"", "Clear time");
 	}
 
 	@Test
@@ -185,7 +253,11 @@ class ApplicationControllerTests {
 			.param("eventTime", "14:05")
 			.param("stageCategory", "OFFER")
 			.param("stageLabel", " Final call ")
-			.param("note", "")).hasStatusOk().bodyText().contains("id=\"application\"").doesNotContain("<html");
+			.param("note", "")).hasStatusOk()
+			.satisfies(result -> assertThat(result).headers().hasValue("HX-Trigger", "applications-changed"))
+			.bodyText()
+			.contains("id=\"application\"")
+			.doesNotContain("<html", "id=\"drawer-application\"");
 		NewTimelineEvent expected = NewTimelineEvent.builder()
 			.eventDate(LocalDate.of(2026, 9, 28))
 			.eventTime(LocalTime.of(14, 5))
@@ -254,6 +326,99 @@ class ApplicationControllerTests {
 			.headers()
 			.hasValue("HX-Redirect", "/applications");
 		then(this.applications).should().delete(1, 7);
+	}
+
+	@Test
+	void opensTheApplicationInTheSidePanel() {
+		assertThat(this.mvc.get().uri("/applications/7/drawer")).hasStatusOk()
+			.bodyText()
+			.contains("id=\"drawer-application\"", "Backend engineer", "Technical interview", "\"view\": \"DRAWER\"",
+					"href=\"/applications/7\"")
+			.doesNotContain("<html");
+	}
+
+	@Test
+	void answersAnEventFromTheSidePanelWithTheSidePanel() {
+		assertThat(this.mvc.post().uri("/applications/7/events").param("stageCategory", "OFFER").param("view", "DRAWER"))
+			.hasStatusOk()
+			.bodyText()
+			.contains("id=\"drawer-application\"")
+			.doesNotContain("id=\"application\"");
+	}
+
+	@Test
+	void removesAnEventFromTheTimeline() {
+		assertThat(this.mvc.delete().uri("/applications/7/events/2")).hasStatusOk()
+			.satisfies(result -> assertThat(result).headers().hasValue("HX-Trigger", "applications-changed"))
+			.bodyText()
+			.contains("id=\"application\"");
+		then(this.applications).should().removeEvent(1, 7, 2);
+	}
+
+	@Test
+	void showsWhyAnEventWasNotRemoved() {
+		willThrow(new BusinessRuleException(JobsErrorCode.CANNOT_REMOVE_LAST_EVENT, "Only event"))
+			.given(this.applications)
+			.removeEvent(1, 7, 1);
+
+		assertThat(this.mvc.delete().uri("/applications/7/events/1")).hasStatusOk()
+			.satisfies(result -> assertThat(result).headers().doesNotContainHeader("HX-Trigger"))
+			.bodyText()
+			.contains("An application’s timeline keeps at least one event");
+	}
+
+	@Test
+	void offersToRemoveEventsOnlyWhileThereIsMoreThanOne() {
+		assertThat(this.mvc.get().uri("/applications/7")).bodyText()
+			.contains("hx-delete=\"/applications/7/events/1\"", "hx-delete=\"/applications/7/events/2\"");
+
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(ApplicationDetails.builder()
+			.id(7)
+			.title("Backend engineer")
+			.status(ApplicationStatus.APPLIED)
+			.capturedAt(APPLICATION.capturedAt())
+			.timeline(List.of(APPLICATION.timeline().getFirst()))
+			.build()));
+		assertThat(this.mvc.get().uri("/applications/7")).bodyText().doesNotContain("/applications/7/events/1\"");
+	}
+
+	@Test
+	void savesTheNotes() {
+		assertThat(this.mvc.put().uri("/applications/7/notes").param("notes", " Recruiter: Ana ")).hasStatusOk()
+			.bodyText()
+			.contains("Saved");
+		then(this.applications).should().updateNotes(1, 7, "Recruiter: Ana");
+	}
+
+	@Test
+	void clearsTheNotesWhenTheFieldIsEmptied() {
+		assertThat(this.mvc.put().uri("/applications/7/notes").param("notes", "  ")).hasStatusOk();
+		then(this.applications).should().updateNotes(1, 7, null);
+	}
+
+	@Test
+	void deletesFromTheSidePanelAndReloadsThePageBehindIt() {
+		assertThat(this.mvc.delete().uri("/applications/7").param("view", "DRAWER")).hasStatus(HttpStatus.NO_CONTENT)
+			.headers()
+			.hasValue("HX-Refresh", "true")
+			.doesNotContainHeader("HX-Redirect");
+		then(this.applications).should().delete(1, 7);
+	}
+
+	@Test
+	void deletesTheTickedApplicationsAndReloadsTheList() {
+		assertThat(this.mvc.delete().uri("/applications").param("ids", "7", "8")).hasStatus(HttpStatus.NO_CONTENT)
+			.headers()
+			.hasValue("HX-Refresh", "true");
+		then(this.applications).should().deleteAll(1, List.of(7L, 8L));
+	}
+
+	private static Map<ApplicationStatus, Long> counts(ApplicationStatus status, long count) {
+		Map<ApplicationStatus, Long> counts = new EnumMap<>(ApplicationStatus.class);
+		for (ApplicationStatus each : ApplicationStatus.values()) {
+			counts.put(each, (each == status) ? count : 0L);
+		}
+		return counts;
 	}
 
 }

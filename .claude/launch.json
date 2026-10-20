@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "jobwarden-8081",
+      "runtimeExecutable": "zsh",
+      "runtimeArgs": [
+        "-c",
+        "export JAVA_HOME=/opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home; ./mvnw -o -q -pl app -am spring-boot:run '-Dspring-boot.run.arguments=--server.port=8081 --spring.docker.compose.enabled=false --spring.datasource.url=jdbc:postgresql://localhost:55432/jobwarden --spring.datasource.username=jobwarden --spring.datasource.password=jobwarden'"
+      ],
+      "port": 8081
+    }
+  ]
+}

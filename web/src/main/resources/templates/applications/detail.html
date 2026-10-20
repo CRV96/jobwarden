@@ -1,131 +1,64 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout :: page(~{::title}, ~{::main})}">
+      th:replace="~{layout :: page(~{::title}, ~{::main}, 'jobs')}">
 <head>
     <title th:text="|${jobApplication.title} · JobWarden|">Application · JobWarden</title>
 </head>
 <body>
 <!--/* The model attribute is jobApplication: Thymeleaf reserves the name application for the servlet context.
-       Enum values are shown through their messages: status.SAVED, rejectionReason.OTHER... Dates and times use the
-       language's format.date and format.dateTime patterns; an event without a time shows only its date. */-->
-<main>
-    <a class="text-sm text-gray-500 hover:text-gray-900" th:href="@{/applications}" th:text="#{back.applications}">← Applications</a>
-
-    <!--/* Everything that changes when an event is added. The forms below post with HTMX and swap this whole element
+       The same parts show in the side panel (drawer.html); both come from applications/fragments.html. */-->
+<main class="flex flex-col gap-4">
+    <!--/* Everything that changes when the timeline does. The forms inside post with HTMX and swap this whole element
            with the fragment the controller returns, so the status, the timeline and the forms all refresh. */-->
-    <div id="application" th:fragment="application"
+    <div id="application" th:fragment="application" class="flex flex-col gap-6"
+         hx-target="this" hx-swap="outerHTML" hx-vals='{"view": "PAGE"}'
          th:with="eventsUrl=@{/applications/{id}/events(id=${jobApplication.id})}">
-        <header class="mt-2 flex flex-wrap items-start justify-between gap-4">
-            <div>
-                <h1 class="text-2xl font-semibold" th:text="${jobApplication.title}">Backend engineer</h1>
-                <p class="mt-1 text-gray-600">
-                    <span th:text="${jobApplication.company} ?: #{application.unknownCompany}">Acme</span>
-                    <th:block th:if="${jobApplication.location}"> · <span th:text="${jobApplication.location}">Remote</span></th:block>
-                </p>
-                <p class="mt-1 text-sm text-gray-500" th:if="${jobApplication.employmentType != null or jobApplication.salary != null}">
-                    <span th:text="${jobApplication.employmentType}">Full-time</span>
-                    <th:block th:if="${jobApplication.employmentType != null and jobApplication.salary != null}"> · </th:block>
-                    <span th:text="${jobApplication.salary}">€5,000 a month</span>
-                </p>
-                <p class="mt-1 text-sm text-gray-500">
-                    <th:block th:with="added=${#temporals.format(jobApplication.capturedAt, #messages.msg('format.date'))}"
-                              th:text="${jobApplication.source} ? #{application.addedFrom(${added}, ${jobApplication.source})} : #{application.added(${added})}">Added 28 Sep 2026 from linkedin.com</th:block>
-                    <!--/* Only http(s) links: the link comes from the captured page, and a javascript: link would run on click. */-->
-                    <th:block th:if="${jobApplication.link != null and #strings.startsWith(jobApplication.link, 'http')}"> ·
-                        <a class="underline hover:text-gray-900" th:href="${jobApplication.link}" target="_blank" rel="noopener noreferrer"
-                           th:text="#{application.viewPosting}">View posting</a>
-                    </th:block>
-                </p>
-            </div>
-            <th:block th:replace="~{applications/fragments :: status-badge(${jobApplication.status})}">Applied</th:block>
-        </header>
-
-        <section class="mt-6" th:aria-label="#{application.changeStatus}">
-            <p class="text-sm text-gray-500" th:text="#{application.moveTo}">Move to:</p>
-            <div class="mt-2 flex flex-wrap items-start gap-2">
-                <form th:each="status : ${statuses}" th:unless="${status == jobApplication.status or status.name() == 'REJECTED'}"
-                      th:hx-post="${eventsUrl}" hx-target="#application" hx-swap="outerHTML">
-                    <input type="hidden" name="stageCategory" th:value="${status}">
-                    <button class="rounded border border-gray-300 bg-white px-3 py-1 text-sm hover:bg-gray-100" type="submit"
-                            th:text="#{${'status.' + status}}">Interviewing</button>
-                </form>
-                <!--/* These forms send no time: the event gets the moment the button was clicked.
-                       Rejected asks for the reason right away, so patterns show up over time. */-->
-                <details th:unless="${jobApplication.status.name() == 'REJECTED'}">
-                    <summary class="cursor-pointer list-none rounded border border-gray-300 bg-white px-3 py-1 text-sm hover:bg-gray-100"
-                             th:text="#{application.reject}">Rejected…</summary>
-                    <form class="mt-2 flex gap-2" th:hx-post="${eventsUrl}"
-                          hx-target="#application" hx-swap="outerHTML">
-                        <input type="hidden" name="stageCategory" value="REJECTED">
-                        <select class="rounded border px-2 py-1 text-sm" name="rejectionReason" required
-                                th:aria-label="#{application.rejectionReason}">
-                            <option value="" disabled selected th:text="#{application.rejectionReason.prompt}">Why?</option>
-                            <option th:each="reason : ${rejectionReasons}" th:value="${reason}"
-                                    th:text="#{${'rejectionReason.' + reason}}">Salary mismatch</option>
-                        </select>
-                        <button class="rounded bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700" type="submit"
-                                th:text="#{application.markRejected}">Mark rejected</button>
-                    </form>
-                </details>
-            </div>
-        </section>
-
-        <section class="mt-8" th:if="${jobApplication.description}">
-            <details>
-                <summary class="cursor-pointer text-lg font-semibold" th:text="#{application.description}">Job description</summary>
-                <div class="mt-3 whitespace-pre-line text-gray-700" th:text="${jobApplication.description}">The posting’s text.</div>
-            </details>
-        </section>
-
-        <section class="mt-8">
-            <h2 class="text-lg font-semibold" th:text="#{application.timeline}">Timeline</h2>
-
-            <ol class="mt-4 space-y-4 border-l border-gray-200 pl-4">
-                <li th:each="event : ${jobApplication.timeline}">
-                    <div class="flex flex-wrap items-center gap-2 text-sm">
-                        <span class="text-gray-500"
-                              th:text="${event.eventTime != null} ? ${#temporals.format(event.eventDate.atTime(event.eventTime), #messages.msg('format.dateTime'))} : ${#temporals.format(event.eventDate, #messages.msg('format.date'))}">28 Sep 2026, 14:05</span>
-                        <th:block th:replace="~{applications/fragments :: status-badge(${event.stageCategory})}">Interviewing</th:block>
-                        <span class="font-medium" th:if="${event.stageLabel}" th:text="${event.stageLabel}">Technical interview</span>
+        <div class="flex flex-col gap-3">
+            <a class="btn btn-ghost self-start px-1.5 py-1" th:href="@{/applications}">
+                <i class="ph ph-caret-left"></i><span th:text="#{nav.jobs}">Jobs</span>
+            </a>
+            <header class="flex flex-wrap items-end gap-3">
+                <div class="flex min-w-[260px] flex-1 flex-col gap-1.5">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm text-ink/65" th:text="${jobApplication.company} ?: #{application.unknownCompany}">Acme</span>
+                        <th:block th:replace="~{applications/fragments :: status-badge(${jobApplication.status})}">Applied</th:block>
                     </div>
-                    <p class="mt-1 text-sm text-red-700" th:if="${event.rejectionReason}"
-                       th:with="reason=#{${'rejectionReason.' + event.rejectionReason}}"
-                       th:text="#{application.timeline.reason(${reason})}">Reason: Position filled</p>
-                    <p class="mt-1 whitespace-pre-line text-gray-700" th:if="${event.note}" th:text="${event.note}">What was discussed.</p>
-                </li>
-            </ol>
-
-            <form class="mt-6 grid max-w-xl gap-3"
-                  th:hx-post="${eventsUrl}" hx-target="#application" hx-swap="outerHTML">
-                <p class="text-sm text-red-600" th:if="${eventError}" th:text="${eventError}">Pick a date.</p>
-                <div class="flex flex-wrap items-center gap-3">
-                    <input class="rounded border px-3 py-2" type="date" name="eventDate" required th:value="${now.toLocalDate()}"
-                           th:aria-label="#{application.event.date}">
-                    <!--/* The button empties the time completely: a time emptied only in part is invalid, and the browser
-                           wouldn't send the form. Keep it right after the input. */-->
-                    <input class="rounded border px-3 py-2" type="time" name="eventTime" th:value="${#temporals.format(now, 'HH:mm')}"
-                           th:aria-label="#{application.event.time}">
-                    <button class="text-sm text-gray-600 underline hover:text-gray-900" type="button"
-                            onclick="this.previousElementSibling.value = ''" th:text="#{form.clearTime}">Clear time</button>
+                    <h1 class="page-title" th:text="${jobApplication.title}">Backend engineer</h1>
                 </div>
-                <select class="rounded border px-3 py-2" name="stageCategory" required th:aria-label="#{application.event.stage}">
-                    <option th:each="status : ${statuses}" th:value="${status}" th:selected="${status == jobApplication.status}"
-                            th:text="#{${'status.' + status}}">Applied</option>
-                </select>
-                <input class="rounded border px-3 py-2" type="text" name="stageLabel" maxlength="200"
-                       th:placeholder="#{application.event.stageLabel.placeholder}">
-                <textarea class="rounded border px-3 py-2" name="note" rows="4"
-                          th:placeholder="#{application.event.note.placeholder}"></textarea>
-                <button class="justify-self-start rounded bg-gray-900 px-4 py-2 text-white" type="submit"
-                        th:text="#{application.event.add}">Add to timeline</button>
-            </form>
-        </section>
+                <div class="flex gap-1.5">
+                    <button class="btn btn-secondary" type="button" th:data-open-dialog="|delete-${jobApplication.id}|">
+                        <i class="ph ph-trash"></i><span th:text="#{action.delete}">Delete</span>
+                    </button>
+                    <!--/* Only http(s) links: the link comes from the captured page, and a javascript: link would run on click. */-->
+                    <a class="btn btn-primary" th:if="${jobApplication.link != null and #strings.startsWith(jobApplication.link, 'http')}"
+                       th:href="${jobApplication.link}" target="_blank" rel="noopener noreferrer">
+                        <i class="ph ph-arrow-square-out"></i><span th:text="#{application.openPosting}">Open posting</span>
+                    </a>
+                </div>
+            </header>
+        </div>
 
-        <section class="mt-10 border-t border-gray-200 pt-6">
-            <button class="text-sm text-red-600 hover:underline" type="button"
-                    th:hx-delete="@{/applications/{id}(id=${jobApplication.id})}"
-                    th:hx-confirm="#{application.delete.confirm}" th:text="#{application.delete}">Delete application</button>
-        </section>
+        <div class="flex flex-wrap items-start gap-4">
+            <div class="flex min-w-0 flex-[3_1_440px] flex-col gap-4">
+                <div class="card p-4" th:if="${jobApplication.description}">
+                    <section th:replace="~{applications/fragments :: description}"></section>
+                </div>
+                <div class="card p-4">
+                    <section th:replace="~{applications/fragments :: timeline}"></section>
+                </div>
+            </div>
+            <div class="flex max-w-full min-w-0 flex-[1_1_280px] flex-col gap-4">
+                <div class="card flex flex-col gap-4 p-4">
+                    <dl th:replace="~{applications/fragments :: facts}"></dl>
+                    <div th:replace="~{applications/fragments :: status-picker}"></div>
+                </div>
+                <div class="card p-4">
+                    <div th:replace="~{applications/fragments :: notes}"></div>
+                </div>
+            </div>
+        </div>
+
+        <dialog th:replace="~{applications/fragments :: delete-dialog}"></dialog>
     </div>
 </main>
 </body>

@@ -15,13 +15,13 @@ import org.jspecify.annotations.Nullable;
 @RequiredArgsConstructor
 public enum Language {
 
-	ENGLISH("en", "English"),
-	ROMANIAN("ro", "Română"),
-	FRENCH("fr", "Français"),
-	GERMAN("de", "Deutsch"),
-	POLISH("pl", "Polski"),
-	SPANISH("es", "Español"),
-	PORTUGUESE("pt", "Português");
+	ENGLISH("en", "English", "gb"),
+	ROMANIAN("ro", "Română", "ro"),
+	FRENCH("fr", "Français", "fr"),
+	GERMAN("de", "Deutsch", "de"),
+	POLISH("pl", "Polski", "pl"),
+	SPANISH("es", "Español", "es"),
+	PORTUGUESE("pt", "Português", "pt");
 
 	/** Also for any language the app doesn't have. */
 	public static final Language DEFAULT = ENGLISH;
@@ -30,6 +30,9 @@ public enum Language {
 
 	/** The language's name in itself, as the language picker shows it. */
 	private final String nativeName;
+
+	/** The country whose flag the language picker shows next to it, as its flag-icons class: {@code fi-<flag>}. */
+	private final String flag;
 
 	public Locale getLocale() {
 		return Locale.forLanguageTag(this.tag);

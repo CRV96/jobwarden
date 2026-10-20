@@ -9,9 +9,11 @@ import lombok.RequiredArgsConstructor;
 public enum JobsErrorCode implements ErrorCode {
 
 	APPLICATION_NOT_FOUND("JOBS-001"),
+	TIMELINE_EVENT_NOT_FOUND("JOBS-004"),
 
 	REJECTION_REASON_NOT_ALLOWED("JOBS-002"),
-	CANNOT_MOVE_BACK_TO_SAVED("JOBS-003");
+	CANNOT_MOVE_BACK_TO_SAVED("JOBS-003"),
+	CANNOT_REMOVE_LAST_EVENT("JOBS-005");
 
 	private final String code;
 

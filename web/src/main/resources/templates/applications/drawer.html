@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<!--/* The side panel the list and the pipeline open an application in: the same parts as its page (detail.html), in one
+       column. HTMX loads it into the drawer dialog, and the forms inside swap it with the fragment the controller
+       returns, like on the page. */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div id="drawer-application" th:fragment="drawer" class="flex min-h-full flex-col gap-6 p-4"
+     hx-target="this" hx-swap="outerHTML" hx-vals='{"view": "DRAWER"}'
+     th:with="eventsUrl=@{/applications/{id}/events(id=${jobApplication.id})}, pageUrl=@{/applications/{id}(id=${jobApplication.id})}">
+    <div class="flex items-start gap-2">
+        <div class="min-w-0 flex-1">
+            <div class="mb-1 text-xs text-ink/60" th:text="${jobApplication.company} ?: #{application.unknownCompany}">Acme</div>
+            <h2 class="text-[21px] leading-tight font-bold tracking-[-0.02em]">
+                <a class="hover:text-accent hover:underline" th:href="${pageUrl}" th:text="${jobApplication.title}">Backend engineer</a>
+            </h2>
+        </div>
+        <a class="btn btn-secondary btn-icon" th:href="${pageUrl}" th:title="#{application.openFull}" th:aria-label="#{application.openFull}">
+            <i class="ph ph-arrows-out-simple text-base"></i>
+        </a>
+        <button class="btn btn-secondary btn-icon" type="button" data-close-dialog th:title="#{action.close}" th:aria-label="#{action.close}">
+            <i class="ph ph-x text-base"></i>
+        </button>
+    </div>
+
+    <dl th:replace="~{applications/fragments :: facts}"></dl>
+    <div th:replace="~{applications/fragments :: status-picker}"></div>
+    <th:block th:if="${jobApplication.description}">
+        <section th:replace="~{applications/fragments :: description}"></section>
+    </th:block>
+    <section th:replace="~{applications/fragments :: timeline}"></section>
+    <div th:replace="~{applications/fragments :: notes}"></div>
+
+    <div class="mt-auto flex items-center gap-1.5">
+        <!--/* Only http(s) links: the link comes from the captured page, and a javascript: link would run on click. */-->
+        <a class="btn btn-primary" th:if="${jobApplication.link != null and #strings.startsWith(jobApplication.link, 'http')}"
+           th:href="${jobApplication.link}" target="_blank" rel="noopener noreferrer">
+            <i class="ph ph-arrow-square-out"></i><span th:text="#{application.openPosting}">Open posting</span>
+        </a>
+        <span class="flex-1"></span>
+        <button class="btn btn-ghost" type="button" th:data-open-dialog="|delete-${jobApplication.id}|">
+            <i class="ph ph-trash"></i><span th:text="#{action.delete}">Delete</span>
+        </button>
+    </div>
+
+    <dialog th:replace="~{applications/fragments :: delete-dialog}"></dialog>
+</div>
+
+</body>
+</html>

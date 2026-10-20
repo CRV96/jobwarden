@@ -1,36 +1,47 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout :: page(~{::title}, ~{::main})}">
+      th:replace="~{layout-bare :: bare(~{::title}, ~{::main})}">
 <head>
     <title th:text="|#{profiles.title} · JobWarden|">Profiles · JobWarden</title>
 </head>
 <body>
-<main>
-    <h1 class="text-2xl font-semibold" th:text="#{profiles.heading}">Who’s using JobWarden?</h1>
+<!--/* Where every session starts: pick who's using JobWarden, or create a profile. */-->
+<main class="flex w-[min(340px,100%)] flex-col items-center gap-4 text-center">
+    <div class="brand-mark size-12 rounded-xl">
+        <i class="ph ph-shield-check text-[26px]"></i>
+    </div>
+    <div>
+        <h1 class="text-xl font-bold tracking-[-0.02em]" th:text="#{profiles.heading}">Who’s using JobWarden?</h1>
+        <p class="text-[13px] text-ink/60" th:text="${#lists.isEmpty(profiles)} ? #{profiles.empty} : #{profiles.subheading}">
+            Choose a profile to continue</p>
+    </div>
 
-    <p class="mt-2 text-gray-500" th:if="${#lists.isEmpty(profiles)}" th:text="#{profiles.empty}">No profiles yet. Create one to start tracking jobs.</p>
-
-    <ul class="mt-6 flex flex-wrap gap-3" th:unless="${#lists.isEmpty(profiles)}">
+    <ul class="flex w-full flex-col gap-1.5 text-left" th:unless="${#lists.isEmpty(profiles)}">
         <li th:each="profile : ${profiles}">
             <form method="post" th:action="@{/profiles/{id}/select(id=${profile.id})}">
-                <button class="rounded border px-4 py-2 hover:bg-gray-100" type="submit"
-                        th:classappend="${currentProfile != null and currentProfile.id == profile.id} ? 'border-gray-900 bg-white font-semibold' : 'border-gray-300 bg-white'"
-                        th:text="${profile.name}">Robert</button>
+                <button class="flex w-full items-center gap-2.5 rounded-[10px] bg-surface px-3 py-2.5 text-left shadow-sm hover:shadow-md" type="submit"
+                        th:aria-current="${currentProfile != null and currentProfile.id == profile.id} ? 'true'">
+                    <span class="avatar size-[30px]" th:text="${@names.initials(profile.name)}">R</span>
+                    <span class="min-w-0 flex-1">
+                        <span class="block truncate text-[13px] font-medium" th:text="${profile.name}">Robert</span>
+                        <!--/* The id as text, so it shows 1000 and not 1,000. The extension asks for it. */-->
+                        <span class="block text-xs opacity-60" th:text="#{nav.profileId(${#strings.toString(profile.id)})}">Profile id 1</span>
+                    </span>
+                    <i class="ph ph-check text-accent" th:if="${currentProfile != null and currentProfile.id == profile.id}"></i>
+                    <i class="ph ph-caret-right opacity-50"></i>
+                </button>
             </form>
         </li>
     </ul>
 
-    <!--/* The id as text, so it shows 1000 and not 1,000 */-->
-    <p class="mt-4 text-sm text-gray-500" th:if="${currentProfile}"
-       th:text="#{profiles.idHint(${#strings.toString(currentProfile.id)})}">
-        Your profile id is 1. The browser extension asks for it in its settings.</p>
-
-    <form class="mt-8 flex gap-2" method="post" th:action="@{/profiles}">
-        <input class="rounded border px-3 py-2" type="text" name="name" maxlength="100" required th:value="${name}"
+    <form class="flex w-full gap-1.5" method="post" th:action="@{/profiles}">
+        <input class="input" type="text" name="name" maxlength="100" required th:value="${name}"
                th:placeholder="#{profiles.newName}" th:aria-label="#{profiles.newName}">
-        <button class="rounded bg-gray-900 px-4 py-2 text-white" type="submit" th:text="#{profiles.create}">Create profile</button>
+        <button class="btn btn-primary" type="submit" th:text="#{profiles.create}">Create profile</button>
     </form>
-    <p class="mt-2 text-sm text-red-600" th:if="${nameError}" th:text="${nameError}">A profile named Robert already exists.</p>
+    <p class="field-error -mt-2" role="alert" th:if="${nameError}" th:text="${nameError}">A profile named Robert already exists.</p>
+
+    <a class="link text-[13px]" th:if="${currentProfile}" th:href="@{/applications}" th:text="#{profiles.back}">Back to your jobs</a>
 </main>
 </body>
 </html>

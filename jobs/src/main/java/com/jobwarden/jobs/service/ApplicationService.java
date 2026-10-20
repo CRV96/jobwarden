@@ -1,15 +1,20 @@
 package com.jobwarden.jobs.service;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import com.jobwarden.jobs.dto.ApplicationDetails;
+import com.jobwarden.jobs.dto.ApplicationQuery;
 import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
 import com.jobwarden.jobs.dto.TrackedApplication;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import org.jspecify.annotations.Nullable;
+
+import org.springframework.data.domain.Page;
 
 /**
  * Every method takes the owning user's id, so one profile can never read or change another's data.
@@ -37,6 +42,24 @@ public interface ApplicationService {
 	 */
 	List<ApplicationSummary> findAll(long userId, @Nullable ApplicationStatus status);
 
+	/**
+	 * One page of the application list, searched, filtered and sorted as the query asks.
+	 */
+	Page<ApplicationSummary> find(long userId, ApplicationQuery query);
+
+	/**
+	 * How many of the applications matching the search have each status, for every status, in the order of
+	 * {@link ApplicationStatus}.
+	 *
+	 * @param search as in {@link ApplicationQuery#search()}
+	 */
+	Map<ApplicationStatus, Long> countByStatus(long userId, @Nullable String search);
+
+	/**
+	 * How many applications the profile has.
+	 */
+	long count(long userId);
+
 	Optional<ApplicationDetails> findById(long userId, long applicationId);
 
 	/**
@@ -50,11 +73,30 @@ public interface ApplicationService {
 	void addEvent(long userId, long applicationId, NewTimelineEvent event);
 
 	/**
+	 * Removes an event from the timeline, e.g. one added by mistake. The status follows the latest event left. The
+	 * timeline keeps at least one event.
+	 */
+	void removeEvent(long userId, long applicationId, long eventId);
+
+	/**
+	 * @param notes free text about the application as a whole; {@code null} to clear them
+	 */
+	void updateNotes(long userId, long applicationId, @Nullable String notes);
+
+	/**
 	 * Takes back "I applied", for an application that got no further: it goes back to
 	 * {@link ApplicationStatus#SAVED}, as if it had only been bookmarked, and its APPLIED events leave the timeline.
 	 */
 	void moveBackToSaved(long userId, long applicationId);
 
 	void delete(long userId, long applicationId);
+
+	/**
+	 * Deletes those of the applications the profile owns, with their timelines. The others are left alone: they belong
+	 * to another profile, or they're already gone, e.g. deleted in another tab.
+	 *
+	 * @return how many applications were deleted
+	 */
+	int deleteAll(long userId, Collection<Long> applicationIds);
 
 }

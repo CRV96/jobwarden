@@ -10,6 +10,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Everything shown on an application's detail page.
  *
+ * @param notes free text about the application as a whole, e.g. the recruiter's name
  * @param timeline events in the order they happened, oldest first
  */
 @Builder
@@ -23,6 +24,7 @@ public record ApplicationDetails(
 		@Nullable String salary,
 		@Nullable String employmentType,
 		@Nullable String source,
+		@Nullable String notes,
 		ApplicationStatus status,
 		Instant capturedAt,
 		List<TimelineEvent> timeline) {

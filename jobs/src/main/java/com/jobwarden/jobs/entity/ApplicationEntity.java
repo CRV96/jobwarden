@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
@@ -59,6 +60,8 @@ public class ApplicationEntity {
 	@JdbcTypeCode(SqlTypes.JSON)
 	private String rawPayload;
 
+	private @Nullable String notes;
+
 	// Denormalized from the latest timeline event, so the list can filter without joining.
 	@Enumerated(EnumType.STRING)
 	private ApplicationStatus currentStatus;
@@ -93,7 +96,8 @@ public class ApplicationEntity {
 	}
 
 	/**
-	 * The timeline, oldest first. Read-only: events are added with {@link #addEvent}, which keeps the status in step.
+	 * The timeline, oldest first. Read-only: events are added with {@link #addEvent} and removed with
+	 * {@link #removeEvent}, which keep the status in step.
 	 */
 	public List<TimelineEventEntity> getEvents() {
 		return Collections.unmodifiableList(this.events);
@@ -110,6 +114,34 @@ public class ApplicationEntity {
 		if (latest) {
 			this.currentStatus = event.stageCategory();
 		}
+	}
+
+	/**
+	 * Whether an event can leave the timeline: the timeline keeps at least one, the event its status comes from.
+	 */
+	public boolean canRemoveEvent() {
+		return this.events.size() > 1;
+	}
+
+	/**
+	 * Removes the event from the timeline. The status follows the latest event left, so removing the latest one
+	 * takes the application back to the status before it. Only when {@link #canRemoveEvent()}.
+	 *
+	 * @return whether the timeline had the event
+	 */
+	public boolean removeEvent(long eventId) {
+		boolean removed = this.events.removeIf(event -> Objects.equals(event.getId(), eventId));
+		if (removed) {
+			this.currentStatus = latestEvent().getStageCategory();
+		}
+		return removed;
+	}
+
+	/**
+	 * @param notes free text about the application as a whole; {@code null} to clear them
+	 */
+	public void changeNotes(@Nullable String notes) {
+		this.notes = notes;
 	}
 
 	/**
@@ -142,6 +174,16 @@ public class ApplicationEntity {
 				.build()));
 		}
 		this.currentStatus = ApplicationStatus.SAVED;
+	}
+
+	/**
+	 * The event the status comes from. The events are in timeline order, except those added since they were loaded,
+	 * which are at the end; at the same moment, the one further down counts as the latest, like in {@link #addEvent}.
+	 */
+	private TimelineEventEntity latestEvent() {
+		return this.events.stream()
+			.reduce((latest, event) -> latest.isAfter(event.getEventDate(), event.getEventTime()) ? latest : event)
+			.orElseThrow();
 	}
 
 }

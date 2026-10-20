@@ -1,92 +1,98 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout :: page(~{::title}, ~{::main})}">
+      th:replace="~{layout :: page(~{::title}, ~{::main}, 'jobs')}">
 <head>
-    <title th:text="|#{newApplication.title} · JobWarden|">Add an application · JobWarden</title>
+    <title th:text="|#{newApplication.title} · JobWarden|">Add a job · JobWarden</title>
 </head>
 <body>
-<!--/* After invalid input the page is shown again: form holds what was typed, fieldErrors the error of each field. */-->
-<main>
-    <a class="text-sm text-gray-500 hover:text-gray-900" th:href="@{/applications}" th:text="#{back.applications}">← Applications</a>
-    <h1 class="mt-2 text-2xl font-semibold" th:text="#{newApplication.title}">Add an application</h1>
-    <p class="mt-2 text-gray-500" th:text="#{newApplication.intro}">For a job you found without the browser extension, e.g. through a referral or a recruiter.</p>
+<!--/* Every field of an application added by hand; the list's dialog has the main ones. After invalid input the page
+       is shown again: form holds what was typed, fieldErrors the error of each field. */-->
+<main class="flex flex-col gap-4">
+    <a class="btn btn-ghost self-start px-1.5 py-1" th:href="@{/applications}">
+        <i class="ph ph-caret-left"></i><span th:text="#{nav.jobs}">Jobs</span>
+    </a>
+    <header>
+        <h1 class="page-title mb-1" th:text="#{newApplication.title}">Add a job</h1>
+        <p class="text-[13px] text-ink/60" th:text="#{newApplication.intro}">For a job you found without the browser extension, e.g. through a referral or a recruiter.</p>
+    </header>
 
-    <form class="mt-6 grid max-w-xl gap-4" method="post" th:action="@{/applications}">
-        <label class="grid gap-1">
-            <span class="text-sm font-medium" th:text="#{newApplication.jobTitle}">Job title</span>
-            <input class="rounded border px-3 py-2" type="text" name="title" required th:value="${form?.title}">
-            <span class="text-sm text-red-600" th:if="${fieldErrors['title']}" th:text="${fieldErrors['title']}">Give the job a title.</span>
-        </label>
-
-        <div class="grid gap-4 sm:grid-cols-2">
-            <label class="grid gap-1">
-                <span class="text-sm font-medium" th:text="#{newApplication.company}">Company</span>
-                <input class="rounded border px-3 py-2" type="text" name="company" th:value="${form?.company}">
-            </label>
-            <label class="grid gap-1">
-                <span class="text-sm font-medium" th:text="#{newApplication.location}">Location</span>
-                <input class="rounded border px-3 py-2" type="text" name="location" th:placeholder="#{newApplication.location.placeholder}"
-                       th:value="${form?.location}">
-            </label>
+    <form class="card grid max-w-[640px] gap-3 p-4" method="post" th:action="@{/applications}">
+        <div>
+            <label class="field-label" for="title" th:text="#{newApplication.jobTitle}">Job title</label>
+            <input id="title" class="input" type="text" name="title" required th:value="${form?.title}">
+            <p class="field-error" th:if="${fieldErrors['title']}" th:text="${fieldErrors['title']}">Give the job a title.</p>
         </div>
 
-        <label class="grid gap-1">
-            <span class="text-sm font-medium"><th:block th:text="#{newApplication.link}">Link to the posting</th:block>
-                <span class="font-normal text-gray-500" th:text="#{newApplication.optional}">(optional)</span></span>
-            <input class="rounded border px-3 py-2" type="url" name="link" placeholder="https://" th:value="${form?.link}">
-            <span class="text-sm text-red-600" th:if="${fieldErrors['link']}" th:text="${fieldErrors['link']}">The link must be a full web address.</span>
-        </label>
+        <div class="grid gap-3 sm:grid-cols-2">
+            <div>
+                <label class="field-label" for="company" th:text="#{newApplication.company}">Company</label>
+                <input id="company" class="input" type="text" name="company" th:value="${form?.company}">
+            </div>
+            <div>
+                <label class="field-label" for="location" th:text="#{newApplication.location}">Location</label>
+                <input id="location" class="input" type="text" name="location" th:placeholder="#{newApplication.location.placeholder}"
+                       th:value="${form?.location}">
+            </div>
+        </div>
 
-        <div class="grid gap-4 sm:grid-cols-2">
-            <label class="grid gap-1">
-                <span class="text-sm font-medium" th:text="#{newApplication.employmentType}">Employment type</span>
-                <input class="rounded border px-3 py-2" type="text" name="employmentType"
+        <div>
+            <label class="field-label" for="link"><th:block th:text="#{newApplication.link}">Link to the posting</th:block>
+                <span class="text-ink/50" th:text="#{newApplication.optional}">(optional)</span></label>
+            <input id="link" class="input" type="url" name="link" placeholder="https://" th:value="${form?.link}">
+            <p class="field-error" th:if="${fieldErrors['link']}" th:text="${fieldErrors['link']}">The link must be a full web address.</p>
+        </div>
+
+        <div class="grid gap-3 sm:grid-cols-2">
+            <div>
+                <label class="field-label" for="employmentType" th:text="#{newApplication.employmentType}">Employment type</label>
+                <input id="employmentType" class="input" type="text" name="employmentType"
                        th:placeholder="#{newApplication.employmentType.placeholder}" th:value="${form?.employmentType}">
-            </label>
-            <label class="grid gap-1">
-                <span class="text-sm font-medium" th:text="#{newApplication.salary}">Salary</span>
-                <input class="rounded border px-3 py-2" type="text" name="salary" th:value="${form?.salary}">
-            </label>
+            </div>
+            <div>
+                <label class="field-label" for="salary" th:text="#{newApplication.salary}">Salary</label>
+                <input id="salary" class="input" type="text" name="salary" th:value="${form?.salary}">
+            </div>
         </div>
 
         <!--/* Starts the timeline: an application sent last week can be added as Applied, with last week’s date.
                The time is optional; after an error the form keeps what was typed, a cleared time included. */-->
-        <div class="grid gap-4 sm:grid-cols-3">
-            <label class="grid gap-1">
-                <span class="text-sm font-medium" th:text="#{newApplication.status}">Status</span>
-                <select class="rounded border px-3 py-2" name="status" required>
+        <div class="grid gap-3 sm:grid-cols-3">
+            <div>
+                <label class="field-label" for="status" th:text="#{newApplication.status}">Status</label>
+                <select id="status" class="input" name="status" required>
                     <option th:each="status : ${statuses}" th:value="${status}" th:text="#{${'status.' + status}}"
                             th:selected="${form != null} ? ${status == form.status} : ${status.name() == 'APPLIED'}">Applied</option>
                 </select>
-                <span class="text-sm text-red-600" th:if="${fieldErrors['status']}" th:text="${fieldErrors['status']}">Pick a status.</span>
-            </label>
-            <label class="grid gap-1">
-                <span class="text-sm font-medium" th:text="#{newApplication.since}">Since</span>
-                <input class="rounded border px-3 py-2" type="date" name="statusDate" required
+                <p class="field-error" th:if="${fieldErrors['status']}" th:text="${fieldErrors['status']}">Pick a status.</p>
+            </div>
+            <div>
+                <label class="field-label" for="statusDate" th:text="#{newApplication.since}">Since</label>
+                <input id="statusDate" class="input" type="date" name="statusDate" required
                        th:value="${form?.statusDate} ?: ${now.toLocalDate()}">
-                <span class="text-sm text-red-600" th:if="${fieldErrors['statusDate']}" th:text="${fieldErrors['statusDate']}">This value isn’t valid.</span>
-            </label>
-            <label class="grid gap-1">
-                <span class="text-sm font-medium"><th:block th:text="#{newApplication.time}">Time</th:block>
-                    <span class="font-normal text-gray-500" th:text="#{newApplication.optional}">(optional)</span></span>
-                <!--/* See detail.html: the button empties the time completely. Keep it right after the input. */-->
-                <span class="flex items-center gap-2">
-                    <input class="min-w-0 flex-1 rounded border px-3 py-2" type="time" name="statusTime"
+                <p class="field-error" th:if="${fieldErrors['statusDate']}" th:text="${fieldErrors['statusDate']}">This value isn’t valid.</p>
+            </div>
+            <div>
+                <label class="field-label" for="statusTime"><th:block th:text="#{newApplication.time}">Time</th:block>
+                    <span class="text-ink/50" th:text="#{newApplication.optional}">(optional)</span></label>
+                <!--/* See the timeline in fragments.html: the button empties the time completely. Keep it right after the input. */-->
+                <span class="flex items-center gap-1.5">
+                    <input id="statusTime" class="input min-w-0 flex-1" type="time" name="statusTime"
                            th:value="${form != null} ? ${form.statusTime} : ${#temporals.format(now, 'HH:mm')}">
-                    <button class="text-sm text-gray-600 underline hover:text-gray-900" type="button"
-                            onclick="this.previousElementSibling.value = ''" th:text="#{form.clearTime}">Clear time</button>
+                    <button class="btn btn-ghost" type="button" onclick="this.previousElementSibling.value = ''"
+                            th:text="#{form.clearTime}">Clear time</button>
                 </span>
-                <span class="text-sm text-red-600" th:if="${fieldErrors['statusTime']}" th:text="${fieldErrors['statusTime']}">This value isn’t valid.</span>
-            </label>
+                <p class="field-error" th:if="${fieldErrors['statusTime']}" th:text="${fieldErrors['statusTime']}">This value isn’t valid.</p>
+            </div>
         </div>
 
-        <label class="grid gap-1">
-            <span class="text-sm font-medium" th:text="#{newApplication.description}">Job description</span>
-            <textarea class="rounded border px-3 py-2" name="description" rows="6" th:text="${form?.description}"></textarea>
-        </label>
+        <div>
+            <label class="field-label" for="description" th:text="#{newApplication.description}">Job description</label>
+            <textarea id="description" class="input" name="description" rows="6" th:text="${form?.description}"></textarea>
+        </div>
 
-        <button class="justify-self-start rounded bg-gray-900 px-4 py-2 text-white" type="submit"
-                th:text="#{newApplication.submit}">Add application</button>
+        <div>
+            <button class="btn btn-primary" type="submit" th:text="#{addJob.save}">Save job</button>
+        </div>
     </form>
 </main>
 </body>

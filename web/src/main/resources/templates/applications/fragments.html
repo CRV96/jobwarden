@@ -1,18 +1,238 @@
 <!DOCTYPE html>
-<!--/* Small pieces shared by the application pages. */-->
+<!--/* Pieces shared by the application pages. The parts of an application (facts, status-picker, description,
+       timeline, notes, delete-dialog) render both on its own page (detail.html) and in the side panel (drawer.html).
+       They read jobApplication, eventsUrl and the form choices from the page, and their HTMX requests inherit
+       hx-target, hx-swap and hx-vals (the view) from the element around them, so the answer replaces that element. */-->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <body>
 
-<!--/* A status as a coloured badge. Tailwind only generates classes it finds written out in full, so each status
-       gets its own line instead of building the class name. The text comes from the status.* messages. */-->
-<th:block th:fragment="status-badge(status)" th:switch="${status.name()}">
-    <span th:case="'SAVED'" class="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700" th:text="#{status.SAVED}">Saved</span>
-    <span th:case="'APPLIED'" class="inline-block rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800" th:text="#{status.APPLIED}">Applied</span>
-    <span th:case="'INTERVIEWING'" class="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800" th:text="#{status.INTERVIEWING}">Interviewing</span>
-    <span th:case="'OFFER'" class="inline-block rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800" th:text="#{status.OFFER}">Offer</span>
-    <span th:case="'REJECTED'" class="inline-block rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800" th:text="#{status.REJECTED}">Rejected</span>
-    <span th:case="'WITHDRAWN'" class="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500" th:text="#{status.WITHDRAWN}">Withdrawn</span>
+<!--/* A status as a coloured tag: the colours are the st-* classes in app.css. The text comes from the status.* messages. */-->
+<span th:fragment="status-badge(status)" class="tag" th:classappend="|st-${#strings.toLowerCase(status.name())}|"
+      th:text="#{${'status.' + status}}">Applied</span>
+
+<!--/* Where the posting came from: the site, or added by hand without a link. */-->
+<th:block th:fragment="source(source)">
+    <i class="ph flex-none text-sm" th:classappend="${source} ? 'ph-globe-simple' : 'ph-pencil-simple'"></i>
+    <span class="min-w-0 truncate" th:text="${source} ?: #{source.manual}">linkedin.com</span>
 </th:block>
+
+<dl th:fragment="facts" class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[13px]">
+    <dt class="text-ink/55" th:text="#{jobs.column.location}">Location</dt>
+    <dd th:text="${jobApplication.location} ?: '—'">Remote</dd>
+    <dt class="text-ink/55" th:text="#{jobs.column.salary}">Salary</dt>
+    <dd th:text="${jobApplication.salary} ?: '—'">€5,000 a month</dd>
+    <th:block th:if="${jobApplication.employmentType}">
+        <dt class="text-ink/55" th:text="#{newApplication.employmentType}">Employment type</dt>
+        <dd th:text="${jobApplication.employmentType}">Full-time</dd>
+    </th:block>
+    <dt class="text-ink/55" th:text="#{jobs.column.source}">Source</dt>
+    <dd class="flex min-w-0 items-center gap-1.5">
+        <i class="ph flex-none" th:classappend="${jobApplication.source} ? 'ph-globe-simple' : 'ph-pencil-simple'"></i>
+        <span class="min-w-0 truncate" th:text="${jobApplication.source} ?: #{source.addedByHand}">linkedin.com</span>
+    </dd>
+    <dt class="text-ink/55" th:text="#{jobs.column.added}">Added</dt>
+    <dd th:text="${@dates.relativeDay(jobApplication.capturedAt)}" th:title="${@dates.date(jobApplication.capturedAt)}">Today</dd>
+</dl>
+
+<!--/* One button per status, the current one pressed. The others add an event now, without a time asked for.
+       Rejected asks for the reason first, so patterns show up over time. */-->
+<div th:fragment="status-picker" class="flex flex-col gap-1.5">
+    <span class="text-xs text-ink/60" th:text="#{jobs.column.status}">Status</span>
+    <div class="flex flex-wrap gap-1" role="group" th:aria-label="#{application.changeStatus}">
+        <th:block th:each="status : ${statuses}">
+            <button th:if="${status == jobApplication.status}" class="chip chip-small" type="button" aria-pressed="true"
+                    th:text="#{${'status.' + status}}">Interviewing</button>
+            <form th:unless="${status == jobApplication.status or status.name() == 'REJECTED'}" th:hx-post="${eventsUrl}">
+                <input type="hidden" name="stageCategory" th:value="${status}">
+                <button class="chip chip-small" type="submit" aria-pressed="false" th:text="#{${'status.' + status}}">Offer</button>
+            </form>
+            <button th:if="${status.name() == 'REJECTED' and status != jobApplication.status}" class="chip chip-small"
+                    type="button" aria-expanded="false" th:attr="data-toggle-hidden=|reject-${jobApplication.id}|,aria-controls=|reject-${jobApplication.id}|"
+                    th:text="#{application.reject}">Rejected…</button>
+        </th:block>
+    </div>
+    <form th:id="|reject-${jobApplication.id}|" class="flex flex-wrap items-center gap-1.5" th:hx-post="${eventsUrl}" hidden>
+        <input type="hidden" name="stageCategory" value="REJECTED">
+        <select class="input w-auto min-w-0 flex-1" name="rejectionReason" required th:aria-label="#{application.rejectionReason}">
+            <option value="" disabled selected th:text="#{application.rejectionReason.prompt}">Why?</option>
+            <option th:each="reason : ${rejectionReasons}" th:value="${reason}"
+                    th:text="#{${'rejectionReason.' + reason}}">Salary mismatch</option>
+        </select>
+        <button class="btn btn-danger" type="submit" th:text="#{application.markRejected}">Mark rejected</button>
+    </form>
+</div>
+
+<!--/* A long description starts folded to 12 lines, with a button to show the rest. */-->
+<section th:fragment="description" class="flex flex-col gap-2"
+         th:with="long=${#strings.length(jobApplication.description) > 500}">
+    <h2 class="text-xs text-ink/60" th:text="#{application.description}">Description</h2>
+    <p class="text-[13px] leading-relaxed whitespace-pre-line text-pretty text-ink/85" th:classappend="${long} ? 'line-clamp-12'"
+       th:text="${jobApplication.description}">The posting’s text.</p>
+    <button th:if="${long}" class="btn btn-ghost self-start" type="button" data-expand
+            th:data-more="#{application.showMore}" th:data-less="#{application.showLess}"
+            th:text="#{application.showMore}">Show more</button>
+</section>
+
+<!--/* The events, oldest first, and the form that adds one. Dates and times use the language's format.date and
+       format.dateTime patterns; an event without a time shows only its date. The timeline keeps at least one event,
+       so the only one has no remove button. */-->
+<section th:fragment="timeline" class="flex flex-col gap-3"
+         th:with="removable=${#lists.size(jobApplication.timeline) > 1}">
+    <h2 class="text-base font-bold tracking-[-0.02em]" th:text="#{application.timeline}">Timeline</h2>
+    <p class="text-[13px] text-danger" role="alert" th:if="${eventError}" th:text="${eventError}">Pick a date.</p>
+
+    <ol class="timeline">
+        <li class="relative flex flex-col gap-1" th:each="event : ${jobApplication.timeline}">
+            <span class="timeline-dot"></span>
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="w-[150px] flex-none text-[13px] text-ink/65 tabular-nums"
+                      th:text="${event.eventTime != null} ? ${#temporals.format(event.eventDate.atTime(event.eventTime), #messages.msg('format.dateTime'))} : ${#temporals.format(event.eventDate, #messages.msg('format.date'))}">28 Sep 2026, 14:05</span>
+                <th:block th:replace="~{applications/fragments :: status-badge(${event.stageCategory})}">Interviewing</th:block>
+                <span class="flex-1"></span>
+                <button th:if="${removable}" class="btn btn-ghost px-1 py-0.5 text-ink/45" type="button"
+                        th:hx-delete="@{/applications/{id}/events/{eventId}(id=${jobApplication.id},eventId=${event.id})}"
+                        th:title="#{application.timeline.remove}" th:aria-label="#{application.timeline.remove}">
+                    <i class="ph ph-x text-xs"></i>
+                </button>
+            </div>
+            <span class="text-[13px] font-medium" th:if="${event.stageLabel}" th:text="${event.stageLabel}">Technical interview</span>
+            <span class="text-[13px] text-danger" th:if="${event.rejectionReason}"
+                  th:with="reason=#{${'rejectionReason.' + event.rejectionReason}}"
+                  th:text="#{application.timeline.reason(${reason})}">Reason: Position filled</span>
+            <span class="text-[13px] leading-normal whitespace-pre-line text-pretty text-ink/80" th:if="${event.note}"
+                  th:text="${event.note}">What was discussed.</span>
+        </li>
+    </ol>
+
+    <form class="flex flex-col gap-2 rounded-md p-3 shadow-sm" th:hx-post="${eventsUrl}">
+        <div class="flex flex-wrap items-center gap-1.5">
+            <input class="input w-auto flex-[1_1_150px]" type="date" name="eventDate" required th:value="${now.toLocalDate()}"
+                   th:aria-label="#{application.event.date}">
+            <!--/* The button empties the time completely: a time emptied only in part is invalid, and the browser
+                   wouldn't send the form. Keep it right after the input. */-->
+            <input class="input w-auto flex-[0_1_110px]" type="time" name="eventTime" th:value="${#temporals.format(now, 'HH:mm')}"
+                   th:aria-label="#{application.event.time}">
+            <button class="btn btn-ghost" type="button" onclick="this.previousElementSibling.value = ''"
+                    th:text="#{form.clearTime}">Clear time</button>
+        </div>
+        <select class="input" name="stageCategory" required th:aria-label="#{application.event.stage}">
+            <option th:each="status : ${statuses}" th:value="${status}" th:selected="${status == jobApplication.status}"
+                    th:text="#{${'status.' + status}}">Applied</option>
+        </select>
+        <input class="input" type="text" name="stageLabel" maxlength="200" th:aria-label="#{application.event.stageLabel}"
+               th:placeholder="#{application.event.stageLabel.placeholder}">
+        <textarea class="input" name="note" rows="3" th:aria-label="#{application.event.note}"
+                  th:placeholder="#{application.event.note.placeholder}"></textarea>
+        <div>
+            <button class="btn btn-primary" type="submit">
+                <i class="ph ph-plus"></i><span th:text="#{application.event.add}">Add to timeline</span>
+            </button>
+        </div>
+    </form>
+</section>
+
+<!--/* Saved as it's typed, a moment after the last key; notes-saved below then says so. */-->
+<div th:fragment="notes" class="flex flex-col">
+    <div class="flex items-baseline justify-between gap-2">
+        <label class="field-label" th:for="|notes-${jobApplication.id}|" th:text="#{application.notes}">Notes</label>
+        <span class="notes-status text-[11px] text-ink/50" aria-live="polite"></span>
+    </div>
+    <textarea class="input" th:id="|notes-${jobApplication.id}|" name="notes" th:placeholder="#{application.notes.placeholder}"
+              th:hx-put="@{/applications/{id}/notes(id=${jobApplication.id})}" hx-trigger="input changed delay:800ms, change"
+              hx-target="previous .notes-status" hx-swap="innerHTML" th:text="${jobApplication.notes}"></textarea>
+</div>
+
+<span th:fragment="notes-saved" th:text="#{application.notes.saved}">Saved</span>
+
+<!--/* Asks before deleting. From the application's page, the list opens after; from the side panel, the page behind
+       it reloads. */-->
+<dialog th:fragment="delete-dialog" th:id="|delete-${jobApplication.id}|" class="dialog w-[min(400px,calc(100%-32px))]"
+        role="alertdialog" th:aria-labelledby="|delete-title-${jobApplication.id}|">
+    <div class="flex items-start gap-3">
+        <div class="grid size-9 flex-none place-items-center rounded-full bg-danger/14 text-danger">
+            <i class="ph ph-trash text-lg"></i>
+        </div>
+        <div class="flex flex-col gap-1.5">
+            <p class="text-[15px] font-bold" th:id="|delete-title-${jobApplication.id}|" th:text="#{application.delete.title}">Delete this job?</p>
+            <p class="text-[13px] text-pretty opacity-85"
+               th:text="${jobApplication.company} ? #{application.delete.body(${jobApplication.title}, ${jobApplication.company})} : #{application.delete.bodyWithoutCompany(${jobApplication.title})}">
+                “Backend engineer” at Acme and its timeline will be removed. This can’t be undone.</p>
+        </div>
+    </div>
+    <div class="dialog-actions">
+        <button class="btn btn-secondary" type="button" data-close-dialog th:text="#{action.cancel}">Cancel</button>
+        <button class="btn btn-danger" type="button" th:hx-delete="@{/applications/{id}(id=${jobApplication.id})}"
+                th:text="#{action.delete}">Delete</button>
+    </div>
+</dialog>
+
+<!--/* Adds a job by hand, from the list or the pipeline. It posts like the full form (new.html), which shows any
+       errors, and has more fields. */-->
+<dialog th:fragment="add-job-dialog" id="add-job" class="dialog w-[min(480px,calc(100%-32px))]" aria-labelledby="add-job-title">
+    <form class="flex flex-col gap-3" method="post" th:action="@{/applications}">
+        <h2 id="add-job-title" class="dialog-title" th:text="#{addJob.title}">Add a job by hand</h2>
+        <div>
+            <label class="field-label" for="add-job-link" th:text="#{addJob.link}">Posting URL</label>
+            <input id="add-job-link" class="input" type="url" name="link" placeholder="https://">
+        </div>
+        <div class="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
+            <div class="col-span-full">
+                <label class="field-label" for="add-job-title-field" th:text="#{newApplication.jobTitle}">Job title</label>
+                <input id="add-job-title-field" class="input" type="text" name="title" required>
+            </div>
+            <div>
+                <label class="field-label" for="add-job-company" th:text="#{newApplication.company}">Company</label>
+                <input id="add-job-company" class="input" type="text" name="company">
+            </div>
+            <div>
+                <label class="field-label" for="add-job-location" th:text="#{newApplication.location}">Location</label>
+                <input id="add-job-location" class="input" type="text" name="location"
+                       th:placeholder="#{newApplication.location.placeholder}">
+            </div>
+            <div>
+                <label class="field-label" for="add-job-salary" th:text="#{newApplication.salary}">Salary</label>
+                <input id="add-job-salary" class="input" type="text" name="salary">
+            </div>
+            <div>
+                <label class="field-label" for="add-job-status" th:text="#{newApplication.status}">Status</label>
+                <select id="add-job-status" class="input" name="status" required>
+                    <option th:each="status : ${statuses}" th:value="${status}" th:text="#{${'status.' + status}}"
+                            th:selected="${status.name() == 'APPLIED'}">Applied</option>
+                </select>
+            </div>
+        </div>
+        <div class="dialog-actions items-center">
+            <a class="link mr-auto text-[13px]" th:href="@{/applications/new}" th:text="#{addJob.moreFields}">More fields…</a>
+            <button class="btn btn-secondary" type="button" data-close-dialog th:text="#{action.cancel}">Cancel</button>
+            <button class="btn btn-primary" type="submit" th:text="#{addJob.save}">Save job</button>
+        </div>
+    </form>
+</dialog>
+
+<!--/* The side panel the list and the pipeline open an application in; HTMX loads drawer.html into it. */-->
+<dialog th:fragment="drawer-dialog" id="drawer" class="drawer" th:aria-label="#{application.panel}">
+    <div id="drawer-content" class="min-h-full"></div>
+</dialog>
+
+<!--/* A column heading of the list that sorts it by that column (key, an ApplicationSort), or the other way round if it
+       already does. */-->
+<a th:fragment="sort-link(key, label)" class="sort-link" th:classappend="${listParams.isSortedBy(key)} ? 'is-sorted'"
+   th:href="@{${listParams.sortedBy(key).url()}}" th:title="#{jobs.sortBy}">
+    <span th:text="${label}">Role</span>
+    <i class="ph" aria-hidden="true"
+       th:classappend="${!listParams.isSortedBy(key)} ? 'ph-caret-up-down' : (${listParams.dir.isAscending()} ? 'ph-caret-up' : 'ph-caret-down')"></i>
+</a>
+
+<!--/* The page header of the list and the pipeline. */-->
+<header th:fragment="page-header(heading, subheading)" class="flex flex-wrap items-end gap-3">
+    <div class="min-w-[240px] flex-1">
+        <h1 class="page-title mb-1" th:text="${heading}">Jobs</h1>
+        <p class="text-[13px] text-ink/60" th:if="${subheading}" th:text="${subheading}">Where each application stands</p>
+    </div>
+    <button class="btn btn-primary" type="button" data-open-dialog="add-job">
+        <i class="ph ph-plus text-[15px]"></i><span th:text="#{jobs.add}">Add job</span>
+    </button>
+</header>
 
 </body>
 </html>

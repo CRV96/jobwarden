@@ -1,55 +1,199 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout :: page(~{::title}, ~{::main})}">
+      th:replace="~{layout :: page(~{::title}, ~{::main}, 'jobs')}">
 <head>
-    <title th:text="|#{applications.title} · JobWarden|">Applications · JobWarden</title>
+    <title th:text="|#{jobs.title} · JobWarden|">Jobs · JobWarden</title>
 </head>
 <body>
-<!--/* Enum values are shown through their messages: status.SAVED, status.APPLIED... */-->
-<main>
-    <div class="flex flex-wrap items-center justify-between gap-4">
-        <h1 class="text-2xl font-semibold" th:text="#{applications.title}">Applications</h1>
-        <a class="rounded bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700" th:href="@{/applications/new}"
-           th:text="#{applications.add}">Add application</a>
+<!--/* listParams is what the list shows (ApplicationListParams): its links keep the search, the status, the order and
+       the page size. Enum values are shown through their messages: status.SAVED, status.APPLIED... */-->
+<main class="flex flex-col gap-4">
+    <header th:replace="~{applications/fragments :: page-header(#{jobs.title}, ${applicationCount != null} ? #{jobs.subtitle(${applicationCount})} : null)}"></header>
+
+    <div class="flex flex-col gap-3">
+        <div class="flex flex-wrap items-center gap-2">
+            <!--/* As you type, HTMX loads the list for the search and swaps in its rows and its status counts. Enter
+                   loads the whole page, the same without HTMX. */-->
+            <form class="relative min-w-[200px] flex-[0_1_300px]" method="get" th:action="@{/applications}" role="search">
+                <i class="ph ph-magnifying-glass pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-[15px] text-ink/50"></i>
+                <input class="input pl-8" type="search" name="q" th:value="${listParams.q}" th:placeholder="#{jobs.search}"
+                       th:aria-label="#{jobs.search}" autocomplete="off"
+                       th:hx-get="@{/applications}" hx-trigger="input changed delay:300ms, search" hx-include="closest form"
+                       hx-target="#jobs" hx-select="#jobs" hx-select-oob="#status-filter" hx-swap="outerHTML" hx-push-url="true">
+                <input type="hidden" name="status" th:if="${listParams.status}" th:value="${listParams.status}">
+                <th:block th:unless="${listParams.isSortedBy('ADDED') and !listParams.dir.isAscending()}">
+                    <input type="hidden" name="sort" th:value="${listParams.sort}">
+                    <input type="hidden" name="dir" th:value="${listParams.dir}">
+                </th:block>
+                <input type="hidden" name="size" th:if="${listParams.size != 20}" th:value="${listParams.size}">
+            </form>
+
+            <nav id="status-filter" class="flex flex-wrap gap-1" th:aria-label="#{jobs.filter}">
+                <a class="chip" th:href="@{${listParams.withStatus(null).url()}}" th:aria-current="${listParams.status == null} ? 'true'">
+                    <span th:text="#{jobs.filter.all}">All</span>
+                    <span class="chip-count" th:text="${#aggregates.sum(statusCounts.values())}">57</span>
+                </a>
+                <a class="chip" th:each="status : ${statuses}" th:href="@{${listParams.withStatus(status).url()}}"
+                   th:aria-current="${status == listParams.status} ? 'true'">
+                    <span th:text="#{${'status.' + status}}">Applied</span>
+                    <span class="chip-count" th:text="${statusCounts.get(status)}">12</span>
+                </a>
+            </nav>
+        </div>
+
+        <!--/* Shown by app.js while rows are ticked. Its texts carry {0} for the number, filled in by app.js. */-->
+        <div id="selection-bar" hidden th:data-label="#{jobs.selected}"
+             class="flex items-center gap-3 rounded-lg bg-accent/10 py-1.5 pr-1.5 pl-3 shadow-[inset_0_0_0_0.5px_color-mix(in_srgb,var(--jw-accent)_35%,transparent)]">
+            <i class="ph ph-check-square text-base text-accent"></i>
+            <span class="text-[13px] font-medium tabular-nums" data-selection-count>1 selected</span>
+            <button class="btn btn-ghost px-2 py-1" type="button" data-clear-selection th:text="#{jobs.clearSelection}">Clear selection</button>
+            <span class="flex-1"></span>
+            <button class="btn btn-danger" type="button" data-open-dialog="delete-selected">
+                <i class="ph ph-trash"></i><span th:text="#{action.delete}">Delete</span>
+            </button>
+        </div>
+
+        <!--/* The rows and the pages. When an application changes in the side panel, HTMX reloads them, and the status
+               counts with them; hx-disinherit keeps the rows' own requests from inheriting that. */-->
+        <div id="jobs" class="flex flex-col gap-2" hx-disinherit="*"
+             th:hx-get="@{${listParams.url()}}" hx-trigger="applications-changed from:body"
+             hx-select="#jobs" hx-select-oob="#status-filter" hx-target="this" hx-swap="outerHTML">
+            <th:block th:if="${applicationPage.hasContent()}">
+                <div class="overflow-x-auto">
+                    <table class="jobs-table">
+                        <colgroup>
+                            <col class="w-[34%]">
+                            <col class="w-[19%]">
+                            <col class="w-[15%]">
+                            <col class="w-[128px]">
+                            <col class="w-[112px]">
+                            <col class="w-[96px]">
+                        </colgroup>
+                        <thead>
+                        <tr class="rule-fade">
+                            <th scope="col" th:aria-sort="${listParams.isSortedBy('TITLE')} ? (${listParams.dir.isAscending()} ? 'ascending' : 'descending')">
+                                <span class="flex items-center gap-2">
+                                    <input class="check" type="checkbox" data-select-all th:aria-label="#{jobs.selectAll}" th:title="#{jobs.selectAll}">
+                                    <a th:replace="~{applications/fragments :: sort-link('TITLE', #{jobs.column.role})}"></a>
+                                </span>
+                            </th>
+                            <th scope="col" th:aria-sort="${listParams.isSortedBy('LOCATION')} ? (${listParams.dir.isAscending()} ? 'ascending' : 'descending')">
+                                <a th:replace="~{applications/fragments :: sort-link('LOCATION', #{jobs.column.location})}"></a>
+                            </th>
+                            <th scope="col" th:text="#{jobs.column.salary}">Salary</th>
+                            <th scope="col" th:aria-sort="${listParams.isSortedBy('SOURCE')} ? (${listParams.dir.isAscending()} ? 'ascending' : 'descending')">
+                                <a th:replace="~{applications/fragments :: sort-link('SOURCE', #{jobs.column.source})}"></a>
+                            </th>
+                            <th scope="col" th:aria-sort="${listParams.isSortedBy('STATUS')} ? (${listParams.dir.isAscending()} ? 'ascending' : 'descending')">
+                                <a th:replace="~{applications/fragments :: sort-link('STATUS', #{jobs.column.status})}"></a>
+                            </th>
+                            <th scope="col" class="text-right" th:aria-sort="${listParams.isSortedBy('ADDED')} ? (${listParams.dir.isAscending()} ? 'ascending' : 'descending')">
+                                <a th:replace="~{applications/fragments :: sort-link('ADDED', #{jobs.column.added})}"></a>
+                            </th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <!--/* A click on a row opens the application in the side panel; on its title, its own page. */-->
+                        <tr class="rule-fade rule-soft" th:each="summary : ${applicationPage.content}" data-drawer-row
+                            th:hx-get="@{/applications/{id}/drawer(id=${summary.id})}" hx-target="#drawer-content" hx-swap="innerHTML"
+                            hx-trigger="click[!event.target.closest('a, input, label')]">
+                            <td>
+                                <div class="flex min-w-0 items-center gap-2">
+                                    <input class="check" type="checkbox" name="ids" th:value="${summary.id}" data-select-row
+                                           th:aria-label="${summary.title}">
+                                    <div class="min-w-0">
+                                        <a class="block truncate font-medium hover:text-accent hover:underline"
+                                           th:href="@{/applications/{id}(id=${summary.id})}" th:text="${summary.title}">Backend engineer</a>
+                                        <div class="truncate text-xs text-ink/60" th:text="${summary.company} ?: '—'">Acme</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="truncate text-ink/80" th:text="${summary.location} ?: '—'">Remote</td>
+                            <td class="truncate text-ink/80 tabular-nums" th:text="${summary.salary} ?: '—'">€5,000</td>
+                            <td>
+                                <span class="flex min-w-0 items-center gap-1.5 text-xs text-ink/65">
+                                    <th:block th:replace="~{applications/fragments :: source(${summary.source})}"></th:block>
+                                </span>
+                            </td>
+                            <td><span th:replace="~{applications/fragments :: status-badge(${summary.status})}">Applied</span></td>
+                            <td class="text-right text-xs text-ink/60" th:text="${@dates.relativeDay(summary.capturedAt)}"
+                                th:title="${@dates.date(summary.capturedAt)}">Today</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-3 px-2"
+                     th:with="first=${(listParams.page - 1) * listParams.size + 1}, totalPages=${applicationPage.totalPages}">
+                    <span class="text-xs text-ink/60 tabular-nums"
+                          th:text="#{jobs.showing(${first}, ${first + applicationPage.numberOfElements - 1}, ${applicationPage.totalElements})}">1–20 of 57</span>
+                    <form class="flex items-center gap-1.5 text-xs text-ink/60" method="get" th:action="@{/applications}">
+                        <label for="page-size" th:text="#{jobs.perPage}">Per page</label>
+                        <select id="page-size" class="input min-h-[26px] w-auto px-1.5 py-0.5 text-xs" name="size" data-auto-submit>
+                            <option th:each="size : ${listParams.sizes()}" th:value="${size}" th:text="${size}"
+                                    th:selected="${size == listParams.size}">20</option>
+                        </select>
+                        <input type="hidden" name="q" th:if="${listParams.q}" th:value="${listParams.q}">
+                        <input type="hidden" name="status" th:if="${listParams.status}" th:value="${listParams.status}">
+                        <input type="hidden" name="sort" th:value="${listParams.sort}">
+                        <input type="hidden" name="dir" th:value="${listParams.dir}">
+                    </form>
+                    <span class="flex-1"></span>
+                    <nav class="flex items-center gap-1" th:aria-label="#{jobs.pages}">
+                        <a class="btn btn-secondary px-2 py-1" th:if="${applicationPage.hasPrevious()}"
+                           th:href="@{${listParams.withPage(listParams.page - 1).url()}}" th:title="#{jobs.previous}" th:aria-label="#{jobs.previous}">
+                            <i class="ph ph-caret-left"></i>
+                        </a>
+                        <span class="btn btn-secondary px-2 py-1" th:unless="${applicationPage.hasPrevious()}" aria-disabled="true">
+                            <i class="ph ph-caret-left"></i>
+                        </span>
+                        <th:block th:each="number : ${listParams.pageNumbers(totalPages)}">
+                            <span class="px-1 text-ink/40" th:if="${number == null}">…</span>
+                            <a class="page-link" th:unless="${number == null}" th:href="@{${listParams.withPage(number).url()}}"
+                               th:aria-current="${number == listParams.page} ? 'page'" th:text="${number}">1</a>
+                        </th:block>
+                        <a class="btn btn-secondary px-2 py-1" th:if="${applicationPage.hasNext()}"
+                           th:href="@{${listParams.withPage(listParams.page + 1).url()}}" th:title="#{jobs.next}" th:aria-label="#{jobs.next}">
+                            <i class="ph ph-caret-right"></i>
+                        </a>
+                        <span class="btn btn-secondary px-2 py-1" th:unless="${applicationPage.hasNext()}" aria-disabled="true">
+                            <i class="ph ph-caret-right"></i>
+                        </span>
+                    </nav>
+                </div>
+            </th:block>
+
+            <div class="flex flex-col items-start gap-1.5 py-6" th:unless="${applicationPage.hasContent()}">
+                <i class="ph ph-binoculars text-[28px] text-accent"></i>
+                <p class="text-base font-medium" th:text="${listParams.isFiltered()} ? #{jobs.empty.title} : #{jobs.none.title}">No postings match</p>
+                <p class="text-[13px] text-ink/60" th:text="${listParams.isFiltered()} ? #{jobs.empty.body} : #{jobs.none.body}">
+                    Try a different search or status filter.</p>
+            </div>
+        </div>
     </div>
 
-    <nav class="mt-4 flex flex-wrap gap-2 text-sm" th:aria-label="#{applications.filter}">
-        <a class="rounded-full border px-3 py-1" th:href="@{/applications}" th:text="#{applications.filter.all}"
-           th:classappend="${selectedStatus == null} ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-300 bg-white hover:bg-gray-100'">All</a>
-        <a th:each="status : ${statuses}" class="rounded-full border px-3 py-1"
-           th:href="@{/applications(status=${status})}" th:text="#{${'status.' + status}}"
-           th:classappend="${status == selectedStatus} ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-300 bg-white hover:bg-gray-100'">Applied</a>
-    </nav>
+    <!--/* Asks before deleting the ticked rows. app.js sets its texts from the data- attributes, for one or many. */-->
+    <dialog id="delete-selected" class="dialog w-[min(400px,calc(100%-32px))]" role="alertdialog" aria-labelledby="delete-selected-title"
+            th:data-title-one="#{jobs.deleteSelected.title.one}" th:data-title-many="#{jobs.deleteSelected.title.many}"
+            th:data-body-one="#{jobs.deleteSelected.body.one}" th:data-body-many="#{jobs.deleteSelected.body.many}">
+        <div class="flex items-start gap-3">
+            <div class="grid size-9 flex-none place-items-center rounded-full bg-danger/14 text-danger">
+                <i class="ph ph-trash text-lg"></i>
+            </div>
+            <div class="flex flex-col gap-1.5">
+                <p id="delete-selected-title" class="text-[15px] font-bold" data-title>Delete 2 jobs?</p>
+                <p class="text-[13px] text-pretty opacity-85" data-body>The selected jobs and their timelines will be removed.</p>
+            </div>
+        </div>
+        <div class="dialog-actions">
+            <button class="btn btn-secondary" type="button" data-close-dialog th:text="#{action.cancel}">Cancel</button>
+            <button class="btn btn-danger" type="button" th:hx-delete="@{/applications}" hx-include="[data-select-row]:checked"
+                    th:text="#{action.delete}">Delete</button>
+        </div>
+    </dialog>
 
-    <p class="mt-6 text-gray-500" th:if="${#lists.isEmpty(applications)}"
-       th:text="${selectedStatus == null} ? #{applications.empty} : #{applications.emptyForStatus}">
-        No applications yet. Save a job posting with the browser extension, or add one by hand.</p>
-
-    <div class="mt-6 overflow-x-auto rounded border border-gray-200 bg-white" th:unless="${#lists.isEmpty(applications)}">
-        <table class="w-full text-left text-sm">
-            <thead class="bg-gray-50 text-gray-500">
-            <tr>
-                <th class="px-4 py-2 font-medium" th:text="#{applications.column.title}">Title</th>
-                <th class="px-4 py-2 font-medium" th:text="#{applications.column.company}">Company</th>
-                <th class="px-4 py-2 font-medium" th:text="#{applications.column.location}">Location</th>
-                <th class="px-4 py-2 font-medium" th:text="#{applications.column.status}">Status</th>
-                <th class="px-4 py-2 font-medium" th:text="#{applications.column.added}">Added</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr class="border-t border-gray-200" th:each="jobApplication : ${applications}">
-                <td class="px-4 py-2">
-                    <a class="font-medium hover:underline" th:href="@{/applications/{id}(id=${jobApplication.id})}"
-                       th:text="${jobApplication.title}">Backend engineer</a>
-                </td>
-                <td class="px-4 py-2" th:text="${jobApplication.company} ?: '–'">Acme</td>
-                <td class="px-4 py-2" th:text="${jobApplication.location} ?: '–'">Remote</td>
-                <td class="px-4 py-2"><th:block th:replace="~{applications/fragments :: status-badge(${jobApplication.status})}">Applied</th:block></td>
-                <td class="px-4 py-2 text-gray-500" th:text="${#temporals.format(jobApplication.capturedAt, #messages.msg('format.date'))}">28 Sep 2026</td>
-            </tr>
-            </tbody>
-        </table>
-    </div>
+    <dialog th:replace="~{applications/fragments :: add-job-dialog}"></dialog>
+    <dialog th:replace="~{applications/fragments :: drawer-dialog}"></dialog>
 </main>
 </body>
 </html>

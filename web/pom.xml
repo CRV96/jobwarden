@@ -13,6 +13,8 @@
 
 	<properties>
 		<htmx.version>2.0.11</htmx.version>
+		<phosphor-icons.version>2.1.2</phosphor-icons.version>
+		<flag-icons.version>7.5.0</flag-icons.version>
 		<frontend-maven-plugin.version>2.0.2</frontend-maven-plugin.version>
 		<node.version>v24.21.0</node.version>
 	</properties>
@@ -51,6 +53,18 @@
 			<groupId>org.webjars.npm</groupId>
 			<artifactId>htmx.org</artifactId>
 			<version>${htmx.version}</version>
+		</dependency>
+		<!-- The icons (https://phosphoricons.com), as a font: <i class="ph ph-briefcase"></i> -->
+		<dependency>
+			<groupId>org.webjars.npm</groupId>
+			<artifactId>phosphor-icons__web</artifactId>
+			<version>${phosphor-icons.version}</version>
+		</dependency>
+		<!-- The flags next to each language on the settings page: <span class="fi fi-ro"></span> -->
+		<dependency>
+			<groupId>org.webjars.npm</groupId>
+			<artifactId>flag-icons</artifactId>
+			<version>${flag-icons.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.webjars</groupId>

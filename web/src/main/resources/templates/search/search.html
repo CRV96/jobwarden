@@ -1,23 +1,27 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout :: page(~{::title}, ~{::main})}">
+      th:replace="~{layout :: page(~{::title}, ~{::main}, 'search')}">
 <head>
     <title th:text="|#{search.title} · JobWarden|">Search · JobWarden</title>
 </head>
 <body>
-<main>
-    <h1 class="text-2xl font-semibold" th:text="#{search.heading}">Boolean search generator</h1>
-    <p class="mt-2 text-gray-500" th:text="#{search.intro}">Separate alternatives with commas. Paste the result into Google or LinkedIn.</p>
+<main class="flex flex-col gap-4">
+    <header>
+        <h1 class="page-title mb-1" th:text="#{search.heading}">Boolean search generator</h1>
+        <p class="text-[13px] text-ink/60" th:text="#{search.intro}">Separate alternatives with commas. Paste the result into Google or LinkedIn.</p>
+    </header>
 
-    <form class="mt-6 grid max-w-xl gap-3" th:hx-post="@{/search}" hx-target="#results" hx-swap="outerHTML">
-        <input class="rounded border px-3 py-2" type="text" name="jobTitles" th:placeholder="#{search.jobTitles.placeholder}">
-        <input class="rounded border px-3 py-2" type="text" name="keywords" th:placeholder="#{search.keywords.placeholder}">
-        <input class="rounded border px-3 py-2" type="text" name="excludedKeywords" th:placeholder="#{search.excluded.placeholder}">
-        <input class="rounded border px-3 py-2" type="text" name="locations" th:placeholder="#{search.locations.placeholder}">
-        <button class="justify-self-start rounded bg-gray-900 px-4 py-2 text-white" type="submit" th:text="#{search.generate}">Generate</button>
+    <form class="card grid max-w-[640px] gap-2 p-4" th:hx-post="@{/search}" hx-target="#results" hx-swap="outerHTML">
+        <input class="input" type="text" name="jobTitles" th:placeholder="#{search.jobTitles.placeholder}" th:aria-label="#{search.jobTitles.placeholder}">
+        <input class="input" type="text" name="keywords" th:placeholder="#{search.keywords.placeholder}" th:aria-label="#{search.keywords.placeholder}">
+        <input class="input" type="text" name="excludedKeywords" th:placeholder="#{search.excluded.placeholder}" th:aria-label="#{search.excluded.placeholder}">
+        <input class="input" type="text" name="locations" th:placeholder="#{search.locations.placeholder}" th:aria-label="#{search.locations.placeholder}">
+        <div>
+            <button class="btn btn-primary" type="submit" th:text="#{search.generate}">Generate</button>
+        </div>
     </form>
 
-    <div id="results" class="mt-8" th:fragment="results">
+    <div id="results" th:fragment="results">
         <!--/* TODO: one block per generated query: the target name, the query text and a copy button */-->
     </div>
 </main>

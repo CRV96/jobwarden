@@ -10,6 +10,7 @@ import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.enums.IdentityErrorCode;
 import com.jobwarden.identity.service.UserService;
+import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.web.enums.Language;
 import com.jobwarden.web.user.CurrentUser;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,9 +26,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
 /**
- * The profiles page stands in for every page: they all get their language the same way.
+ * The profiles page stands in for every page: they all get their language the same way. The settings page has the
+ * language picker.
  */
-@WebMvcTest(ProfileController.class)
+@WebMvcTest({ ProfileController.class, SettingsController.class })
 class LocalizationTests {
 
 	private static final User ROBERT = new User(1, "Robert", Instant.parse("2026-09-28T10:00:00Z"));
@@ -41,6 +43,10 @@ class LocalizationTests {
 	@MockitoBean
 	private CurrentUser currentUser;
 
+	// For the sidebar, which every page controller fills in
+	@MockitoBean
+	private ApplicationService applications;
+
 	@BeforeEach
 	void oneProfile() {
 		given(this.users.findAll()).willReturn(List.of(ROBERT));
@@ -52,7 +58,7 @@ class LocalizationTests {
 		assertThat(this.mvc.get().uri("/profiles").header(HttpHeaders.ACCEPT_LANGUAGE, "ro-RO,ro;q=0.9,en;q=0.8"))
 			.hasStatusOk()
 			.bodyText()
-			.contains("<html lang=\"ro\"", "Cine folosește JobWarden?", "Schimbă profilul");
+			.contains("<html lang=\"ro\"", "Cine folosește JobWarden?", "Alege un profil ca să continui");
 	}
 
 	@Test
@@ -79,10 +85,17 @@ class LocalizationTests {
 	@Test
 	void offersEveryLanguageInThePicker() {
 		String[] options = Arrays.stream(Language.values())
-			.flatMap(language -> Stream.of("value=\"" + language.getTag() + "\"", language.getNativeName()))
+			.flatMap(language -> Stream.of("href=\"/settings?lang=" + language.getTag() + "\"", language.getNativeName(),
+					"fi-" + language.getFlag()))
 			.toArray(String[]::new);
 
-		assertThat(this.mvc.get().uri("/profiles")).bodyText().contains(options);
+		assertThat(this.mvc.get().uri("/settings")).bodyText().contains(options);
+	}
+
+	@Test
+	void showsTheCurrentLanguageInThePicker() {
+		assertThat(this.mvc.get().uri("/settings").param("lang", "pl")).bodyText()
+			.contains("<html lang=\"pl\"", "Ustawienia", "href=\"/settings?lang=pl\" aria-checked=\"true\"");
 	}
 
 	@Test

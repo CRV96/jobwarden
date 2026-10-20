@@ -63,6 +63,17 @@ class ApplicationEntityTests {
 	}
 
 	@Test
+	void keepsAtLeastOneEventOnTheTimeline() {
+		ApplicationEntity application = newApplication();
+
+		application.addEvent(event(TODAY, null, ApplicationStatus.APPLIED));
+		assertThat(application.canRemoveEvent()).isFalse();
+
+		application.addEvent(event(TODAY.plusDays(1), null, ApplicationStatus.INTERVIEWING));
+		assertThat(application.canRemoveEvent()).isTrue();
+	}
+
+	@Test
 	void refusesAnEventWithoutItsRequiredFields() {
 		assertThatExceptionOfType(NullPointerException.class)
 			.isThrownBy(() -> NewTimelineEvent.builder().eventDate(TODAY).build())

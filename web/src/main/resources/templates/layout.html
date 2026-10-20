@@ -1,61 +1,139 @@
 <!DOCTYPE html>
-
-<html lang="en" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org" th:fragment="page(title, content)">
-<head>
+<!--/* The layout of every page but the profile picker (layout-bare.html): the sidebar, and the page next to it.
+       section is the sidebar entry to show as the current one: 'jobs', 'pipeline', 'search', 'settings' or null. */-->
+<html lang="en" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org" th:fragment="page(title, content, section)">
+<head th:fragment="head(title)">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title th:replace="${title}">JobWarden</title>
+    <!--/* Before the page paints, so it never flashes in the other theme: the theme picked in the settings, otherwise
+           the system's, and the sidebar as it was left. app.js keeps both. */-->
+    <script>
+        (() => {
+            const read = (key) => {
+                try {
+                    return localStorage.getItem(`jobwarden.${key}`);
+                } catch {
+                    return null;
+                }
+            };
+            const root = document.documentElement;
+            root.dataset.theme = read('theme') ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            if (read('sidebar') === 'folded') {
+                root.dataset.sidebar = 'folded';
+            }
+        })();
+    </script>
+    <link rel="stylesheet" th:href="@{/webjars/phosphor-icons__web/src/regular/style.css}">
+    <!--/* Only the settings page shows flags, next to the languages */-->
+    <link rel="stylesheet" th:href="@{/webjars/flag-icons/css/flag-icons.min.css}" th:if="${languages}">
     <link rel="stylesheet" th:href="@{/css/app.css}">
     <!--/* By default HTMX doesn't send a form with an invalid field, and doesn't say why either. */-->
     <meta name="htmx-config" content='{"reportValidityOfForms": true}'>
     <script th:src="@{/webjars/htmx.org/dist/htmx.min.js}" defer></script>
+    <script th:src="@{/js/app.js}" defer></script>
 </head>
 
-<body class="min-h-screen bg-gray-50 text-gray-900">
-<header class="border-b border-gray-200 bg-white">
-    <nav class="mx-auto flex max-w-5xl items-center gap-6 px-4 py-3">
-        <a class="font-semibold" th:href="@{/applications}">JobWarden</a>
-        <a class="text-gray-600 hover:text-gray-900" th:href="@{/applications}" th:text="#{nav.applications}">Applications</a>
-        <a class="text-gray-600 hover:text-gray-900" th:href="@{/search}" th:text="#{nav.search}">Search</a>
+<body>
+<!--/* Below the md breakpoint the sidebar is always folded to its icons; above it, its button folds it (folded:). */-->
+<div class="grid min-h-screen grid-cols-[232px_minmax(0,1fr)] transition-[grid-template-columns] duration-200 max-md:grid-cols-[64px_minmax(0,1fr)] folded:grid-cols-[64px_minmax(0,1fr)]">
+    <aside class="sticky top-0 flex h-screen min-w-0 flex-col gap-4 overflow-hidden bg-sidebar px-3 py-4 shadow-[inset_-1px_0_0_var(--jw-line)]">
+        <div class="flex items-center gap-2.5 pl-1.5 max-md:flex-col max-md:pl-0 folded:flex-col folded:pl-0">
+            <a class="brand-mark size-7" th:href="@{/applications}" aria-label="JobWarden">
+                <i class="ph ph-shield-check text-base"></i>
+            </a>
+            <span class="flex-1 text-[15px] font-bold tracking-[-0.01em] whitespace-nowrap max-md:hidden folded:hidden">JobWarden</span>
+            <button class="btn btn-ghost size-7 p-0 text-ink/60 max-md:hidden folded:hidden" type="button" data-fold-sidebar
+                    th:title="#{nav.fold}" th:aria-label="#{nav.fold}">
+                <i class="ph ph-sidebar-simple text-[17px]"></i>
+            </button>
+            <button class="btn btn-ghost hidden size-7 p-0 text-ink/60 folded:inline-flex max-md:hidden" type="button" data-fold-sidebar
+                    th:title="#{nav.unfold}" th:aria-label="#{nav.unfold}">
+                <i class="ph ph-sidebar-simple text-[17px]"></i>
+            </button>
+        </div>
 
-        <!--/* Reloads the current page with ?lang=, which LocaleConfiguration remembers in a cookie. A GET form without an
-               action goes to the current address, so the page stays the same (its own query parameters are dropped). */-->
-        <form class="ml-auto" method="get" th:if="${languages}">
-            <select class="rounded border border-gray-300 bg-white px-2 py-1 text-sm" name="lang"
-                    th:aria-label="#{language.label}" onchange="this.form.submit()">
-                <option th:each="language : ${languages}" th:value="${language.tag}" th:text="${language.nativeName}"
-                        th:selected="${language.tag == #locale.language}">English</option>
-            </select>
-            <noscript><button class="text-sm underline" type="submit" th:text="#{language.change}">Change</button></noscript>
-        </form>
+        <nav class="flex flex-col gap-0.5" th:aria-label="#{nav.label}">
+            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/applications}"
+               th:aria-current="${section == 'jobs'} ? 'page'" th:title="#{nav.jobs}">
+                <i class="ph ph-briefcase"></i>
+                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.jobs}">Jobs</span>
+                <span class="text-[11px] text-ink/55 max-md:hidden folded:hidden" th:if="${applicationCount != null}"
+                      th:text="${applicationCount}">57</span>
+            </a>
+            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/pipeline}"
+               th:aria-current="${section == 'pipeline'} ? 'page'" th:title="#{nav.pipeline}">
+                <i class="ph ph-kanban"></i>
+                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.pipeline}">Pipeline</span>
+            </a>
+            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/search}"
+               th:aria-current="${section == 'search'} ? 'page'" th:title="#{nav.search}">
+                <i class="ph ph-list-magnifying-glass"></i>
+                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.search}">Search</span>
+            </a>
+            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/settings}"
+               th:aria-current="${section == 'settings'} ? 'page'" th:title="#{nav.settings}">
+                <i class="ph ph-gear-six"></i>
+                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.settings}">Settings</span>
+            </a>
+        </nav>
 
-        <!--/* Pages that know the selected profile put it in the model as currentProfile. */-->
-        <a class="text-gray-600 hover:text-gray-900" th:href="@{/profiles}">
-            <th:block th:if="${currentProfile}"><span class="font-medium text-gray-900" th:text="${currentProfile.name}">Robert</span>
-                · <th:block th:text="#{nav.switchProfile}">Switch profile</th:block></th:block>
-            <th:block th:unless="${currentProfile}" th:text="#{nav.profiles}">Profiles</th:block>
-        </a>
-    </nav>
-</header>
+        <!--/* The selected profile, with a menu to switch to another. Pages that know it put it in the model as
+               currentProfile, and the profiles to switch to as sidebarProfiles (see BaseController). */-->
+        <div class="mt-auto">
+            <th:block th:if="${currentProfile != null and sidebarProfiles != null}">
+                <button id="profile-button" type="button" popovertarget="profile-menu" aria-haspopup="menu"
+                        class="flex w-full items-center gap-1.5 rounded-lg p-[5px] text-left hover:bg-ink/7 max-md:justify-center folded:justify-center"
+                        th:title="${currentProfile.name}">
+                    <span class="avatar size-[30px]" th:text="${@names.initials(currentProfile.name)}">R</span>
+                    <span class="min-w-0 flex-1 truncate text-[13px] max-md:hidden folded:hidden" th:text="${currentProfile.name}">Robert</span>
+                    <i class="ph ph-caret-up-down text-xs opacity-50 max-md:hidden folded:hidden"></i>
+                </button>
+                <div id="profile-menu" class="menu bottom-16 left-3" popover role="menu" aria-labelledby="profile-button">
+                    <div class="flex items-center gap-2.5 px-2 pt-2 pb-2.5">
+                        <span class="avatar size-8" th:text="${@names.initials(currentProfile.name)}">R</span>
+                        <div class="min-w-0">
+                            <div class="truncate text-[13px] font-semibold" th:text="${currentProfile.name}">Robert</div>
+                            <!--/* The id as text, so it shows 1000 and not 1,000. The extension asks for it. */-->
+                            <div class="text-xs text-ink/60" th:text="#{nav.profileId(${#strings.toString(currentProfile.id)})}">Profile id 1</div>
+                        </div>
+                    </div>
+                    <div class="menu-separator"></div>
+                    <th:block th:if="${#lists.size(sidebarProfiles) > 1}">
+                        <div class="menu-label" th:text="#{nav.switchProfile}">Switch profile</div>
+                        <form th:each="profile : ${sidebarProfiles}" th:unless="${profile.id == currentProfile.id}"
+                              method="post" th:action="@{/profiles/{id}/select(id=${profile.id})}">
+                            <button class="menu-item" type="submit" role="menuitem">
+                                <span class="avatar size-[22px] text-[11px]" th:text="${@names.initials(profile.name)}">A</span>
+                                <span class="min-w-0 flex-1 truncate" th:text="${profile.name}">Ana</span>
+                            </button>
+                        </form>
+                    </th:block>
+                    <a class="menu-item" role="menuitem" th:href="@{/profiles}">
+                        <i class="ph ph-plus-circle text-[15px]"></i><span th:text="#{nav.addProfile}">Add another profile</span>
+                    </a>
+                </div>
+            </th:block>
+            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:unless="${currentProfile}"
+               th:href="@{/profiles}" th:title="#{nav.chooseProfile}">
+                <i class="ph ph-user-circle"></i>
+                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.chooseProfile}">Choose a profile</span>
+            </a>
+        </div>
+    </aside>
 
-<!--/* HTMX ignores error responses, so a failed click would otherwise do nothing, e.g. when the application was
-       deleted in another tab or the server is down. The script at the end shows this instead. */-->
-<div id="request-error" class="border-b border-red-200 bg-red-50" role="alert" hidden>
-    <p class="mx-auto max-w-5xl px-4 py-2 text-sm text-red-800">
-        <th:block th:text="#{requestError.message}">That didn’t work.</th:block>
-        <a class="underline" href="" th:text="#{requestError.reload}">Reload the page and try again.</a>
-    </p>
+    <div class="min-w-0">
+        <!--/* Shown by app.js when an HTMX request fails: HTMX ignores error responses, so a failed click would
+               otherwise do nothing, e.g. when the application was deleted in another tab or the server is down. */-->
+        <div id="request-error" class="bg-danger/10 px-8 py-2 text-[13px] text-danger max-md:px-4" role="alert" hidden>
+            <th:block th:text="#{requestError.message}">That didn’t work.</th:block>
+            <a class="underline" href="" th:text="#{requestError.reload}">Reload the page and try again.</a>
+        </div>
+
+        <div class="px-8 py-6 max-md:px-4">
+            <main th:replace="${content}"></main>
+        </div>
+    </div>
 </div>
-
-<div class="mx-auto max-w-5xl px-4 py-8">
-    <main th:replace="${content}"></main>
-</div>
-
-<script>
-    for (const failure of ['htmx:responseError', 'htmx:sendError']) {
-        document.addEventListener(failure, () => document.getElementById('request-error').hidden = false);
-    }
-</script>
-
 </body>
 </html>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: page(~{::title}, ~{::main}, 'settings')}">
+<head>
+    <title th:text="|#{settings.title} · JobWarden|">Settings · JobWarden</title>
+</head>
+<body>
+<main class="flex flex-col gap-4">
+    <header>
+        <h1 class="page-title mb-1" th:text="#{settings.title}">Settings</h1>
+        <p class="text-[13px] text-ink/60" th:text="#{settings.subtitle}">Appearance, language and the browser extension</p>
+    </header>
+
+    <div class="flex max-w-[640px] flex-col gap-6">
+        <!--/* Kept by the browser, not the server: app.js applies and saves the choice. */-->
+        <section class="flex flex-col gap-2">
+            <h2 class="section-title" th:text="#{settings.appearance}">Appearance</h2>
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="min-w-[200px] flex-1">
+                    <div id="theme-label" class="font-medium" th:text="#{settings.theme}">Theme</div>
+                    <div class="text-xs text-ink/60" th:text="#{settings.theme.hint}">Applies to this device</div>
+                </div>
+                <div class="seg" role="radiogroup" aria-labelledby="theme-label">
+                    <label class="seg-opt">
+                        <input type="radio" name="theme" value="dark" data-theme-choice>
+                        <i class="ph ph-moon"></i><span th:text="#{settings.theme.dark}">Dark</span>
+                    </label>
+                    <label class="seg-opt">
+                        <input type="radio" name="theme" value="light" data-theme-choice>
+                        <i class="ph ph-sun"></i><span th:text="#{settings.theme.light}">Light</span>
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <!--/* Each language reloads this page with ?lang=, which LocaleConfiguration remembers in a cookie. */-->
+        <section class="flex flex-col gap-2">
+            <h2 class="section-title" th:text="#{settings.language}">Language</h2>
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="min-w-[200px] flex-1">
+                    <div class="font-medium" th:text="#{settings.language.interface}">Interface language</div>
+                    <div class="text-xs text-ink/60" th:text="#{settings.language.hint}">Dates and labels follow this language</div>
+                </div>
+                <button id="language-button" class="btn btn-secondary w-[220px] justify-start gap-2" type="button"
+                        popovertarget="language-menu" aria-haspopup="menu">
+                    <span class="fi flex-none rounded-[2px] text-[15px] shadow-[0_0_0_0.5px_rgb(0_0_0/0.2)]" aria-hidden="true"
+                          th:classappend="|fi-${currentLanguage.flag}|"></span>
+                    <span class="flex-1 text-left" th:text="${currentLanguage.nativeName}">English</span>
+                    <i class="ph ph-caret-up-down text-xs opacity-60"></i>
+                </button>
+                <div id="language-menu" class="menu max-h-[340px] w-[220px] overflow-y-auto" popover role="menu"
+                     aria-labelledby="language-button" data-anchor="language-button">
+                    <a class="menu-item" role="menuitemradio" th:each="language : ${languages}" th:lang="${language.tag}"
+                       th:href="@{/settings(lang=${language.tag})}" th:aria-checked="${language == currentLanguage}">
+                        <i class="ph ph-check w-3 text-xs" th:classappend="${language == currentLanguage} ? 'opacity-100' : 'opacity-0'"></i>
+                        <span class="fi flex-none rounded-[2px] text-[15px] shadow-[0_0_0_0.5px_rgb(0_0_0/0.2)]" aria-hidden="true"
+                              th:classappend="|fi-${language.flag}|"></span>
+                        <span class="flex-1" th:text="${language.nativeName}">English</span>
+                        <span class="text-[11px] tracking-[0.04em] opacity-55" th:text="${#strings.toUpperCase(language.tag)}">EN</span>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!--/* What to enter in the extension's own settings. */-->
+        <section class="flex flex-col gap-2">
+            <h2 class="section-title" th:text="#{settings.extension}">Browser extension</h2>
+            <div class="card flex items-start gap-3 p-3">
+                <i class="ph ph-puzzle-piece text-[22px] text-accent"></i>
+                <div class="flex min-w-0 flex-1 flex-col gap-2">
+                    <div>
+                        <div class="font-medium" th:text="#{settings.extension.name}">JobWarden for Chrome</div>
+                        <div class="text-xs text-ink/60" th:text="#{settings.extension.body}">
+                            Saves postings from job boards with one click. In its settings, enter this server’s address and your profile id.</div>
+                    </div>
+                    <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+                        <dt class="text-ink/55" th:text="#{settings.extension.server}">Server</dt>
+                        <dd class="min-w-0 truncate font-mono" th:text="${serverUrl}">http://localhost:8080</dd>
+                        <dt class="text-ink/55" th:text="#{settings.extension.profileId}">Profile id</dt>
+                        <!--/* The id as text, so it shows 1000 and not 1,000 */-->
+                        <dd class="font-mono" th:if="${currentProfile}" th:text="${#strings.toString(currentProfile.id)}">1</dd>
+                        <dd th:unless="${currentProfile}">
+                            <a class="link" th:href="@{/profiles}" th:text="#{settings.extension.chooseProfile}">Choose a profile first</a>
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+        </section>
+    </div>
+</main>
+</body>
+</html>

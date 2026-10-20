@@ -2,11 +2,15 @@ package com.jobwarden.jobs.service.impl;
 
 import java.net.URI;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.jobs.dto.ApplicationDetails;
+import com.jobwarden.jobs.dto.ApplicationQuery;
 import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
@@ -15,6 +19,7 @@ import com.jobwarden.jobs.entity.ApplicationEntity;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.exception.JobsErrorCode;
+import com.jobwarden.jobs.exception.TimelineEventNotFoundException;
 import com.jobwarden.jobs.mapper.ApplicationMapper;
 import com.jobwarden.jobs.repository.ApplicationRepository;
 import com.jobwarden.jobs.service.ApplicationService;
@@ -22,6 +27,7 @@ import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -82,6 +88,29 @@ class DefaultApplicationService implements ApplicationService {
 	}
 
 	@Override
+	public Page<ApplicationSummary> find(long userId, ApplicationQuery query) {
+		Page<ApplicationSummary> found = this.applications.findSummaries(userId, query);
+		log.debug("Found {} of {} applications for profile {} ({})", found.getNumberOfElements(),
+				found.getTotalElements(), userId, query);
+		return found;
+	}
+
+	@Override
+	public Map<ApplicationStatus, Long> countByStatus(long userId, @Nullable String search) {
+		Map<ApplicationStatus, Long> counts = new EnumMap<>(ApplicationStatus.class);
+		for (ApplicationStatus status : ApplicationStatus.values()) {
+			counts.put(status, 0L);
+		}
+		counts.putAll(this.applications.countByStatus(userId, search));
+		return counts;
+	}
+
+	@Override
+	public long count(long userId) {
+		return this.applications.countByUserId(userId);
+	}
+
+	@Override
 	public Optional<ApplicationDetails> findById(long userId, long applicationId) {
 		Optional<ApplicationDetails> application = this.applications.findByIdAndUserId(applicationId, userId)
 			.map(ApplicationMapper::toApplicationDetails);
@@ -121,6 +150,42 @@ class DefaultApplicationService implements ApplicationService {
 
 	/**
 	 * @throws ApplicationNotFoundException if the user has no such application
+	 * @throws TimelineEventNotFoundException if its timeline has no such event
+	 * @throws BusinessRuleException if the event is the only one on the timeline
+	 */
+	@Override
+	@Transactional
+	public void removeEvent(long userId, long applicationId, long eventId) {
+		ApplicationEntity application = getOwnedApplication(userId, applicationId);
+		if (!application.canRemoveEvent()) {
+			throw new BusinessRuleException(JobsErrorCode.CANNOT_REMOVE_LAST_EVENT,
+					"Application " + applicationId + " keeps its only timeline event");
+		}
+		ApplicationStatus previousStatus = application.getCurrentStatus();
+		if (!application.removeEvent(eventId)) {
+			throw new TimelineEventNotFoundException(applicationId, eventId);
+		}
+		if (application.getCurrentStatus() != previousStatus) {
+			log.info("Removed event {} from application {}, which moved from {} to {}", eventId, applicationId,
+					previousStatus, application.getCurrentStatus());
+		} else {
+			log.info("Removed event {} from application {}; its status stays {}", eventId, applicationId,
+					previousStatus);
+		}
+	}
+
+	/**
+	 * @throws ApplicationNotFoundException if the user has no such application
+	 */
+	@Override
+	@Transactional
+	public void updateNotes(long userId, long applicationId, @Nullable String notes) {
+		getOwnedApplication(userId, applicationId).changeNotes(notes);
+		log.debug("Updated the notes of application {}", applicationId);
+	}
+
+	/**
+	 * @throws ApplicationNotFoundException if the user has no such application
 	 * @throws BusinessRuleException if it isn't APPLIED, or its timeline has more than SAVED and APPLIED events
 	 */
 	@Override
@@ -144,6 +209,17 @@ class DefaultApplicationService implements ApplicationService {
 	public void delete(long userId, long applicationId) {
 		this.applications.delete(getOwnedApplication(userId, applicationId));
 		log.info("Deleted application {}", applicationId);
+	}
+
+	@Override
+	@Transactional
+	public int deleteAll(long userId, Collection<Long> applicationIds) {
+		if (applicationIds.isEmpty()) {
+			return 0;
+		}
+		int deleted = this.applications.deleteOwned(userId, applicationIds);
+		log.info("Deleted {} of the {} applications asked for by profile {}", deleted, applicationIds.size(), userId);
+		return deleted;
 	}
 
 	/**
