@@ -24,6 +24,11 @@
             }
         })();
     </script>
+    <!--/* The extension's icon (extension/icons, copied), so the tab and the toolbar look the same. PNGs for browsers
+           without SVG icons, and for a phone's home screen. */-->
+    <link rel="icon" type="image/png" sizes="32x32" th:href="@{/favicon-32.png}">
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="apple-touch-icon" th:href="@{/apple-touch-icon.png}">
     <link rel="stylesheet" th:href="@{/webjars/phosphor-icons__web/src/regular/style.css}">
     <!--/* Only the settings page shows flags, next to the languages */-->
     <link rel="stylesheet" th:href="@{/webjars/flag-icons/css/flag-icons.min.css}" th:if="${languages}">

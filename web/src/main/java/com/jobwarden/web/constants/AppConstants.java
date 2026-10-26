@@ -14,6 +14,8 @@ public final class AppConstants {
 		public static final String PROFILES = "/profiles";
 		public static final String SEARCH = "/search";
 		public static final String SETTINGS = "/settings";
+		/** The icons of the sites postings came from: /sources/{source}/icon. */
+		public static final String SOURCES = "/sources";
 	}
 
 	/**
@@ -84,6 +86,10 @@ public final class AppConstants {
 		public static final String APPLICATION_PAGE = "applicationPage";
 		/** How many of the applications the search finds have each status, for the status filter. */
 		public static final String STATUS_COUNTS = "statusCounts";
+		/** The sites the profile has an icon for (a set of sources): the pages show it instead of a generic one. */
+		public static final String ICON_SOURCES = "iconSources";
+		/** The profile's applications with a company logo (a set of ids): the pages show it before the job's title. */
+		public static final String LOGO_APPLICATIONS = "logoApplications";
 		/** The pipeline's columns: each status with its applications, in the order of the statuses. */
 		public static final String PIPELINE_COLUMNS = "pipelineColumns";
 		public static final String APPLICATIONS = "applications";

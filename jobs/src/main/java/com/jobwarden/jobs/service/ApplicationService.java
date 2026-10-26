@@ -4,12 +4,14 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.ApplicationQuery;
 import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
+import com.jobwarden.jobs.dto.PngImage;
 import com.jobwarden.jobs.dto.TrackedApplication;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import org.jspecify.annotations.Nullable;
@@ -23,7 +25,8 @@ public interface ApplicationService {
 
 	/**
 	 * Starts tracking a job posting. Its timeline starts with an event for the initial status, at the application's
-	 * {@code initialStatusDate} and {@code initialStatusTime}.
+	 * {@code initialStatusDate} and {@code initialStatusTime}. Its {@code sourceIcon}, if any, becomes the site's, and
+	 * its {@code companyLogo} its own.
 	 *
 	 * @return the new application's id
 	 */
@@ -33,7 +36,8 @@ public interface ApplicationService {
 	 * Starts tracking a job posting, unless the profile already tracks the same link. Then nothing is duplicated:
 	 * the existing application is returned, and if it's still {@link ApplicationStatus#SAVED} it moves to the
 	 * posting's initial status. So a bookmarked posting you've since applied to becomes {@code APPLIED}; an application
-	 * that's further along never moves back. Without a link, it's always a new application.
+	 * that's further along never moves back. Without a link, it's always a new application. Either way, the posting's
+	 * {@code sourceIcon}, if any, becomes the site's, and its {@code companyLogo} the application's.
 	 */
 	TrackedApplication track(NewApplication application);
 
@@ -66,6 +70,28 @@ public interface ApplicationService {
 	 * The application tracking this link, if the profile has one. The extension looks up the page it's on with it.
 	 */
 	Optional<ApplicationDetails> findByLink(long userId, String link);
+
+	/**
+	 * The icon kept for a site the profile saved postings from.
+	 *
+	 * @param source the site, e.g. {@code linkedin.com}: an application's source
+	 */
+	Optional<PngImage> findSourceIcon(long userId, String source);
+
+	/**
+	 * The sites the profile has an icon for, so a page knows which icons to show without loading them.
+	 */
+	Set<String> findSourcesWithIcon(long userId);
+
+	/**
+	 * The company logo of one of the profile's applications.
+	 */
+	Optional<PngImage> findCompanyLogo(long userId, long applicationId);
+
+	/**
+	 * The profile's applications that have a company logo, so a page knows which logos to show without loading them.
+	 */
+	Set<Long> findApplicationsWithLogo(long userId);
 
 	/**
 	 * Adds an event to the timeline. The application's status follows its latest event.

@@ -28,26 +28,34 @@ Pages are server-rendered with Thymeleaf; HTMX handles partial updates without a
 
 ### Browser extension
 
-Open `chrome://extensions`, turn on Developer mode, click **Load unpacked** and pick the `extension/` folder. In the extension's settings (⚙ in the popup, or **Options** in its menu), set the server URL and your profile id; the Profiles page shows your id. Chrome asks you to allow any server other than `http://localhost:8080`.
+The same `extension/` folder works in Chrome and Firefox (128 or later):
+
+- **Chrome:** open `chrome://extensions`, turn on Developer mode, click **Load unpacked** and pick the `extension/` folder.
+- **Firefox:** open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on…** and pick `extension/manifest.json`. Firefox keeps it until it restarts; to keep it for good, sign it as an unlisted add-on on [addons.mozilla.org](https://addons.mozilla.org/developers/), e.g. with `npx web-ext sign --source-dir extension --channel unlisted`.
+
+In the extension's settings (⚙ in the popup, or **Options** in its menu), set the server URL and your profile id; the Profiles page shows your id. The browser asks you to allow any server other than `http://localhost:8080`.
 
 On a job posting, click the extension's icon. It first looks the page up in JobWarden:
 
 - **Not saved yet:** it reads the posting and shows the title, company, location and description, which you can correct or paste in. Then click **I applied** or **Bookmark**.
 - **Bookmarked** (★): **I applied**, or **Remove bookmark**.
 - **Applied** (✓): **Move back to bookmarks**, for an application you didn't actually send, or **Remove application**. Moving back removes the Applied entries from the timeline; it's only offered while nothing else has happened since.
-- **Further along** (interviewing, offer, rejected, withdrawn): only **Open in JobWarden**. The timeline says more than a click in the extension should undo.
+- **Further along** (interviewing, offer, rejected, no response, position closed, withdrawn): only **Open in JobWarden**. The timeline says more than a click in the extension should undo.
 
 Removing asks for a second click, and can't be undone. **Include the time** adds the time of day to the timeline entry, not only the date, and the extension remembers the choice.
 
-In the settings, **Show on the toolbar icon whether a page is already in JobWarden** puts ★ or ✓ on the icon of every tab showing a saved posting, as you browse. Chrome asks you to let the extension see your tabs' addresses for it, and each page you open is then looked up on your server.
+In the settings, **Show on the toolbar icon whether a page is already in JobWarden** puts ★ or ✓ on the icon of every tab showing a saved posting, as you browse. The browser asks you to let the extension see your tabs' addresses for it, and each page you open is then looked up on your server.
 
 - **What it reads:** each field from the first of these that has it:
   - Text you selected on the page before clicking the icon, as the description. Use it where nothing else finds the description.
   - The posting's schema.org `JobPosting`, which most job boards and career sites include for Google's job search, as JSON-LD or microdata. It has every field, and the whole object is kept as the application's raw payload.
-  - On LinkedIn, which doesn't include it for signed-in members: the job's public page (what visitors who aren't signed in see), then what's on screen, then the page title.
+  - On a search that shows a job beside the results, the job's own page, fetched in the background, with its `JobPosting`: on Indeed and Glassdoor. On LinkedIn, which doesn't include it for signed-in members: the job's public page (what visitors who aren't signed in see), then what's on screen, then the page title.
+  - What the page shows, on sites whose `JobPosting` leaves fields out or that have none: Indeed, Glassdoor, Greenhouse, Workday, pracuj.pl, InfoJobs and BestJobs (`SITES` in [extract.js](extension/extract.js)). Sites like Lever, Ashby, StepStone, XING, Reed, NoFluffJobs, Just Join IT and eJobs need nothing more than their `JobPosting`.
   - The page itself: the Open Graph tags, a block marked as the job description, the `h1` heading, the page title.
-- **One posting, one application:** the server matches captures on the exact link. So the extension drops tracking parameters (`utm_*`, `trackingId`...), and on LinkedIn and Indeed it saves the job's own link, even from a search page. Saving a posting you already saved doesn't create a duplicate, and clicking **I applied** on a posting you bookmarked marks it applied.
-- **The API it uses:** under `/api/captures`, set by `jobwarden.capture.path` in [application.properties](app/src/main/resources/application.properties); if you change it, change `CAPTURE_PATH` in [settings.js](extension/settings.js) too. `POST` saves a posting; `GET ?userId=&link=` looks a link up (204 if it isn't saved); `POST /{id}/move-back-to-saved` takes back "I applied"; `DELETE /{id}?userId=` removes an application. Each answers with the application's current state: its id, title, company, status, and when it got that status.
+- **The company's logo:** from the posting's `JobPosting` (its `hiringOrganization.logo`), which most job boards and career sites have, or on LinkedIn from the job's public page. The extension sends its address and the server downloads it, since most sites don't let the extension read their images, then shrinks it to a 64-pixel PNG shown before the job's title. The server only downloads from the public internet, never from its own machine or the local network: the address comes from the page. Without a logo, the pages show the company's initials.
+- **The site's icon:** what the tab shows, drawn into a 32×32 PNG and saved with the posting, so JobWarden shows it next to the site instead of a globe. Chrome gives the extension its own copy of any page's icon. Firefox doesn't, so there the extension uses the tab's icon only when it can read it (when the icon is already part of the page, or its site lets anyone fetch it); otherwise the site keeps the globe.
+- **One posting, one application:** the server matches captures on the exact link. So the extension drops tracking parameters (`utm_*`, `trackingId`...), and on LinkedIn, Indeed and Glassdoor it saves the job's own link, even from a search page. Saving a posting you already saved doesn't create a duplicate, and clicking **I applied** on a posting you bookmarked marks it applied.
+- **The API it uses:** under `/api/captures`, set by `jobwarden.capture.path` in [application.properties](app/src/main/resources/application.properties); if you change it, change `CAPTURE_PATH` in [settings.js](extension/settings.js) too. `POST` saves a posting, with the site's icon as an optional `data:image/png;base64,...` URL in `icon` and the company logo's address in `logoUrl`; `GET ?userId=&link=` looks a link up (204 if it isn't saved); `POST /{id}/move-back-to-saved` takes back "I applied"; `DELETE /{id}?userId=` removes an application. Each answers with the application's current state: its id, title, company, status, and when it got that status.
 - **Languages:** the app's, in `extension/_locales/<language>/messages.json`. Chrome uses the browser's language.
 
 ## Project structure

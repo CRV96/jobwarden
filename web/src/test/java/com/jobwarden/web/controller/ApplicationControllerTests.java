@@ -7,6 +7,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.identity.dto.User;
@@ -19,6 +20,7 @@ import com.jobwarden.jobs.dto.NewTimelineEvent;
 import com.jobwarden.jobs.dto.TimelineEvent;
 import com.jobwarden.jobs.enums.ApplicationSort;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.RejectionReason;
 import com.jobwarden.jobs.exception.JobsErrorCode;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.web.user.CurrentUser;
@@ -36,6 +38,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -43,6 +46,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 
 @WebMvcTest(ApplicationController.class)
 class ApplicationControllerTests {
@@ -147,6 +151,42 @@ class ApplicationControllerTests {
 			.size(50)
 			.build();
 		then(this.applications).should().find(1, expected);
+	}
+
+	@Test
+	void showsTheSitesIconWhereTheProfileHasOne() {
+		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of(SUMMARY)));
+		given(this.applications.countByStatus(1, null)).willReturn(counts(ApplicationStatus.INTERVIEWING, 1));
+
+		assertThat(this.mvc.get().uri("/applications")).bodyText()
+			.contains("ph-globe-simple")
+			.doesNotContain("/sources/example.com/icon");
+
+		given(this.applications.findSourcesWithIcon(1)).willReturn(Set.of("example.com"));
+		assertThat(this.mvc.get().uri("/applications")).bodyText()
+			.contains("src=\"/sources/example.com/icon\"")
+			.doesNotContain("ph-globe-simple");
+	}
+
+	@Test
+	void showsTheCompanysLogoOrItsInitials() {
+		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of(SUMMARY)));
+		given(this.applications.countByStatus(1, null)).willReturn(counts(ApplicationStatus.INTERVIEWING, 1));
+
+		assertThat(this.mvc.get().uri("/applications")).bodyText()
+			.containsPattern("class=\"company-logo[^\"]*\"[^>]*>\\s*A\\s*</span>")
+			.doesNotContain("/applications/7/logo");
+
+		given(this.applications.findApplicationsWithLogo(1)).willReturn(Set.of(7L));
+		assertThat(this.mvc.get().uri("/applications")).bodyText().contains("src=\"/applications/7/logo\"");
+		assertThat(this.mvc.get().uri("/applications/7")).bodyText().contains("src=\"/applications/7/logo\"");
+		assertThat(this.mvc.get().uri("/applications/7/drawer")).bodyText().contains("src=\"/applications/7/logo\"");
+	}
+
+	@Test
+	void offersTheNewStatusesAndTheAutomatedEmailRejection() {
+		assertThat(this.mvc.get().uri("/applications/7")).bodyText()
+			.contains("No response", "Position closed", "Automated rejection email", "value=\"AUTOMATED_EMAIL\"");
 	}
 
 	@Test
@@ -279,6 +319,63 @@ class ApplicationControllerTests {
 		then(this.applications).should().addEvent(eq(1L), eq(7L), event.capture());
 		assertThat(event.getValue().eventDate()).isEqualTo(LocalDate.of(2026, 9, 28));
 		assertThat(event.getValue().eventTime()).isNull();
+	}
+
+	@Test
+	void asksWhyForARejectionAddedToTheTimeline() {
+		assertThat(this.mvc.post()
+			.uri("/applications/7/events")
+			.param("eventDate", "2026-09-28")
+			.param("stageCategory", "REJECTED")).hasStatusOk()
+			.bodyText()
+			.contains("Pick why it was rejected.");
+		then(this.applications).should(never()).addEvent(anyLong(), anyLong(), any());
+	}
+
+	@Test
+	void keepsOnlyTheFieldsTheStatusHas() {
+		postEvent("NO_RESPONSE", "Second round", "OTHER");
+		postEvent("REJECTED", "After the final round", "AUTOMATED_EMAIL");
+		postEvent("INTERVIEWING", "Technical interview", "OTHER");
+
+		ArgumentCaptor<NewTimelineEvent> events = ArgumentCaptor.captor();
+		then(this.applications).should(times(3)).addEvent(eq(1L), eq(7L), events.capture());
+		assertThat(events.getAllValues()).extracting(NewTimelineEvent::stageLabel, NewTimelineEvent::rejectionReason)
+			.containsExactly(tuple(null, null), tuple(null, RejectionReason.AUTOMATED_EMAIL),
+					tuple("Technical interview", null));
+	}
+
+	@Test
+	void startsTheTimelineFormWithTheFieldsOfTheCurrentStatus() {
+		// APPLICATION is interviewing: the stage shows, the reason doesn't
+		assertThat(this.mvc.get().uri("/applications/7")).bodyText()
+			.contains("data-status-select", "data-for-statuses=\"INTERVIEWING OFFER\">")
+			.containsPattern("data-for-statuses=\"REJECTED\"(?=[^>]*hidden=\"hidden\")(?=[^>]*disabled=\"disabled\")");
+	}
+
+	@Test
+	void asksWhyForAJobAddedAsRejected() {
+		given(this.applications.create(any())).willReturn(9L);
+
+		assertThat(this.mvc.post().uri("/applications").param("title", "Platform engineer").param("status", "REJECTED"))
+			.hasStatusOk()
+			.bodyText()
+			.contains("Pick why it was rejected.");
+		assertThat(this.mvc.post()
+			.uri("/applications")
+			.param("title", "Platform engineer")
+			.param("status", "REJECTED")
+			.param("rejectionReason", "POSITION_FILLED")).hasRedirectedUrl("/applications/9");
+		assertThat(this.mvc.post()
+			.uri("/applications")
+			.param("title", "Platform engineer")
+			.param("status", "APPLIED")
+			.param("rejectionReason", "POSITION_FILLED")).hasRedirectedUrl("/applications/9");
+
+		ArgumentCaptor<NewApplication> created = ArgumentCaptor.captor();
+		then(this.applications).should(times(2)).create(created.capture());
+		assertThat(created.getAllValues()).extracting(NewApplication::initialRejectionReason)
+			.containsExactly(RejectionReason.POSITION_FILLED, null);
 	}
 
 	@Test
@@ -419,6 +516,15 @@ class ApplicationControllerTests {
 			counts.put(each, (each == status) ? count : 0L);
 		}
 		return counts;
+	}
+
+	private void postEvent(String status, String stageLabel, String rejectionReason) {
+		assertThat(this.mvc.post()
+			.uri("/applications/7/events")
+			.param("eventDate", "2026-09-28")
+			.param("stageCategory", status)
+			.param("stageLabel", stageLabel)
+			.param("rejectionReason", rejectionReason)).hasStatusOk();
 	}
 
 }

@@ -38,6 +38,8 @@
 	--jw-orange: #c56a00;
 	--jw-green: #1f9e45;
 	--jw-red: #e0302a;
+	--jw-purple: #9a3fd0;
+	--jw-brown: #8f7150;
 }
 
 [data-theme="dark"] {
@@ -62,6 +64,8 @@
 	--jw-orange: #ff9f0a;
 	--jw-green: #30d158;
 	--jw-red: #ff453a;
+	--jw-purple: #bf5af2;
+	--jw-brown: #ac8e68;
 }
 
 @theme inline {
@@ -392,6 +396,14 @@
 		--st: var(--jw-red);
 	}
 
+	.st-no_response {
+		--st: var(--jw-purple);
+	}
+
+	.st-position_closed {
+		--st: var(--jw-brown);
+	}
+
 	/* — Surfaces — */
 	.card {
 		border-radius: 10px;
@@ -407,6 +419,30 @@
 		background: var(--jw-accent-tint);
 		color: var(--jw-accent-ink);
 		font-size: 12px;
+	}
+
+	/* A company's logo, or its initials: a tile before a job's title. Logos are made for a white page, so the tile
+	   stays white behind one in the dark theme too. */
+	.company-logo {
+		display: grid;
+		flex: none;
+		place-items: center;
+		overflow: hidden;
+		background: color-mix(in srgb, var(--jw-ink) 8%, transparent);
+		box-shadow: inset 0 0 0 0.5px var(--jw-line);
+		color: color-mix(in srgb, var(--jw-ink) 60%, transparent);
+		font-weight: 600;
+		letter-spacing: 0;
+	}
+
+	.company-logo:has(img) {
+		background: #fff;
+	}
+
+	.company-logo img {
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
 	}
 
 	.brand-mark {

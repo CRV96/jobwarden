@@ -14,6 +14,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.web.enums.Language;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
@@ -75,6 +76,19 @@ class ExtensionMessagesTests {
 		}
 		assertThat(used).isNotEmpty();
 		assertThat(messages(Language.ENGLISH)).containsKeys(used.toArray(String[]::new));
+	}
+
+	/**
+	 * The extension names a status by its message (status_SAVED...) and shows it with its look in status.js; both are
+	 * put together at run time, so the test above doesn't see them.
+	 */
+	@Test
+	void theExtensionKnowsEveryStatus() throws IOException {
+		String looks = Files.readString(EXTENSION.resolve("status.js"));
+		for (ApplicationStatus status : ApplicationStatus.values()) {
+			assertThat(messages(Language.ENGLISH)).as(status.name()).containsKey("status_" + status.name());
+			assertThat(looks).as(status.name()).contains("  " + status.name() + ": {");
+		}
 	}
 
 	private static boolean usesMessages(Path file) {

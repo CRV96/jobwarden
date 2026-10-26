@@ -1,8 +1,10 @@
 package com.jobwarden.capture.controller;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 
@@ -10,6 +12,7 @@ import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.identity.service.UserService;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.NewApplication;
+import com.jobwarden.jobs.dto.PngImage;
 import com.jobwarden.jobs.dto.TimelineEvent;
 import com.jobwarden.jobs.dto.TrackedApplication;
 import com.jobwarden.jobs.enums.ApplicationStatus;
@@ -33,6 +36,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 
 @WebMvcTest(CaptureController.class)
 class CaptureControllerTests {
@@ -50,6 +54,9 @@ class CaptureControllerTests {
 
 	private static final String LINK = "https://www.linkedin.com/jobs/view/42";
 
+	/** The signature every PNG starts with, and a few bytes for the image. */
+	private static final byte[] PNG = { (byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n', 0, 0, 0, 13 };
+
 	@Autowired
 	private MockMvcTester mvc;
 
@@ -61,6 +68,9 @@ class CaptureControllerTests {
 
 	@MockitoBean
 	private UserService users;
+
+	@MockitoBean
+	private LogoDownloader logos;
 
 	@Test
 	void rejectsCaptureWithoutTitleAsProblemDetail() {
@@ -146,6 +156,77 @@ class CaptureControllerTests {
 			assertThat(application.initialStatusDate()).isEqualTo(LocalDate.now());
 			assertThat(application.initialStatusTime()).isNotNull();
 		});
+	}
+
+	@Test
+	void keepsTheSitesIcon() {
+		given(this.users.exists(1)).willReturn(true);
+		given(this.applications.track(any())).willReturn(new TrackedApplication(7, true));
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(application(ApplicationStatus.APPLIED)));
+
+		assertThat(this.mvc.post().uri(this.capturePath).contentType(MediaType.APPLICATION_JSON).content(withIcon(PNG)))
+			.hasStatus(HttpStatus.CREATED);
+
+		ArgumentCaptor<NewApplication> tracked = ArgumentCaptor.captor();
+		then(this.applications).should().track(tracked.capture());
+		assertThat(tracked.getValue().sourceIcon()).isEqualTo(new PngImage(PNG));
+	}
+
+	@Test
+	void rejectsAnIconThatIsNotAPng() {
+		given(this.users.exists(1)).willReturn(true);
+
+		assertThat(this.mvc.post()
+			.uri(this.capturePath)
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(withIcon("<svg onload=\"alert(1)\"/>".getBytes(StandardCharsets.UTF_8))))
+			.hasStatus(HttpStatus.BAD_REQUEST)
+			.bodyJson()
+			.extractingPath("$.errors.iconPng")
+			.isEqualTo("must be a PNG");
+		assertThat(this.mvc.post()
+			.uri(this.capturePath)
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(CAPTURE.replace("\"userId\": 1,", "\"userId\": 1, \"icon\": \"https://example.com/favicon.ico\",")))
+			.hasStatus(HttpStatus.BAD_REQUEST)
+			.bodyJson()
+			.extractingPath("$.errors.icon")
+			.isNotNull();
+		then(this.applications).should(never()).track(any());
+	}
+
+	@Test
+	void keepsTheCompanysLogo() {
+		String logoUrl = "https://media.licdn.com/dms/image/company-logo_100_100/acme_logo";
+		given(this.users.exists(1)).willReturn(true);
+		given(this.logos.download(logoUrl)).willReturn(Optional.of(new PngImage(PNG)));
+		given(this.applications.track(any())).willReturn(new TrackedApplication(7, true));
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(application(ApplicationStatus.APPLIED)));
+
+		assertThat(this.mvc.post()
+			.uri(this.capturePath)
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(CAPTURE.replace("\"userId\": 1,", "\"userId\": 1, \"logoUrl\": \"" + logoUrl + "\",")))
+			.hasStatus(HttpStatus.CREATED);
+
+		ArgumentCaptor<NewApplication> tracked = ArgumentCaptor.captor();
+		then(this.applications).should().track(tracked.capture());
+		assertThat(tracked.getValue().companyLogo()).isEqualTo(new PngImage(PNG));
+	}
+
+	@Test
+	void rejectsALogoAddressThatIsNotOnTheWeb() {
+		given(this.users.exists(1)).willReturn(true);
+
+		assertThat(this.mvc.post()
+			.uri(this.capturePath)
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(CAPTURE.replace("\"userId\": 1,", "\"userId\": 1, \"logoUrl\": \"file:///etc/passwd\",")))
+			.hasStatus(HttpStatus.BAD_REQUEST)
+			.bodyJson()
+			.extractingPath("$.errors.logoUrl")
+			.isNotNull();
+		then(this.logos).should(never()).download(any());
 	}
 
 	@Test
@@ -290,6 +371,11 @@ class CaptureControllerTests {
 			.eventTime(time)
 			.stageCategory(stageCategory)
 			.build();
+	}
+
+	private static String withIcon(byte[] image) {
+		String icon = "data:image/png;base64," + Base64.getEncoder().encodeToString(image);
+		return CAPTURE.replace("\"userId\": 1,", "\"userId\": 1, \"icon\": \"" + icon + "\",");
 	}
 
 }

@@ -88,6 +88,15 @@ abstract class BaseController {
 		throw new ProfileNotSelectedException();
 	}
 
+	/**
+	 * Which images the pages showing applications have: the sites' icons, next to each site, and the companies'
+	 * logos, before each job's title.
+	 */
+	protected void addImages(Model model, long userId) {
+		model.addAttribute(ModelAttributes.ICON_SOURCES, this.applications.findSourcesWithIcon(userId));
+		model.addAttribute(ModelAttributes.LOGO_APPLICATIONS, this.applications.findApplicationsWithLogo(userId));
+	}
+
 	protected void selectProfile(long userId) {
 		this.currentUser.select(userId);
 	}

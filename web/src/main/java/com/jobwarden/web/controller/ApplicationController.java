@@ -70,6 +70,7 @@ class ApplicationController extends BaseController {
 		}
 		model.addAttribute(ModelAttributes.APPLICATION_PAGE, page);
 		model.addAttribute(ModelAttributes.STATUS_COUNTS, this.applications.countByStatus(userId, listParams.q()));
+		addImages(model, userId);
 		addFormChoices(model);
 		return Views.APPLICATION_LIST;
 	}
@@ -213,6 +214,7 @@ class ApplicationController extends BaseController {
 		model.addAttribute(ModelAttributes.JOB_APPLICATION, this.applications.findById(userId, applicationId)
 			.orElseThrow(() -> new ApplicationNotFoundException(applicationId)));
 		model.addAttribute(ModelAttributes.VIEW, view);
+		addImages(model, userId);
 		addFormChoices(model);
 	}
 

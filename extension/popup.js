@@ -9,6 +9,9 @@ import { iconShowsStatus, showOnIcon, statusLook, statusName } from './status.js
 // along (interviewing, offer...), the timeline says more than a click can undo, so that's for the app. When
 // JobWarden doesn't have it, the form shows what extract.js found, to correct and save.
 
+/** The site icon's width and height in pixels: what a tab shows, on a screen with twice the pixels. */
+const ICON_SIZE = 32;
+
 /** The server's code for a profile id that matches no profile: fixed in the settings. */
 const PROFILE_NOT_FOUND = 'IDENTITY-001';
 
@@ -43,7 +46,8 @@ openSettings.addEventListener('click', () => chrome.runtime.openOptionsPage());
 const settings = await loadSettings();
 describeSettings();
 const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-const link = canonicalLink(tab.url);
+/** The link JobWarden keeps for the page; on a search showing a job, the job's own, once extract.js finds it. */
+let link = canonicalLink(tab.url);
 
 /** @type {import('./api.js').CapturedApplication | null} the page's application, while JobWarden has one */
 let application = null;
@@ -51,7 +55,11 @@ let application = null;
 /** What extract.js found on the page, or null if it couldn't read it */
 let job = null;
 
+/** The site's icon as a PNG data URL, or null if the browser wouldn't give it: sent along with what's saved */
+let icon = null;
+
 let reading = Promise.resolve();
+let readingIcon = Promise.resolve();
 
 if (settings.userId === undefined) {
   showStatus(message('setupNeeded'));
@@ -60,6 +68,7 @@ if (settings.userId === undefined) {
   showStatus(message('pageUnreadable'), 'error');
 } else {
   reading = readPage();
+  readingIcon = readIcon();
   listen();
   await open();
 }
@@ -79,6 +88,7 @@ async function open() {
       showStatus(message('reading'));
     }
     await reading;
+    failed = failed || !(await lookUpTheJobsOwnLink());
   }
   if (failed) {
     // The error stays shown
@@ -89,6 +99,27 @@ async function open() {
   }
   render();
   await updateIcon();
+}
+
+/**
+ * On a search that shows a job beside the results without naming it in its address (Glassdoor), the tab's address
+ * isn't the job's: the job JobWarden may have is under the link extract.js found.
+ *
+ * @returns {Promise<boolean>} false if looking it up failed (the error is shown)
+ */
+async function lookUpTheJobsOwnLink() {
+  const own = job?.link ? canonicalLink(job.link) : null;
+  if (own === null || own === link) {
+    return true;
+  }
+  link = own;
+  try {
+    application = await server(() => lookUp(settings, link));
+    return true;
+  } catch (error) {
+    showFailure(error);
+    return false;
+  }
 }
 
 function listen() {
@@ -147,6 +178,8 @@ async function save(action) {
     return;
   }
   const before = application;
+  // Long done by the time the user clicks
+  await readingIcon;
   try {
     const { application: saved, created } = await server(() => capture(settings, posting(action)));
     await show(saved);
@@ -162,9 +195,12 @@ async function save(action) {
   }
 }
 
-/** The form's corrections to what was found; for a bookmark, only what the server needs to find it again. */
+/**
+ * The form's corrections to what was found; for a bookmark, only what the server needs to find it again. The icon
+ * goes along either way: the server keeps the site's latest.
+ */
 function posting(action) {
-  const request = { action, link, includeTime: includeTime.checked };
+  const request = { action, link, includeTime: includeTime.checked, ...(icon && { icon }) };
   if (application !== null) {
     return { ...request, title: application.title };
   }
@@ -240,6 +276,65 @@ async function readPage() {
     form.elements.company.value = job.company ?? '';
     form.elements.location.value = job.location ?? '';
     form.elements.description.value = job.description ?? '';
+  }
+}
+
+/**
+ * The icon the tab shows, drawn into a 32×32 PNG, the one format the server takes. Chrome hands extensions its own
+ * copy of a page's icon (the favicon permission). Firefox has no such copy, so the tab's icon address is fetched
+ * instead: often a data: URL already, otherwise it works for an icon the page's site serves to anyone. When neither
+ * works, the app shows a globe for the site, as before.
+ */
+async function readIcon() {
+  if (!tab.favIconUrl) {
+    // The tab shows no icon of its own: Chrome's copy would be its generic globe
+    return;
+  }
+  for (const address of [browserIconAddress(tab.url), tab.favIconUrl]) {
+    try {
+      icon = await toPng(address);
+      return;
+    } catch {
+      // Not from here: the next address, or no icon
+    }
+  }
+}
+
+/** Where Chrome serves its copy of a page's icon. Firefox has nothing there, and the fetch fails. */
+function browserIconAddress(pageUrl) {
+  const address = new URL(chrome.runtime.getURL('/_favicon/'));
+  address.searchParams.set('pageUrl', pageUrl);
+  address.searchParams.set('size', String(ICON_SIZE));
+  return address.href;
+}
+
+/**
+ * Fetches the image and draws it into a PNG. Through a blob: address, so the canvas can export it whatever site the
+ * image came from.
+ *
+ * @returns {Promise<string>} a data:image/png;base64 URL
+ */
+async function toPng(address) {
+  const response = await fetch(address);
+  if (!response.ok) {
+    throw new Error(`The icon answered ${response.status}`);
+  }
+  const blob = await response.blob();
+  if (!blob.type.startsWith('image/')) {
+    throw new Error(`The icon is a ${blob.type}`);
+  }
+  const blobAddress = URL.createObjectURL(blob);
+  try {
+    const image = new Image();
+    image.src = blobAddress;
+    await image.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = ICON_SIZE;
+    canvas.height = ICON_SIZE;
+    canvas.getContext('2d').drawImage(image, 0, 0, ICON_SIZE, ICON_SIZE);
+    return canvas.toDataURL('image/png');
+  } finally {
+    URL.revokeObjectURL(blobAddress);
   }
 }
 

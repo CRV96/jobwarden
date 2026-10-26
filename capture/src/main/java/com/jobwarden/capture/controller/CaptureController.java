@@ -47,6 +47,8 @@ class CaptureController {
 
 	private final JsonMapper jsonMapper;
 
+	private final LogoDownloader logos;
+
 	/**
 	 * What the profile has for a link: the extension looks up the page it's on when it opens.
 	 * @return 200 with the application, or 204 if the profile doesn't track the link
@@ -128,6 +130,9 @@ class CaptureController {
 			.initialStatus(request.action().getInitialStatus())
 			.initialStatusDate(now.toLocalDate())
 			.initialStatusTime(includeTime ? now.toLocalTime() : null)
+			.sourceIcon(request.toSourceIcon())
+			// Before the application is saved, outside its transaction: downloading can take a few seconds
+			.companyLogo(this.logos.download(request.logoUrl()).orElse(null))
 			.build();
 	}
 

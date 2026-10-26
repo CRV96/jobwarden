@@ -164,6 +164,12 @@
   "status_REJECTED": {
     "message": "Respinsă"
   },
+  "status_NO_RESPONSE": {
+    "message": "Fără răspuns"
+  },
+  "status_POSITION_CLOSED": {
+    "message": "Post închis"
+  },
   "status_WITHDRAWN": {
     "message": "Retrasă"
   },

@@ -11,7 +11,8 @@
 
     <!--/* When an application changes in the side panel, HTMX reloads the board; hx-disinherit keeps the cards' own
            requests from inheriting that. */-->
-    <div id="pipeline" class="grid grid-cols-[repeat(6,minmax(190px,1fr))] gap-3 overflow-x-auto pb-3" hx-disinherit="*"
+    <!--/* As many columns as there are statuses */-->
+    <div id="pipeline" class="grid auto-cols-[minmax(180px,1fr)] grid-flow-col gap-3 overflow-x-auto pb-3" hx-disinherit="*"
          th:hx-get="@{/pipeline}" hx-trigger="applications-changed from:body" hx-select="#pipeline" hx-target="this" hx-swap="outerHTML">
         <section class="flex min-w-0 flex-col gap-2" th:each="column : ${pipelineColumns}"
                  th:classappend="|st-${#strings.toLowerCase(column.key.name())}|">
@@ -23,12 +24,16 @@
             <button class="card flex flex-col gap-1.5 p-2.5 text-left hover:shadow-md" type="button" data-drawer-row
                     th:each="summary : ${column.value}"
                     th:hx-get="@{/applications/{id}/drawer(id=${summary.id})}" hx-target="#drawer-content" hx-swap="innerHTML">
-                <span class="text-sm leading-tight font-medium" th:text="${summary.title}">Backend engineer</span>
+                <span class="flex items-center gap-2">
+                    <span th:replace="~{applications/fragments :: company-logo(${summary.id}, ${summary.company}, 28)}"></span>
+                    <span class="min-w-0 text-sm leading-tight font-medium" th:text="${summary.title}">Backend engineer</span>
+                </span>
                 <span class="text-xs text-ink/65" th:if="${summary.company != null or summary.location != null}"
                       th:text="${summary.company != null and summary.location != null} ? |${summary.company} · ${summary.location}| : (${summary.company} ?: ${summary.location})">Acme · Remote</span>
                 <span class="flex items-center gap-1.5 text-[11px] text-ink/50">
-                    <i class="ph" th:classappend="${summary.source} ? 'ph-globe-simple' : 'ph-pencil-simple'"
-                       th:title="${summary.source} ?: #{source.addedByHand}"></i>
+                    <span class="flex" th:title="${summary.source} ?: #{source.addedByHand}">
+                        <th:block th:replace="~{applications/fragments :: source-icon(${summary.source})}"></th:block>
+                    </span>
                     <span th:text="${@dates.relativeDay(summary.capturedAt)}">Today</span>
                 </span>
             </button>

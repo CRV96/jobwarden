@@ -10,9 +10,29 @@
 <span th:fragment="status-badge(status)" class="tag" th:classappend="|st-${#strings.toLowerCase(status.name())}|"
       th:text="#{${'status.' + status}}">Applied</span>
 
+<!--/* The site's own icon, as the browser showed it on the posting's tab, when the extension saved one (iconSources,
+       see BaseController); otherwise a globe, or a pencil for a job added by hand without a link. */-->
+<th:block th:fragment="source-icon(source)">
+    <img class="size-3.5 flex-none rounded-[3px]" width="14" height="14" alt=""
+         th:if="${source != null and iconSources != null and iconSources.contains(source)}"
+         th:src="@{/sources/{source}/icon(source=${source})}">
+    <i class="ph flex-none text-sm" th:unless="${source != null and iconSources != null and iconSources.contains(source)}"
+       th:classappend="${source} ? 'ph-globe-simple' : 'ph-pencil-simple'"></i>
+</th:block>
+
+<!--/* The company's logo, from the posting (logoApplications, see BaseController), or else the company's initials.
+       size is its side in pixels: 28 in the lists, 40 in the side panel and on the job's page. */-->
+<span th:fragment="company-logo(id, company, size)" class="company-logo" aria-hidden="true"
+      th:classappend="${size >= 40} ? 'size-10 rounded-[9px] text-sm' : 'size-7 rounded-md text-[11px]'">
+    <img th:if="${logoApplications != null and logoApplications.contains(id)}" alt=""
+         th:src="@{/applications/{id}/logo(id=${id})}" th:width="${size}" th:height="${size}">
+    <th:block th:unless="${logoApplications != null and logoApplications.contains(id)}"
+              th:text="${company != null and !#strings.isEmpty(company)} ? ${@names.initials(company)} : '·'">AC</th:block>
+</span>
+
 <!--/* Where the posting came from: the site, or added by hand without a link. */-->
 <th:block th:fragment="source(source)">
-    <i class="ph flex-none text-sm" th:classappend="${source} ? 'ph-globe-simple' : 'ph-pencil-simple'"></i>
+    <th:block th:replace="~{applications/fragments :: source-icon(${source})}"></th:block>
     <span class="min-w-0 truncate" th:text="${source} ?: #{source.manual}">linkedin.com</span>
 </th:block>
 
@@ -27,7 +47,7 @@
     </th:block>
     <dt class="text-ink/55" th:text="#{jobs.column.source}">Source</dt>
     <dd class="flex min-w-0 items-center gap-1.5">
-        <i class="ph flex-none" th:classappend="${jobApplication.source} ? 'ph-globe-simple' : 'ph-pencil-simple'"></i>
+        <th:block th:replace="~{applications/fragments :: source-icon(${jobApplication.source})}"></th:block>
         <span class="min-w-0 truncate" th:text="${jobApplication.source} ?: #{source.addedByHand}">linkedin.com</span>
     </dd>
     <dt class="text-ink/55" th:text="#{jobs.column.added}">Added</dt>
@@ -104,7 +124,12 @@
         </li>
     </ol>
 
-    <form class="flex flex-col gap-2 rounded-md p-3 shadow-sm" th:hx-post="${eventsUrl}">
+    <!--/* Each status asks for what it has (ApplicationStatus): a stage for interviewing and an offer, a reason for a
+           rejection, only the note for the others. The fields start out for the current status, which the select
+           starts on; app.js switches them as another is picked (data-status-select, data-for-statuses). A hidden
+           field is disabled too, so it's neither sent nor required. */-->
+    <form class="flex flex-col gap-2 rounded-md p-3 shadow-sm" th:hx-post="${eventsUrl}"
+          th:with="current=${jobApplication.status}">
         <div class="flex flex-wrap items-center gap-1.5">
             <input class="input w-auto flex-[1_1_150px]" type="date" name="eventDate" required th:value="${now.toLocalDate()}"
                    th:aria-label="#{application.event.date}">
@@ -115,12 +140,21 @@
             <button class="btn btn-ghost" type="button" onclick="this.previousElementSibling.value = ''"
                     th:text="#{form.clearTime}">Clear time</button>
         </div>
-        <select class="input" name="stageCategory" required th:aria-label="#{application.event.stage}">
-            <option th:each="status : ${statuses}" th:value="${status}" th:selected="${status == jobApplication.status}"
+        <select class="input" name="stageCategory" required data-status-select th:aria-label="#{application.event.stage}">
+            <option th:each="status : ${statuses}" th:value="${status}" th:selected="${status == current}"
                     th:text="#{${'status.' + status}}">Applied</option>
         </select>
         <input class="input" type="text" name="stageLabel" maxlength="200" th:aria-label="#{application.event.stageLabel}"
-               th:placeholder="#{application.event.stageLabel.placeholder}">
+               th:placeholder="#{application.event.stageLabel.placeholder}"
+               th:data-for-statuses="${#strings.arrayJoin(statuses.?[hasStages()], ' ')}"
+               th:hidden="${!current.hasStages()}" th:disabled="${!current.hasStages()}">
+        <select class="input" name="rejectionReason" required th:aria-label="#{application.rejectionReason}"
+                th:data-for-statuses="${#strings.arrayJoin(statuses.?[hasRejectionReason()], ' ')}"
+                th:hidden="${!current.hasRejectionReason()}" th:disabled="${!current.hasRejectionReason()}">
+            <option value="" disabled selected th:text="#{application.rejectionReason.prompt}">Why?</option>
+            <option th:each="reason : ${rejectionReasons}" th:value="${reason}"
+                    th:text="#{${'rejectionReason.' + reason}}">Salary mismatch</option>
+        </select>
         <textarea class="input" name="note" rows="3" th:aria-label="#{application.event.note}"
                   th:placeholder="#{application.event.note.placeholder}"></textarea>
         <div>
@@ -195,9 +229,18 @@
             </div>
             <div>
                 <label class="field-label" for="add-job-status" th:text="#{newApplication.status}">Status</label>
-                <select id="add-job-status" class="input" name="status" required>
+                <select id="add-job-status" class="input" name="status" required data-status-select>
                     <option th:each="status : ${statuses}" th:value="${status}" th:text="#{${'status.' + status}}"
                             th:selected="${status.name() == 'APPLIED'}">Applied</option>
+                </select>
+            </div>
+            <!--/* Only for a job added as rejected: app.js shows it (see the timeline's form above) */-->
+            <div class="col-span-full" hidden th:data-for-statuses="${#strings.arrayJoin(statuses.?[hasRejectionReason()], ' ')}">
+                <label class="field-label" for="add-job-reason" th:text="#{application.rejectionReason}">Rejection reason</label>
+                <select id="add-job-reason" class="input" name="rejectionReason" required disabled>
+                    <option value="" disabled selected th:text="#{application.rejectionReason.prompt}">Why?</option>
+                    <option th:each="reason : ${rejectionReasons}" th:value="${reason}"
+                            th:text="#{${'rejectionReason.' + reason}}">Salary mismatch</option>
                 </select>
             </div>
         </div>

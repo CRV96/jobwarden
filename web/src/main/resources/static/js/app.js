@@ -133,10 +133,27 @@ document.addEventListener('change', (event) => {
 		updateSelection();
 	} else if (target.matches('[data-select-row]')) {
 		updateSelection();
+	} else if (target.matches('[data-status-select]')) {
+		showFieldsFor(target);
 	} else if (target.matches('[data-auto-submit]')) {
 		target.form?.requestSubmit();
 	}
 });
+
+/**
+ * The fields of a status select's form that are for some statuses only, e.g. data-for-statuses="INTERVIEWING OFFER":
+ * shown while one of those is picked. Hidden, their controls are disabled too, so they're neither sent nor required.
+ */
+function showFieldsFor(select) {
+	for (const field of select.form.querySelectorAll('[data-for-statuses]')) {
+		const shown = field.dataset.forStatuses.split(' ').includes(select.value);
+		field.hidden = !shown;
+		const controls = field.matches('input, select, textarea') ? [field] : field.querySelectorAll('input, select, textarea');
+		for (const control of controls) {
+			control.disabled = !shown;
+		}
+	}
+}
 
 /**
  * The list's selection: the select-all box, the bar that counts the ticked rows, and the texts of the dialog that

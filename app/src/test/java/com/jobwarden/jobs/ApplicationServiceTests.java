@@ -11,6 +11,7 @@ import com.jobwarden.jobs.dto.ApplicationQuery;
 import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
+import com.jobwarden.jobs.dto.PngImage;
 import com.jobwarden.jobs.dto.TimelineEvent;
 import com.jobwarden.jobs.dto.TrackedApplication;
 import com.jobwarden.jobs.enums.ApplicationSort;
@@ -383,7 +384,8 @@ class ApplicationServiceTests {
 		assertThat(this.applications.countByStatus(this.userId, "backend")).containsExactly(
 				entry(ApplicationStatus.SAVED, 1L), entry(ApplicationStatus.APPLIED, 1L),
 				entry(ApplicationStatus.INTERVIEWING, 0L), entry(ApplicationStatus.OFFER, 0L),
-				entry(ApplicationStatus.REJECTED, 0L), entry(ApplicationStatus.WITHDRAWN, 0L));
+				entry(ApplicationStatus.REJECTED, 0L), entry(ApplicationStatus.NO_RESPONSE, 0L),
+				entry(ApplicationStatus.POSITION_CLOSED, 0L), entry(ApplicationStatus.WITHDRAWN, 0L));
 	}
 
 	@Test
@@ -524,6 +526,106 @@ class ApplicationServiceTests {
 			.isThrownBy(() -> this.applications.updateNotes(this.otherUserId, id, "Not yours"));
 	}
 
+	@Test
+	void keepsTheNewStatusesAndTheAutomatedEmailRejection() {
+		long noResponse = create(this.userId, "No response", ApplicationStatus.APPLIED);
+		long closed = create(this.userId, "Closed", ApplicationStatus.APPLIED);
+		long rejected = create(this.userId, "Rejected", ApplicationStatus.APPLIED);
+
+		this.applications.addEvent(this.userId, noResponse, event(TODAY.plusDays(1), ApplicationStatus.NO_RESPONSE));
+		this.applications.addEvent(this.userId, closed, event(TODAY.plusDays(1), ApplicationStatus.POSITION_CLOSED));
+		this.applications.addEvent(this.userId, rejected, NewTimelineEvent.builder()
+			.eventDate(TODAY.plusDays(1))
+			.stageCategory(ApplicationStatus.REJECTED)
+			.rejectionReason(RejectionReason.AUTOMATED_EMAIL)
+			.build());
+
+		assertThat(this.applications.find(this.userId, query().sort(ApplicationSort.STATUS)
+			.direction(Sort.Direction.ASC)
+			.build())).extracting(ApplicationSummary::id).containsExactly(rejected, noResponse, closed);
+		assertThat(this.applications.findById(this.userId, rejected).orElseThrow().timeline().getLast()
+			.rejectionReason()).isEqualTo(RejectionReason.AUTOMATED_EMAIL);
+	}
+
+	@Test
+	void startsTheTimelineOfAJobAddedAsRejectedWithTheReason() {
+		long id = this.applications.create(NewApplication.builder()
+			.userId(this.userId)
+			.title("Backend engineer")
+			.initialStatus(ApplicationStatus.REJECTED)
+			.initialStatusDate(TODAY)
+			.initialRejectionReason(RejectionReason.AUTOMATED_EMAIL)
+			.build());
+		NewApplication appliedWithReason = NewApplication.builder()
+			.userId(this.userId)
+			.title("Backend engineer")
+			.initialStatus(ApplicationStatus.APPLIED)
+			.initialStatusDate(TODAY)
+			.initialRejectionReason(RejectionReason.OTHER)
+			.build();
+
+		assertThat(this.applications.findById(this.userId, id).orElseThrow().timeline()).singleElement()
+			.extracting(TimelineEvent::rejectionReason)
+			.isEqualTo(RejectionReason.AUTOMATED_EMAIL);
+		assertThatThrownBy(() -> this.applications.create(appliedWithReason))
+			.isInstanceOfSatisfying(BusinessRuleException.class, exception -> assertThat(exception.getErrorCode())
+				.isEqualTo(JobsErrorCode.REJECTION_REASON_NOT_ALLOWED));
+	}
+
+	@Test
+	void keepsEachApplicationsCompanyLogo() {
+		long withLogo = this.applications.create(withLogo(newApplication(this.userId, "Acme", ApplicationStatus.SAVED),
+				icon(1)));
+		long without = create(this.userId, "No logo", ApplicationStatus.SAVED);
+
+		assertThat(this.applications.findCompanyLogo(this.userId, withLogo)).contains(icon(1));
+		assertThat(this.applications.findCompanyLogo(this.userId, without)).isEmpty();
+		assertThat(this.applications.findCompanyLogo(this.otherUserId, withLogo)).isEmpty();
+		assertThat(this.applications.findApplicationsWithLogo(this.userId)).containsExactly(withLogo);
+		assertThat(this.applications.findApplicationsWithLogo(this.otherUserId)).isEmpty();
+	}
+
+	@Test
+	void capturingAPostingAgainReplacesItsLogoAndDeletingItRemovesIt() {
+		NewApplication posting = newApplication(this.userId, "Backend engineer", ApplicationStatus.SAVED);
+		long id = this.applications.track(withLogo(posting, icon(1))).id();
+		long other = this.applications.create(withLogo(newApplication(this.userId, "Other", ApplicationStatus.SAVED,
+				"https://example.com/jobs/2"), icon(3)));
+
+		this.applications.track(withLogo(posting, icon(2)));
+		assertThat(this.applications.findCompanyLogo(this.userId, id)).contains(icon(2));
+
+		this.applications.delete(this.userId, id);
+		this.applications.deleteAll(this.userId, List.of(other));
+		assertThat(this.jdbc.sql("SELECT count(*) FROM company_logos").query(Long.class).single()).isZero();
+	}
+
+	@Test
+	void keepsTheIconOfEachSitePerProfile() {
+		PngImage icon = icon(1);
+		this.applications.create(withIcon(newApplication(this.userId, "LinkedIn", ApplicationStatus.SAVED,
+				"https://www.linkedin.com/jobs/view/1"), icon));
+		this.applications.create(withIcon(newApplication(this.userId, "Referral", ApplicationStatus.APPLIED, null),
+				icon(2)));
+
+		assertThat(this.applications.findSourceIcon(this.userId, "linkedin.com")).contains(icon);
+		assertThat(this.applications.findSourcesWithIcon(this.userId)).as("none for a posting without a site")
+			.containsExactly("linkedin.com");
+		assertThat(this.applications.findSourcesWithIcon(this.otherUserId)).isEmpty();
+		assertThat(this.applications.findSourceIcon(this.otherUserId, "linkedin.com")).isEmpty();
+	}
+
+	@Test
+	void capturingAPostingAgainReplacesItsSitesIcon() {
+		NewApplication posting = newApplication(this.userId, "Backend engineer", ApplicationStatus.SAVED);
+		this.applications.track(withIcon(posting, icon(1)));
+
+		this.applications.track(withIcon(posting, icon(2)));
+		this.applications.track(posting);
+
+		assertThat(this.applications.findSourceIcon(this.userId, "example.com")).contains(icon(2));
+	}
+
 	private long insertProfile(String name) {
 		return this.jdbc.sql("INSERT INTO users (name) VALUES (?) RETURNING id")
 			.param(name)
@@ -544,6 +646,35 @@ class ApplicationServiceTests {
 			.initialStatus(ApplicationStatus.SAVED)
 			.initialStatusDate(TODAY)
 			.build());
+	}
+
+	/**
+	 * A PNG for a site's icon, a different one for each number.
+	 */
+	private static PngImage icon(int number) {
+		return new PngImage(new byte[] { (byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n', (byte) number });
+	}
+
+	private static NewApplication withIcon(NewApplication application, PngImage icon) {
+		return NewApplication.builder()
+			.userId(application.userId())
+			.title(application.title())
+			.link(application.link())
+			.initialStatus(application.initialStatus())
+			.initialStatusDate(application.initialStatusDate())
+			.sourceIcon(icon)
+			.build();
+	}
+
+	private static NewApplication withLogo(NewApplication application, PngImage logo) {
+		return NewApplication.builder()
+			.userId(application.userId())
+			.title(application.title())
+			.link(application.link())
+			.initialStatus(application.initialStatus())
+			.initialStatusDate(application.initialStatusDate())
+			.companyLogo(logo)
+			.build();
 	}
 
 	/**

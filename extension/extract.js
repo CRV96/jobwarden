@@ -7,10 +7,14 @@
 //   2. The posting's schema.org JobPosting, which job sites add for Google's job search, as JSON-LD
 //      (<script type="application/ld+json">) or microdata (itemprop attributes). It has every field, and the whole
 //      object is sent along as rawPayload.
-//   3. On LinkedIn, which gives signed-in members no JobPosting: the job's public page, then what's on screen.
-//   4. The page itself: Open Graph tags, a block marked as the job description, the heading, the page title.
-// The user can correct the title, company, location and description in the popup before saving. The link isn't read
-// here: the popup takes it from the tab's address (links.js).
+//   3. For a job a site shows beside its search results (Indeed, Glassdoor): the job's own page, fetched, with its
+//      JobPosting. On LinkedIn, which gives signed-in members none: the job's public page.
+//   4. What the site shows on screen, for the sites that leave fields out of the JobPosting or have none (SITES).
+//   5. The page itself: Open Graph tags, a block marked as the job description, the heading, the page title.
+// The company's logo comes from the JobPosting or a site's own readers, never from just any image on the page; the
+// server downloads it (logoUrl).
+// The user can correct the title, company, location and description in the popup before saving. The popup takes the
+// link from the tab's address (links.js), unless the page shows a job that isn't its own: then this says which (link).
 (async () => {
   /** Elements that start a new paragraph (blank line) or a new line when a description is turned into text. */
   const PARAGRAPH = new Set(['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'TABLE', 'BLOCKQUOTE', 'PRE', 'HR']);
@@ -40,24 +44,142 @@
   /** The "Employment type" heading of the public page's criteria list, in the extension's languages. */
   const LINKEDIN_EMPLOYMENT_TYPE = /employment|angaj|emploi|beschäftigung|zatrudnien|empleo|emprego/i;
 
-  /** How long to wait for LinkedIn's public page before going on with what's on screen. */
-  const LINKEDIN_TIMEOUT_MILLIS = 5000;
+  /** How long to wait for a job's own page (LinkedIn's public one, Indeed's...) before going on with what's on screen. */
+  const JOB_PAGE_TIMEOUT_MILLIS = 5000;
+
+  /** More places than this, and a location lists only the first, and a remote job only "Remote". */
+  const MAX_PLACES = 3;
+
+  /** Places that say no more than "remote": a remote job's location shows "Remote" once. */
+  const ANYWHERE = /^(anywhere|worldwide|global|everywhere|remote)$/i;
+
+  /** A tag some sites put in front of a job's title: "[Hiring] ", "[Remote Job] ". */
+  const TITLE_TAG = /^\s*\[[\p{L} ]{2,20}\]\s*/u;
+
+  /** Logos a JobPosting has that aren't the company's: the job board's own, for a company without one. */
+  const IGNORED_LOGOS = [/^https?:\/\/[^/]*indeed\.com\/jsf\/images\//];
+
+  /** The sections of a pracuj.pl offer that make up its description, in the order the page shows them. */
+  const PRACUJ_SECTIONS = ['about-project', 'responsibilities', 'requirements', 'training-space', 'offered', 'benefits',
+    'work-organization', 'about-us-description'];
+
+  /**
+   * Job sites the JobPosting doesn't cover, or doesn't cover well, and where each shows the fields it leaves out. A
+   * reader is a CSS selector, or a function of the page (the document, or the job's page fetched) and the job's id,
+   * for what a selector can't reach; the first one that finds something wins. A site that shows a job beside its search
+   * results also says how to find that job's own page, which has the JobPosting: jobId and jobPage. LinkedIn has a
+   * reader of its own, below.
+   */
+  const SITES = [
+    {
+      host: /(^|\.)indeed\.[a-z.]+$/,
+      // A search names the job it shows beside the results (vjk); the job's page names its own (jk)
+      jobId: (url) => url.searchParams.get('vjk') ?? url.searchParams.get('jk'),
+      jobPage: (url, id) => `${url.origin}/viewjob?jk=${encodeURIComponent(id)}`,
+      // The job's page, then what a search shows: the job's pane, and its card in the results
+      title: ['[data-testid="vj-job-title"]', '[data-testid="jobsearch-JobInfoHeader-title"] > span:first-child',
+        '[data-testid="jobsearch-JobInfoHeader-title"]'],
+      company: ['[data-testid="inlineHeader-companyName"]',
+        (root, id) => indeedCard(root, id)?.querySelector('[data-testid="company-name"]')],
+      location: ['[data-testid="inlineHeader-companyLocation"]', '[data-testid="job-location"]',
+        (root, id) => indeedCard(root, id)?.querySelector('[data-testid="text-location"]')],
+      description: ['#jobDescriptionText'],
+      logo: [(root, id) => indeedCard(root, id)?.querySelector('img[data-testid="brandingLogo-image"]')],
+    },
+    {
+      host: /(^|\.)glassdoor\.[a-z.]+$/,
+      // A search shows the job its address names (jl), or else the first one, whose heading has its id
+      jobId: (url) => url.searchParams.get('jl')
+        ?? document.querySelector('h1[id^="jd-job-title-"]')?.id.slice('jd-job-title-'.length) ?? null,
+      jobPage: (url, id) => document.querySelector(`a[href*="/job-listing/"][href*="jl=${id}"]`)?.href ?? null,
+      title: ['h1[id^="jd-job-title-"]'],
+    },
+    {
+      // The job boards companies host their openings on: job-boards.greenhouse.io, and the older boards.greenhouse.io
+      host: /(^|\.)greenhouse\.io$/,
+      title: ['.job__title h1', '.app-title'],
+      // The page title is "Job Application for <title> at <company>"
+      company: [() => document.title.match(/^\s*Job Application for .+ at (.+?)\s*$/)?.[1] ?? null, '.company-name'],
+      location: ['.job__location', '.location'],
+      description: ['.job__description', '#content'],
+      logo: ['.logo img', () => metaTag('og:image')],
+    },
+    {
+      // Companies' career sites on Workday: the JobPosting has no logo, but the page's image is the company's
+      host: /(^|\.)myworkdayjobs\.com$/,
+      logo: [() => metaTag('og:image')],
+    },
+    {
+      // Its JobPosting has neither the company nor the description
+      host: /(^|\.)pracuj\.pl$/,
+      company: [(root) => ownText(root.querySelector('[data-test="text-employerName"]'))],
+      description: [(root) => joinedText(root.querySelectorAll(PRACUJ_SECTIONS
+        .map((name) => `[data-test="section-${name}"]`).join(', ')))],
+      logo: ['img[data-test="image-company-logo"]'],
+    },
+    {
+      host: /(^|\.)infojobs\.net$/,
+      company: [(root) => [...root.querySelectorAll('a[href*="/em-i"]')].find((link) => textOf(link))],
+      // The page title is "Oferta de empleo: <title> en <place> - Bolsa trabajo InfoJobs"
+      location: [() => document.title.match(/^.* en (.+?) - Bolsa (de )?trabajo InfoJobs\s*$/i)?.[1] ?? null],
+      description: [(root) => joinedText(root.querySelectorAll('.ij-EnrichedTextArea-paragraph'))],
+      logo: ['img[src*="multimedia-logos.infojobs.net"]'],
+    },
+    {
+      // Remote jobs, without a JobPosting; each detail is a line with an icon. The list opens a job beside it, with
+      // the same details, and names it in its address (job): the job's own page is /jobs/<that name>
+      host: /(^|\.)workingnomads\.com$/,
+      jobId: (url) => url.searchParams.get('job'),
+      jobPage: (url, slug) => `${url.origin}/jobs/${slug}`,
+      title: ['h1.jd-title'],
+      company: ['.jd-company a', '.jd-company'],
+      location: [(root) => workingNomadsLine(root, 'fa-map-marker')],
+      employmentType: [(root) => workingNomadsLine(root, 'fa-clock-o')],
+      description: ['.jd-description'],
+    },
+    {
+      // Remote jobs, without a JobPosting: the page's data (Next.js) has the job
+      host: /(^|\.)arc\.dev$/,
+      title: [() => arcJob()?.title, 'h1'],
+      company: [() => arcJob()?.companyName ?? arcJob()?.company?.name],
+      location: [() => remoteLocation(arcJob()?.requiredCountries ?? [])],
+      description: [() => arcJob()?.description],
+      logo: [() => arcJob()?.company?.logoUrl],
+    },
+    {
+      // No JobPosting and no heading: og:title is "<title> , <company>", the page title has the address
+      host: /(^|\.)bestjobs\.eu$/,
+      title: [() => bestJobsHeading().title, 'h2'],
+      company: [() => bestJobsHeading().company, 'h3'],
+      location: [() => bestJobsAddress()],
+      logo: ['img[src*="imgcdn.bestjobs.eu"][src*="logo"]'],
+    },
+  ];
 
   const url = new URL(window.location.href);
-  const posting = findJobPosting() ?? findMicrodataPosting();
+  const site = SITES.find((candidate) => candidate.host.test(url.hostname)) ?? null;
+  const jobId = site?.jobId?.(url) ?? null;
+  const posting = findJobPosting(document) ?? findMicrodataPosting(document);
+  // A job shown beside search results: its own page has the JobPosting this page lacks
+  const jobLink = (posting === null && jobId !== null && /^[\w-]+$/.test(jobId)) ? site.jobPage(url, jobId) : null;
+  const jobPage = jobLink ? await fetchPage(jobLink) : null;
+  const jobPagePosting = jobPage && (findJobPosting(jobPage) ?? findMicrodataPosting(jobPage));
   const job = firstOfEach(
     { description: selectedText() },
     posting && fromJobPosting(posting),
+    jobPagePosting && fromJobPosting(jobPagePosting),
+    jobPage && readSite(site, jobPage, jobId),
     await fromLinkedIn(url),
+    site && readSite(site, document, jobId),
     fromPage(),
   );
-  return job;
+  return { ...job, title: tidyTitle(job.title, job.company), link: webAddress(jobLink) };
 
   /** Each field from the first source that has it; sources can be null. */
   function firstOfEach(...sources) {
     const job = {
       title: null, company: null, description: null, location: null, salary: null, employmentType: null,
-      rawPayload: null,
+      logoUrl: null, rawPayload: null,
     };
     for (const source of sources.filter(Boolean)) {
       for (const field of Object.keys(job)) {
@@ -75,16 +197,62 @@
       location: locationOf(posting),
       salary: salaryOf(posting.baseSalary ?? posting.estimatedSalary),
       employmentType: employmentTypeOf(posting.employmentType),
+      logoUrl: usableLogo(logoOf(posting.hiringOrganization)),
       rawPayload: posting,
     };
   }
 
-  /** What any page has. Not og:site_name as the company: on job boards, it's the board ("LinkedIn"). */
+  /**
+   * What any page has. Not og:site_name as the company: on job boards, it's the board ("LinkedIn"). Many job pages
+   * are titled "<job> at <company>", which gives the company too, as long as the heading says the same job ("at" can
+   * be part of a job's title).
+   */
   function fromPage() {
+    const heading = textOf(document.querySelector('h1'));
+    const titled = fromPageTitle();
+    // The heading is cleaner when the page's title only wraps it, e.g. in "[Remote Job] <job> at <company> | <site>"
+    const headingIsTheJob = Boolean(heading && titled.title?.toLowerCase().includes(heading.toLowerCase()));
     return {
-      title: metaTag('og:title') ?? textOf(document.querySelector('h1')) ?? pageTitle(),
+      title: headingIsTheJob ? heading : (titled.title ?? heading ?? pageTitle()),
+      company: (headingIsTheJob || !heading) ? titled.company : null,
       description: descriptionBlock() ?? metaTag('og:description') ?? metaTag('description'),
     };
+  }
+
+  /** og:title or the page title, without a tag in front or the site's name after, split at "at" or "@". */
+  function fromPageTitle() {
+    let title = (metaTag('og:title') ?? pageTitle()).replace(TITLE_TAG, '');
+    const suffix = title.match(/\s+[|–—-]\s+([^|–—-]+)$/);
+    if (suffix && isSiteName(suffix[1])) {
+      title = title.slice(0, suffix.index);
+    }
+    const parts = title.match(/^(.+?)\s+(?:at|@)\s+(.+)$/);
+    return parts ? { title: parts[1].trim(), company: parts[2].trim() } : { title: title.trim() || null, company: null };
+  }
+
+  /** Whether a title's last part names the site: "Working Nomads" on workingnomads.com, "bunq Careers" on bunq.com. */
+  function isSiteName(text) {
+    const squash = (value) => value.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+    const name = squash(text);
+    const siteName = squash(metaTag('og:site_name') ?? '');
+    const domainName = window.location.hostname.split('.').slice(-2, -1)[0] ?? '';
+    return (siteName !== '' && name.includes(siteName)) || (domainName.length > 2 && name.includes(domainName));
+  }
+
+  /**
+   * Without what some sites wrap a job's title in, even in their JobPosting: a tag in front ("[Hiring] "), the company
+   * after ("@Askable", " at Askable").
+   */
+  function tidyTitle(title, company) {
+    if (!title) {
+      return title;
+    }
+    let tidy = title.replace(TITLE_TAG, '');
+    if (company) {
+      const escaped = company.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      tidy = tidy.replace(new RegExp(`\\s*(?:@|\\bat\\b|[|–—-])\\s*${escaped}\\s*$`, 'iu'), '');
+    }
+    return tidy.trim() || title;
   }
 
   function selectedText() {
@@ -107,6 +275,87 @@
     return null;
   }
 
+  // Sites
+
+  /**
+   * What the site's readers find on the page: the document, or the job's page fetched. A reader that's a function
+   * gives an element, read like a selector's, or the value itself.
+   */
+  function readSite(site, root, jobId) {
+    const first = (readers, readElement, readValue) => {
+      for (const reader of readers ?? []) {
+        const found = (typeof reader === 'function') ? reader(root, jobId) : root.querySelector(reader);
+        const value = (found !== null && typeof found === 'object') ? readElement(found) : readValue(found);
+        if (value) {
+          return value;
+        }
+      }
+      return null;
+    };
+    return {
+      title: first(site.title, textOf, plainText),
+      company: first(site.company, textOf, plainText),
+      location: first(site.location, textOf, plainText),
+      salary: first(site.salary, textOf, plainText),
+      employmentType: first(site.employmentType, textOf, plainText),
+      description: first(site.description, (element) => htmlToText(element.innerHTML), htmlToText),
+      logoUrl: usableLogo(first(site.logo, imageAddress, webAddress)),
+    };
+  }
+
+  /** On Working Nomads, the text of the detail line marked with this icon. */
+  function workingNomadsLine(root, icon) {
+    return root.querySelector(`.jd-meta-line .${icon}`)?.closest('.jd-meta-line')?.querySelector('span') ?? null;
+  }
+
+  /** On Arc, the job in the page's Next.js data. */
+  function arcJob() {
+    return nextData()?.props?.pageProps?.job ?? null;
+  }
+
+  /** What a Next.js page renders from, which has more than its HTML: the JSON in script#__NEXT_DATA__. */
+  function nextData() {
+    const script = document.querySelector('script#__NEXT_DATA__');
+    return script ? parseJson(script.textContent) : null;
+  }
+
+  /**
+   * A page of the same site, such as the job's own page: the request goes out as the page's own would, with the
+   * user's cookies, so it gets what the user would. Null if it doesn't answer in time or answers with an error.
+   */
+  async function fetchPage(address) {
+    try {
+      const response = await fetch(address, { signal: AbortSignal.timeout(JOB_PAGE_TIMEOUT_MILLIS) });
+      return response.ok ? parseDocument(await response.text()) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** On an Indeed search, the card of the job in the results: its title links with the job's id (data-jk). */
+  function indeedCard(root, id) {
+    let card = id ? root.querySelector(`[data-jk="${id}"]`) : null;
+    for (let level = 0; card && level < 8 && !card.querySelector('[data-testid="company-name"]'); level++) {
+      card = card.parentElement;
+    }
+    return card;
+  }
+
+  /** og:title on BestJobs: "<title> , <company>". */
+  function bestJobsHeading() {
+    const [title, ...company] = (metaTag('og:title') ?? '').split(' , ');
+    return { title: title || null, company: company.join(' , ') || null };
+  }
+
+  /** The page title on BestJobs is "<title> - <address>- <company> - BestJobs.eu". */
+  function bestJobsAddress() {
+    const { title, company } = bestJobsHeading();
+    const page = document.title.replace(/\s*-\s*BestJobs\.eu\s*$/i, '');
+    const start = (title && page.startsWith(`${title} - `)) ? title.length + 3 : -1;
+    const end = company ? page.lastIndexOf(`- ${company}`) : -1;
+    return (start > 0 && end > start) ? plainText(page.slice(start, end)) : null;
+  }
+
   // LinkedIn
 
   async function fromLinkedIn(url) {
@@ -122,15 +371,8 @@
    * The job's page as visitors who aren't signed in see it: the same request LinkedIn's own public job search makes.
    * Null if it doesn't answer in time or answers with an error, e.g. when asked too often.
    */
-  async function linkedInPublicPage(id) {
-    try {
-      const response = await fetch(`${url.origin}/jobs-guest/jobs/api/jobPosting/${id}`, {
-        signal: AbortSignal.timeout(LINKEDIN_TIMEOUT_MILLIS),
-      });
-      return response.ok ? parseHtml(await response.text()) : null;
-    } catch {
-      return null;
-    }
+  function linkedInPublicPage(id) {
+    return fetchPage(`${url.origin}/jobs-guest/jobs/api/jobPosting/${id}`);
   }
 
   /** @param {ParentNode} root the public page, or the document */
@@ -150,7 +392,17 @@
       location: first(LINKEDIN_SELECTORS.location, textOf),
       description: first(LINKEDIN_SELECTORS.description, (element) => element && htmlToText(element.innerHTML)),
       employmentType: linkedInEmploymentType(root),
+      logoUrl: linkedInLogo(root),
     };
+  }
+
+  /**
+   * The public page's company logo, in the top card. LinkedIn loads it late, from data-delayed-url, and shows a grey
+   * placeholder until then; a signed-in page has no such card.
+   */
+  function linkedInLogo(root) {
+    const image = root.querySelector('[data-tracking-control-name="public_jobs_topcard_logo"] img');
+    return image ? usableLogo(imageAddress(image)) : null;
   }
 
   function linkedInEmploymentType(root) {
@@ -183,8 +435,8 @@
 
   // Microdata
 
-  function findMicrodataPosting() {
-    const scope = [...document.querySelectorAll('[itemscope][itemtype]')]
+  function findMicrodataPosting(root) {
+    const scope = [...root.querySelectorAll('[itemscope][itemtype]')]
       .find((element) => /(^|[\s/])JobPosting(\s|$)/.test(element.getAttribute('itemtype')));
     return scope ? microdataItem(scope) : null;
   }
@@ -221,8 +473,8 @@
 
   // JSON-LD
 
-  function findJobPosting() {
-    for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
+  function findJobPosting(root) {
+    for (const script of root.querySelectorAll('script[type="application/ld+json"]')) {
       const posting = findIn(parseJson(script.textContent));
       if (posting) {
         return posting;
@@ -269,6 +521,35 @@
     return [node['@type']].flat().some((type) => typeof type === 'string' && /(^|[/:])JobPosting$/.test(type));
   }
 
+  /** The organization's logo: an address, or an ImageObject with one. */
+  function logoOf(organization) {
+    const first = [organization].flat()[0];
+    if (first === null || typeof first !== 'object') {
+      return null;
+    }
+    const logo = [first.logo].flat()[0];
+    return webAddress((logo !== null && typeof logo === 'object') ? (logo.url ?? logo.contentUrl) : logo);
+  }
+
+  /** An image's address; LinkedIn and others load the real one late, from data-delayed-url. */
+  function imageAddress(element) {
+    const image = (element.tagName === 'IMG') ? element : element.querySelector('img');
+    return image ? webAddress(image.getAttribute('data-delayed-url') ?? image.getAttribute('src')) : null;
+  }
+
+  function usableLogo(address) {
+    return (address && !IGNORED_LOGOS.some((ignored) => ignored.test(address))) ? address : null;
+  }
+
+  /** The value as an absolute http or https address, relative to the page; null for anything else. */
+  function webAddress(value) {
+    if (typeof value !== 'string') {
+      return null;
+    }
+    const address = URL.parse(value.trim(), window.location.href);
+    return (address?.protocol === 'https:' || address?.protocol === 'http:') ? address.href : null;
+  }
+
   function organizationName(organization) {
     const first = [organization].flat()[0];
     if (first === null || typeof first !== 'object') {
@@ -279,15 +560,30 @@
 
   /** "Bucharest, Romania", several places separated by "; ", and "Remote" first for a remote job. */
   function locationOf(posting) {
-    const places = [posting.jobLocation].flat().map(placeName).filter(Boolean);
+    let places = [posting.jobLocation].flat().map(placeName).filter(Boolean);
     const remote = [posting.jobLocationType].flat().some((type) => /telecommute/i.test(String(type)));
     if (remote) {
       // Where a remote employee may live, e.g. "Remote (Romania)"
       const regions = [posting.applicantLocationRequirements].flat().map(placeName).filter(Boolean);
-      const label = chrome.i18n.getMessage('remote') || 'Remote';
-      places.unshift(regions.length > 0 ? `${label} (${regions.join(', ')})` : label);
+      // Sites put "Anywhere" or "Remote" in every field they have
+      places = places.filter((place) => !ANYWHERE.test(place) && !regions.includes(place));
+      places.unshift(remoteLocation(regions));
     }
-    return places.length > 0 ? [...new Set(places)].join('; ') : null;
+    const unique = [...new Set(places)];
+    if (unique.length === 0) {
+      return null;
+    }
+    return (unique.length > MAX_PLACES) ? `${unique.slice(0, MAX_PLACES).join('; ')} …` : unique.join('; ');
+  }
+
+  /**
+   * "Remote", or "Remote (Romania, Poland)" where the job names the countries it's open to: not when it names every
+   * country there is, as some sites do, or "Anywhere".
+   */
+  function remoteLocation(regions) {
+    const named = regions.map(plainText).filter((region) => region && !ANYWHERE.test(region));
+    const label = chrome.i18n.getMessage('remote') || 'Remote';
+    return (named.length > 0 && named.length <= MAX_PLACES) ? `${label} (${named.join(', ')})` : label;
   }
 
   /** A Place, its PostalAddress, a Country or plain text. */
@@ -301,8 +597,10 @@
     }
     const parts = [address.addressLocality, address.addressRegion, placeName(address.addressCountry)]
       .map(plainText)
-      .filter(Boolean);
-    return parts.length > 0 ? [...new Set(parts)].join(', ') : plainText(place.name);
+      .filter(Boolean)
+      // Not again what an earlier part says already, as in a locality of "Romania, Remote" in Romania
+      .filter((part, index, all) => !all.slice(0, index).some((earlier) => earlier.toLowerCase().includes(part.toLowerCase())));
+    return parts.length > 0 ? parts.join(', ') : plainText(place.name);
   }
 
   /** A MonetaryAmount such as { currency: "EUR", value: { minValue: 5000, maxValue: 7000, unitText: "MONTH" } }. */
@@ -419,14 +717,37 @@
     return parts.join('')
       .replace(/[ \t]*\n[ \t]*/g, '\n')
       .replace(/ {2,}/g, ' ')
+      // A value some sites' templates print where they had none, alone or before the text
+      .replace(/^(null|undefined)$/gm, '')
+      .replace(/^\s*(null|undefined)\s+/, '')
       .replace(/\n{3,}/g, '\n\n')
       .trim() || null;
   }
 
+  /** The texts of several blocks, such as a description's sections, a blank line apart. */
+  function joinedText(elements) {
+    return [...elements].map((element) => htmlToText(element.innerHTML)).filter(Boolean).join('\n\n') || null;
+  }
+
+  /** The text directly in an element, without its children's: a company name without its "About us" link. */
+  function ownText(element) {
+    if (!element) {
+      return null;
+    }
+    const own = [...element.childNodes].filter((node) => node.nodeType === Node.TEXT_NODE)
+      .map((node) => node.textContent).join(' ');
+    return plainText(own) ?? textOf(element);
+  }
+
   /** Parsed, not rendered: scripts don't run and images don't load. Null if the page's policy forbids it. */
   function parseHtml(html) {
+    return parseDocument(html)?.body ?? null;
+  }
+
+  /** A whole page, head included: that's where many sites put their JobPosting. */
+  function parseDocument(html) {
     try {
-      return new DOMParser().parseFromString(html, 'text/html').body;
+      return new DOMParser().parseFromString(html, 'text/html');
     } catch {
       return null;
     }
