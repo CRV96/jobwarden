@@ -1,5 +1,6 @@
 package com.jobwarden.web.controller;
 
+import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.service.UserService;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.web.user.CurrentUser;
@@ -29,6 +30,9 @@ class HomeControllerTests {
 
 	@MockitoBean
 	private ApplicationService applications;
+
+	@MockitoBean
+	private DiscoveryService discovery;
 
 	@Test
 	void redirectsToApplications() {

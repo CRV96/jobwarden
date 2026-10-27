@@ -10,8 +10,10 @@ public final class AppConstants {
 	public static final class ControllerConstants {
 		public static final String HOMEPAGE = "/";
 		public static final String APPLICATIONS = "/applications";
+		public static final String DISCOVER = "/discover";
 		public static final String PIPELINE = "/pipeline";
 		public static final String PROFILES = "/profiles";
+		public static final String SALARIES = "/salaries";
 		public static final String SEARCH = "/search";
 		public static final String SETTINGS = "/settings";
 		/** The icons of the sites postings came from: /sources/{source}/icon. */
@@ -57,8 +59,17 @@ public final class AppConstants {
 		/** What the notes field shows once its text is saved. */
 		public static final String NOTES_SAVED_FRAGMENT = "applications/fragments :: notes-saved";
 		public static final String NEW_APPLICATION = "applications/new";
+		public static final String DISCOVER = "discover/discover";
+		/** The card to review and what changes with it, which HTMX swaps after a decision. */
+		public static final String DISCOVER_REVIEW_FRAGMENT = DISCOVER + " :: review";
+		/** What the search page shows once a search is saved. */
+		public static final String SEARCH_SAVED_FRAGMENT = "search/search :: search-saved";
 		public static final String PIPELINE = "pipeline/board";
 		public static final String PROFILE_LIST = "profiles/list";
+		public static final String SALARIES = "salaries/salaries";
+		public static final String SEARCH = "search/search";
+		/** The search page's queries, which HTMX swaps as the filters change. */
+		public static final String SEARCH_OUTPUT_FRAGMENT = SEARCH + " :: output";
 		public static final String SETTINGS = "settings/settings";
 	}
 
@@ -74,6 +85,8 @@ public final class AppConstants {
 		public static final String SIDEBAR_PROFILES = "sidebarProfiles";
 		/** How many applications the selected profile has, next to Jobs in the sidebar. */
 		public static final String APPLICATION_COUNT = "applicationCount";
+		/** How many found jobs wait on the Discover page, next to Discover in the sidebar. */
+		public static final String DISCOVER_COUNT = "discoverCount";
 		/** The languages the settings page offers. */
 		public static final String LANGUAGES = "languages";
 		/** The selected language, as a {@code Language}. */
@@ -109,5 +122,54 @@ public final class AppConstants {
 		public static final String PROFILES = "profiles";
 		public static final String NAME = "name";
 		public static final String NAME_ERROR = "nameError";
+		/** What the profile's jobs pay, a {@code SalaryOverview}. */
+		public static final String SALARY_OVERVIEW = "overview";
+		/** The periods the salaries page can show salaries per. */
+		public static final String SALARY_PERIODS = "salaryPeriods";
+		/** The axes of the salaries page's charts, each a {@code ChartScale}: the ranges, and the medians by status. */
+		public static final String RANGE_SCALE = "rangeScale";
+		public static final String STATUS_SCALE = "statusScale";
+		/** The found job to review now, a {@code FoundJob}, or {@code null} when none waits. */
+		public static final String FOUND_JOB = "foundJob";
+		/** How many found jobs wait for a decision, for the search shown, and for all of them. */
+		public static final String TO_REVIEW = "toReview";
+		public static final String TO_REVIEW_ALL = "toReviewAll";
+		/** The profile's saved searches, each a {@code SavedSearch}. */
+		public static final String SAVED_SEARCHES = "savedSearches";
+		/** The search page's address for each saved search (search id → address), to run or change it there. */
+		public static final String SEARCH_URLS = "searchUrls";
+		/** How many found jobs wait for each saved search (search id → count), and for none (key 0). */
+		public static final String SEARCH_COUNTS = "searchCounts";
+		/** The saved search the Discover page shows the jobs of, or {@code null} for all of them. */
+		public static final String SELECTED_SEARCH = "selectedSearch";
+		/** The latest decisions on the Discover page, each a {@code FoundJob}. */
+		public static final String RECENT_DECISIONS = "recentDecisions";
+		/** A search just saved, a {@code SavedSearch}. */
+		public static final String SAVED_SEARCH = "savedSearch";
+		/** The address Claude connects to: the app's MCP endpoint. */
+		public static final String MCP_URL = "mcpUrl";
+		/** What the search page searches for, a {@code SearchCriteria}. */
+		public static final String SEARCH_CRITERIA = "criteria";
+		/** The search page's queries, a {@code GeneratedQueries}, and the platform whose query it shows. */
+		public static final String QUERIES = "queries";
+		public static final String SELECTED_PLATFORM = "selectedPlatform";
+		public static final String PLATFORMS = "platforms";
+		/** Each platform's icon, by the platform's name. */
+		public static final String PLATFORM_ICONS = "platformIcons";
+		public static final String GOOGLE_WORD_LIMIT = "googleWordLimit";
+		/** The description the search page's filters were filled in from, if they were. */
+		public static final String DESCRIPTION = "description";
+		/** The descriptions the search page offers as examples. */
+		public static final String EXAMPLES = "examples";
+		public static final String WORK_TYPES = "workTypes";
+		public static final String EMPLOYMENT_TYPES = "employmentTypes";
+		public static final String RECENCIES = "recencies";
+		/** What each field of chips on the search page suggests, lists of {@code TagSuggestion}. */
+		public static final String TITLE_SUGGESTIONS = "titleSuggestions";
+		public static final String LOCATION_SUGGESTIONS = "locationSuggestions";
+		public static final String SKILL_SUGGESTIONS = "skillSuggestions";
+		public static final String SITE_SUGGESTIONS = "siteSuggestions";
+		/** The job boards the search page offers to add with one click. */
+		public static final String JOB_BOARDS = "jobBoards";
 	}
 }

@@ -69,7 +69,7 @@
                 <i class="ph ph-puzzle-piece text-[22px] text-accent"></i>
                 <div class="flex min-w-0 flex-1 flex-col gap-2">
                     <div>
-                        <div class="font-medium" th:text="#{settings.extension.name}">JobWarden for Chrome</div>
+                        <div class="font-medium" th:text="#{settings.extension.name}">JobWarden for Chrome and Firefox</div>
                         <div class="text-xs text-ink/60" th:text="#{settings.extension.body}">
                             Saves postings from job boards with one click. In its settings, enter this server’s address and your profile id.</div>
                     </div>
@@ -83,6 +83,35 @@
                             <a class="link" th:href="@{/profiles}" th:text="#{settings.extension.chooseProfile}">Choose a profile first</a>
                         </dd>
                     </dl>
+                </div>
+            </div>
+        </section>
+
+        <!--/* How to connect Claude to the MCP server (the mcp module) */-->
+        <section class="flex flex-col gap-2">
+            <h2 class="section-title" th:text="#{settings.claude}">Claude</h2>
+            <div class="card flex items-start gap-3 p-3"
+                 th:with="command=|claude mcp add --transport http jobwarden ${mcpUrl}${currentProfile != null ? ' --header &quot;X-JobWarden-Profile: ' + currentProfile.id + '&quot;' : ''}|">
+                <i class="ph ph-sparkle text-[22px] text-accent"></i>
+                <div class="flex min-w-0 flex-1 flex-col gap-2">
+                    <div>
+                        <div class="font-medium" th:text="#{settings.claude.name}">JobWarden for Claude (MCP)</div>
+                        <div class="text-xs text-ink/60" th:text="#{settings.claude.body}">
+                            Lets Claude check whether your postings are still up, update their status, and find jobs for your saved searches.</div>
+                    </div>
+                    <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+                        <dt class="text-ink/55" th:text="#{settings.claude.address}">MCP address</dt>
+                        <dd class="min-w-0 truncate font-mono" th:text="${mcpUrl}">http://localhost:8080/mcp</dd>
+                    </dl>
+                    <div class="text-xs text-ink/60" th:text="#{settings.claude.command}">In Claude Code, run:</div>
+                    <div class="flex items-start gap-2">
+                        <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${command}">claude mcp add --transport http jobwarden http://localhost:8080/mcp</code>
+                        <button class="btn btn-secondary" type="button" th:data-copy-text="${command}">
+                            <span class="inline-flex items-center gap-1.5" data-copy-idle><i class="ph ph-copy"></i><span th:text="#{search.copy}">Copy</span></span>
+                            <span class="inline-flex items-center gap-1.5" data-copy-done hidden><i class="ph ph-check text-success"></i><span th:text="#{search.copied}">Copied</span></span>
+                        </button>
+                    </div>
+                    <div class="text-xs text-ink/60" th:text="#{settings.claude.then}">Then ask Claude, e.g. “Check my open applications in JobWarden and close the ones whose posting is gone”.</div>
                 </div>
             </div>
         </section>

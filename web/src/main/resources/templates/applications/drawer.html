@@ -16,6 +16,7 @@
                 <a class="hover:text-accent hover:underline" th:href="${pageUrl}" th:text="${jobApplication.title}">Backend engineer</a>
             </h2>
         </div>
+        <th:block th:replace="~{applications/fragments :: share-menu('drawer', true)}"></th:block>
         <a class="btn btn-secondary btn-icon" th:href="${pageUrl}" th:title="#{application.openFull}" th:aria-label="#{application.openFull}">
             <i class="ph ph-arrows-out-simple text-base"></i>
         </a>

@@ -228,6 +228,16 @@ class DefaultApplicationService implements ApplicationService {
 
 	/**
 	 * @throws ApplicationNotFoundException if the user has no such application
+	 */
+	@Override
+	@Transactional
+	public void updateSalary(long userId, long applicationId, @Nullable String salary) {
+		getOwnedApplication(userId, applicationId).changeSalary(salary);
+		log.info("Updated the salary of application {}", applicationId);
+	}
+
+	/**
+	 * @throws ApplicationNotFoundException if the user has no such application
 	 * @throws BusinessRuleException if it isn't APPLIED, or its timeline has more than SAVED and APPLIED events
 	 */
 	@Override

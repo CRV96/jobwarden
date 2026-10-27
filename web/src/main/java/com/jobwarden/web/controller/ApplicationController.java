@@ -21,6 +21,7 @@ import com.jobwarden.web.dto.ApplicationListParams;
 import com.jobwarden.web.dto.NewApplicationForm;
 import com.jobwarden.web.dto.NewEventForm;
 import com.jobwarden.web.dto.NotesForm;
+import com.jobwarden.web.dto.SalaryForm;
 import com.jobwarden.web.enums.ApplicationView;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -151,6 +152,16 @@ class ApplicationController extends BaseController {
 	String updateNotes(@PathVariable long id, NotesForm form, Model model) {
 		this.applications.updateNotes(requireProfile(model).id(), id, form.toNotes());
 		return Views.NOTES_SAVED_FRAGMENT;
+	}
+
+	/**
+	 * Called by HTMX from the salaries page, for a salary it couldn't read. {@code HX-Refresh} then shows the page
+	 * with the salary in it.
+	 */
+	@PostMapping("/{id}/salary")
+	ResponseEntity<Void> updateSalary(@PathVariable long id, SalaryForm form, Model model) {
+		this.applications.updateSalary(requireProfile(model).id(), id, form.toSalary());
+		return refresh();
 	}
 
 	/**

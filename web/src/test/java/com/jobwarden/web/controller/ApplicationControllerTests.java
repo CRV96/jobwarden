@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import com.jobwarden.common.exception.BusinessRuleException;
+import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.service.UserService;
 import com.jobwarden.jobs.dto.ApplicationDetails;
@@ -96,6 +97,9 @@ class ApplicationControllerTests {
 
 	@MockitoBean
 	private ApplicationService applications;
+
+	@MockitoBean
+	private DiscoveryService discovery;
 
 	@MockitoBean
 	private CurrentUser currentUser;
@@ -491,6 +495,15 @@ class ApplicationControllerTests {
 	void clearsTheNotesWhenTheFieldIsEmptied() {
 		assertThat(this.mvc.put().uri("/applications/7/notes").param("notes", "  ")).hasStatusOk();
 		then(this.applications).should().updateNotes(1, 7, null);
+	}
+
+	@Test
+	void correctsASalaryAndReloadsThePage() {
+		assertThat(this.mvc.post().uri("/applications/7/salary").param("salary", " 5,000 EUR a month "))
+			.hasStatus(HttpStatus.NO_CONTENT)
+			.headers()
+			.hasValue("HX-Refresh", "true");
+		then(this.applications).should().updateSalary(1, 7, "5,000 EUR a month");
 	}
 
 	@Test

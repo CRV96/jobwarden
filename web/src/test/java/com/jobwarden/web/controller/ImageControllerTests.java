@@ -3,6 +3,7 @@ package com.jobwarden.web.controller;
 import java.time.Instant;
 import java.util.Optional;
 
+import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.jobs.dto.PngImage;
 import com.jobwarden.jobs.service.ApplicationService;
@@ -32,6 +33,9 @@ class ImageControllerTests {
 
 	@MockitoBean
 	private ApplicationService applications;
+
+	@MockitoBean
+	private DiscoveryService discovery;
 
 	@MockitoBean
 	private CurrentUser currentUser;

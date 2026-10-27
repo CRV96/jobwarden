@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>com.jobwarden</groupId>
+		<artifactId>jobwarden</artifactId>
+		<version>0.0.1-SNAPSHOT</version>
+	</parent>
+	<artifactId>jobwarden-mcp</artifactId>
+	<name>JobWarden :: MCP</name>
+	<description>MCP server for Claude: read the jobs, check their postings, update their status, and add jobs it finds</description>
+
+	<dependencies>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-common</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-identity</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-jobs</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-search</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-discover</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webmvc</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<optional>true</optional>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webmvc-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+</project>

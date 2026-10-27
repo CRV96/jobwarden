@@ -29,6 +29,7 @@
                     <h1 class="page-title" th:text="${jobApplication.title}">Backend engineer</h1>
                 </div>
                 <div class="flex gap-1.5">
+                    <th:block th:replace="~{applications/fragments :: share-menu('page', false)}"></th:block>
                     <button class="btn btn-secondary" type="button" th:data-open-dialog="|delete-${jobApplication.id}|">
                         <i class="ph ph-trash"></i><span th:text="#{action.delete}">Delete</span>
                     </button>

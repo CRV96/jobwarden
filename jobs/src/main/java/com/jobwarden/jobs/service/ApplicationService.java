@@ -110,6 +110,11 @@ public interface ApplicationService {
 	void updateNotes(long userId, long applicationId, @Nullable String notes);
 
 	/**
+	 * @param salary as the posting gives it, e.g. "5,000 EUR a month"; {@code null} to clear it
+	 */
+	void updateSalary(long userId, long applicationId, @Nullable String salary);
+
+	/**
 	 * Takes back "I applied", for an application that got no further: it goes back to
 	 * {@link ApplicationStatus#SAVED}, as if it had only been bookmarked, and its APPLIED events leave the timeline.
 	 */

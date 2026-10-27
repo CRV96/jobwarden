@@ -21,6 +21,7 @@ import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 
+import com.jobwarden.common.net.PublicAddresses;
 import com.jobwarden.jobs.dto.PngImage;
 import lombok.CustomLog;
 import org.jspecify.annotations.Nullable;
@@ -32,7 +33,7 @@ import org.springframework.stereotype.Component;
  * sites don't let other pages read their images.
  * <p>
  * The address comes from the posting, which anyone could have written, so it only goes to the public internet: never
- * to this machine or the local network ({@link #isPublic}), also after a redirect. Whatever goes wrong, there's no
+ * to this machine or the local network ({@link PublicAddresses}), also after a redirect. Whatever goes wrong, there's no
  * logo, and the posting is saved without one.
  */
 @Component
@@ -62,7 +63,7 @@ class LogoDownloader {
 	private final Predicate<InetAddress> allowed;
 
 	LogoDownloader() {
-		this(LogoDownloader::isPublic);
+		this(PublicAddresses::isPublic);
 	}
 
 	/**
@@ -175,22 +176,5 @@ class LogoDownloader {
 		return png.toByteArray();
 	}
 
-	/**
-	 * Whether the address is on the public internet: not this machine, not the local network (including carrier-grade
-	 * NAT and IPv6 unique local addresses), not multicast.
-	 */
-	static boolean isPublic(InetAddress address) {
-		if (address.isAnyLocalAddress() || address.isLoopbackAddress() || address.isLinkLocalAddress()
-				|| address.isSiteLocalAddress() || address.isMulticastAddress()) {
-			return false;
-		}
-		byte[] bytes = address.getAddress();
-		if (bytes.length == 4) {
-			// 100.64.0.0/10
-			return !((bytes[0] & 0xFF) == 100 && (bytes[1] & 0xC0) == 64);
-		}
-		// fc00::/7
-		return (bytes[0] & 0xFE) != 0xFC;
-	}
 
 }

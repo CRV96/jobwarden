@@ -169,7 +169,7 @@ public record ApplicationListParams(
 	 * The date added goes newest first; text columns and statuses start from the top.
 	 */
 	private static Sort.Direction defaultDirection(ApplicationSort sort) {
-		return (sort == ApplicationSort.ADDED) ? Sort.Direction.DESC : Sort.Direction.ASC;
+		return (sort == ApplicationSort.ADDED || sort == ApplicationSort.MODIFIED) ? Sort.Direction.DESC : Sort.Direction.ASC;
 	}
 
 }

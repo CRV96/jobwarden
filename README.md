@@ -55,8 +55,14 @@ In the settings, **Show on the toolbar icon whether a page is already in JobWard
 - **The company's logo:** from the posting's `JobPosting` (its `hiringOrganization.logo`), which most job boards and career sites have, or on LinkedIn from the job's public page. The extension sends its address and the server downloads it, since most sites don't let the extension read their images, then shrinks it to a 64-pixel PNG shown before the job's title. The server only downloads from the public internet, never from its own machine or the local network: the address comes from the page. Without a logo, the pages show the company's initials.
 - **The site's icon:** what the tab shows, drawn into a 32×32 PNG and saved with the posting, so JobWarden shows it next to the site instead of a globe. Chrome gives the extension its own copy of any page's icon. Firefox doesn't, so there the extension uses the tab's icon only when it can read it (when the icon is already part of the page, or its site lets anyone fetch it); otherwise the site keeps the globe.
 - **One posting, one application:** the server matches captures on the exact link. So the extension drops tracking parameters (`utm_*`, `trackingId`...), and on LinkedIn, Indeed and Glassdoor it saves the job's own link, even from a search page. Saving a posting you already saved doesn't create a duplicate, and clicking **I applied** on a posting you bookmarked marks it applied.
-- **The API it uses:** under `/api/captures`, set by `jobwarden.capture.path` in [application.properties](app/src/main/resources/application.properties); if you change it, change `CAPTURE_PATH` in [settings.js](extension/settings.js) too. `POST` saves a posting, with the site's icon as an optional `data:image/png;base64,...` URL in `icon` and the company logo's address in `logoUrl`; `GET ?userId=&link=` looks a link up (204 if it isn't saved); `POST /{id}/move-back-to-saved` takes back "I applied"; `DELETE /{id}?userId=` removes an application. Each answers with the application's current state: its id, title, company, status, and when it got that status.
+- **The API it uses:** under `/api/captures`, set by `jobwarden.capture.path` in [application.properties](app/src/main/resources/application.properties); if you change it, change `CAPTURE_PATH` in [settings.js](extension/settings.js) too. `POST` saves a posting, with the site's icon as an optional `data:image/png;base64,...` URL in `icon` and the company logo's address in `logoUrl`; `GET ?userId=&link=` looks a link up (204 if it isn't saved); `POST /{id}/move-back-to-saved` takes back "I applied"; `DELETE /{id}?userId=` removes an application. Each answers with the application's current state: its id, title, company, status, and when it got that status. Firefox, unlike Chrome, applies CORS to an extension's requests even with the host permission, so this API allows extension origins from Firefox (`moz-extension://`); web pages still can't call it.
 - **Languages:** the app's, in `extension/_locales/<language>/messages.json`. Chrome uses the browser's language.
+
+## Salaries and the Boolean search
+
+**Salaries** (`/salaries`) compares what the jobs you track pay. Salaries are kept as the postings wrote them, so `SalaryService` in `jobs` reads them first: the first two amounts make the range (80,000, 80.000, 80 000, 80'000, 80k), a code or symbol gives the currency, and words in the extension's languages give the period (per hour, pro Monat, pe lună...). A salary without a period gets the one its amount suggests: 15,000 RON is a month, $80k a year. Each is then converted to the currency and period you pick, with the European Central Bank's daily reference rates (downloaded when needed and kept for six hours; approximate built-in rates stand in when they can't be loaded, and the page says so). A year counts as 2,080 hours, 260 days or 12 months. The page shows the median, the middle half, the highest salary, each job's range, and the median by status; salaries it can't read are listed with a field to correct them.
+
+**Search** (`/search`) builds Boolean queries from job titles, locations, skills, work and employment types and terms to exclude: for Google limited to the job boards companies use (Lever, Greenhouse, Ashby...), LinkedIn, Reddit, X and the remote job boards. Google reads only the first 32 words of a query, so the generator leaves out the terms that don't fit, last ones first, and says so. A description of the job you want ("senior backend engineer, remote Europe, contract") fills in the filters. The address keeps the filters, so a search can be bookmarked. The rules are in the `search` module (`QueryGenerator`, `DescriptionParser`).
 
 ## Project structure
 
@@ -66,12 +72,12 @@ A modular monolith: one Spring Boot application split into Maven modules. The do
 |---|---|---|
 | `common` | Shared: `ErrorCode`, the base exceptions and the application logger (`JobWardenLogger`). No beans, no tables, no business logic | none |
 | `identity` | Domain: local profiles (`users` table) | `common` |
-| `jobs` | Domain: jobs bookmarked or applied to, with each application's status and event timeline | `common` |
-| `search` | Domain: Boolean job-search query generator; stateless | none |
+| `jobs` | Domain: jobs bookmarked or applied to, with each application's status and event timeline, and their salaries compared | `common` |
+| `search` | Domain: Boolean job-search queries for Google, LinkedIn, Reddit and X, and the description parser that fills in their filters; stateless | none |
 | `web` | Adapter: browser UI. Page controllers, templates, shared layout, Tailwind and HTMX | `common`, `identity`, `jobs`, `search` |
 | `capture` | Adapter: REST endpoint for the browser extension | `common`, `identity`, `jobs` |
 | `app` | Runnable application and config; wires the modules together | all |
-| `extension/` | Chrome extension (Manifest V3, plain JavaScript); not a Maven module | the `capture` API |
+| `extension/` | Chrome and Firefox extension (Manifest V3, plain JavaScript); not a Maven module | the `capture` API |
 
 Every module groups its classes by type, with the same package names everywhere:
 

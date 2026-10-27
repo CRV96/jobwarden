@@ -26,6 +26,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -53,6 +54,9 @@ class CaptureControllerTests {
 			""";
 
 	private static final String LINK = "https://www.linkedin.com/jobs/view/42";
+
+	/** Firefox gives each install of an extension an id of its own. */
+	private static final String FIREFOX_EXTENSION = "moz-extension://11111111-2222-3333-4444-555555555555";
 
 	/** The signature every PNG starts with, and a few bytes for the image. */
 	private static final byte[] PNG = { (byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n', 0, 0, 0, 13 };
@@ -287,6 +291,43 @@ class CaptureControllerTests {
 
 		assertThat(this.mvc.get().uri(this.capturePath).param("userId", "1").param("link", LINK))
 			.hasStatus(HttpStatus.NO_CONTENT);
+	}
+
+	@Test
+	void letsFirefoxExtensionsCall() {
+		given(this.users.exists(1)).willReturn(true);
+		given(this.applications.findByLink(1, LINK)).willReturn(Optional.empty());
+
+		assertThat(this.mvc.get()
+			.uri(this.capturePath)
+			.header(HttpHeaders.ORIGIN, FIREFOX_EXTENSION)
+			.param("userId", "1")
+			.param("link", LINK))
+			.hasStatus(HttpStatus.NO_CONTENT)
+			.hasHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, FIREFOX_EXTENSION);
+	}
+
+	@Test
+	void letsFirefoxExtensionsSendJson() {
+		// JSON isn't a type a form could send, so Firefox asks first
+		assertThat(this.mvc.options()
+			.uri(this.capturePath)
+			.header(HttpHeaders.ORIGIN, FIREFOX_EXTENSION)
+			.header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+			.header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "content-type"))
+			.hasStatusOk()
+			.hasHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, FIREFOX_EXTENSION);
+	}
+
+	@Test
+	void keepsWebPagesOut() {
+		assertThat(this.mvc.get()
+			.uri(this.capturePath)
+			.header(HttpHeaders.ORIGIN, "https://example.com")
+			.param("userId", "1")
+			.param("link", LINK))
+			.hasStatus(HttpStatus.FORBIDDEN);
+		then(this.applications).shouldHaveNoInteractions();
 	}
 
 	@Test

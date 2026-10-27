@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 
 import com.jobwarden.common.exception.BusinessRuleException;
+import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.enums.IdentityErrorCode;
 import com.jobwarden.identity.service.UserService;
@@ -41,6 +42,9 @@ class ProfileControllerTests {
 	// For the sidebar, which every page controller fills in
 	@MockitoBean
 	private ApplicationService applications;
+
+	@MockitoBean
+	private DiscoveryService discovery;
 
 	@Test
 	void listsTheProfiles() {

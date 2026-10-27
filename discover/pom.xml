@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>com.jobwarden</groupId>
+		<artifactId>jobwarden</artifactId>
+		<version>0.0.1-SNAPSHOT</version>
+	</parent>
+	<artifactId>jobwarden-discover</artifactId>
+	<name>JobWarden :: Discover</name>
+	<description>Searches kept for finding jobs, and the jobs found for them, waiting to be saved, applied to or discarded</description>
+
+	<dependencies>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-common</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-jobs</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-search</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+		<!-- @NamedInterface: marks the dto, enums, service and exception packages as the module's public API -->
+		<dependency>
+			<groupId>org.springframework.modulith</groupId>
+			<artifactId>spring-modulith-api</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<optional>true</optional>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+</project>

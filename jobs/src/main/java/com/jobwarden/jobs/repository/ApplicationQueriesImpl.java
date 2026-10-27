@@ -47,7 +47,8 @@ class ApplicationQueriesImpl implements ApplicationQueries {
 		Root<ApplicationEntity> application = rows.from(ApplicationEntity.class);
 		rows.select(builder.construct(ApplicationSummary.class, application.get("id"), application.get("title"),
 				application.get("company"), application.get("location"), application.get("salary"),
-				application.get("source"), application.get("currentStatus"), application.get("capturedAt")))
+				application.get("link"), application.get("source"), application.get("currentStatus"),
+				application.get("capturedAt"), application.get("updatedAt")))
 			.where(matching(builder, application, userId, query.search(), query.status()))
 			.orderBy(order(builder, application, query));
 
@@ -106,6 +107,7 @@ class ApplicationQueriesImpl implements ApplicationQueries {
 			ApplicationQuery query) {
 		Expression<?> value = switch (query.sort()) {
 			case ADDED -> application.get("capturedAt");
+			case MODIFIED -> application.get("updatedAt");
 			case TITLE -> builder.lower(application.get("title"));
 			case LOCATION -> builder.lower(application.get("location"));
 			case SOURCE -> builder.lower(application.get("source"));

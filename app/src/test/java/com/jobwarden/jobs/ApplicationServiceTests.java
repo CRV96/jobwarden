@@ -405,6 +405,21 @@ class ApplicationServiceTests {
 	}
 
 	@Test
+	void sortsByWhenTheTimelineLastChanged() {
+		long older = create(this.userId, "Older", ApplicationStatus.APPLIED);
+		long newer = create(this.userId, "Newer", ApplicationStatus.APPLIED);
+		// An event that keeps the older application APPLIED still counts as a change
+		this.applications.addEvent(this.userId, older,
+				NewTimelineEvent.builder().eventDate(TODAY).stageCategory(ApplicationStatus.APPLIED).build());
+
+		List<ApplicationSummary> found = this.applications.find(this.userId,
+				query().sort(ApplicationSort.MODIFIED).direction(Sort.Direction.DESC).build()).getContent();
+
+		assertThat(found).extracting(ApplicationSummary::id).containsExactly(older, newer);
+		assertThat(found.getFirst().updatedAt()).isAfter(found.getLast().updatedAt());
+	}
+
+	@Test
 	void sortsStatusesInTheirOwnOrderNotAlphabetically() {
 		long withdrawn = create(this.userId, "Withdrawn", ApplicationStatus.WITHDRAWN);
 		long applied = create(this.userId, "Applied", ApplicationStatus.APPLIED);
