@@ -36,7 +36,9 @@
 		<module>identity</module>
 		<module>jobs</module>
 		<module>search</module>
+		<module>discover</module>
 		<module>capture</module>
+		<module>mcp</module>
 		<module>web</module>
 		<module>app</module>
 	</modules>
@@ -72,7 +74,17 @@
 			</dependency>
 			<dependency>
 				<groupId>com.jobwarden</groupId>
+				<artifactId>jobwarden-discover</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.jobwarden</groupId>
 				<artifactId>jobwarden-capture</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.jobwarden</groupId>
+				<artifactId>jobwarden-mcp</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 			<dependency>

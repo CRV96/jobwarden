@@ -5,6 +5,11 @@ package com.jobwarden.jobs.enums;
  */
 public enum RejectionReason {
 
-	SALARY_MISMATCH, POSITION_FILLED, LACK_OF_EXPERIENCE, NO_RESPONSE, OTHER
+	SALARY_MISMATCH, POSITION_FILLED, LACK_OF_EXPERIENCE, NO_RESPONSE,
+
+	/** A generic rejection email, sent automatically, that gives no reason. */
+	AUTOMATED_EMAIL,
+
+	OTHER
 
 }

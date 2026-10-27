@@ -21,7 +21,8 @@ public interface ApplicationRepository extends JpaRepository<ApplicationEntity, 
 	 */
 	@Query("""
 			select new com.jobwarden.jobs.dto.ApplicationSummary(
-			    a.id, a.title, a.company, a.location, a.salary, a.source, a.currentStatus, a.capturedAt)
+			    a.id, a.title, a.company, a.location, a.salary, a.link, a.source, a.currentStatus, a.capturedAt,
+			    a.updatedAt)
 			from ApplicationEntity a
 			where a.userId = :userId
 			order by a.capturedAt desc""")
@@ -32,7 +33,8 @@ public interface ApplicationRepository extends JpaRepository<ApplicationEntity, 
 	 */
 	@Query("""
 			select new com.jobwarden.jobs.dto.ApplicationSummary(
-			    a.id, a.title, a.company, a.location, a.salary, a.source, a.currentStatus, a.capturedAt)
+			    a.id, a.title, a.company, a.location, a.salary, a.link, a.source, a.currentStatus, a.capturedAt,
+			    a.updatedAt)
 			from ApplicationEntity a
 			where a.userId = :userId and a.currentStatus = :status
 			order by a.capturedAt desc""")

@@ -7,6 +7,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.jobs.dto.ApplicationDetails;
@@ -14,14 +15,20 @@ import com.jobwarden.jobs.dto.ApplicationQuery;
 import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
+import com.jobwarden.jobs.dto.PngImage;
 import com.jobwarden.jobs.dto.TrackedApplication;
 import com.jobwarden.jobs.entity.ApplicationEntity;
+import com.jobwarden.jobs.entity.CompanyLogoEntity;
+import com.jobwarden.jobs.entity.SourceIconEntity;
+import com.jobwarden.jobs.entity.SourceIconKey;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.exception.JobsErrorCode;
 import com.jobwarden.jobs.exception.TimelineEventNotFoundException;
 import com.jobwarden.jobs.mapper.ApplicationMapper;
 import com.jobwarden.jobs.repository.ApplicationRepository;
+import com.jobwarden.jobs.repository.CompanyLogoRepository;
+import com.jobwarden.jobs.repository.SourceIconRepository;
 import com.jobwarden.jobs.service.ApplicationService;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -41,13 +48,25 @@ class DefaultApplicationService implements ApplicationService {
 
 	private final ApplicationRepository applications;
 
+	private final SourceIconRepository sourceIcons;
+
+	private final CompanyLogoRepository companyLogos;
+
+	/**
+	 * @throws BusinessRuleException if it has a rejection reason but its initial status isn't a rejection
+	 */
 	@Override
 	@Transactional
 	public long create(NewApplication application) {
-		ApplicationEntity entity = new ApplicationEntity(application, sourceOf(application.link()), Instant.now());
+		NewTimelineEvent initialStatus = initialStatusEvent(application);
+		requireRejectionReasonOnlyOnRejection(initialStatus);
+		String source = sourceOf(application.link());
+		ApplicationEntity entity = new ApplicationEntity(application, source, Instant.now());
 		// Every timeline starts with the initial status, so it always has a first entry
-		entity.addEvent(initialStatusEvent(application));
+		entity.addEvent(initialStatus);
 		long id = this.applications.save(entity).getId();
+		saveSourceIcon(application.userId(), source, application.sourceIcon());
+		saveCompanyLogo(id, application.companyLogo());
 		log.info("Created application {} for profile {} as {}", id, application.userId(), application.initialStatus());
 		return id;
 	}
@@ -66,6 +85,8 @@ class DefaultApplicationService implements ApplicationService {
 
 		ApplicationEntity tracked = existing.get();
 		log.debug("Link already tracked as application {}", tracked.getId());
+		saveSourceIcon(application.userId(), tracked.getSource(), application.sourceIcon());
+		saveCompanyLogo(tracked.getId(), application.companyLogo());
 
 		if (tracked.getCurrentStatus() == ApplicationStatus.SAVED
 				&& application.initialStatus() != ApplicationStatus.SAVED) {
@@ -85,6 +106,27 @@ class DefaultApplicationService implements ApplicationService {
 		log.debug("Found {} applications for profile {} (status: {})", found.size(), userId,
 				(status != null) ? status : "any");
 		return found;
+	}
+
+	@Override
+	public Optional<PngImage> findSourceIcon(long userId, String source) {
+		return this.sourceIcons.findById(new SourceIconKey(userId, source))
+			.map(icon -> new PngImage(icon.getImage()));
+	}
+
+	@Override
+	public Set<String> findSourcesWithIcon(long userId) {
+		return this.sourceIcons.findSources(userId);
+	}
+
+	@Override
+	public Optional<PngImage> findCompanyLogo(long userId, long applicationId) {
+		return this.companyLogos.findOwned(userId, applicationId).map(logo -> new PngImage(logo.getImage()));
+	}
+
+	@Override
+	public Set<Long> findApplicationsWithLogo(long userId) {
+		return this.companyLogos.findApplicationIds(userId);
 	}
 
 	@Override
@@ -186,6 +228,16 @@ class DefaultApplicationService implements ApplicationService {
 
 	/**
 	 * @throws ApplicationNotFoundException if the user has no such application
+	 */
+	@Override
+	@Transactional
+	public void updateSalary(long userId, long applicationId, @Nullable String salary) {
+		getOwnedApplication(userId, applicationId).changeSalary(salary);
+		log.info("Updated the salary of application {}", applicationId);
+	}
+
+	/**
+	 * @throws ApplicationNotFoundException if the user has no such application
 	 * @throws BusinessRuleException if it isn't APPLIED, or its timeline has more than SAVED and APPLIED events
 	 */
 	@Override
@@ -239,6 +291,33 @@ class DefaultApplicationService implements ApplicationService {
 	}
 
 	/**
+	 * Keeps the icon for the site, replacing the one it had. Nothing without an icon, or without a site to keep it for.
+	 */
+	private void saveSourceIcon(long userId, @Nullable String source, @Nullable PngImage icon) {
+		if (source == null || icon == null) {
+			return;
+		}
+		SourceIconKey key = new SourceIconKey(userId, source);
+		this.sourceIcons.findById(key)
+			.ifPresentOrElse(existing -> existing.changeImage(icon.png()),
+					() -> this.sourceIcons.save(new SourceIconEntity(key, icon.png())));
+		log.debug("Kept the icon of {} for profile {}", source, userId);
+	}
+
+	/**
+	 * Keeps the application's company logo, replacing the one it had. Nothing without a logo.
+	 */
+	private void saveCompanyLogo(long applicationId, @Nullable PngImage logo) {
+		if (logo == null) {
+			return;
+		}
+		this.companyLogos.findById(applicationId)
+			.ifPresentOrElse(existing -> existing.changeImage(logo.png()),
+					() -> this.companyLogos.save(new CompanyLogoEntity(applicationId, logo.png())));
+		log.debug("Kept the company logo of application {}", applicationId);
+	}
+
+	/**
 	 * The event that records the posting's initial status, with no label or note.
 	 */
 	private static NewTimelineEvent initialStatusEvent(NewApplication application) {
@@ -246,11 +325,12 @@ class DefaultApplicationService implements ApplicationService {
 			.eventDate(application.initialStatusDate())
 			.eventTime(application.initialStatusTime())
 			.stageCategory(application.initialStatus())
+			.rejectionReason(application.initialRejectionReason())
 			.build();
 	}
 
 	private static void requireRejectionReasonOnlyOnRejection(NewTimelineEvent event) {
-		if (event.rejectionReason() != null && event.stageCategory() != ApplicationStatus.REJECTED) {
+		if (event.rejectionReason() != null && !event.stageCategory().hasRejectionReason()) {
 			throw new BusinessRuleException(JobsErrorCode.REJECTION_REASON_NOT_ALLOWED,
 					"A rejection reason is only allowed on a REJECTED event, not on " + event.stageCategory());
 		}

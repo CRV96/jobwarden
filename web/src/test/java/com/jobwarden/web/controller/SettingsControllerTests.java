@@ -3,6 +3,7 @@ package com.jobwarden.web.controller;
 import java.time.Instant;
 import java.util.Optional;
 
+import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.service.UserService;
 import com.jobwarden.jobs.service.ApplicationService;
@@ -37,6 +38,9 @@ class SettingsControllerTests {
 	@MockitoBean
 	private ApplicationService applications;
 
+	@MockitoBean
+	private DiscoveryService discovery;
+
 	@Test
 	void showsWhatTheExtensionNeeds() {
 		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
@@ -44,6 +48,15 @@ class SettingsControllerTests {
 		assertThat(this.mvc.get().uri("/settings")).hasStatusOk()
 			.bodyText()
 			.contains("http://localhost", ">1000<", "data-theme-choice");
+	}
+
+	@Test
+	void showsHowToConnectClaude() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+
+		assertThat(this.mvc.get().uri("/settings")).bodyText()
+			.contains(">http://localhost/mcp<",
+					"claude mcp add --transport http jobwarden http://localhost/mcp --header &quot;X-JobWarden-Profile: 1000&quot;");
 	}
 
 	@Test

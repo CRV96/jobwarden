@@ -21,10 +21,17 @@
   "options_page": "options.html",
   "background": {
     "service_worker": "background.js",
+    "scripts": ["background.js"],
     "type": "module"
   },
-  "permissions": ["activeTab", "scripting", "storage"],
+  "permissions": ["activeTab", "scripting", "storage", "favicon"],
   "host_permissions": ["http://localhost:8080/*"],
   "optional_host_permissions": ["http://*/*", "https://*/*"],
-  "optional_permissions": ["tabs"]
+  "optional_permissions": ["tabs"],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "jobwarden@crv96.github.io",
+      "strict_min_version": "128.0"
+    }
+  }
 }

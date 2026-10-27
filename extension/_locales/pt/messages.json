@@ -164,6 +164,12 @@
   "status_REJECTED": {
     "message": "Rejeitada"
   },
+  "status_NO_RESPONSE": {
+    "message": "Sem resposta"
+  },
+  "status_POSITION_CLOSED": {
+    "message": "Vaga encerrada"
+  },
   "status_WITHDRAWN": {
     "message": "Retirada"
   },

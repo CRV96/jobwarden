@@ -55,6 +55,12 @@ class ApplicationListParamsTests {
 	}
 
 	@Test
+	void showsTheLatestChangesFirst() {
+		assertThat(ApplicationListParams.defaults().sortedBy(ApplicationSort.MODIFIED).url())
+			.isEqualTo("/applications?sort=MODIFIED&dir=DESC");
+	}
+
+	@Test
 	void leavesGapsBetweenFarAwayPageNumbers() {
 		assertThat(ApplicationListParams.defaults().withPage(6).pageNumbers(12))
 			.containsExactly(1, null, 4, 5, 6, 7, 8, null, 12);

@@ -33,6 +33,18 @@ class ApplicationEntityTests {
 	}
 
 	@Test
+	void aChangeToTheTimelineIsAChangeToTheApplication() {
+		ApplicationEntity application = newApplication();
+		application.addEvent(event(TODAY, null, ApplicationStatus.INTERVIEWING));
+		Instant before = application.getUpdatedAt();
+
+		// Another interview: the status stays INTERVIEWING, the application's columns don't change
+		application.addEvent(event(TODAY.plusDays(1), null, ApplicationStatus.INTERVIEWING));
+
+		assertThat(application.getUpdatedAt()).isNotNull().isAfterOrEqualTo(before);
+	}
+
+	@Test
 	void withinADayTheLaterTimeIsTheLatest() {
 		ApplicationEntity application = newApplication();
 

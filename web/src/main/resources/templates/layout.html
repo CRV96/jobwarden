@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <!--/* The layout of every page but the profile picker (layout-bare.html): the sidebar, and the page next to it.
-       section is the sidebar entry to show as the current one: 'jobs', 'pipeline', 'search', 'settings' or null. */-->
+       section is the sidebar entry to show as the current one: 'jobs', 'discover', 'pipeline', 'salaries', 'search',
+       'settings' or null. */-->
 <html lang="en" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org" th:fragment="page(title, content, section)">
 <head th:fragment="head(title)">
     <meta charset="UTF-8">
@@ -24,9 +25,14 @@
             }
         })();
     </script>
+    <!--/* The extension's icon (extension/icons, copied), so the tab and the toolbar look the same. PNGs for browsers
+           without SVG icons, and for a phone's home screen. */-->
+    <link rel="icon" type="image/png" sizes="32x32" th:href="@{/favicon-32.png}">
+    <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
+    <link rel="apple-touch-icon" th:href="@{/apple-touch-icon.png}">
     <link rel="stylesheet" th:href="@{/webjars/phosphor-icons__web/src/regular/style.css}">
-    <!--/* Only the settings page shows flags, next to the languages */-->
-    <link rel="stylesheet" th:href="@{/webjars/flag-icons/css/flag-icons.min.css}" th:if="${languages}">
+    <!--/* Only some pages show flags: the settings page next to the languages, the search page next to the locations */-->
+    <link rel="stylesheet" th:href="@{/webjars/flag-icons/css/flag-icons.min.css}" th:if="${languages != null or section == 'search'}">
     <link rel="stylesheet" th:href="@{/css/app.css}">
     <!--/* By default HTMX doesn't send a form with an invalid field, and doesn't say why either. */-->
     <meta name="htmx-config" content='{"reportValidityOfForms": true}'>
@@ -61,10 +67,22 @@
                 <span class="text-[11px] text-ink/55 max-md:hidden folded:hidden" th:if="${applicationCount != null}"
                       th:text="${applicationCount}">57</span>
             </a>
+            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/discover}"
+               th:aria-current="${section == 'discover'} ? 'page'" th:title="#{nav.discover}">
+                <i class="ph ph-cards"></i>
+                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.discover}">Discover</span>
+                <span class="rounded-full bg-accent px-1.5 text-[11px] font-medium text-white max-md:hidden folded:hidden"
+                      th:if="${discoverCount != null and discoverCount > 0}" th:text="${discoverCount}">4</span>
+            </a>
             <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/pipeline}"
                th:aria-current="${section == 'pipeline'} ? 'page'" th:title="#{nav.pipeline}">
                 <i class="ph ph-kanban"></i>
                 <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.pipeline}">Pipeline</span>
+            </a>
+            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/salaries}"
+               th:aria-current="${section == 'salaries'} ? 'page'" th:title="#{nav.salaries}">
+                <i class="ph ph-coins"></i>
+                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.salaries}">Salaries</span>
             </a>
             <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/search}"
                th:aria-current="${section == 'search'} ? 'page'" th:title="#{nav.search}">

@@ -7,6 +7,7 @@ import java.util.Map;
 
 import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.RejectionReason;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.web.constants.AppConstants.ControllerConstants;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
@@ -40,8 +41,10 @@ class PipelineController extends BaseController {
 			columns.get(application.status()).add(application);
 		}
 		model.addAttribute(ModelAttributes.PIPELINE_COLUMNS, columns);
+		addImages(model, userId);
 		// For the add-job dialog
 		model.addAttribute(ModelAttributes.STATUSES, ApplicationStatus.values());
+		model.addAttribute(ModelAttributes.REJECTION_REASONS, RejectionReason.values());
 		return Views.PIPELINE;
 	}
 

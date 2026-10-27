@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.jobwarden.common.exception.JobWardenException;
+import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.service.UserService;
 import com.jobwarden.jobs.service.ApplicationService;
@@ -31,6 +32,8 @@ abstract class BaseController {
 
 	private ApplicationService applications;
 
+	private DiscoveryService discovery;
+
 	private MessageSource messages;
 
 	/**
@@ -53,6 +56,11 @@ abstract class BaseController {
 	}
 
 	@Autowired
+	final void setDiscovery(DiscoveryService discovery) {
+		this.discovery = discovery;
+	}
+
+	@Autowired
 	final void setMessages(MessageSource messages) {
 		this.messages = messages;
 	}
@@ -61,8 +69,8 @@ abstract class BaseController {
 	 * Spring calls this before every handler method of a subclass, so every page has the selected profile (or
 	 * {@code null}) for the sidebar in layout.html. It's the only place a request looks the profile up.
 	 * <p>
-	 * The sidebar also lists the profiles to switch to and counts the profile's applications. HTMX requests skip
-	 * those: they only swap a part of the page, without the sidebar.
+	 * The sidebar also lists the profiles to switch to, counts the profile's applications and the found jobs waiting
+	 * on the Discover page. HTMX requests skip those: they only swap a part of the page, without the sidebar.
 	 */
 	@ModelAttribute
 	void layout(Model model, @RequestHeader(name = HtmxHeaders.REQUEST, required = false) @Nullable String htmx) {
@@ -74,6 +82,7 @@ abstract class BaseController {
 		model.addAttribute(ModelAttributes.SIDEBAR_PROFILES, this.users.findAll());
 		if (profile != null) {
 			model.addAttribute(ModelAttributes.APPLICATION_COUNT, this.applications.count(profile.id()));
+			model.addAttribute(ModelAttributes.DISCOVER_COUNT, this.discovery.countToReview(profile.id(), null));
 		}
 	}
 
@@ -86,6 +95,15 @@ abstract class BaseController {
 			return profile;
 		}
 		throw new ProfileNotSelectedException();
+	}
+
+	/**
+	 * Which images the pages showing applications have: the sites' icons, next to each site, and the companies'
+	 * logos, before each job's title.
+	 */
+	protected void addImages(Model model, long userId) {
+		model.addAttribute(ModelAttributes.ICON_SOURCES, this.applications.findSourcesWithIcon(userId));
+		model.addAttribute(ModelAttributes.LOGO_APPLICATIONS, this.applications.findApplicationsWithLogo(userId));
 	}
 
 	protected void selectProfile(long userId) {

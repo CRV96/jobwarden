@@ -114,6 +114,7 @@ public class ApplicationEntity {
 		if (latest) {
 			this.currentStatus = event.stageCategory();
 		}
+		markModified();
 	}
 
 	/**
@@ -133,6 +134,7 @@ public class ApplicationEntity {
 		boolean removed = this.events.removeIf(event -> Objects.equals(event.getId(), eventId));
 		if (removed) {
 			this.currentStatus = latestEvent().getStageCategory();
+			markModified();
 		}
 		return removed;
 	}
@@ -142,6 +144,10 @@ public class ApplicationEntity {
 	 */
 	public void changeNotes(@Nullable String notes) {
 		this.notes = notes;
+	}
+
+	public void changeSalary(@Nullable String salary) {
+		this.salary = salary;
 	}
 
 	/**
@@ -166,6 +172,7 @@ public class ApplicationEntity {
 			.findFirst()
 			.orElseThrow();
 		this.events.removeIf(event -> event.getStageCategory() == ApplicationStatus.APPLIED);
+		markModified();
 		if (this.events.isEmpty()) {
 			this.events.add(new TimelineEventEntity(this, NewTimelineEvent.builder()
 				.eventDate(firstApplied.getEventDate())
@@ -180,6 +187,15 @@ public class ApplicationEntity {
 	 * The event the status comes from. The events are in timeline order, except those added since they were loaded,
 	 * which are at the end; at the same moment, the one further down counts as the latest, like in {@link #addEvent}.
 	 */
+	/**
+	 * A change to the timeline is a change to the application, even when its own columns stay the same, e.g. an
+	 * interview that keeps it INTERVIEWING: the list's "last modified" counts it. Setting the time makes the row dirty,
+	 * so {@code @UpdateTimestamp} then sets it again as Hibernate saves it.
+	 */
+	private void markModified() {
+		this.updatedAt = Instant.now();
+	}
+
 	private TimelineEventEntity latestEvent() {
 		return this.events.stream()
 			.reduce((latest, event) -> latest.isAfter(event.getEventDate(), event.getEventTime()) ? latest : event)

@@ -18,6 +18,9 @@
                 <i class="ph ph-caret-left"></i><span th:text="#{nav.jobs}">Jobs</span>
             </a>
             <header class="flex flex-wrap items-end gap-3">
+                <span class="flex self-center">
+                    <span th:replace="~{applications/fragments :: company-logo(${jobApplication.id}, ${jobApplication.company}, 40)}"></span>
+                </span>
                 <div class="flex min-w-[260px] flex-1 flex-col gap-1.5">
                     <div class="flex items-center gap-2">
                         <span class="text-sm text-ink/65" th:text="${jobApplication.company} ?: #{application.unknownCompany}">Acme</span>
@@ -26,6 +29,7 @@
                     <h1 class="page-title" th:text="${jobApplication.title}">Backend engineer</h1>
                 </div>
                 <div class="flex gap-1.5">
+                    <th:block th:replace="~{applications/fragments :: share-menu('page', false)}"></th:block>
                     <button class="btn btn-secondary" type="button" th:data-open-dialog="|delete-${jobApplication.id}|">
                         <i class="ph ph-trash"></i><span th:text="#{action.delete}">Delete</span>
                     </button>

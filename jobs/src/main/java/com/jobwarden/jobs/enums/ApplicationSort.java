@@ -9,6 +9,9 @@ public enum ApplicationSort {
 	/** When the application was saved. */
 	ADDED,
 
+	/** When the application, its timeline included, last changed. */
+	MODIFIED,
+
 	TITLE,
 
 	LOCATION,

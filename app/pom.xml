@@ -30,7 +30,15 @@
 		</dependency>
 		<dependency>
 			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-discover</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
 			<artifactId>jobwarden-capture</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-mcp</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>com.jobwarden</groupId>

@@ -49,9 +49,25 @@ public class Dates {
 	 * The date in the language's format.date pattern, e.g. 28 Sep 2026.
 	 */
 	public String date(Instant instant) {
+		return date(LocalDate.ofInstant(instant, ZoneId.systemDefault()));
+	}
+
+	/**
+	 * The moment in the language's format.dateTime pattern, e.g. 28 Sep 2026, 14:05.
+	 */
+	public String dateTime(Instant instant) {
+		Locale locale = LocaleContextHolder.getLocale();
+		String pattern = this.messages.getMessage("format.dateTime", null, locale);
+		return DateTimeFormatter.ofPattern(pattern, locale).format(instant.atZone(ZoneId.systemDefault()));
+	}
+
+	/**
+	 * The day in the language's format.date pattern, e.g. 28 Sep 2026.
+	 */
+	public String date(LocalDate day) {
 		Locale locale = LocaleContextHolder.getLocale();
 		String pattern = this.messages.getMessage("format.date", null, locale);
-		return DateTimeFormatter.ofPattern(pattern, locale).format(LocalDate.ofInstant(instant, ZoneId.systemDefault()));
+		return DateTimeFormatter.ofPattern(pattern, locale).format(day);
 	}
 
 }

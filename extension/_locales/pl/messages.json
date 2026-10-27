@@ -164,6 +164,12 @@
   "status_REJECTED": {
     "message": "Odrzucona"
   },
+  "status_NO_RESPONSE": {
+    "message": "Brak odpowiedzi"
+  },
+  "status_POSITION_CLOSED": {
+    "message": "Oferta zamknięta"
+  },
   "status_WITHDRAWN": {
     "message": "Wycofana"
   },

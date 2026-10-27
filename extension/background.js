@@ -1,6 +1,9 @@
 // Keeps the toolbar icon of every tab showing whether its page is already in JobWarden: ★ bookmarked, ✓ applied.
 // Only once the user turns it on in the settings, which grants the "tabs" permission: without it, Chrome
 // doesn't tell extensions which page a tab shows. Each page a tab opens is then looked up on the user's server.
+//
+// Chrome runs it as a service worker, Firefox as an event page: manifest.json lists it as both, and each browser
+// takes the one it supports.
 
 import { lookUp } from './api.js';
 import { canonicalLink } from './links.js';

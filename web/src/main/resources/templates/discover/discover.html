@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: page(~{::title}, ~{::main}, 'discover')}">
+<head>
+    <title th:text="|#{discover.title} · JobWarden|">Discover · JobWarden</title>
+</head>
+<body>
+<main class="flex max-w-[1040px] flex-col gap-5">
+    <header class="flex flex-wrap items-end gap-3">
+        <div class="min-w-[260px] flex-1">
+            <h1 class="page-title mb-1" th:text="#{discover.title}">Discover</h1>
+            <p class="text-[13px] text-ink/60" th:text="#{discover.subtitle}">Jobs Claude found for your searches. Save the ones you like, discard the rest.</p>
+        </div>
+        <a class="btn btn-secondary" th:href="@{/search}"><i class="ph ph-plus"></i><span th:text="#{discover.newSearch}">New search</span></a>
+    </header>
+
+    <!--/* Everything a decision changes: the counts, the card, the latest decisions. A decision posts with HTMX and
+           swaps it all with the fragment the controller returns (DiscoverController.decide). */-->
+    <div id="discover-review" th:fragment="review" class="flex flex-col gap-5">
+        <nav class="flex flex-wrap gap-1.5" th:aria-label="#{discover.searches}" th:unless="${savedSearches.isEmpty()}">
+            <a class="chip chip-small" th:href="@{/discover}" th:aria-current="${selectedSearch == null} ? 'true'">
+                <span th:text="#{discover.all}">All</span>
+                <span class="chip-count" th:text="${toReviewAll}">12</span>
+            </a>
+            <a class="chip chip-small" th:each="search : ${savedSearches}" th:href="@{/discover(search=${search.id})}"
+               th:aria-current="${selectedSearch == search.id} ? 'true'">
+                <span th:text="${search.name}">Remote Java</span>
+                <span class="chip-count" th:text="${searchCounts.getOrDefault(search.id, 0L)}">8</span>
+            </a>
+        </nav>
+
+        <div class="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+            <section class="flex flex-col items-center gap-4" aria-live="polite" th:aria-label="#{discover.title}">
+                <th:block th:if="${foundJob}" th:with="job=${foundJob}">
+                    <!--/* app.js: dragged left the card is discarded, right it's saved, like the buttons below */-->
+                    <div class="discover-stack">
+                        <span class="discover-ghost is-far" th:if="${toReview > 2}"></span>
+                        <span class="discover-ghost is-near" th:if="${toReview > 1}"></span>
+                        <article class="card discover-card" data-swipe-card>
+                            <span class="swipe-label is-discard" aria-hidden="true" th:text="#{discover.discard}">Discard</span>
+                            <span class="swipe-label is-save" aria-hidden="true" th:text="#{discover.save}">Save</span>
+                            <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink/60">
+                                <span class="flex items-center gap-1.5">
+                                    <th:block th:replace="~{applications/fragments :: source-icon(${job.source})}"></th:block>
+                                    <span th:text="${job.source}">jobs.lever.co</span>
+                                </span>
+                                <span aria-hidden="true">·</span>
+                                <span th:title="#{discover.foundAt}" th:text="${@dates.relativeDay(job.foundAt)}">Today</span>
+                                <span class="tag" th:if="${job.searchName}" th:text="${job.searchName}">Remote Java</span>
+                            </div>
+                            <div>
+                                <h2 class="text-[22px] leading-tight font-bold tracking-[-0.02em]" th:text="${job.title}">Senior Java Developer</h2>
+                                <div class="mt-1 text-ink/70" th:text="${job.company} ?: #{application.unknownCompany}">Acme</div>
+                            </div>
+                            <dl class="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-ink/75">
+                                <div class="flex items-center gap-1.5" th:if="${job.location}">
+                                    <dt><i class="ph ph-map-pin" th:title="#{jobs.column.location}"></i></dt><dd th:text="${job.location}">Remote, Europe</dd>
+                                </div>
+                                <div class="flex items-center gap-1.5" th:if="${job.salary}">
+                                    <dt><i class="ph ph-coins" th:title="#{jobs.column.salary}"></i></dt><dd th:text="${job.salary}">€60–80k</dd>
+                                </div>
+                                <div class="flex items-center gap-1.5" th:if="${job.postedOn}">
+                                    <dt><i class="ph ph-calendar-blank" th:title="#{discover.postedOn}"></i></dt><dd th:text="${@dates.date(job.postedOn)}">24 Oct 2026</dd>
+                                </div>
+                            </dl>
+                            <div class="discover-note" th:if="${job.note}">
+                                <i class="ph ph-sparkle text-accent"></i>
+                                <div>
+                                    <div class="text-xs font-medium text-ink/60" th:text="#{discover.why}">Why it fits</div>
+                                    <p th:text="${job.note}">Java and Kafka, fully remote within Europe.</p>
+                                </div>
+                            </div>
+                            <th:block th:if="${job.description}">
+                                <p class="line-clamp-6 leading-6 whitespace-pre-line text-ink/80" th:text="${job.description}">We build…</p>
+                                <button class="btn btn-ghost self-start px-1" type="button" data-expand data-clamp="line-clamp-6"
+                                        th:data-more="#{application.showMore}" th:data-less="#{application.showLess}"
+                                        th:text="#{application.showMore}">Show more</button>
+                            </th:block>
+                            <a class="link inline-flex items-center gap-1.5 self-start font-medium" th:href="${job.link}"
+                               target="_blank" rel="noopener noreferrer">
+                                <i class="ph ph-arrow-square-out"></i><span th:text="#{application.openPosting}">Open posting</span>
+                            </a>
+                        </article>
+                    </div>
+
+                    <form class="flex items-center gap-5" th:hx-post="@{/discover/{id}/decision(id=${job.id})}"
+                          hx-target="#discover-review" hx-swap="outerHTML">
+                        <input type="hidden" name="search" th:if="${selectedSearch}" th:value="${selectedSearch}">
+                        <!--/* app.js sets the decision from the button, the key or the swipe: HTMX would only send a
+                               button's value when the button is clicked */-->
+                        <input type="hidden" name="decision" value="">
+                        <button class="discover-action is-discard" type="submit" value="DISCARDED" data-swipe="left"
+                                th:title="|#{discover.discard} (←)|" th:aria-label="#{discover.discard}">
+                            <i class="ph ph-x"></i>
+                        </button>
+                        <button class="discover-action is-apply" type="submit" value="APPLIED" data-swipe="up"
+                                th:data-open-link="${job.link}" th:title="|#{discover.apply} (A)|" th:aria-label="#{discover.apply}">
+                            <i class="ph ph-paper-plane-tilt"></i>
+                        </button>
+                        <button class="discover-action is-save" type="submit" value="SAVED" data-swipe="right"
+                                th:title="|#{discover.save} (→)|" th:aria-label="#{discover.save}">
+                            <i class="ph ph-star"></i>
+                        </button>
+                    </form>
+                    <p class="text-xs text-ink/50">
+                        <span th:text="#{discover.toReview(${toReview})}">12 to review</span> ·
+                        <span th:text="#{discover.keys}">← Discard · A Apply · → Save</span>
+                    </p>
+                </th:block>
+
+                <div class="card flex w-full max-w-[560px] flex-col items-center gap-3 p-8 text-center" th:unless="${foundJob}">
+                    <span class="brand-mark size-11"><i class="ph ph-cards text-[22px]"></i></span>
+                    <h2 class="text-[17px] font-semibold" th:text="#{discover.empty.title}">Nothing to review</h2>
+                    <p class="max-w-[420px] text-ink/65" th:text="#{discover.empty.body}">Ask Claude to look for jobs.</p>
+                    <a class="link text-[13px]" th:href="@{/settings}" th:text="#{discover.empty.connect}">Connect Claude to JobWarden</a>
+                </div>
+            </section>
+
+            <aside class="card flex flex-col gap-2 p-4" aria-labelledby="recent-title">
+                <h2 id="recent-title" class="section-title" th:text="#{discover.recent}">Recently decided</h2>
+                <p class="text-xs text-ink/55" th:if="${recentDecisions.isEmpty()}" th:text="#{discover.recent.empty}">What you decide shows here.</p>
+                <ul class="flex flex-col divide-y divide-line">
+                    <li class="flex items-center gap-2 py-2" th:each="decided : ${recentDecisions}">
+                        <div class="min-w-0 flex-1">
+                            <a class="block truncate text-[13px] font-medium hover:underline"
+                               th:href="${decided.applicationId} ? @{/applications/{id}(id=${decided.applicationId})} : ${decided.link}"
+                               th:target="${decided.applicationId} ? null : '_blank'" rel="noopener noreferrer"
+                               th:text="${decided.title}">Java Developer</a>
+                            <div class="truncate text-xs text-ink/55" th:text="${decided.company}">Acme</div>
+                        </div>
+                        <span class="tag" th:classappend="${decided.decision.name() == 'APPLIED'} ? 'st-applied' : (${decided.decision.name() == 'SAVED'} ? 'st-interviewing' : 'st-withdrawn')"
+                              th:text="#{|discover.decision.${decided.decision}|}">Saved</span>
+                        <form th:if="${decided.decision.name() == 'DISCARDED'}" th:hx-post="@{/discover/{id}/decision(id=${decided.id})}"
+                              hx-target="#discover-review" hx-swap="outerHTML">
+                            <input type="hidden" name="decision" value="PENDING">
+                            <input type="hidden" name="search" th:if="${selectedSearch}" th:value="${selectedSearch}">
+                            <button class="btn btn-ghost px-1.5 py-1 text-xs" type="submit" th:text="#{discover.restore}">Restore</button>
+                        </form>
+                    </li>
+                </ul>
+            </aside>
+        </div>
+    </div>
+
+    <section class="flex flex-col gap-2" aria-labelledby="searches-title">
+        <h2 id="searches-title" class="section-title" th:text="#{discover.savedSearches}">Saved searches</h2>
+        <p class="card p-4 text-ink/60" th:if="${savedSearches.isEmpty()}">
+            <span th:text="#{discover.savedSearches.empty}">Build a search on the Search page and save it.</span>
+            <a class="link" th:href="@{/search}" th:text="#{nav.search}">Search</a>
+        </p>
+        <ul class="card flex flex-col divide-y divide-line" th:unless="${savedSearches.isEmpty()}">
+            <li class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3" th:each="search : ${savedSearches}"
+                th:with="criteria=${search.criteria}">
+                <div class="min-w-[200px] flex-1">
+                    <div class="font-medium" th:text="${search.name}">Remote Java</div>
+                    <div class="truncate text-xs text-ink/55"
+                         th:text="${#strings.listJoin(criteria.titles, ', ')} + (${criteria.locations.isEmpty()} ? '' : ' · ' + ${#strings.listJoin(criteria.locations, ', ')}) + (${criteria.skills.isEmpty()} ? '' : ' · ' + ${#strings.listJoin(criteria.skills, ', ')})">Java Developer · Europe</div>
+                </div>
+                <span class="text-xs text-ink/55" th:text="#{discover.toReview(${searchCounts.getOrDefault(search.id, 0L)})}">8 to review</span>
+                <a class="btn btn-ghost px-1.5 py-1" th:href="${searchUrls.get(search.id)}">
+                    <i class="ph ph-list-magnifying-glass"></i><span th:text="#{discover.savedSearches.open}">Open in Search</span>
+                </a>
+                <form method="post" th:action="@{/discover/searches/{id}/delete(id=${search.id})}">
+                    <button class="btn btn-ghost btn-icon" type="submit" th:title="#{discover.savedSearches.delete(${search.name})}"
+                            th:aria-label="#{discover.savedSearches.delete(${search.name})}">
+                        <i class="ph ph-trash"></i>
+                    </button>
+                </form>
+            </li>
+        </ul>
+    </section>
+</main>
+</body>
+</html>

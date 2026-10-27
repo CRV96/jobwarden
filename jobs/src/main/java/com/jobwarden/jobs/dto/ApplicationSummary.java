@@ -9,8 +9,10 @@ import org.jspecify.annotations.Nullable;
 /**
  * One row of the application list, or one card of the pipeline.
  *
+ * @param link the posting's address; {@code null} for one added by hand without a link
  * @param source the site the posting came from, e.g. {@code linkedin.com}; {@code null} for one added by hand
  * without a link
+ * @param updatedAt when the application, its timeline included, last changed
  */
 @Builder
 public record ApplicationSummary(
@@ -19,7 +21,17 @@ public record ApplicationSummary(
 		@Nullable String company,
 		@Nullable String location,
 		@Nullable String salary,
+		@Nullable String link,
 		@Nullable String source,
 		ApplicationStatus status,
-		Instant capturedAt) {
+		Instant capturedAt,
+		@Nullable Instant updatedAt) {
+
+	/**
+	 * @return when the application last changed, or when it was saved if that isn't known
+	 */
+	public Instant lastModified() {
+		return (this.updatedAt != null) ? this.updatedAt : this.capturedAt;
+	}
+
 }

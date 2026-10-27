@@ -10,9 +10,29 @@
 <span th:fragment="status-badge(status)" class="tag" th:classappend="|st-${#strings.toLowerCase(status.name())}|"
       th:text="#{${'status.' + status}}">Applied</span>
 
+<!--/* The site's own icon, as the browser showed it on the posting's tab, when the extension saved one (iconSources,
+       see BaseController); otherwise a globe, or a pencil for a job added by hand without a link. */-->
+<th:block th:fragment="source-icon(source)">
+    <img class="size-3.5 flex-none rounded-[3px]" width="14" height="14" alt=""
+         th:if="${source != null and iconSources != null and iconSources.contains(source)}"
+         th:src="@{/sources/{source}/icon(source=${source})}">
+    <i class="ph flex-none text-sm" th:unless="${source != null and iconSources != null and iconSources.contains(source)}"
+       th:classappend="${source} ? 'ph-globe-simple' : 'ph-pencil-simple'"></i>
+</th:block>
+
+<!--/* The company's logo, from the posting (logoApplications, see BaseController), or else the company's initials.
+       size is its side in pixels: 28 in the lists, 40 in the side panel and on the job's page. */-->
+<span th:fragment="company-logo(id, company, size)" class="company-logo" aria-hidden="true"
+      th:classappend="${size >= 40} ? 'size-10 rounded-[9px] text-sm' : 'size-7 rounded-md text-[11px]'">
+    <img th:if="${logoApplications != null and logoApplications.contains(id)}" alt=""
+         th:src="@{/applications/{id}/logo(id=${id})}" th:width="${size}" th:height="${size}">
+    <th:block th:unless="${logoApplications != null and logoApplications.contains(id)}"
+              th:text="${company != null and !#strings.isEmpty(company)} ? ${@names.initials(company)} : '·'">AC</th:block>
+</span>
+
 <!--/* Where the posting came from: the site, or added by hand without a link. */-->
 <th:block th:fragment="source(source)">
-    <i class="ph flex-none text-sm" th:classappend="${source} ? 'ph-globe-simple' : 'ph-pencil-simple'"></i>
+    <th:block th:replace="~{applications/fragments :: source-icon(${source})}"></th:block>
     <span class="min-w-0 truncate" th:text="${source} ?: #{source.manual}">linkedin.com</span>
 </th:block>
 
@@ -27,12 +47,53 @@
     </th:block>
     <dt class="text-ink/55" th:text="#{jobs.column.source}">Source</dt>
     <dd class="flex min-w-0 items-center gap-1.5">
-        <i class="ph flex-none" th:classappend="${jobApplication.source} ? 'ph-globe-simple' : 'ph-pencil-simple'"></i>
+        <th:block th:replace="~{applications/fragments :: source-icon(${jobApplication.source})}"></th:block>
         <span class="min-w-0 truncate" th:text="${jobApplication.source} ?: #{source.addedByHand}">linkedin.com</span>
     </dd>
     <dt class="text-ink/55" th:text="#{jobs.column.added}">Added</dt>
     <dd th:text="${@dates.relativeDay(jobApplication.capturedAt)}" th:title="${@dates.date(jobApplication.capturedAt)}">Today</dd>
 </dl>
+
+<!--/* Shares the posting (see Sharing): the browser's own share sheet where it has one (app.js shows it), the link, a
+       summary to paste, or an email or a post. where tells the page's menu from the side panel's, which can both be on
+       a page. icon: a button with only the icon, for the side panel's header. Thymeleaf lets only th:with call a bean
+       (@sharing): the attributes read what it made. */-->
+<th:block th:fragment="share-menu(where, icon)"
+          th:with="menuId=|share-${where}-${jobApplication.id}|, buttonId=|share-button-${where}-${jobApplication.id}|,
+                   share=${@sharing.of(jobApplication)}">
+    <button class="btn btn-secondary" type="button" th:id="${buttonId}" th:popovertarget="${menuId}" aria-haspopup="menu"
+            th:classappend="${icon} ? 'btn-icon'" th:title="#{share.button}" th:aria-label="#{share.button}">
+        <i class="ph ph-share-network" th:classappend="${icon} ? 'text-base'"></i>
+        <span th:unless="${icon}" th:text="#{share.button}">Share</span>
+    </button>
+    <div class="menu" popover role="menu" th:id="${menuId}" th:aria-labelledby="${buttonId}" th:data-anchor="${buttonId}">
+        <button class="menu-item" type="button" role="menuitem" data-native-share hidden
+                th:data-share-title="${share.title}" th:data-share-text="${share.summary}" th:data-share-url="${share.link}">
+            <i class="ph ph-export text-[15px]"></i><span th:text="#{share.native}">Share…</span>
+        </button>
+        <button class="menu-item" type="button" role="menuitem" th:if="${share.link}" th:data-copy-text="${share.link}">
+            <span class="flex items-center gap-2.5" data-copy-idle><i class="ph ph-link text-[15px]"></i><span th:text="#{share.copyLink}">Copy the posting’s link</span></span>
+            <span class="flex items-center gap-2.5" data-copy-done hidden><i class="ph ph-check text-[15px]"></i><span th:text="#{share.copied}">Copied</span></span>
+        </button>
+        <button class="menu-item" type="button" role="menuitem" th:data-copy-text="${share.text}">
+            <span class="flex items-center gap-2.5" data-copy-idle><i class="ph ph-text-align-left text-[15px]"></i><span th:text="#{share.copyText}">Copy as text</span></span>
+            <span class="flex items-center gap-2.5" data-copy-done hidden><i class="ph ph-check text-[15px]"></i><span th:text="#{share.copied}">Copied</span></span>
+        </button>
+        <div class="menu-separator"></div>
+        <a class="menu-item" role="menuitem" th:href="${share.email}">
+            <i class="ph ph-envelope-simple text-[15px]"></i><span th:text="#{share.email}">Email</span>
+        </a>
+        <a class="menu-item" role="menuitem" target="_blank" rel="noopener noreferrer" th:href="${share.whatsApp}">
+            <i class="ph ph-whatsapp-logo text-[15px]"></i><span>WhatsApp</span>
+        </a>
+        <a class="menu-item" role="menuitem" target="_blank" rel="noopener noreferrer" th:if="${share.linkedIn}" th:href="${share.linkedIn}">
+            <i class="ph ph-linkedin-logo text-[15px]"></i><span>LinkedIn</span>
+        </a>
+        <a class="menu-item" role="menuitem" target="_blank" rel="noopener noreferrer" th:href="${share.x}">
+            <i class="ph ph-x-logo text-[15px]"></i><span>X</span>
+        </a>
+    </div>
+</th:block>
 
 <!--/* One button per status, the current one pressed. The others add an event now, without a time asked for.
        Rejected asks for the reason first, so patterns show up over time. */-->
@@ -104,7 +165,12 @@
         </li>
     </ol>
 
-    <form class="flex flex-col gap-2 rounded-md p-3 shadow-sm" th:hx-post="${eventsUrl}">
+    <!--/* Each status asks for what it has (ApplicationStatus): a stage for interviewing and an offer, a reason for a
+           rejection, only the note for the others. The fields start out for the current status, which the select
+           starts on; app.js switches them as another is picked (data-status-select, data-for-statuses). A hidden
+           field is disabled too, so it's neither sent nor required. */-->
+    <form class="flex flex-col gap-2 rounded-md p-3 shadow-sm" th:hx-post="${eventsUrl}"
+          th:with="current=${jobApplication.status}">
         <div class="flex flex-wrap items-center gap-1.5">
             <input class="input w-auto flex-[1_1_150px]" type="date" name="eventDate" required th:value="${now.toLocalDate()}"
                    th:aria-label="#{application.event.date}">
@@ -115,12 +181,21 @@
             <button class="btn btn-ghost" type="button" onclick="this.previousElementSibling.value = ''"
                     th:text="#{form.clearTime}">Clear time</button>
         </div>
-        <select class="input" name="stageCategory" required th:aria-label="#{application.event.stage}">
-            <option th:each="status : ${statuses}" th:value="${status}" th:selected="${status == jobApplication.status}"
+        <select class="input" name="stageCategory" required data-status-select th:aria-label="#{application.event.stage}">
+            <option th:each="status : ${statuses}" th:value="${status}" th:selected="${status == current}"
                     th:text="#{${'status.' + status}}">Applied</option>
         </select>
         <input class="input" type="text" name="stageLabel" maxlength="200" th:aria-label="#{application.event.stageLabel}"
-               th:placeholder="#{application.event.stageLabel.placeholder}">
+               th:placeholder="#{application.event.stageLabel.placeholder}"
+               th:data-for-statuses="${#strings.arrayJoin(statuses.?[hasStages()], ' ')}"
+               th:hidden="${!current.hasStages()}" th:disabled="${!current.hasStages()}">
+        <select class="input" name="rejectionReason" required th:aria-label="#{application.rejectionReason}"
+                th:data-for-statuses="${#strings.arrayJoin(statuses.?[hasRejectionReason()], ' ')}"
+                th:hidden="${!current.hasRejectionReason()}" th:disabled="${!current.hasRejectionReason()}">
+            <option value="" disabled selected th:text="#{application.rejectionReason.prompt}">Why?</option>
+            <option th:each="reason : ${rejectionReasons}" th:value="${reason}"
+                    th:text="#{${'rejectionReason.' + reason}}">Salary mismatch</option>
+        </select>
         <textarea class="input" name="note" rows="3" th:aria-label="#{application.event.note}"
                   th:placeholder="#{application.event.note.placeholder}"></textarea>
         <div>
@@ -195,9 +270,18 @@
             </div>
             <div>
                 <label class="field-label" for="add-job-status" th:text="#{newApplication.status}">Status</label>
-                <select id="add-job-status" class="input" name="status" required>
+                <select id="add-job-status" class="input" name="status" required data-status-select>
                     <option th:each="status : ${statuses}" th:value="${status}" th:text="#{${'status.' + status}}"
                             th:selected="${status.name() == 'APPLIED'}">Applied</option>
+                </select>
+            </div>
+            <!--/* Only for a job added as rejected: app.js shows it (see the timeline's form above) */-->
+            <div class="col-span-full" hidden th:data-for-statuses="${#strings.arrayJoin(statuses.?[hasRejectionReason()], ' ')}">
+                <label class="field-label" for="add-job-reason" th:text="#{application.rejectionReason}">Rejection reason</label>
+                <select id="add-job-reason" class="input" name="rejectionReason" required disabled>
+                    <option value="" disabled selected th:text="#{application.rejectionReason.prompt}">Why?</option>
+                    <option th:each="reason : ${rejectionReasons}" th:value="${reason}"
+                            th:text="#{${'rejectionReason.' + reason}}">Salary mismatch</option>
                 </select>
             </div>
         </div>

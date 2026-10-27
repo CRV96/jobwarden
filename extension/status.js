@@ -12,6 +12,8 @@ const LOOKS = {
   INTERVIEWING: { mark: '✓', color: '#16a34a', tone: 'applied' },
   OFFER: { mark: '✓', color: '#16a34a', tone: 'applied' },
   REJECTED: { mark: '✓', color: '#6b7280', tone: 'closed' },
+  NO_RESPONSE: { mark: '✓', color: '#6b7280', tone: 'closed' },
+  POSITION_CLOSED: { mark: '✓', color: '#6b7280', tone: 'closed' },
   WITHDRAWN: { mark: '✓', color: '#6b7280', tone: 'closed' },
 };
 

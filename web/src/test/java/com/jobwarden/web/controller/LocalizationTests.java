@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import com.jobwarden.common.exception.BusinessRuleException;
+import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.enums.IdentityErrorCode;
 import com.jobwarden.identity.service.UserService;
@@ -46,6 +47,9 @@ class LocalizationTests {
 	// For the sidebar, which every page controller fills in
 	@MockitoBean
 	private ApplicationService applications;
+
+	@MockitoBean
+	private DiscoveryService discovery;
 
 	@BeforeEach
 	void oneProfile() {

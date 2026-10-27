@@ -21,6 +21,7 @@ import com.jobwarden.web.dto.ApplicationListParams;
 import com.jobwarden.web.dto.NewApplicationForm;
 import com.jobwarden.web.dto.NewEventForm;
 import com.jobwarden.web.dto.NotesForm;
+import com.jobwarden.web.dto.SalaryForm;
 import com.jobwarden.web.enums.ApplicationView;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -70,6 +71,7 @@ class ApplicationController extends BaseController {
 		}
 		model.addAttribute(ModelAttributes.APPLICATION_PAGE, page);
 		model.addAttribute(ModelAttributes.STATUS_COUNTS, this.applications.countByStatus(userId, listParams.q()));
+		addImages(model, userId);
 		addFormChoices(model);
 		return Views.APPLICATION_LIST;
 	}
@@ -153,6 +155,16 @@ class ApplicationController extends BaseController {
 	}
 
 	/**
+	 * Called by HTMX from the salaries page, for a salary it couldn't read. {@code HX-Refresh} then shows the page
+	 * with the salary in it.
+	 */
+	@PostMapping("/{id}/salary")
+	ResponseEntity<Void> updateSalary(@PathVariable long id, SalaryForm form, Model model) {
+		this.applications.updateSalary(requireProfile(model).id(), id, form.toSalary());
+		return refresh();
+	}
+
+	/**
 	 * Called by HTMX. From the application's page, the {@code HX-Redirect} header sends the browser back to the list;
 	 * from the side panel, {@code HX-Refresh} reloads the page behind it, with its search and filters.
 	 */
@@ -213,6 +225,7 @@ class ApplicationController extends BaseController {
 		model.addAttribute(ModelAttributes.JOB_APPLICATION, this.applications.findById(userId, applicationId)
 			.orElseThrow(() -> new ApplicationNotFoundException(applicationId)));
 		model.addAttribute(ModelAttributes.VIEW, view);
+		addImages(model, userId);
 		addFormChoices(model);
 	}
 

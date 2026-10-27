@@ -8,13 +8,15 @@
 <div id="drawer-application" th:fragment="drawer" class="flex min-h-full flex-col gap-6 p-4"
      hx-target="this" hx-swap="outerHTML" hx-vals='{"view": "DRAWER"}'
      th:with="eventsUrl=@{/applications/{id}/events(id=${jobApplication.id})}, pageUrl=@{/applications/{id}(id=${jobApplication.id})}">
-    <div class="flex items-start gap-2">
+    <div class="flex items-start gap-3">
+        <span th:replace="~{applications/fragments :: company-logo(${jobApplication.id}, ${jobApplication.company}, 40)}"></span>
         <div class="min-w-0 flex-1">
             <div class="mb-1 text-xs text-ink/60" th:text="${jobApplication.company} ?: #{application.unknownCompany}">Acme</div>
             <h2 class="text-[21px] leading-tight font-bold tracking-[-0.02em]">
                 <a class="hover:text-accent hover:underline" th:href="${pageUrl}" th:text="${jobApplication.title}">Backend engineer</a>
             </h2>
         </div>
+        <th:block th:replace="~{applications/fragments :: share-menu('drawer', true)}"></th:block>
         <a class="btn btn-secondary btn-icon" th:href="${pageUrl}" th:title="#{application.openFull}" th:aria-label="#{application.openFull}">
             <i class="ph ph-arrows-out-simple text-base"></i>
         </a>

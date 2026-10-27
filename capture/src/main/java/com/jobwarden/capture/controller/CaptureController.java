@@ -22,6 +22,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,9 +35,13 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * The extension's API. It saves captures in the jobs module and looks up, moves back or removes what it saved.
  * Every answer about an application is a {@link CapturedApplication}, so the extension always shows its current state.
+ * <p>
+ * Chrome lets an extension with the host permission call the server without CORS; Firefox doesn't, so its extensions
+ * (moz-extension://, with an id that differs from one install to the next) are allowed here. Web pages are not.
  */
 @RestController
 @RequestMapping("${jobwarden.capture.path}")
+@CrossOrigin(originPatterns = "moz-extension://*")
 @CustomLog
 @RequiredArgsConstructor
 class CaptureController {
@@ -46,6 +51,8 @@ class CaptureController {
 	private final UserService users;
 
 	private final JsonMapper jsonMapper;
+
+	private final LogoDownloader logos;
 
 	/**
 	 * What the profile has for a link: the extension looks up the page it's on when it opens.
@@ -128,6 +135,9 @@ class CaptureController {
 			.initialStatus(request.action().getInitialStatus())
 			.initialStatusDate(now.toLocalDate())
 			.initialStatusTime(includeTime ? now.toLocalTime() : null)
+			.sourceIcon(request.toSourceIcon())
+			// Before the application is saved, outside its transaction: downloading can take a few seconds
+			.companyLogo(this.logos.download(request.logoUrl()).orElse(null))
 			.build();
 	}
 
