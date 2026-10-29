@@ -29,9 +29,11 @@ public final class ApplicationMapper {
 			.employmentType(application.getEmploymentType())
 			.source(application.getSource())
 			.notes(application.getNotes())
+			.followUp(application.getFollowUp())
 			.status(application.getCurrentStatus())
 			.capturedAt(application.getCapturedAt())
 			.timeline(application.getEvents().stream().map(ApplicationMapper::toTimelineEvent).toList())
+			.appliedBy(application.getAppliedBy())
 			.build();
 	}
 
@@ -44,6 +46,9 @@ public final class ApplicationMapper {
 			.stageLabel(event.getStageLabel())
 			.note(event.getNote())
 			.rejectionReason(event.getRejectionReason())
+			.interviewFormat(event.getInterviewFormat())
+			.interviewLocation(event.getInterviewLocation())
+			.durationMinutes(event.getDurationMinutes())
 			.build();
 	}
 

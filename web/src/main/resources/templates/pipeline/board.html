@@ -6,37 +6,41 @@
 </head>
 <body>
 <!--/* pipelineColumns maps each status, in their order, to its applications, newest first. */-->
-<main class="flex flex-col gap-4">
+<main class="page-full flex flex-col gap-4">
     <header th:replace="~{applications/fragments :: page-header(#{pipeline.title}, #{pipeline.subtitle})}"></header>
 
     <!--/* When an application changes in the side panel, HTMX reloads the board; hx-disinherit keeps the cards' own
            requests from inheriting that. */-->
-    <!--/* As many columns as there are statuses */-->
-    <div id="pipeline" class="grid auto-cols-[minmax(180px,1fr)] grid-flow-col gap-3 overflow-x-auto pb-3" hx-disinherit="*"
+    <!--/* As many columns as there are statuses, as tall as the window on a wide screen, each scrolling on its own */-->
+    <div id="pipeline" class="grid min-h-0 flex-1 auto-cols-[minmax(180px,1fr)] grid-flow-col gap-3 overflow-x-auto pb-3 lg:grid-rows-[minmax(0,1fr)]"
+         hx-disinherit="*"
          th:hx-get="@{/pipeline}" hx-trigger="applications-changed from:body" hx-select="#pipeline" hx-target="this" hx-swap="outerHTML">
-        <section class="flex min-w-0 flex-col gap-2" th:each="column : ${pipelineColumns}"
+        <section class="flex min-h-0 min-w-0 flex-col gap-2" th:each="column : ${pipelineColumns}"
                  th:classappend="|st-${#strings.toLowerCase(column.key.name())}|">
             <h2 class="column-rule flex items-center gap-2 px-0.5 pb-1.5 text-xs tracking-[0.06em] text-ink/65 uppercase">
                 <span class="flex-1" th:text="#{${'status.' + column.key}}">Applied</span>
                 <span th:text="${#lists.size(column.value)}">3</span>
             </h2>
-            <!--/* A click opens the application in the side panel */-->
-            <button class="card flex flex-col gap-1.5 p-2.5 text-left hover:shadow-md" type="button" data-drawer-row
-                    th:each="summary : ${column.value}"
-                    th:hx-get="@{/applications/{id}/drawer(id=${summary.id})}" hx-target="#drawer-content" hx-swap="innerHTML">
-                <span class="flex items-center gap-2">
-                    <span th:replace="~{applications/fragments :: company-logo(${summary.id}, ${summary.company}, 28)}"></span>
-                    <span class="min-w-0 text-sm leading-tight font-medium" th:text="${summary.title}">Backend engineer</span>
-                </span>
-                <span class="text-xs text-ink/65" th:if="${summary.company != null or summary.location != null}"
-                      th:text="${summary.company != null and summary.location != null} ? |${summary.company} · ${summary.location}| : (${summary.company} ?: ${summary.location})">Acme · Remote</span>
-                <span class="flex items-center gap-1.5 text-[11px] text-ink/50">
-                    <span class="flex" th:title="${summary.source} ?: #{source.addedByHand}">
-                        <th:block th:replace="~{applications/fragments :: source-icon(${summary.source})}"></th:block>
+            <div class="flex min-h-0 flex-1 flex-col gap-2 overflow-x-hidden overflow-y-auto rounded-lg bg-ink/3 p-1.5">
+                <!--/* A click opens the application in the side panel */-->
+                <button class="card flex flex-col gap-1.5 p-2.5 text-left hover:shadow-md" type="button" data-drawer-row
+                        th:each="summary : ${column.value}"
+                        th:hx-get="@{/applications/{id}/drawer(id=${summary.id})}" hx-target="#drawer-content" hx-swap="innerHTML">
+                    <span class="flex items-center gap-2">
+                        <span th:replace="~{applications/fragments :: company-logo(${summary.id}, ${summary.company}, 28)}"></span>
+                        <span class="min-w-0 text-sm leading-tight font-medium wrap-anywhere" th:text="${summary.title}">Backend engineer</span>
                     </span>
-                    <span th:text="${@dates.relativeDay(summary.capturedAt)}">Today</span>
-                </span>
-            </button>
+                    <span class="text-xs text-ink/65" th:if="${summary.company != null or summary.location != null}"
+                          th:text="${summary.company != null and summary.location != null} ? |${summary.company} · ${summary.location}| : (${summary.company} ?: ${summary.location})">Acme · Remote</span>
+                    <span class="flex items-center gap-1.5 text-[11px] text-ink/50">
+                        <span class="flex" th:title="${summary.source} ?: #{source.addedByHand}">
+                            <th:block th:replace="~{applications/fragments :: source-icon(${summary.source})}"></th:block>
+                        </span>
+                        <span th:text="${@dates.relativeDay(summary.capturedAt)}">Today</span>
+                        <i th:replace="~{applications/fragments :: applied-by-icon(${summary.appliedBy})}"></i>
+                    </span>
+                </button>
+            </div>
         </section>
     </div>
 

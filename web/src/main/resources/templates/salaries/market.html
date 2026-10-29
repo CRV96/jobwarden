@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<!--/* The salaries page's market section (SalaryController.market): what a role with a skill pays across countries, from
+       each source, in the page's currency and per its period. HTMX loads it after the page and swaps it whole as its
+       choices change. market is a MarketSalaries, marketForm the choices, marketScale the chart's axis, overview the
+       profile's own salaries, whose median the chart marks. */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<section id="market" th:fragment="market" class="card flex flex-col gap-3 p-4" aria-labelledby="market-title"
+         th:with="currency=${market.currency}, per=#{|salaries.per.${market.period}|}, mine=${overview.median},
+                  marketPath=@{/salaries/market}, sectionUrl=${marketForm.url(marketPath, market.currency, market.period, null)}">
+    <div>
+        <h2 id="market-title" class="font-semibold" th:text="#{market.title}">Market salaries</h2>
+        <p class="text-xs text-ink/60" th:text="#{market.hint(${per}, ${currency})}">What the role pays across countries, a year, in EUR.</p>
+    </div>
+
+    <!--/* Each change asks for the section again, with the page's currency and period */-->
+    <form class="flex flex-wrap items-end gap-x-3 gap-y-2" th:hx-get="${marketPath}" hx-target="#market" hx-swap="outerHTML"
+          hx-trigger="change">
+        <input type="hidden" name="currency" th:value="${currency}">
+        <input type="hidden" name="period" th:value="${market.period}">
+        <input type="hidden" name="country" th:each="code : ${marketForm.countries()}" th:value="${code}">
+        <label class="flex min-w-[12rem] flex-col gap-1">
+            <span class="text-xs text-ink/60" th:text="#{market.role}">Role</span>
+            <select class="input py-1 pr-7" name="role">
+                <option value="" th:text="#{market.role.all}" th:selected="${marketForm.selectedRole().isEmpty()}">All roles</option>
+                <option th:each="role : ${marketRoles}" th:value="${role}" th:text="${role}"
+                        th:selected="${role == marketForm.selectedRole()}">Developer, back-end</option>
+            </select>
+        </label>
+        <label class="flex min-w-[9rem] flex-col gap-1">
+            <span class="text-xs text-ink/60" th:text="#{market.skill}">Language</span>
+            <select class="input py-1 pr-7" name="skill">
+                <option value="" th:text="#{market.skill.any}" th:selected="${marketForm.selectedSkill().isEmpty()}">Any language</option>
+                <option th:each="skill : ${marketSkills}" th:value="${skill}" th:text="${skill}"
+                        th:selected="${skill == marketForm.selectedSkill()}">Java</option>
+            </select>
+        </label>
+        <label class="flex min-w-[11rem] flex-col gap-1" th:if="${#lists.size(marketForm.countries()) < 12}">
+            <span class="text-xs text-ink/60" th:text="#{market.addCountry}">Add a country</span>
+            <select class="input py-1 pr-7" name="country">
+                <option value="" selected th:text="#{market.addCountry.prompt}">Pick one…</option>
+                <option th:each="country : ${@countries.all()}" th:unless="${#lists.contains(marketForm.countries(), country.code)}"
+                        th:value="${country.code}" th:text="${country.name}">Romania</option>
+            </select>
+        </label>
+    </form>
+
+    <!--/* The Stack Overflow survey: imported once, with this button; while it's importing, the section asks again */-->
+    <div class="flex flex-wrap items-center gap-3 rounded-lg bg-accent-tint px-3 py-2.5" th:unless="${market.survey.imported()}"
+         th:with="importing=${market.survey.importing()}">
+        <i class="ph ph-database text-[20px] text-accent-ink"></i>
+        <div class="min-w-[14rem] flex-1 text-[13px]">
+            <div class="font-medium" th:text="${importing} ? #{market.survey.importing} : #{market.survey.missing}">Load the Stack Overflow survey</div>
+            <div class="text-xs text-ink/65" th:unless="${market.survey.error}" th:text="#{market.survey.missing.hint}">
+                Developers’ salaries by country, role and language, from 2025. A 140 MB download, once; about a minute.</div>
+            <div class="text-xs text-danger" th:if="${market.survey.error}" th:text="#{market.survey.failed(${market.survey.error})}">Couldn’t load it.</div>
+        </div>
+        <button class="btn btn-primary" type="button" th:unless="${importing}" th:hx-post="@{/salaries/market/survey}"
+                hx-include="#market form" hx-target="#market" hx-swap="outerHTML">
+            <i class="ph ph-download-simple"></i><span th:text="#{market.survey.load}">Load the survey</span>
+        </button>
+        <span class="inline-flex items-center gap-1.5 text-xs text-ink/65" th:if="${importing}"
+              th:hx-get="${sectionUrl}" hx-trigger="every 3s" hx-target="#market" hx-swap="outerHTML">
+            <i class="ph ph-arrow-clockwise animate-spin"></i><span th:text="#{market.survey.wait}">Working…</span>
+        </span>
+    </div>
+
+    <!--/* One row per country: a lane per source. The bars are the middle half of the salaries, the white tick their
+           median, the diamond Eurostat's mean; the dashed line is the median of the profile's own jobs. */-->
+    <div class="salary-chart market-chart" th:style="|--steps: ${marketScale.steps()}|">
+        <div class="salary-row" th:each="row : ${market.countries}">
+            <div class="flex min-w-0 items-center gap-2">
+                <span class="fi rounded-[2px]" th:unless="${row.isWorld()}" th:classappend="|fi-${#strings.toLowerCase(row.country)}|"></span>
+                <i class="ph ph-globe text-ink/55" th:if="${row.isWorld()}"></i>
+                <span class="min-w-0 truncate font-medium" th:text="${row.isWorld()} ? #{market.world} : ${@countries.name(row.country)}">Romania</span>
+                <a class="btn btn-ghost btn-icon ml-auto size-6 p-0 text-ink/45" th:unless="${row.isWorld()}"
+                   th:hx-get="${marketForm.url(marketPath, currency, market.period, row.country)}" hx-target="#market" hx-swap="outerHTML"
+                   th:title="#{market.removeCountry}" th:aria-label="#{market.removeCountry}" role="button" tabindex="0">
+                    <i class="ph ph-x text-xs"></i>
+                </a>
+            </div>
+            <div class="salary-plot market-plot" aria-hidden="true">
+                <span class="market-mine" th:if="${mine}" th:style="|--at: ${marketScale.percent(mine)}%|"></span>
+                <div class="market-lane" th:each="figure : ${row.figures}">
+                    <span class="salary-mark" th:if="${figure.hasRange()}"
+                          th:classappend="|is-${#strings.toLowerCase(figure.source.name())} is-range|"
+                          th:style="|left: ${marketScale.percent(figure.lowerQuartile)}%; width: ${marketScale.percent(figure.upperQuartile) - marketScale.percent(figure.lowerQuartile)}%; --median: ${figure.upperQuartile.compareTo(figure.lowerQuartile) == 0 ? 50 : (marketScale.percent(figure.middle) - marketScale.percent(figure.lowerQuartile)) * 100 / (marketScale.percent(figure.upperQuartile) - marketScale.percent(figure.lowerQuartile))}%|">
+                        <span class="market-median"></span>
+                        <span class="chart-tip">
+                            <strong th:text="#{|market.source.${figure.source}|}">Stack Overflow survey</strong>
+                            <span th:text="#{market.tip.range(${@money.range(figure.lowerQuartile, figure.upperQuartile, currency)}, ${@money.compact(figure.middle, currency)})}">Middle half €40K – €70K, median €55K</span>
+                        </span>
+                    </span>
+                    <span class="salary-mark is-point" th:unless="${figure.hasRange()}"
+                          th:classappend="|is-${#strings.toLowerCase(figure.source.name())}|"
+                          th:style="|left: ${marketScale.percent(figure.middle)}%|">
+                        <span class="chart-tip">
+                            <strong th:text="#{|market.source.${figure.source}|}">Eurostat</strong>
+                            <span th:text="#{market.tip.mean(${@money.compact(figure.middle, currency)})}">Mean €40K</span>
+                        </span>
+                    </span>
+                </div>
+            </div>
+            <div class="flex min-w-0 flex-col items-end gap-0.5 text-right text-xs">
+                <span class="flex items-center gap-1.5 whitespace-nowrap" th:each="figure : ${row.figures}">
+                    <span class="market-key" th:classappend="|is-${#strings.toLowerCase(figure.source.name())}|"></span>
+                    <span class="font-medium" th:text="${@money.compact(figure.middle, currency)}">€55K</span>
+                    <span class="text-ink/50" th:if="${figure.sampleSize}"
+                          th:text="${figure.source.name() == 'ADZUNA'} ? #{market.ads(${figure.sampleSize})} : #{market.answers(${figure.sampleSize})}">63 answers</span>
+                    <span class="text-ink/50" th:unless="${figure.sampleSize}" th:text="#{market.mean}">mean</span>
+                </span>
+                <span class="text-ink/45" th:if="${row.figures.isEmpty()}" th:text="#{market.none}">No figures</span>
+            </div>
+        </div>
+        <div class="salary-axis" aria-hidden="true">
+            <span th:each="tick, row : ${marketScale.ticks}" th:style="|--at: ${marketScale.percent(tick)}%|"
+                  th:classappend="${row.first} ? 'is-first' : (${row.last} ? 'is-last')"
+                  th:text="${@money.compact(tick, currency)}">€40K</span>
+        </div>
+    </div>
+
+    <ul class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink/65" th:aria-label="#{market.legend}">
+        <li class="inline-flex items-center gap-1.5"><span class="market-key is-stack_overflow"></span><span th:text="#{market.source.STACK_OVERFLOW}">Stack Overflow survey</span></li>
+        <li class="inline-flex items-center gap-1.5"><span class="market-key is-adzuna"></span><span th:text="#{market.source.ADZUNA}">Job ads (Adzuna)</span></li>
+        <li class="inline-flex items-center gap-1.5"><span class="market-key is-eurostat"></span><span th:text="#{market.source.EUROSTAT}">Eurostat</span></li>
+        <li class="inline-flex items-center gap-1.5" th:if="${mine}"><span class="market-key is-mine"></span><span th:text="#{market.mine(${@money.compact(mine, currency)})}">Your jobs’ median, €50K</span></li>
+    </ul>
+
+    <!--/* Where the figures come from, and what each is: the survey and Adzuna must be credited where they show */-->
+    <footer class="flex flex-col gap-1 border-t border-line pt-2.5 text-xs text-ink/55">
+        <p>
+            <a class="link" href="https://survey.stackoverflow.co/" target="_blank" rel="noopener noreferrer"
+               th:text="#{market.credit.survey(${#strings.toString(market.survey.year ?: 2025)})}">Stack Overflow Developer Survey 2025</a>
+            <span th:text="#{market.credit.survey.what}">: total yearly pay developers in work reported, median and middle half; groups of at least 5 answers. Data under ODbL 1.0.</span>
+        </p>
+        <p th:if="${market.adzunaConfigured}">
+            <a class="link" href="https://www.adzuna.co.uk/" target="_blank" rel="noopener noreferrer" th:text="#{market.credit.adzuna}">Jobs by Adzuna</a>
+            <span th:text="#{market.credit.adzuna.what(${market.adzunaSearch})}">: salaries in current job ads for “java developer”.</span>
+        </p>
+        <p th:unless="${market.adzunaConfigured}">
+            <span th:text="#{market.adzuna.missing}">Salaries from current job ads need a free Adzuna key.</span>
+            <a class="link" th:href="@{/settings#salaries}" th:text="#{market.adzuna.add}">Add it in Settings</a>
+        </p>
+        <p th:if="${market.eurostatYear}">
+            <a class="link" href="https://ec.europa.eu/eurostat/web/labour-market/information-data/earnings" target="_blank"
+               rel="noopener noreferrer" th:text="#{market.credit.eurostat(${#strings.toString(market.eurostatYear)})}">Eurostat, Structure of Earnings Survey 2022</a>
+            <span th:text="#{market.credit.eurostat.what}">: mean gross earnings of professionals in information and communication, every role.</span>
+            <span th:if="${market.euAverage}" th:text="#{market.euAverage(${@money.compact(market.euAverage, currency)})}">EU average €57K.</span>
+        </p>
+        <p th:unless="${market.eurostatYear}" th:text="#{market.eurostat.missing}">Eurostat’s figures couldn’t be loaded.</p>
+    </footer>
+</section>
+
+</body>
+</html>

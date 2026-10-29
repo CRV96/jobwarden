@@ -5,7 +5,7 @@ package com.jobwarden.discover.enums;
  */
 public enum Decision {
 
-	/** Waiting on the Discover page. */
+	/** Waiting on the AI Assistant page. */
 	PENDING,
 
 	/** Bookmarked: an application with the status Saved. */

@@ -12,7 +12,7 @@ public interface SalaryService {
 
 	/**
 	 * @param currency the currency to show the salaries in, as an ISO 4217 code; {@code null}, or one there's no
-	 * exchange rate for, for the one most of the salaries are in
+	 * exchange rate for, for euros
 	 */
 	SalaryOverview overview(long userId, @Nullable String currency, SalaryPeriod period);
 

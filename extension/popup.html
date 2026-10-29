@@ -47,6 +47,19 @@
         .links { display: flex; gap: 12px; margin-top: 8px; }
         .links button { flex: none; padding: 0; border: 0; background: none; color: #2563eb; text-decoration: underline; }
         a { color: #2563eb; }
+        /* A newer JobWarden is out, or the server runs a newer one than this extension */
+        #update { display: block; margin-bottom: 12px; padding: 8px 10px; border: 1px solid #bfdbfe; border-radius: 6px;
+            background: #eff6ff; color: #1d4ed8; font-size: 13px; text-decoration: none; }
+        a#update:hover { text-decoration: underline; }
+        /* On a LinkedIn job search: the Easy Apply run */
+        #run { margin-top: 16px; padding-top: 12px; border-top: 1px solid #e5e7eb; }
+        #run h2 { margin: 0 0 4px; font-size: 14px; }
+        #run .hint { color: #6b7280; font-size: 12px; }
+        #run .warning { margin: 8px 0; padding: 6px 8px; border: 1px solid #fde68a; border-radius: 6px;
+            background: #fffbeb; color: #92400e; font-size: 12px; }
+        #run .limit { display: flex; align-items: center; gap: 6px; margin: 10px 0 0; color: #111827; font-size: 13px; }
+        #run .limit input { width: 56px; padding: 4px 6px; border: 1px solid #d1d5db; border-radius: 4px; font: inherit; }
+        #run .going { margin-bottom: 8px; font-size: 13px; }
         [hidden] { display: none !important; }
     </style>
 </head>
@@ -61,6 +74,9 @@
         </svg>
     </button>
 </header>
+
+<!-- Shown when there's a newer JobWarden: a link to its release, or what to do -->
+<a id="update" target="_blank" rel="noopener" hidden></a>
 
 <!-- When JobWarden already has this page: which job, and where it's at -->
 <section id="card" class="card" hidden>
@@ -116,6 +132,33 @@
     <a id="open-application" target="_blank" hidden data-i18n="openApplication">Open in JobWarden</a>
     <button id="open-settings" type="button" hidden data-i18n="openSettings">Open settings</button>
 </div>
+
+<!-- On a LinkedIn job search: start the Easy Apply run (runs.js), or stop the one going on in the tab -->
+<section id="run" hidden>
+    <h2 data-i18n="runTitle">Easy Apply run</h2>
+    <p class="hint" data-i18n="runHint">Goes through this search and sends each Easy Apply job.</p>
+    <div id="run-options">
+        <label class="limit">
+            <span data-i18n="runLimit">Stop after</span>
+            <input type="number" id="run-limit" min="1" max="100" required>
+            <span data-i18n="runLimitUnit">applications</span>
+        </label>
+        <label class="checkbox">
+            <input type="checkbox" id="run-save-others">
+            <span data-i18n="runSaveOthers">Save the other jobs for Auto-apply</span>
+        </label>
+        <p class="warning" data-i18n="runWarning">LinkedIn’s terms don’t allow automated applying.</p>
+        <div class="actions">
+            <button class="primary" type="button" id="run-start" data-i18n="runStart">Start the run</button>
+        </div>
+    </div>
+    <div id="run-going" hidden>
+        <p class="going" id="run-going-text"></p>
+        <div class="actions">
+            <button class="danger" type="button" id="run-stop" data-i18n="runStopButton">Stop the run</button>
+        </div>
+    </div>
+</section>
 
 <script type="module" src="popup.js"></script>
 </body>

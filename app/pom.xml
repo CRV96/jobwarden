@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>com.jobwarden</groupId>
 		<artifactId>jobwarden</artifactId>
-		<version>0.0.1-SNAPSHOT</version>
+		<version>0.1.0</version>
 	</parent>
 	<artifactId>jobwarden-app</artifactId>
 	<name>JobWarden :: App</name>
@@ -31,6 +31,26 @@
 		<dependency>
 			<groupId>com.jobwarden</groupId>
 			<artifactId>jobwarden-discover</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-cv</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-market</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-updates</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-hiring</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-apply</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>com.jobwarden</groupId>

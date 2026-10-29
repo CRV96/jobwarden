@@ -2,6 +2,7 @@ package com.jobwarden.jobs.dto;
 
 import java.time.Instant;
 
+import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
@@ -13,6 +14,7 @@ import org.jspecify.annotations.Nullable;
  * @param source the site the posting came from, e.g. {@code linkedin.com}; {@code null} for one added by hand
  * without a link
  * @param updatedAt when the application, its timeline included, last changed
+ * @param appliedBy who sent the application, when that's known
  */
 @Builder
 public record ApplicationSummary(
@@ -25,7 +27,8 @@ public record ApplicationSummary(
 		@Nullable String source,
 		ApplicationStatus status,
 		Instant capturedAt,
-		@Nullable Instant updatedAt) {
+		@Nullable Instant updatedAt,
+		@Nullable AppliedBy appliedBy) {
 
 	/**
 	 * @return when the application last changed, or when it was saved if that isn't known

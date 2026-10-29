@@ -205,5 +205,119 @@
   },
   "showOnIconHint": {
     "message": "★ zapisana, ✓ wysłana. Chrome poprosi o zgodę, by JobWarden widział adresy kart; każda otwarta strona jest wtedy sprawdzana na Twoim serwerze."
+  },
+  "updateAvailable": {
+    "message": "Jest JobWarden $1: pobierz najnowszy kod"
+  },
+  "updateReload": {
+    "message": "Twój serwer JobWarden ma wersję $1: przeładuj rozszerzenie, żeby ją dogonić"
+  },
+  "extensionVersion": {
+    "message": "Rozszerzenie JobWarden $1"
+  },
+  "runTitle": {
+    "message": "Przebieg Easy Apply"
+  },
+  "runHint": {
+    "message": "Przechodzi przez to wyszukiwanie i wysyła każdą ofertę z Easy Apply z Twoim CV i odpowiedziami ze strony Auto-aplikowanie w JobWarden. Zatrzymuje się przy pytaniu, którego Twoje odpowiedzi nie obejmują, i przy kontrolach bezpieczeństwa LinkedIn."
+  },
+  "runLimit": {
+    "message": "Zatrzymaj po"
+  },
+  "runLimitUnit": {
+    "message": "aplikacjach"
+  },
+  "runSaveOthers": {
+    "message": "Zapisz pozostałe oferty do Auto-aplikowania"
+  },
+  "runWarning": {
+    "message": "Warunki LinkedIn nie pozwalają na automatyczne aplikowanie, a LinkedIn może ograniczać konta, które to robią."
+  },
+  "runStart": {
+    "message": "Rozpocznij przebieg"
+  },
+  "runStopButton": {
+    "message": "Zatrzymaj przebieg"
+  },
+  "runGoing": {
+    "message": "W tej karcie trwa przebieg: dotąd wysłano $1."
+  },
+  "runCouldNotStart": {
+    "message": "Nie udało się rozpocząć przebiegu: $1. Jeśli właśnie zaktualizowano JobWarden, przeładuj rozszerzenie (chrome://extensions), potem stronę LinkedIn, i spróbuj ponownie."
+  },
+  "runBarTitle": {
+    "message": "JobWarden · Przebieg Easy Apply"
+  },
+  "runStarting": {
+    "message": "Rozpoczynanie…"
+  },
+  "runOpening": {
+    "message": "Otwieranie: $1…"
+  },
+  "runFilling": {
+    "message": "Aplikowanie: $1…"
+  },
+  "runThisJob": {
+    "message": "następna oferta"
+  },
+  "runCounts": {
+    "message": "Wysłano $1 z maks. $2 · zapisano $3 · pominięto $4"
+  },
+  "runNeedsAnswer": {
+    "message": "Formularz pyta: „$1”, a Twoje odpowiedzi tego nie obejmują. Odpowiedz w formularzu albo w Twoich własnych pytaniach na stronie Auto-aplikowanie w JobWarden, a potem Dalej. Tak czy inaczej JobWarden zachowa odpowiedź na kolejne formularze."
+  },
+  "runAQuestion": {
+    "message": "pytanie"
+  },
+  "runFormError": {
+    "message": "LinkedIn pisze: „$1” Popraw to w formularzu, a potem Dalej."
+  },
+  "runSecurityCheck": {
+    "message": "LinkedIn chce sprawdzić, że to Ty. Zrób to samodzielnie, a potem Dalej."
+  },
+  "runFormDidntOpen": {
+    "message": "Formularz Easy Apply się nie otworzył. Spójrz na stronę, a potem Dalej, aby spróbować ponownie."
+  },
+  "runStuck": {
+    "message": "Formularz nie poszedł dalej zgodnie z oczekiwaniami. Spójrz na niego, a potem Dalej, albo pomiń tę ofertę."
+  },
+  "runUnsure": {
+    "message": "LinkedIn nie pokazał, że wysłał aplikację. Czy została wysłana?"
+  },
+  "runLimitReached": {
+    "message": "Gotowe: wysłano $1, tyle, ile ustawiono dla tego przebiegu."
+  },
+  "runDone": {
+    "message": "Gotowe: w tym wyszukiwaniu nie ma więcej ofert."
+  },
+  "runStopped": {
+    "message": "Zatrzymano."
+  },
+  "runFailed": {
+    "message": "Przebieg się zatrzymał: $1"
+  },
+  "runSignedOut": {
+    "message": "LinkedIn Cię wylogował. Zaloguj się, a potem rozpocznij przebieg ponownie."
+  },
+  "runServerError": {
+    "message": "JobWarden nie przyjął żądania ($1). Sprawdź, czy działa, a potem Dalej."
+  },
+  "runContinue": {
+    "message": "Dalej"
+  },
+  "runSkip": {
+    "message": "Pomiń tę ofertę"
+  },
+  "runSent": {
+    "message": "Tak, została wysłana"
+  },
+  "runNotSent": {
+    "message": "Nie"
+  },
+  "runStop": {
+    "message": "Zatrzymaj"
+  },
+  "runClose": {
+    "message": "Zamknij"
   }
 }

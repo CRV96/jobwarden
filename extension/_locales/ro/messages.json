@@ -205,5 +205,119 @@
   },
   "showOnIconHint": {
     "message": "★ salvată, ✓ trimisă. Chrome îți cere să-i permiți lui JobWarden să vadă adresele filelor; fiecare pagină deschisă e apoi căutată pe serverul tău."
+  },
+  "updateAvailable": {
+    "message": "A apărut JobWarden $1: ia cel mai nou cod"
+  },
+  "updateReload": {
+    "message": "Serverul tău JobWarden rulează $1: reîncarcă extensia ca să fie la fel"
+  },
+  "extensionVersion": {
+    "message": "Extensia JobWarden $1"
+  },
+  "runTitle": {
+    "message": "Rundă Easy Apply"
+  },
+  "runHint": {
+    "message": "Parcurge căutarea aceasta și trimite fiecare job cu Easy Apply, cu CV-ul tău și răspunsurile din pagina Aplicare automată din JobWarden. Se oprește la o întrebare pe care răspunsurile tale nu o acoperă și la verificările de securitate LinkedIn."
+  },
+  "runLimit": {
+    "message": "Oprește-te după"
+  },
+  "runLimitUnit": {
+    "message": "aplicări"
+  },
+  "runSaveOthers": {
+    "message": "Salvează celelalte joburi pentru Aplicare automată"
+  },
+  "runWarning": {
+    "message": "Termenii LinkedIn nu permit aplicarea automată, iar LinkedIn poate restricționa conturile care o fac."
+  },
+  "runStart": {
+    "message": "Pornește runda"
+  },
+  "runStopButton": {
+    "message": "Oprește runda"
+  },
+  "runGoing": {
+    "message": "O rundă e în desfășurare în acest tab: $1 trimise până acum."
+  },
+  "runCouldNotStart": {
+    "message": "Runda n-a putut porni: $1. Dacă tocmai ai actualizat JobWarden, reîncarcă extensia (chrome://extensions), apoi pagina LinkedIn, și încearcă din nou."
+  },
+  "runBarTitle": {
+    "message": "JobWarden · Rundă Easy Apply"
+  },
+  "runStarting": {
+    "message": "Pornește…"
+  },
+  "runOpening": {
+    "message": "Deschide $1…"
+  },
+  "runFilling": {
+    "message": "Aplică la $1…"
+  },
+  "runThisJob": {
+    "message": "următorul job"
+  },
+  "runCounts": {
+    "message": "Trimise $1 din maximum $2 · salvate $3 · sărite $4"
+  },
+  "runNeedsAnswer": {
+    "message": "Formularul întreabă „$1”, iar răspunsurile tale nu acoperă asta. Răspunde în formular sau la Întrebările tale din pagina Aplicare automată din JobWarden, apoi Continuă. Oricum ar fi, JobWarden îl păstrează pentru formularele următoare."
+  },
+  "runAQuestion": {
+    "message": "o întrebare"
+  },
+  "runFormError": {
+    "message": "LinkedIn spune: „$1” Corectează în formular, apoi Continuă."
+  },
+  "runSecurityCheck": {
+    "message": "LinkedIn vrea să verifice că ești tu. Fă verificarea tu, apoi Continuă."
+  },
+  "runFormDidntOpen": {
+    "message": "Formularul Easy Apply nu s-a deschis. Uită-te pe pagină, apoi Continuă ca să încerce din nou."
+  },
+  "runStuck": {
+    "message": "Formularul n-a mers mai departe cum trebuia. Uită-te la el, apoi Continuă sau sari peste job."
+  },
+  "runUnsure": {
+    "message": "LinkedIn n-a arătat că a trimis aplicarea. A fost trimisă?"
+  },
+  "runLimitReached": {
+    "message": "Gata: $1 trimise, câte ai stabilit pentru runda asta."
+  },
+  "runDone": {
+    "message": "Gata: nu mai sunt joburi în căutarea asta."
+  },
+  "runStopped": {
+    "message": "Oprită."
+  },
+  "runFailed": {
+    "message": "Runda s-a oprit: $1"
+  },
+  "runSignedOut": {
+    "message": "LinkedIn te-a deconectat. Conectează-te, apoi pornește runda din nou."
+  },
+  "runServerError": {
+    "message": "JobWarden n-a primit cererea ($1). Verifică dacă rulează, apoi Continuă."
+  },
+  "runContinue": {
+    "message": "Continuă"
+  },
+  "runSkip": {
+    "message": "Sari peste job"
+  },
+  "runSent": {
+    "message": "Da, a fost trimisă"
+  },
+  "runNotSent": {
+    "message": "Nu"
+  },
+  "runStop": {
+    "message": "Oprește"
+  },
+  "runClose": {
+    "message": "Închide"
   }
 }

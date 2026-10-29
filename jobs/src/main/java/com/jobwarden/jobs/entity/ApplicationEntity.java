@@ -1,13 +1,16 @@
 package com.jobwarden.jobs.entity;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import com.jobwarden.jobs.dto.FollowUp;
 import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
+import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
@@ -62,9 +65,29 @@ public class ApplicationEntity {
 
 	private @Nullable String notes;
 
+	private @Nullable String contactName;
+
+	private @Nullable String contactRole;
+
+	private @Nullable String contactEmail;
+
+	private @Nullable String contactPhone;
+
+	private @Nullable String contactLink;
+
+	private @Nullable String referredBy;
+
+	private @Nullable LocalDate deadline;
+
+	private @Nullable LocalDate followUpOn;
+
 	// Denormalized from the latest timeline event, so the list can filter without joining.
 	@Enumerated(EnumType.STRING)
 	private ApplicationStatus currentStatus;
+
+	/** Who sent the application, when that's known: set by the first APPLIED event that says */
+	@Enumerated(EnumType.STRING)
+	private @Nullable AppliedBy appliedBy;
 
 	private Instant capturedAt;
 
@@ -111,6 +134,9 @@ public class ApplicationEntity {
 		boolean latest = this.events.stream()
 			.noneMatch(existing -> existing.isAfter(event.eventDate(), event.eventTime()));
 		this.events.add(new TimelineEventEntity(this, event));
+		if (this.appliedBy == null && event.stageCategory() == ApplicationStatus.APPLIED) {
+			this.appliedBy = event.appliedBy();
+		}
 		if (latest) {
 			this.currentStatus = event.stageCategory();
 		}
@@ -150,6 +176,22 @@ public class ApplicationEntity {
 		this.salary = salary;
 	}
 
+	public void changeFollowUp(FollowUp followUp) {
+		this.contactName = followUp.contactName();
+		this.contactRole = followUp.contactRole();
+		this.contactEmail = followUp.contactEmail();
+		this.contactPhone = followUp.contactPhone();
+		this.contactLink = followUp.contactLink();
+		this.referredBy = followUp.referredBy();
+		this.deadline = followUp.deadline();
+		this.followUpOn = followUp.followUpOn();
+	}
+
+	public FollowUp getFollowUp() {
+		return new FollowUp(this.contactName, this.contactRole, this.contactEmail, this.contactPhone,
+				this.contactLink, this.referredBy, this.deadline, this.followUpOn);
+	}
+
 	/**
 	 * Whether "I applied" can be taken back: the application is APPLIED, and its timeline has nothing but the SAVED
 	 * and APPLIED events that bookmarking and applying add. Once something else happened, the timeline tells more
@@ -172,6 +214,7 @@ public class ApplicationEntity {
 			.findFirst()
 			.orElseThrow();
 		this.events.removeIf(event -> event.getStageCategory() == ApplicationStatus.APPLIED);
+		this.appliedBy = null;
 		markModified();
 		if (this.events.isEmpty()) {
 			this.events.add(new TimelineEventEntity(this, NewTimelineEvent.builder()

@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Objects;
 
+import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.enums.RejectionReason;
 import lombok.Builder;
@@ -22,6 +23,7 @@ import org.jspecify.annotations.Nullable;
  * @param sourceIcon the site's icon, as the browser showed it on the posting's tab; it replaces the one kept for the
  * site, if any. Only with a link: the site comes from it.
  * @param companyLogo the company's logo from the posting; capturing the posting again replaces it
+ * @param appliedBy who sent the application, when it's added as applied to already; {@code null} when unknown
  */
 @Builder
 public record NewApplication(
@@ -39,7 +41,8 @@ public record NewApplication(
 		@Nullable LocalTime initialStatusTime,
 		@Nullable RejectionReason initialRejectionReason,
 		@Nullable PngImage sourceIcon,
-		@Nullable PngImage companyLogo) {
+		@Nullable PngImage companyLogo,
+		@Nullable AppliedBy appliedBy) {
 
 	/**
 	 * A builder can't make sure every required field is set, so a missing one fails here, right away.

@@ -1,8 +1,10 @@
-import { capture, lookUp, moveBackToSaved, remove, ServerError } from './api.js';
+import { capture, lookUp, moveBackToSaved, remove, ServerError, serverVersion } from './api.js';
 import { message, translatePage } from './i18n.js';
 import { canonicalLink } from './links.js';
+import { currentRun, isJobSearch, LINKEDIN_PERMISSION, loadRunOptions, MAX_LIMIT, stopRun } from './runs.js';
 import { APPLICATIONS_PATH, hostPermission, loadSettings, saveSettings } from './settings.js';
 import { iconShowsStatus, showOnIcon, statusLook, statusName } from './status.js';
+import { isNewer } from './versions.js';
 
 // The popup first looks the page up. When JobWarden has it, a card shows where it's at, with what can change from
 // here: a bookmark can be marked applied or removed, an application moved back to bookmarks or removed. Further
@@ -45,6 +47,8 @@ openSettings.addEventListener('click', () => chrome.runtime.openOptionsPage());
 
 const settings = await loadSettings();
 describeSettings();
+// Not awaited: the page's own lookup doesn't wait for it
+showUpdate();
 const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 /** The link JobWarden keeps for the page; on a search showing a job, the job's own, once extract.js finds it. */
 let link = canonicalLink(tab.url);
@@ -60,6 +64,11 @@ let icon = null;
 
 let reading = Promise.resolve();
 let readingIcon = Promise.resolve();
+
+if (settings.userId !== undefined && isJobSearch(tab.url)) {
+  // Not awaited: it doesn't wait for the page's lookup
+  showRun();
+}
 
 if (settings.userId === undefined) {
   showStatus(message('setupNeeded'));
@@ -378,6 +387,82 @@ function showStatus(text, kind = 'info') {
   statusLine.textContent = text;
   statusLine.className = kind;
   openSettings.hidden = true;
+}
+
+/**
+ * The Easy Apply run's section: the options and Start, or how far the run going on in this tab got, and Stop.
+ */
+async function showRun() {
+  const section = document.getElementById('run');
+  const run = await currentRun();
+  const going = run?.status === 'running' && run.tabId === tab.id;
+  document.getElementById('run-options').hidden = going;
+  document.getElementById('run-going').hidden = !going;
+  if (going) {
+    document.getElementById('run-going-text').textContent = message('runGoing', String(run.applied));
+    document.getElementById('run-stop').onclick = async () => {
+      await stopRun();
+      window.close();
+    };
+  } else {
+    const options = await loadRunOptions();
+    const limit = document.getElementById('run-limit');
+    const saveOthers = document.getElementById('run-save-others');
+    limit.value = String(options.limit);
+    limit.max = String(MAX_LIMIT);
+    saveOthers.checked = options.saveOthers;
+    document.getElementById('run-start').onclick = () => start(limit, saveOthers);
+  }
+  section.hidden = false;
+}
+
+/**
+ * The background starts the run, and the popup asks for LinkedIn at once: Chrome only asks while the click is going
+ * on, and Firefox closes the popup to ask. With LinkedIn, the run goes on after LinkedIn loads the page anew.
+ */
+async function start(limit, saveOthers) {
+  if (!limit.reportValidity()) {
+    return;
+  }
+  const starting = chrome.runtime.sendMessage({
+    type: 'easyApply:start', tabId: tab.id, limit: Number(limit.value), saveOthers: saveOthers.checked,
+  });
+  const asking = chrome.permissions.request({ origins: [LINKEDIN_PERMISSION] });
+  const [started] = await Promise.allSettled([starting, asking]);
+  if (started.status === 'rejected' || started.value?.error) {
+    const reason = String(started.reason?.message ?? started.reason ?? started.value.error);
+    console.warn('Could not start the Easy Apply run', reason);
+    showStatus(message('runCouldNotStart', reason), 'error');
+    return;
+  }
+  window.close();
+}
+
+/**
+ * Says when a newer JobWarden is out than this extension, with a link to its release; or, when the server already runs
+ * a newer one, that the extension needs reloading. Says nothing when the server can't be asked.
+ */
+async function showUpdate() {
+  if (settings.userId === undefined) {
+    return;
+  }
+  const installed = chrome.runtime.getManifest().version;
+  let versions;
+  try {
+    versions = await serverVersion(settings);
+  } catch {
+    return;
+  }
+  const notice = document.getElementById('update');
+  if (versions.latest && isNewer(versions.latest.version, installed)) {
+    notice.textContent = message('updateAvailable', versions.latest.version);
+    notice.href = versions.latest.url;
+    notice.hidden = false;
+  } else if (isNewer(versions.version, installed)) {
+    notice.textContent = message('updateReload', versions.version);
+    notice.removeAttribute('href');
+    notice.hidden = false;
+  }
 }
 
 /** The settings button's name, and its tooltip: which server and profile the popup saves to. */

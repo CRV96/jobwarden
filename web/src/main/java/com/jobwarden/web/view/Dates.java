@@ -30,8 +30,14 @@ public class Dates {
 	 * Today, yesterday, a few days ago, or the date for anything older (or in the future).
 	 */
 	public String relativeDay(Instant instant) {
+		return relativeDay(LocalDate.ofInstant(instant, ZoneId.systemDefault()));
+	}
+
+	/**
+	 * The same for a day, e.g. the day a post was posted.
+	 */
+	public String relativeDay(LocalDate day) {
 		Locale locale = LocaleContextHolder.getLocale();
-		LocalDate day = LocalDate.ofInstant(instant, ZoneId.systemDefault());
 		long daysAgo = ChronoUnit.DAYS.between(day, LocalDate.now());
 		if (daysAgo == 0) {
 			return this.messages.getMessage("date.today", null, locale);
@@ -42,7 +48,7 @@ public class Dates {
 		if (daysAgo > 1 && daysAgo <= MAX_DAYS_AGO) {
 			return this.messages.getMessage("date.daysAgo", new Object[] { daysAgo }, locale);
 		}
-		return date(instant);
+		return date(day);
 	}
 
 	/**

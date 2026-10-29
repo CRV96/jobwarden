@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: page(~{::title}, ~{::main}, 'cv')}">
+<head>
+    <title th:text="|#{cv.title} · JobWarden|">CV · JobWarden</title>
+</head>
+<body>
+<!--/* cv is the profile's Cv: the file uploaded, if any, and the saved fields. cvDetails are the fields the form shows:
+       the saved ones, or those typed when they didn't save (fieldErrors says why). The lists' rows are numbered by
+       app.js as they're added and removed (data-rows, data-row, data-add-row, data-remove-row). */-->
+<main class="page-split flex flex-col gap-5" th:with="details=${cvDetails}">
+    <header>
+        <h1 class="page-title mb-1" th:text="#{cv.title}">CV</h1>
+        <p class="text-[13px] text-ink/60" th:text="#{cv.subtitle}">Upload your CV, or fill in the fields and JobWarden builds one. Claude reads it to find jobs that fit you.</p>
+    </header>
+
+    <div class="card flex items-center gap-2 p-3 text-[13px] text-success" role="status" th:if="${param.saved}">
+        <i class="ph ph-check-circle text-base"></i><span th:text="#{cv.saved}">Saved. The preview and the PDF show it.</span>
+    </div>
+    <div class="card flex items-center gap-2 p-3 text-[13px] text-success" role="status" th:if="${param.uploaded}">
+        <i class="ph ph-check-circle text-base"></i><span th:text="#{cv.file.uploaded}">Your CV file is saved.</span>
+    </div>
+
+    <!--/* From 1280 pixels wide the fields scroll on the left and the preview fills the right */-->
+    <div class="grid min-h-0 flex-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)]">
+        <div class="scroll-panel flex min-h-0 min-w-0 flex-col gap-5">
+            <!--/* The file, as it is: downloaded again, replaced or deleted. Its text is what Claude reads. */-->
+            <section class="card flex flex-col gap-3 p-4" aria-labelledby="file-title">
+                <div>
+                    <h2 id="file-title" class="font-semibold" th:text="#{cv.file}">Your CV file</h2>
+                    <p class="text-xs text-ink/60" th:text="#{cv.file.hint}">A PDF, a Word document or a text file, up to 5 MB.</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-3 rounded-lg bg-ink/4 p-3" th:if="${cv.file}" th:with="file=${cv.file}">
+                    <i class="ph text-[26px] text-accent" th:classappend="${file.contentType == 'application/pdf'} ? 'ph-file-pdf' : 'ph-file-text'"></i>
+                    <div class="min-w-[12rem] flex-1">
+                        <div class="truncate font-medium" th:text="${file.fileName}">CV Robert.pdf</div>
+                        <div class="text-xs text-ink/60"
+                             th:text="#{cv.file.details(${#numbers.formatInteger((file.size + 1023) / 1024, 1, 'DEFAULT')}, ${@dates.relativeDay(file.uploadedAt)})}">84 KB · uploaded today</div>
+                        <div class="mt-0.5 flex items-center gap-1 text-xs" th:classappend="${file.textLength > 0} ? 'text-ink/60' : 'text-danger'">
+                            <i class="ph" th:classappend="${file.textLength > 0} ? 'ph-sparkle text-accent' : 'ph-warning-circle'"></i>
+                            <span th:text="${file.textLength > 0} ? #{cv.file.text(${#numbers.formatInteger(file.textLength, 1, 'DEFAULT')})} : #{cv.file.noText}">Claude can read 4,512 characters of it.</span>
+                        </div>
+                    </div>
+                    <a class="btn btn-secondary" th:href="@{/cv/file}"><i class="ph ph-download-simple"></i><span th:text="#{cv.file.download}">Download</span></a>
+                    <form method="post" th:action="@{/cv/file/delete}">
+                        <button class="btn btn-ghost" type="submit"><i class="ph ph-trash"></i><span th:text="#{action.delete}">Delete</span></button>
+                    </form>
+                </div>
+                <form class="flex flex-wrap items-center gap-2" method="post" enctype="multipart/form-data" th:action="@{/cv/file}">
+                    <input class="input w-auto max-w-full flex-1" type="file" name="file" required
+                           accept=".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                           th:data-max-bytes="${cvMaxBytes}" th:data-too-large="#{cv.file.tooLarge}" th:aria-label="#{cv.file.pick}">
+                    <button class="btn btn-primary" type="submit">
+                        <i class="ph ph-upload-simple"></i><span th:text="${cv.file} ? #{cv.file.replace} : #{cv.file.upload}">Upload</span>
+                    </button>
+                </form>
+                <p class="text-[13px] text-danger" role="alert" th:if="${uploadError}" th:text="${uploadError}">A CV can be a PDF…</p>
+            </section>
+
+            <!--/* The CVs Claude tailored to jobs (TailoredCvController), each with its job and its PDF */-->
+            <section class="card flex flex-col gap-2 p-4" aria-labelledby="tailored-title">
+                <div>
+                    <h2 id="tailored-title" class="flex items-center gap-1.5 font-semibold">
+                        <i class="ph ph-sparkle text-accent"></i><span th:text="#{cv.tailored}">CVs tailored to jobs</span>
+                    </h2>
+                    <p class="text-xs text-ink/60" th:text="#{cv.tailored.hint}">On a job’s page, Claude can rewrite your CV for it.</p>
+                </div>
+                <ul class="flex flex-col divide-y divide-line" th:unless="${tailoredCvs.isEmpty()}">
+                    <li class="flex items-center gap-2 py-2 last:pb-0" th:each="tailored : ${tailoredCvs}"
+                        th:with="job=${tailoredJobs.get(tailored.applicationId)}">
+                        <div class="min-w-0 flex-1">
+                            <a class="block truncate font-medium hover:underline" th:href="@{/applications/{id}(id=${tailored.applicationId})}"
+                               th:text="${job.title}">Backend engineer</a>
+                            <div class="truncate text-xs text-ink/55" th:text="${job.company} ?: '—'">Acme</div>
+                        </div>
+                        <span class="text-xs text-ink/55" th:text="${@dates.relativeDay(tailored.updatedAt)}">Today</span>
+                        <a class="btn btn-secondary btn-icon" th:href="@{/applications/{id}/cv/pdf(id=${tailored.applicationId})}"
+                           th:title="#{cv.pdf}" th:aria-label="#{cv.pdf}"><i class="ph ph-file-pdf"></i></a>
+                    </li>
+                </ul>
+            </section>
+
+            <!--/* The fields the CV is built from */-->
+            <form class="card flex flex-col gap-5 p-4" method="post" th:action="@{/cv}" aria-labelledby="build-title">
+                <div>
+                    <h2 id="build-title" class="font-semibold" th:text="#{cv.build}">Build your CV</h2>
+                    <p class="text-xs text-ink/60" th:text="#{cv.build.hint}">Fill in what you want on it and save; download it as a PDF.</p>
+                </div>
+                <ul class="flex flex-col gap-1 text-[13px] text-danger" role="alert" th:unless="${fieldErrors.isEmpty()}">
+                    <li th:each="error : ${fieldErrors.values()}" th:text="${error}">That isn’t an email address.</li>
+                </ul>
+
+                <fieldset class="flex flex-col gap-2">
+                    <legend class="section-title mb-2" th:text="#{cv.personal}">Personal details</legend>
+                    <div class="grid gap-2 sm:grid-cols-2">
+                        <label th:replace="~{cv/cv :: text-field('fullName', ${details.fullName}, #{cv.fullName}, 'Robert Ciapă')}"></label>
+                        <label th:replace="~{cv/cv :: text-field('headline', ${details.headline}, #{cv.headline}, #{cv.headline.placeholder})}"></label>
+                        <label th:replace="~{cv/cv :: text-field('email', ${details.email}, #{cv.email}, 'name@example.com')}"></label>
+                        <label th:replace="~{cv/cv :: text-field('phone', ${details.phone}, #{cv.phone}, '+40 7…')}"></label>
+                        <label th:replace="~{cv/cv :: text-field('location', ${details.location}, #{cv.location}, #{cv.location.placeholder})}"></label>
+                        <label th:replace="~{cv/cv :: text-field('website', ${details.website}, #{cv.website}, 'https://…')}"></label>
+                        <label th:replace="~{cv/cv :: text-field('linkedin', ${details.linkedin}, 'LinkedIn', 'https://www.linkedin.com/in/…')}"></label>
+                        <label th:replace="~{cv/cv :: text-field('github', ${details.github}, 'GitHub', 'https://github.com/…')}"></label>
+                    </div>
+                </fieldset>
+
+                <label class="flex flex-col gap-1">
+                    <span class="section-title" th:text="#{cv.summary}">Summary</span>
+                    <textarea class="input" name="summary" rows="4" maxlength="5000" th:placeholder="#{cv.summary.placeholder}"
+                              th:text="${details.summary}"></textarea>
+                </label>
+
+                <fieldset class="flex flex-col gap-2">
+                    <legend class="section-title mb-2" th:text="#{cv.experience}">Experience</legend>
+                    <div class="flex flex-col gap-2" data-rows="experience">
+                        <th:block th:each="job, iter : ${details.experience}"><div th:replace="~{cv/cv :: experience-row(${iter.index}, ${job})}"></div></th:block>
+                    </div>
+                    <template data-row-template="experience"><div th:replace="~{cv/cv :: experience-row('i', null)}"></div></template>
+                    <button class="btn btn-secondary self-start" type="button" data-add-row="experience">
+                        <i class="ph ph-plus"></i><span th:text="#{cv.experience.add}">Add a job</span>
+                    </button>
+                </fieldset>
+
+                <fieldset class="flex flex-col gap-2">
+                    <legend class="section-title mb-2" th:text="#{cv.education}">Education</legend>
+                    <div class="flex flex-col gap-2" data-rows="education">
+                        <th:block th:each="school, iter : ${details.education}"><div th:replace="~{cv/cv :: education-row(${iter.index}, ${school})}"></div></th:block>
+                    </div>
+                    <template data-row-template="education"><div th:replace="~{cv/cv :: education-row('i', null)}"></div></template>
+                    <button class="btn btn-secondary self-start" type="button" data-add-row="education">
+                        <i class="ph ph-plus"></i><span th:text="#{cv.education.add}">Add a degree</span>
+                    </button>
+                </fieldset>
+
+                <label class="flex flex-col gap-1">
+                    <span class="section-title" th:text="#{cv.skills}">Skills</span>
+                    <textarea class="input" name="skills" rows="3" maxlength="5000" th:placeholder="#{cv.skills.placeholder}"
+                              th:text="${#strings.listJoin(details.skills, ', ')}"></textarea>
+                    <span class="text-xs text-ink/55" th:text="#{cv.skills.hint}">Separated by commas or one per line.</span>
+                </label>
+
+                <fieldset class="flex flex-col gap-2">
+                    <legend class="section-title mb-2" th:text="#{cv.languages}">Languages</legend>
+                    <div class="flex flex-col gap-2" data-rows="languages">
+                        <th:block th:each="language, iter : ${details.languages}"><div th:replace="~{cv/cv :: language-row(${iter.index}, ${language})}"></div></th:block>
+                    </div>
+                    <template data-row-template="languages"><div th:replace="~{cv/cv :: language-row('i', null)}"></div></template>
+                    <button class="btn btn-secondary self-start" type="button" data-add-row="languages">
+                        <i class="ph ph-plus"></i><span th:text="#{cv.languages.add}">Add a language</span>
+                    </button>
+                </fieldset>
+
+                <fieldset class="flex flex-col gap-2">
+                    <legend class="section-title mb-2" th:text="#{cv.certifications}">Certifications</legend>
+                    <div class="flex flex-col gap-2" data-rows="certifications">
+                        <th:block th:each="certification, iter : ${details.certifications}"><div th:replace="~{cv/cv :: certification-row(${iter.index}, ${certification})}"></div></th:block>
+                    </div>
+                    <template data-row-template="certifications"><div th:replace="~{cv/cv :: certification-row('i', null)}"></div></template>
+                    <button class="btn btn-secondary self-start" type="button" data-add-row="certifications">
+                        <i class="ph ph-plus"></i><span th:text="#{cv.certifications.add}">Add a certification</span>
+                    </button>
+                </fieldset>
+
+                <div class="flex flex-wrap items-center gap-2 border-t border-line pt-4">
+                    <button class="btn btn-primary" type="submit"><i class="ph ph-floppy-disk"></i><span th:text="#{cv.save}">Save</span></button>
+                    <span class="text-xs text-ink/55" th:if="${cv.details.updatedAt}"
+                          th:text="#{cv.savedAt(${@dates.relativeDay(cv.details.updatedAt)})}">Last saved today</span>
+                </div>
+            </form>
+        </div>
+
+        <!--/* The CV as saved, and its PDF */-->
+        <aside class="card flex min-h-0 min-w-0 flex-col gap-3 p-4" aria-labelledby="preview-title">
+            <div class="flex flex-wrap items-center gap-2">
+                <h2 id="preview-title" class="flex-1 font-semibold" th:text="#{cv.preview}">Preview</h2>
+                <a class="btn btn-secondary" th:href="@{/cv/preview}" target="_blank" rel="noopener">
+                    <i class="ph ph-arrow-square-out"></i><span th:text="#{cv.preview.open}">Open</span>
+                </a>
+                <a class="btn btn-primary" th:href="@{/cv/pdf}">
+                    <i class="ph ph-file-pdf"></i><span th:text="#{cv.pdf}">Download PDF</span>
+                </a>
+            </div>
+            <iframe class="h-[78vh] w-full rounded-md border border-line bg-white xl:h-auto xl:min-h-0 xl:flex-1" th:src="@{/cv/preview}" th:title="#{cv.preview}"></iframe>
+        </aside>
+    </div>
+</main>
+
+<!--/* A one-line field of the personal details */-->
+<label th:fragment="text-field(name, value, label, placeholder)" class="flex min-w-0 flex-col gap-1">
+    <span class="text-xs text-ink/60" th:text="${label}">Full name</span>
+    <input class="input" th:type="${name == 'email'} ? 'email' : (${name == 'website' or name == 'linkedin' or name == 'github'} ? 'url' : 'text')"
+           th:name="${name}" th:value="${value}" th:placeholder="${placeholder}" maxlength="200">
+</label>
+
+<!--/* The rows of the lists. index is the row's number, or 'i' in the <template> a new row is made from. */-->
+<div th:fragment="experience-row(index, job)" class="grid gap-2 rounded-lg border border-line p-3 sm:grid-cols-2" data-row>
+    <input class="input" type="text" th:name="|experience[${index}].role|" th:value="${job?.role}" maxlength="200"
+           th:placeholder="#{cv.experience.role}" th:aria-label="#{cv.experience.role}">
+    <input class="input" type="text" th:name="|experience[${index}].company|" th:value="${job?.company}" maxlength="200"
+           th:placeholder="#{cv.experience.company}" th:aria-label="#{cv.experience.company}">
+    <input class="input" type="text" th:name="|experience[${index}].location|" th:value="${job?.location}" maxlength="200"
+           th:placeholder="#{cv.location}" th:aria-label="#{cv.location}">
+    <div class="grid grid-cols-2 gap-2">
+        <input class="input" type="text" th:name="|experience[${index}].start|" th:value="${job?.start}" maxlength="200"
+               th:placeholder="#{cv.from}" th:aria-label="#{cv.from}">
+        <input class="input" type="text" th:name="|experience[${index}].end|" th:value="${job?.end}" maxlength="200"
+               th:placeholder="#{cv.to}" th:aria-label="#{cv.to}">
+    </div>
+    <textarea class="input sm:col-span-2" rows="3" maxlength="5000" th:name="|experience[${index}].description|"
+              th:placeholder="#{cv.experience.description}" th:aria-label="#{cv.experience.description}" th:text="${job?.description}"></textarea>
+    <button class="btn btn-ghost justify-self-start px-1.5 py-1 text-xs" type="button" data-remove-row>
+        <i class="ph ph-trash"></i><span th:text="#{cv.remove}">Remove</span>
+    </button>
+</div>
+
+<div th:fragment="education-row(index, school)" class="grid gap-2 rounded-lg border border-line p-3 sm:grid-cols-2" data-row>
+    <input class="input" type="text" th:name="|education[${index}].degree|" th:value="${school?.degree}" maxlength="200"
+           th:placeholder="#{cv.education.degree}" th:aria-label="#{cv.education.degree}">
+    <input class="input" type="text" th:name="|education[${index}].school|" th:value="${school?.school}" maxlength="200"
+           th:placeholder="#{cv.education.school}" th:aria-label="#{cv.education.school}">
+    <input class="input" type="text" th:name="|education[${index}].location|" th:value="${school?.location}" maxlength="200"
+           th:placeholder="#{cv.location}" th:aria-label="#{cv.location}">
+    <div class="grid grid-cols-2 gap-2">
+        <input class="input" type="text" th:name="|education[${index}].start|" th:value="${school?.start}" maxlength="200"
+               th:placeholder="#{cv.from}" th:aria-label="#{cv.from}">
+        <input class="input" type="text" th:name="|education[${index}].end|" th:value="${school?.end}" maxlength="200"
+               th:placeholder="#{cv.to}" th:aria-label="#{cv.to}">
+    </div>
+    <textarea class="input sm:col-span-2" rows="2" maxlength="5000" th:name="|education[${index}].description|"
+              th:placeholder="#{cv.education.description}" th:aria-label="#{cv.education.description}" th:text="${school?.description}"></textarea>
+    <button class="btn btn-ghost justify-self-start px-1.5 py-1 text-xs" type="button" data-remove-row>
+        <i class="ph ph-trash"></i><span th:text="#{cv.remove}">Remove</span>
+    </button>
+</div>
+
+<div th:fragment="language-row(index, language)" class="flex flex-wrap items-center gap-2" data-row>
+    <input class="input w-auto flex-[2_1_160px]" type="text" th:name="|languages[${index}].language|" th:value="${language?.language}"
+           maxlength="200" th:placeholder="#{cv.languages.language}" th:aria-label="#{cv.languages.language}">
+    <input class="input w-auto flex-[1_1_120px]" type="text" th:name="|languages[${index}].level|" th:value="${language?.level}"
+           maxlength="200" th:placeholder="#{cv.languages.level}" th:aria-label="#{cv.languages.level}">
+    <button class="btn btn-ghost btn-icon" type="button" data-remove-row th:title="#{cv.remove}" th:aria-label="#{cv.remove}">
+        <i class="ph ph-trash"></i>
+    </button>
+</div>
+
+<div th:fragment="certification-row(index, certification)" class="flex flex-wrap items-center gap-2" data-row>
+    <input class="input w-auto flex-[3_1_200px]" type="text" th:name="|certifications[${index}].name|" th:value="${certification?.name}"
+           maxlength="200" th:placeholder="#{cv.certifications.name}" th:aria-label="#{cv.certifications.name}">
+    <input class="input w-auto flex-[2_1_140px]" type="text" th:name="|certifications[${index}].issuer|" th:value="${certification?.issuer}"
+           maxlength="200" th:placeholder="#{cv.certifications.issuer}" th:aria-label="#{cv.certifications.issuer}">
+    <input class="input w-auto flex-[0_1_90px]" type="text" th:name="|certifications[${index}].year|" th:value="${certification?.year}"
+           maxlength="200" th:placeholder="#{cv.certifications.year}" th:aria-label="#{cv.certifications.year}">
+    <button class="btn btn-ghost btn-icon" type="button" data-remove-row th:title="#{cv.remove}" th:aria-label="#{cv.remove}">
+        <i class="ph ph-trash"></i>
+    </button>
+</div>
+</body>
+</html>

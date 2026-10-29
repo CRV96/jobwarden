@@ -5,7 +5,7 @@
     <title th:text="|#{salaries.title} · JobWarden|">Salaries · JobWarden</title>
 </head>
 <body>
-<main class="flex max-w-[1080px] flex-col gap-5"
+<main class="page-split flex flex-col gap-5"
       th:with="currency=${overview.currency}, per=#{|salaries.per.${overview.period}|}">
     <header>
         <h1 class="page-title mb-1" th:text="#{salaries.title}">Salaries</h1>
@@ -27,154 +27,172 @@
                 <span th:text="#{|salaries.period.${period}|}">Per year</span>
             </label>
         </div>
+        <!--/* The market section's choices go along, so they stay when the currency or the period changes */-->
+        <input type="hidden" name="role" th:value="${marketForm.selectedRole()}">
+        <input type="hidden" name="skill" th:value="${marketForm.selectedSkill()}">
+        <input type="hidden" name="country" th:each="code : ${marketForm.countries()}" th:value="${code}">
         <noscript><button class="btn btn-secondary" type="submit" th:text="#{salaries.apply}">Show</button></noscript>
     </form>
 
-    <div class="card flex items-start gap-3 p-4" th:if="${overview.salaries.isEmpty() and overview.unreadable.isEmpty()}">
-        <i class="ph ph-coins text-[22px] text-accent"></i>
-        <div>
-            <div class="font-medium" th:text="#{salaries.empty.title}">No salaries yet</div>
-            <p class="text-ink/60" th:text="#{salaries.empty.body}">When a posting lists a salary, the extension saves it with the job.</p>
-        </div>
-    </div>
-
-    <th:block th:unless="${overview.salaries.isEmpty()}">
-        <!--/* The figures: stat tiles, proportional digits */-->
-        <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" th:aria-label="#{salaries.summary}">
-            <div class="card flex flex-col gap-1 p-4">
-                <div class="text-xs text-ink/60" th:text="#{salaries.median}">Median</div>
-                <div class="text-[28px] leading-tight font-semibold tracking-[-0.02em]"
-                     th:text="${@money.compact(overview.median, currency)}">€60K</div>
-                <div class="text-xs text-ink/55" th:text="|${per} · #{salaries.median.hint}|">a year · half pay more, half less</div>
-            </div>
-            <div class="card flex flex-col gap-1 p-4">
-                <div class="text-xs text-ink/60" th:text="#{salaries.middle}">Middle half</div>
-                <div class="text-[22px] leading-tight font-semibold tracking-[-0.02em]"
-                     th:text="${@money.range(overview.lowerQuartile, overview.upperQuartile, currency)}">€36K – €60K</div>
-                <div class="text-xs text-ink/55" th:text="#{salaries.middle.hint}">Where half of the salaries fall</div>
-            </div>
-            <div class="card flex min-w-0 flex-col gap-1 p-4" th:with="highest=${overview.highest().get()}">
-                <div class="text-xs text-ink/60" th:text="#{salaries.highest}">Highest</div>
-                <div class="text-[28px] leading-tight font-semibold tracking-[-0.02em]"
-                     th:text="${@money.compact(highest.high, currency)}">€80K</div>
-                <a class="link truncate text-xs" th:href="@{/applications/{id}(id=${highest.application.id})}"
-                   th:text="${highest.application.company} ? |${highest.application.title} · ${highest.application.company}| : ${highest.application.title}">Risk Analyst · Acme</a>
-            </div>
-            <div class="card flex flex-col gap-1 p-4">
-                <div class="text-xs text-ink/60" th:text="#{salaries.coverage}">Jobs with a salary</div>
-                <div class="text-[28px] leading-tight font-semibold tracking-[-0.02em]"
-                     th:text="#{salaries.coverage.value(${overview.salaries.size()}, ${overview.total()})}">3 of 21</div>
-                <!--/* A meter: the track a lighter step of the fill's colour */-->
-                <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-accent-tint" role="presentation">
-                    <div class="h-full rounded-full bg-accent" th:style="|width: ${overview.salaries.size() * 100.0 / overview.total()}%|"></div>
+    <!--/* From 1280 pixels wide, the jobs' salaries on the left and the market's on the right, each scrolling on its own */-->
+    <div class="grid min-h-0 flex-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)]">
+        <div class="scroll-panel flex min-h-0 min-w-0 flex-col gap-5">
+            <div class="card flex items-start gap-3 p-4" th:if="${overview.salaries.isEmpty() and overview.unreadable.isEmpty()}">
+                <i class="ph ph-coins text-[22px] text-accent"></i>
+                <div>
+                    <div class="font-medium" th:text="#{salaries.empty.title}">No salaries yet</div>
+                    <p class="text-ink/60" th:text="#{salaries.empty.body}">When a posting lists a salary, the extension saves it with the job.</p>
                 </div>
             </div>
-        </section>
 
-        <!--/* Each job's range on one axis from zero, highest midpoint first. The marks are one series in one colour, so no
-               legend; each row says its values in text too, and the plot is hidden from screen readers. */-->
-        <section class="card flex flex-col gap-3 p-4" aria-labelledby="ranges-title">
-            <div>
-                <h2 id="ranges-title" class="font-semibold" th:text="#{salaries.ranges}">Salary ranges</h2>
-                <p class="text-xs text-ink/60" th:text="#{salaries.ranges.hint(${per}, ${currency})}">Each job’s salary, a year in EUR, highest first.</p>
-            </div>
-            <div class="salary-chart" th:style="|--steps: ${rangeScale.steps()}|">
-                <div class="salary-row" th:each="entry : ${overview.salaries}" th:with="job=${entry.application}">
-                    <div class="flex min-w-0 items-center gap-2.5">
-                        <span th:replace="~{applications/fragments :: company-logo(${job.id}, ${job.company}, 28)}"></span>
-                        <div class="min-w-0">
-                            <a class="block truncate font-medium hover:underline" th:href="@{/applications/{id}(id=${job.id})}"
-                               th:text="${job.title}">Risk Analyst</a>
-                            <div class="flex min-w-0 items-center gap-1.5 text-xs text-ink/55">
-                                <span class="truncate" th:if="${job.company}" th:text="${job.company}">Acme</span>
-                                <span th:replace="~{applications/fragments :: status-badge(${job.status})}"></span>
+            <th:block th:unless="${overview.salaries.isEmpty()}">
+                <!--/* The figures: stat tiles, proportional digits */-->
+                <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-4" th:aria-label="#{salaries.summary}">
+                    <div class="card flex flex-col gap-1 p-4">
+                        <div class="text-xs text-ink/60" th:text="#{salaries.median}">Median</div>
+                        <div class="text-[28px] leading-tight font-semibold tracking-[-0.02em]"
+                             th:text="${@money.compact(overview.median, currency)}">€60K</div>
+                        <div class="text-xs text-ink/55" th:text="|${per} · #{salaries.median.hint}|">a year · half pay more, half less</div>
+                    </div>
+                    <div class="card flex flex-col gap-1 p-4">
+                        <div class="text-xs text-ink/60" th:text="#{salaries.middle}">Middle half</div>
+                        <div class="text-[22px] leading-tight font-semibold tracking-[-0.02em]"
+                             th:text="${@money.range(overview.lowerQuartile, overview.upperQuartile, currency)}">€36K – €60K</div>
+                        <div class="text-xs text-ink/55" th:text="#{salaries.middle.hint}">Where half of the salaries fall</div>
+                    </div>
+                    <div class="card flex min-w-0 flex-col gap-1 p-4" th:with="highest=${overview.highest().get()}">
+                        <div class="text-xs text-ink/60" th:text="#{salaries.highest}">Highest</div>
+                        <div class="text-[28px] leading-tight font-semibold tracking-[-0.02em]"
+                             th:text="${@money.compact(highest.high, currency)}">€80K</div>
+                        <a class="link truncate text-xs" th:href="@{/applications/{id}(id=${highest.application.id})}"
+                           th:text="${highest.application.company} ? |${highest.application.title} · ${highest.application.company}| : ${highest.application.title}">Risk Analyst · Acme</a>
+                    </div>
+                    <div class="card flex flex-col gap-1 p-4">
+                        <div class="text-xs text-ink/60" th:text="#{salaries.coverage}">Jobs with a salary</div>
+                        <div class="text-[28px] leading-tight font-semibold tracking-[-0.02em]"
+                             th:text="#{salaries.coverage.value(${overview.salaries.size()}, ${overview.total()})}">3 of 21</div>
+                        <!--/* A meter: the track a lighter step of the fill's colour */-->
+                        <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-accent-tint" role="presentation">
+                            <div class="h-full rounded-full bg-accent" th:style="|width: ${overview.salaries.size() * 100.0 / overview.total()}%|"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!--/* Each job's range on one axis from zero, highest midpoint first. The marks are one series in one colour, so no
+                       legend; each row says its values in text too, and the plot is hidden from screen readers. */-->
+                <section class="card flex flex-col gap-3 p-4" aria-labelledby="ranges-title">
+                    <div>
+                        <h2 id="ranges-title" class="font-semibold" th:text="#{salaries.ranges}">Salary ranges</h2>
+                        <p class="text-xs text-ink/60" th:text="#{salaries.ranges.hint(${per}, ${currency})}">Each job’s salary, a year in EUR, highest first.</p>
+                    </div>
+                    <div class="salary-chart" th:style="|--steps: ${rangeScale.steps()}|">
+                        <div class="salary-row" th:each="entry : ${overview.salaries}" th:with="job=${entry.application}">
+                            <div class="flex min-w-0 items-center gap-2.5">
+                                <span th:replace="~{applications/fragments :: company-logo(${job.id}, ${job.company}, 28)}"></span>
+                                <div class="min-w-0">
+                                    <a class="block truncate font-medium hover:underline" th:href="@{/applications/{id}(id=${job.id})}"
+                                       th:text="${job.title}">Risk Analyst</a>
+                                    <div class="flex min-w-0 items-center gap-1.5 text-xs text-ink/55">
+                                        <span class="truncate" th:if="${job.company}" th:text="${job.company}">Acme</span>
+                                        <span th:replace="~{applications/fragments :: status-badge(${job.status})}"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="salary-plot" aria-hidden="true">
+                                <span class="salary-mark" th:classappend="${entry.isRange()} ? 'is-range' : 'is-point'"
+                                      th:style="${entry.isRange()} ? |left: ${rangeScale.percent(entry.low)}%; width: ${rangeScale.percent(entry.high) - rangeScale.percent(entry.low)}%| : |left: ${rangeScale.percent(entry.low)}%|">
+                                    <span class="chart-tip">
+                                        <strong th:text="|${@money.range(entry.low, entry.high, currency)} ${per}|">€40K – €80K a year</strong>
+                                        <span th:text="${job.salary}">80,000–160,000 USD per year</span>
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="min-w-0 text-right">
+                                <div class="flex items-center justify-end gap-1.5 font-medium whitespace-nowrap">
+                                    <span class="tag" th:if="${entry.basis}" th:text="#{|salaries.basis.${entry.basis}|}">net</span>
+                                    <i class="ph ph-question text-ink/45" th:if="${entry.periodGuessed}"
+                                       th:title="#{salaries.guessed}" th:aria-label="#{salaries.guessed}"></i>
+                                    <span th:text="${@money.range(entry.low, entry.high, currency)}">€40K – €80K</span>
+                                </div>
+                                <div class="truncate text-xs text-ink/50" th:text="${job.salary}">80,000–160,000 USD per year</div>
+                            </div>
+                        </div>
+                        <div class="salary-axis" aria-hidden="true">
+                            <span th:each="tick, row : ${rangeScale.ticks}" th:style="|--at: ${rangeScale.percent(tick)}%|"
+                                  th:classappend="${row.first} ? 'is-first' : (${row.last} ? 'is-last')"
+                                  th:text="${@money.compact(tick, currency)}">€40K</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!--/* The median of each status: bars from zero, the value at the tip */-->
+                <section class="card flex flex-col gap-3 p-4" aria-labelledby="status-title" th:if="${overview.byStatus.size() > 1}">
+                    <div>
+                        <h2 id="status-title" class="font-semibold" th:text="#{salaries.byStatus}">Median by status</h2>
+                        <p class="text-xs text-ink/60" th:text="#{salaries.byStatus.hint(${per}, ${currency})}">The middle salary of the jobs at each step.</p>
+                    </div>
+                    <div class="grid gap-2.5">
+                        <div class="grid grid-cols-[9rem_minmax(0,1fr)] items-center gap-3 max-sm:grid-cols-[7rem_minmax(0,1fr)]"
+                             th:each="status : ${overview.byStatus}">
+                            <div class="flex items-center gap-2">
+                                <span th:replace="~{applications/fragments :: status-badge(${status.status})}"></span>
+                                <span class="inline-flex items-center gap-0.5 text-xs text-ink/55" th:title="#{salaries.byStatus.count(${status.count})}">
+                                    <i class="ph ph-briefcase"></i><span th:text="${status.count}">2</span>
+                                </span>
+                            </div>
+                            <!--/* The track leaves room past its end for the value at the longest bar's tip */-->
+                            <div class="relative mr-16 h-5">
+                                <span class="status-bar" th:style="|width: ${statusScale.percent(status.median)}%|"></span>
+                                <span class="absolute top-1/2 -translate-y-1/2 pl-2 text-xs font-medium whitespace-nowrap"
+                                      th:style="|left: ${statusScale.percent(status.median)}%|"
+                                      th:text="${@money.compact(status.median, currency)}">€36K</span>
                             </div>
                         </div>
                     </div>
-                    <div class="salary-plot" aria-hidden="true">
-                        <span class="salary-mark" th:classappend="${entry.isRange()} ? 'is-range' : 'is-point'"
-                              th:style="${entry.isRange()} ? |left: ${rangeScale.percent(entry.low)}%; width: ${rangeScale.percent(entry.high) - rangeScale.percent(entry.low)}%| : |left: ${rangeScale.percent(entry.low)}%|">
-                            <span class="chart-tip">
-                                <strong th:text="|${@money.range(entry.low, entry.high, currency)} ${per}|">€40K – €80K a year</strong>
-                                <span th:text="${job.salary}">80,000–160,000 USD per year</span>
-                            </span>
-                        </span>
-                    </div>
-                    <div class="min-w-0 text-right">
-                        <div class="flex items-center justify-end gap-1.5 font-medium whitespace-nowrap">
-                            <span class="tag" th:if="${entry.basis}" th:text="#{|salaries.basis.${entry.basis}|}">net</span>
-                            <i class="ph ph-question text-ink/45" th:if="${entry.periodGuessed}"
-                               th:title="#{salaries.guessed}" th:aria-label="#{salaries.guessed}"></i>
-                            <span th:text="${@money.range(entry.low, entry.high, currency)}">€40K – €80K</span>
+                </section>
+            </th:block>
+
+            <!--/* Salaries that are text without an amount and a known currency: corrected here, they join the charts */-->
+            <section class="card flex flex-col gap-3 p-4" aria-labelledby="unreadable-title" th:unless="${overview.unreadable.isEmpty()}">
+                <div>
+                    <h2 id="unreadable-title" class="font-semibold" th:text="#{salaries.unreadable}">Salaries that couldn’t be read</h2>
+                    <p class="text-xs text-ink/60" th:text="#{salaries.unreadable.hint}">Give each an amount and a currency, e.g. 5,000 EUR a month.</p>
+                </div>
+                <ul class="flex flex-col divide-y divide-line">
+                    <li class="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5 first:pt-0 last:pb-0" th:each="job : ${overview.unreadable}">
+                        <div class="flex min-w-[12rem] flex-1 items-center gap-2.5">
+                            <span th:replace="~{applications/fragments :: company-logo(${job.id}, ${job.company}, 28)}"></span>
+                            <div class="min-w-0">
+                                <a class="block truncate font-medium hover:underline" th:href="@{/applications/{id}(id=${job.id})}"
+                                   th:text="${job.title}">Designer</a>
+                                <div class="truncate text-xs text-ink/55" th:if="${job.company}" th:text="${job.company}">Acme</div>
+                            </div>
                         </div>
-                        <div class="truncate text-xs text-ink/50" th:text="${job.salary}">80,000–160,000 USD per year</div>
-                    </div>
-                </div>
-                <div class="salary-axis" aria-hidden="true">
-                    <span th:each="tick, row : ${rangeScale.ticks}" th:style="|--at: ${rangeScale.percent(tick)}%|"
-                          th:classappend="${row.first} ? 'is-first' : (${row.last} ? 'is-last')"
-                          th:text="${@money.compact(tick, currency)}">€40K</span>
-                </div>
-            </div>
-        </section>
+                        <form class="flex w-full max-w-[22rem] items-center gap-2" th:hx-post="@{/applications/{id}/salary(id=${job.id})}" hx-swap="none">
+                            <input class="input" type="text" name="salary" th:value="${job.salary}" autocomplete="off"
+                                   th:aria-label="#{salaries.unreadable.label(${job.title})}">
+                            <button class="btn btn-secondary" type="submit" th:text="#{salaries.unreadable.save}">Save</button>
+                        </form>
+                    </li>
+                </ul>
+            </section>
 
-        <!--/* The median of each status: bars from zero, the value at the tip */-->
-        <section class="card flex flex-col gap-3 p-4" aria-labelledby="status-title" th:if="${overview.byStatus.size() > 1}">
-            <div>
-                <h2 id="status-title" class="font-semibold" th:text="#{salaries.byStatus}">Median by status</h2>
-                <p class="text-xs text-ink/60" th:text="#{salaries.byStatus.hint(${per}, ${currency})}">The middle salary of the jobs at each step.</p>
-            </div>
-            <div class="grid gap-2.5">
-                <div class="grid grid-cols-[9rem_minmax(0,1fr)] items-center gap-3 max-sm:grid-cols-[7rem_minmax(0,1fr)]"
-                     th:each="status : ${overview.byStatus}">
-                    <div class="flex items-center gap-2">
-                        <span th:replace="~{applications/fragments :: status-badge(${status.status})}"></span>
-                        <span class="inline-flex items-center gap-0.5 text-xs text-ink/55" th:title="#{salaries.byStatus.count(${status.count})}">
-                            <i class="ph ph-briefcase"></i><span th:text="${status.count}">2</span>
-                        </span>
-                    </div>
-                    <!--/* The track leaves room past its end for the value at the longest bar's tip */-->
-                    <div class="relative mr-16 h-5">
-                        <span class="status-bar" th:style="|width: ${statusScale.percent(status.median)}%|"></span>
-                        <span class="absolute top-1/2 -translate-y-1/2 pl-2 text-xs font-medium whitespace-nowrap"
-                              th:style="|left: ${statusScale.percent(status.median)}%|"
-                              th:text="${@money.compact(status.median, currency)}">€36K</span>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </th:block>
-
-    <!--/* Salaries that are text without an amount and a known currency: corrected here, they join the charts */-->
-    <section class="card flex flex-col gap-3 p-4" aria-labelledby="unreadable-title" th:unless="${overview.unreadable.isEmpty()}">
-        <div>
-            <h2 id="unreadable-title" class="font-semibold" th:text="#{salaries.unreadable}">Salaries that couldn’t be read</h2>
-            <p class="text-xs text-ink/60" th:text="#{salaries.unreadable.hint}">Give each an amount and a currency, e.g. 5,000 EUR a month.</p>
+            <footer class="flex flex-col gap-1 text-xs text-ink/55" th:unless="${overview.salaries.isEmpty()}">
+                <p th:if="${overview.ratesDate}" th:text="#{salaries.rates(${@dates.date(overview.ratesDate)})}">Converted at the European Central Bank’s rates of 23 Oct 2026.</p>
+                <p th:unless="${overview.ratesDate}" th:text="#{salaries.rates.approximate}">Converted at approximate rates.</p>
+                <p th:text="#{salaries.periods}">A year counts 2,080 hours, 260 days or 12 months.</p>
+            </footer>
         </div>
-        <ul class="flex flex-col divide-y divide-line">
-            <li class="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5 first:pt-0 last:pb-0" th:each="job : ${overview.unreadable}">
-                <div class="flex min-w-[12rem] flex-1 items-center gap-2.5">
-                    <span th:replace="~{applications/fragments :: company-logo(${job.id}, ${job.company}, 28)}"></span>
-                    <div class="min-w-0">
-                        <a class="block truncate font-medium hover:underline" th:href="@{/applications/{id}(id=${job.id})}"
-                           th:text="${job.title}">Designer</a>
-                        <div class="truncate text-xs text-ink/55" th:if="${job.company}" th:text="${job.company}">Acme</div>
-                    </div>
-                </div>
-                <form class="flex w-full max-w-[22rem] items-center gap-2" th:hx-post="@{/applications/{id}/salary(id=${job.id})}" hx-swap="none">
-                    <input class="input" type="text" name="salary" th:value="${job.salary}" autocomplete="off"
-                           th:aria-label="#{salaries.unreadable.label(${job.title})}">
-                    <button class="btn btn-secondary" type="submit" th:text="#{salaries.unreadable.save}">Save</button>
-                </form>
-            </li>
-        </ul>
-    </section>
 
-    <footer class="flex flex-col gap-1 text-xs text-ink/55" th:unless="${overview.salaries.isEmpty()}">
-        <p th:if="${overview.ratesDate}" th:text="#{salaries.rates(${@dates.date(overview.ratesDate)})}">Converted at the European Central Bank’s rates of 23 Oct 2026.</p>
-        <p th:unless="${overview.ratesDate}" th:text="#{salaries.rates.approximate}">Converted at approximate rates.</p>
-        <p th:text="#{salaries.periods}">A year counts 2,080 hours, 260 days or 12 months.</p>
-    </footer>
+        <div class="scroll-panel min-h-0 min-w-0">
+            <!--/* What the market pays, across countries: loaded after the page, since its sources may take a moment */-->
+            <section id="market" class="card flex items-center gap-2 p-4 text-ink/60" th:hx-get="${marketUrl}" hx-trigger="load"
+                     hx-swap="outerHTML" aria-busy="true">
+                <i class="ph ph-globe-hemisphere-east text-[20px] text-accent"></i>
+                <span th:text="#{market.loading}">Loading what the market pays…</span>
+            </section>
+        </div>
+    </div>
 </main>
 </body>
 </html>

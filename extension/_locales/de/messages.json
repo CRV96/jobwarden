@@ -205,5 +205,119 @@
   },
   "showOnIconHint": {
     "message": "★ gemerkt, ✓ beworben. Chrome fragt, ob JobWarden die Adressen deiner Tabs sehen darf; jede geöffnete Seite wird dann auf deinem Server nachgeschlagen."
+  },
+  "updateAvailable": {
+    "message": "JobWarden $1 ist da: hol dir den neuesten Code"
+  },
+  "updateReload": {
+    "message": "Dein JobWarden-Server läuft mit $1: Lade die Erweiterung neu, damit sie passt"
+  },
+  "extensionVersion": {
+    "message": "JobWarden-Erweiterung $1"
+  },
+  "runTitle": {
+    "message": "Easy-Apply-Durchlauf"
+  },
+  "runHint": {
+    "message": "Geht diese Suche durch und sendet jeden Easy-Apply-Job mit deinem Lebenslauf und den Antworten auf der Seite Auto-Bewerbung von JobWarden. Hält an bei einer Frage, die deine Antworten nicht abdecken, und bei den Sicherheitsprüfungen von LinkedIn."
+  },
+  "runLimit": {
+    "message": "Anhalten nach"
+  },
+  "runLimitUnit": {
+    "message": "Bewerbungen"
+  },
+  "runSaveOthers": {
+    "message": "Die anderen Jobs für Auto-Bewerbung speichern"
+  },
+  "runWarning": {
+    "message": "Die Nutzungsbedingungen von LinkedIn erlauben kein automatisiertes Bewerben, und LinkedIn kann Konten einschränken, die es tun."
+  },
+  "runStart": {
+    "message": "Durchlauf starten"
+  },
+  "runStopButton": {
+    "message": "Durchlauf anhalten"
+  },
+  "runGoing": {
+    "message": "In diesem Tab läuft ein Durchlauf: bisher $1 gesendet."
+  },
+  "runCouldNotStart": {
+    "message": "Der Durchlauf konnte nicht starten: $1. Wenn du JobWarden gerade aktualisiert hast, lade die Erweiterung neu (chrome://extensions), dann die LinkedIn-Seite, und versuche es noch einmal."
+  },
+  "runBarTitle": {
+    "message": "JobWarden · Easy-Apply-Durchlauf"
+  },
+  "runStarting": {
+    "message": "Startet…"
+  },
+  "runOpening": {
+    "message": "Öffnet $1…"
+  },
+  "runFilling": {
+    "message": "Bewirbt sich auf $1…"
+  },
+  "runThisJob": {
+    "message": "den nächsten Job"
+  },
+  "runCounts": {
+    "message": "$1 von höchstens $2 gesendet · $3 gespeichert · $4 übersprungen"
+  },
+  "runNeedsAnswer": {
+    "message": "Das Formular fragt „$1“, was deine Antworten nicht abdecken. Beantworte es im Formular oder unter Deine eigenen Fragen auf der Seite Auto-Bewerbung von JobWarden, dann Weiter. So oder so behält JobWarden es für die nächsten Formulare."
+  },
+  "runAQuestion": {
+    "message": "eine Frage"
+  },
+  "runFormError": {
+    "message": "LinkedIn sagt: „$1“ Korrigiere es im Formular, dann Weiter."
+  },
+  "runSecurityCheck": {
+    "message": "LinkedIn will prüfen, dass du es bist. Erledige das selbst, dann Weiter."
+  },
+  "runFormDidntOpen": {
+    "message": "Das Easy-Apply-Formular hat sich nicht geöffnet. Sieh dir die Seite an, dann Weiter, um es noch einmal zu versuchen."
+  },
+  "runStuck": {
+    "message": "Das Formular ging nicht wie erwartet weiter. Sieh es dir an, dann Weiter, oder überspringe den Job."
+  },
+  "runUnsure": {
+    "message": "LinkedIn hat nicht gezeigt, dass die Bewerbung gesendet wurde. Wurde sie gesendet?"
+  },
+  "runLimitReached": {
+    "message": "Fertig: $1 gesendet, so viele, wie du für diesen Durchlauf festgelegt hast."
+  },
+  "runDone": {
+    "message": "Fertig: keine Jobs mehr in dieser Suche."
+  },
+  "runStopped": {
+    "message": "Angehalten."
+  },
+  "runFailed": {
+    "message": "Der Durchlauf hat angehalten: $1"
+  },
+  "runSignedOut": {
+    "message": "LinkedIn hat dich abgemeldet. Melde dich an und starte den Durchlauf erneut."
+  },
+  "runServerError": {
+    "message": "JobWarden hat die Anfrage nicht angenommen ($1). Prüfe, ob es läuft, dann Weiter."
+  },
+  "runContinue": {
+    "message": "Weiter"
+  },
+  "runSkip": {
+    "message": "Job überspringen"
+  },
+  "runSent": {
+    "message": "Ja, sie wurde gesendet"
+  },
+  "runNotSent": {
+    "message": "Nein"
+  },
+  "runStop": {
+    "message": "Anhalten"
+  },
+  "runClose": {
+    "message": "Schließen"
   }
 }

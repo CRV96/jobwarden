@@ -9,6 +9,7 @@ import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.service.UserService;
 import com.jobwarden.jobs.service.ApplicationService;
+import com.jobwarden.updates.service.UpdateService;
 import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.user.CurrentUser;
@@ -18,6 +19,8 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
@@ -35,6 +38,8 @@ abstract class BaseController {
 	private DiscoveryService discovery;
 
 	private MessageSource messages;
+
+	private @Nullable UpdateService updates;
 
 	/**
 	 * Setters rather than a constructor, so subclasses keep their Lombok constructors: those can't pass arguments up
@@ -66,11 +71,20 @@ abstract class BaseController {
 	}
 
 	/**
+	 * Optional: without it, e.g. in a test of one controller, the pages say nothing about updates.
+	 */
+	@Autowired(required = false)
+	final void setUpdates(UpdateService updates) {
+		this.updates = updates;
+	}
+
+	/**
 	 * Spring calls this before every handler method of a subclass, so every page has the selected profile (or
 	 * {@code null}) for the sidebar in layout.html. It's the only place a request looks the profile up.
 	 * <p>
 	 * The sidebar also lists the profiles to switch to, counts the profile's applications and the found jobs waiting
-	 * on the Discover page. HTMX requests skip those: they only swap a part of the page, without the sidebar.
+	 * on the AI Assistant page, and says when a newer JobWarden is out. HTMX requests skip those: they only swap a part
+	 * of the page, without the sidebar.
 	 */
 	@ModelAttribute
 	void layout(Model model, @RequestHeader(name = HtmxHeaders.REQUEST, required = false) @Nullable String htmx) {
@@ -80,6 +94,9 @@ abstract class BaseController {
 			return;
 		}
 		model.addAttribute(ModelAttributes.SIDEBAR_PROFILES, this.users.findAll());
+		if (this.updates != null) {
+			model.addAttribute(ModelAttributes.UPDATE, this.updates.status());
+		}
 		if (profile != null) {
 			model.addAttribute(ModelAttributes.APPLICATION_COUNT, this.applications.count(profile.id()));
 			model.addAttribute(ModelAttributes.DISCOVER_COUNT, this.discovery.countToReview(profile.id(), null));
@@ -112,6 +129,14 @@ abstract class BaseController {
 
 	protected static String redirectTo(String path) {
 		return "redirect:" + path;
+	}
+
+	/**
+	 * A file to download, under its name, which may have any letters: browsers that only read ASCII names get one
+	 * with the others left out.
+	 */
+	protected static ResponseEntity<byte[]> attachment(byte[] content, MediaType type, String fileName) {
+		return Attachments.of(content, type, fileName);
 	}
 
 	/**

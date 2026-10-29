@@ -38,6 +38,9 @@ class DefaultSalaryService implements SalaryService {
 	/** The currencies offered whatever the salaries are in. */
 	private static final List<String> COMMON_CURRENCIES = List.of("EUR", "USD", "GBP");
 
+	/** The currency shown unless another is asked for. */
+	private static final String DEFAULT_CURRENCY = "EUR";
+
 	/** A year in euros under which a salary that doesn't say its period is per hour, per day, per month: */
 	private static final BigDecimal HOURLY_BELOW = BigDecimal.valueOf(150);
 
@@ -71,8 +74,7 @@ class DefaultSalaryService implements SalaryService {
 		}
 
 		List<ParsedSalary> parsed = read.stream().map(ReadSalary::salary).toList();
-		String shownIn = (currency != null && rates.currencies().contains(currency)) ? currency
-				: mostCommonCurrency(parsed);
+		String shownIn = (currency != null && rates.currencies().contains(currency)) ? currency : DEFAULT_CURRENCY;
 		List<SalaryEntry> salaries = read.stream()
 			.map(salary -> entry(salary.application(), salary.salary(), rates, shownIn, period))
 			.sorted(Comparator.comparing(SalaryEntry::midpoint).reversed())
@@ -118,17 +120,6 @@ class DefaultSalaryService implements SalaryService {
 			return SalaryPeriod.DAY;
 		}
 		return (inEuros.compareTo(MONTHLY_BELOW) < 0) ? SalaryPeriod.MONTH : SalaryPeriod.YEAR;
-	}
-
-	/** The currency most salaries are in, the first in alphabetical order on a tie; euros without salaries. */
-	private static String mostCommonCurrency(Iterable<ParsedSalary> salaries) {
-		Map<String, Long> counts = new TreeMap<>();
-		salaries.forEach(salary -> counts.merge(salary.currency(), 1L, Long::sum));
-		return counts.entrySet()
-			.stream()
-			.max(Map.Entry.<String, Long>comparingByValue().thenComparing(Map.Entry.comparingByKey(Comparator.reverseOrder())))
-			.map(Map.Entry::getKey)
-			.orElse("EUR");
 	}
 
 	private static List<String> currencies(Iterable<ParsedSalary> salaries, RateTable rates) {

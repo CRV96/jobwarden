@@ -7,17 +7,24 @@ import java.util.Set;
 import com.jobwarden.TestcontainersConfiguration;
 import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.discover.dto.AddedFoundJobs;
+import com.jobwarden.discover.dto.AiRequest;
+import com.jobwarden.discover.dto.AiRequirements;
 import com.jobwarden.discover.dto.FoundJob;
 import com.jobwarden.discover.dto.NewFoundJob;
 import com.jobwarden.discover.dto.SavedSearch;
 import com.jobwarden.discover.dto.SearchCount;
+import com.jobwarden.discover.enums.AiRequestKind;
+import com.jobwarden.discover.enums.AiRequestStatus;
 import com.jobwarden.discover.enums.Decision;
+import com.jobwarden.discover.exception.AiRequestNotFoundException;
+import com.jobwarden.discover.exception.DiscoverErrorCode;
 import com.jobwarden.discover.exception.FoundJobNotFoundException;
 import com.jobwarden.discover.exception.SavedSearchNotFoundException;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.search.Recency;
 import com.jobwarden.search.SearchCriteria;
@@ -34,6 +41,8 @@ import org.springframework.modulith.test.ApplicationModuleTest.BootstrapMode;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 /**
  * With the modules discover uses, jobs and search; the profiles are inserted with SQL, as identity isn't one of them.
@@ -215,6 +224,122 @@ class DiscoveryServiceTests {
 		assertThatExceptionOfType(SavedSearchNotFoundException.class)
 			.isThrownBy(() -> this.discovery.addFoundJobs(this.otherUserId,
 					List.of(job("Java", "https://example.com/2", search))));
+	}
+
+	@Test
+	void keepsWhatTheProfileAsksClaudeAndHowItGoes() {
+		AiRequirements requirements = AiRequirements.builder()
+			.titles(List.of("Java Developer"))
+			.locations(List.of("Romania", "Remote in Europe"))
+			.workTypes(Set.of(WorkType.REMOTE))
+			.minSalary("4,000 EUR a month")
+			.useCv(true)
+			.maxJobs(10)
+			.build();
+		AiRequest asked = this.discovery.createRequest(this.userId, AiRequestKind.FIND_JOBS, requirements);
+		AiRequest check = this.discovery.createRequest(this.userId, AiRequestKind.CHECK_POSTINGS, AiRequirements.NONE);
+
+		assertThat(asked.status()).isEqualTo(AiRequestStatus.WAITING);
+		assertThat(asked.requirements()).isEqualTo(requirements);
+		assertThat(this.discovery.findOpenRequests(this.userId)).extracting(AiRequest::id).containsExactly(asked.id(), check.id());
+		assertThat(this.discovery.findRequests(this.otherUserId, 10)).isEmpty();
+		assertThatExceptionOfType(AiRequestNotFoundException.class)
+			.isThrownBy(() -> this.discovery.startRequest(this.otherUserId, asked.id()));
+
+		// Claude picks it up, and may read it again
+		assertThat(this.discovery.startRequest(this.userId, asked.id())).satisfies(started -> {
+			assertThat(started.status()).isEqualTo(AiRequestStatus.WORKING);
+			assertThat(started.startedAt()).isNotNull();
+		});
+		assertThat(this.discovery.startRequest(this.userId, asked.id()).status()).isEqualTo(AiRequestStatus.WORKING);
+
+		// The jobs it finds count for it, and say what it was
+		this.discovery.addFoundJobs(this.userId, List.of(job("Java Developer", "https://jobs.lever.co/acme/1", null, asked.id()),
+				job("Backend Engineer", "https://jobs.lever.co/acme/2", null, asked.id())));
+		AiRequest done = this.discovery.finishRequest(this.userId, asked.id(), true, " Added 2 jobs from Lever. ");
+		assertThat(done.status()).isEqualTo(AiRequestStatus.DONE);
+		assertThat(done.summary()).isEqualTo("Added 2 jobs from Lever.");
+		assertThat(done.foundJobs()).isEqualTo(2);
+		assertThat(this.discovery.findFoundJobsOfRequest(this.userId, asked.id()))
+			.extracting(FoundJob::title, FoundJob::requestKind)
+			.containsExactly(tuple("Java Developer", AiRequestKind.FIND_JOBS), tuple("Backend Engineer", AiRequestKind.FIND_JOBS));
+
+		// Finished, it stays as it is
+		assertThatThrownBy(() -> this.discovery.finishRequest(this.userId, asked.id(), false, "again"))
+			.isInstanceOfSatisfying(BusinessRuleException.class,
+					exception -> assertThat(exception.getErrorCode()).isEqualTo(DiscoverErrorCode.AI_REQUEST_FINISHED));
+		assertThat(this.discovery.cancelRequest(this.userId, asked.id()).status()).isEqualTo(AiRequestStatus.DONE);
+
+		// Cancelled before Claude got to it: Claude can't start it any more
+		assertThat(this.discovery.cancelRequest(this.userId, check.id()).status()).isEqualTo(AiRequestStatus.CANCELLED);
+		assertThatThrownBy(() -> this.discovery.startRequest(this.userId, check.id())).isInstanceOf(BusinessRuleException.class);
+		assertThat(this.discovery.findOpenRequests(this.userId)).isEmpty();
+		assertThat(this.discovery.findRequests(this.userId, 10)).extracting(AiRequest::id).containsExactly(check.id(), asked.id());
+	}
+
+	@Test
+	void asksClaudeAboutOneOfTheProfilesJobs() {
+		long job = this.applications.create(NewApplication.builder()
+			.userId(this.userId)
+			.title("Backend engineer")
+			.initialStatus(ApplicationStatus.SAVED)
+			.initialStatusDate(LocalDate.now())
+			.build());
+		assertThat(this.discovery.findLatestRequest(this.userId, AiRequestKind.TAILOR_CV, job)).isEmpty();
+
+		AiRequest first = this.discovery.createRequest(this.userId, AiRequestKind.TAILOR_CV, job);
+		this.discovery.cancelRequest(this.userId, first.id());
+		AiRequest again = this.discovery.createRequest(this.userId, AiRequestKind.TAILOR_CV, job);
+
+		assertThat(again.applicationId()).isEqualTo(job);
+		assertThat(again.status()).isEqualTo(AiRequestStatus.WAITING);
+		assertThat(this.discovery.findLatestRequest(this.userId, AiRequestKind.TAILOR_CV, job)).contains(again);
+		assertThat(this.discovery.findLatestRequest(this.otherUserId, AiRequestKind.TAILOR_CV, job)).isEmpty();
+		assertThatExceptionOfType(ApplicationNotFoundException.class)
+			.isThrownBy(() -> this.discovery.createRequest(this.otherUserId, AiRequestKind.TAILOR_CV, job));
+		assertThatExceptionOfType(IllegalArgumentException.class)
+			.isThrownBy(() -> this.discovery.createRequest(this.userId, AiRequestKind.TAILOR_CV, AiRequirements.NONE));
+		assertThatExceptionOfType(IllegalArgumentException.class)
+			.isThrownBy(() -> this.discovery.createRequest(this.userId, AiRequestKind.FIND_JOBS, job));
+
+		// Deleting the job takes its requests with it
+		this.applications.delete(this.userId, job);
+		assertThat(this.discovery.findRequests(this.userId, 10)).isEmpty();
+	}
+
+	@Test
+	void keepsTheRequestsOfTheOtherPages() {
+		AiRequirements requirements = AiRequirements.builder()
+			.titles(List.of("Java Developer"))
+			.locations(List.of("Romania"))
+			.maxJobs(20)
+			.build();
+
+		AiRequest posts = this.discovery.createRequest(this.userId, AiRequestKind.FIND_HIRING_POSTS, requirements);
+		AiRequest recruiters = this.discovery.createRequest(this.userId, AiRequestKind.FIND_RECRUITERS, requirements);
+		this.discovery.createRequest(this.userId, AiRequestKind.AUTO_APPLY, AiRequirements.NONE);
+
+		assertThat(this.discovery.findOpenRequests(this.userId)).extracting(AiRequest::kind)
+			.containsExactly(AiRequestKind.FIND_HIRING_POSTS, AiRequestKind.FIND_RECRUITERS, AiRequestKind.AUTO_APPLY);
+		assertThat(recruiters.requirements()).isEqualTo(requirements);
+		assertThat(posts.applicationId()).isNull();
+	}
+
+	@Test
+	void addsJobsOnlyForTheProfilesOwnRequests() {
+		AiRequest someoneElses = this.discovery.createRequest(this.otherUserId, AiRequestKind.FIND_JOBS, AiRequirements.NONE);
+
+		assertThatExceptionOfType(AiRequestNotFoundException.class).isThrownBy(() -> this.discovery.addFoundJobs(this.userId,
+				List.of(job("Java Developer", "https://jobs.lever.co/acme/1", null, someoneElses.id()))));
+	}
+
+	private static NewFoundJob job(String title, String link, @Nullable Long searchId, long requestId) {
+		return NewFoundJob.builder()
+			.title(title)
+			.link(link)
+			.searchId(searchId)
+			.requestId(requestId)
+			.build();
 	}
 
 	private static NewFoundJob job(String title, String link, @Nullable Long searchId) {

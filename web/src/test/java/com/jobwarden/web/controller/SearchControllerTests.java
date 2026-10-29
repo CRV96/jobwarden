@@ -43,8 +43,13 @@ class SearchControllerTests {
 	void startsWithTheDefaultSites() {
 		assertThat(this.mvc.get().uri("/search")).hasStatusOk()
 			.bodyText()
-			.contains("(site:jobs.lever.co OR site:boards.greenhouse.io OR site:jobs.ashbyhq.com)", "5 / 32 words",
-					"id=\"platform-GOOGLE\" value=\"GOOGLE\" checked")
+			.contains("name=\"sites\" value=\"jobs.lever.co\"", "name=\"platform\" value=\"GOOGLE\"")
+			// They're in the Google query once there's something to search for
+			.contains("Your queries show here");
+		assertThat(this.mvc.get().uri("/search?titles=Java Developer")).bodyText()
+			.contains("<span class=\"q-paren\">(</span><span class=\"q-field\">site:jobs.lever.co</span>",
+					"<span class=\"q-operator\">OR</span>", "<span class=\"q-phrase\">&quot;Java Developer&quot;</span>",
+					" / 32 words")
 			// The other job boards, to add with a click
 			.contains("data-value=\"apply.workable.com\">");
 	}
@@ -57,23 +62,35 @@ class SearchControllerTests {
 			.hasStatusOk()
 			.bodyText()
 			// A location with a comma stays one
-			.contains("value=\"Cluj-Napoca, Romania\"",
-					"&quot;Java Developer&quot; AND remote AND &quot;Cluj-Napoca, Romania&quot; NOT junior NOT &quot;team lead&quot;",
-					"f_TPR=r604800", "id=\"platform-LINKEDIN\" value=\"LINKEDIN\" checked");
+			.contains("value=\"Cluj-Napoca, Romania\"", "<span class=\"q-phrase\">&quot;Cluj-Napoca, Romania&quot;</span>",
+					"<span class=\"q-operator\">NOT</span>", "<span class=\"q-phrase\">&quot;team lead&quot;</span>",
+					"f_TPR=r604800", "name=\"platform\" value=\"LINKEDIN\"")
+			// Every platform's query at once
+			.contains("id=\"query-GOOGLE\"", "id=\"query-LINKEDIN\"", "id=\"query-REDDIT\"", "id=\"query-X\"",
+					"id=\"query-REMOTE_BOARDS\"")
+			.doesNotContain("Your queries show here");
 	}
 
 	@Test
 	void keepsNoSitesOnceTheyAreRemoved() {
 		// The page always sends the platform: without sites, the Google query has none
 		assertThat(this.mvc.get().uri("/search?titles=QA Engineer&platform=GOOGLE")).bodyText()
-			.contains("<pre class=\"query-box\">&quot;QA Engineer&quot;</pre>");
+			.contains("<pre class=\"query-box min-h-0\"><span class=\"q-phrase\">&quot;QA Engineer&quot;</span></pre>")
+			.doesNotContain("site:jobs.lever.co");
 	}
 
 	@Test
 	void ignoresValuesItDoesNotKnow() {
 		assertThat(this.mvc.get().uri("/search?workTypes=ON_MARS&recency=FOREVER&platform=MYSPACE")).hasStatusOk()
 			.bodyText()
-			.contains("id=\"platform-GOOGLE\" value=\"GOOGLE\" checked", "name=\"recency\" value=\"ANY\" checked");
+			.contains("name=\"platform\" value=\"GOOGLE\"", "name=\"recency\" value=\"ANY\" checked");
+	}
+
+	@Test
+	void saysWhereTheQueriesGoWhenThereAreNone() {
+		assertThat(this.mvc.get().uri("/search?locations=Europe&workTypes=REMOTE&platform=GOOGLE")).bodyText()
+			.contains("Your queries show here")
+			.doesNotContain("id=\"query-GOOGLE\"");
 	}
 
 	@Test
@@ -82,7 +99,8 @@ class SearchControllerTests {
 			.hasStatusOk()
 			.bodyText()
 			.startsWith("<div id=\"search-output\"")
-			.contains("&quot;Data Engineer&quot; -filter:retweets", "https://x.com/search?q=")
+			.contains("<span class=\"q-phrase\">&quot;Data Engineer&quot;</span>", "<span class=\"q-exclude\">-filter:retweets</span>",
+					"https://x.com/search?q=")
 			.doesNotContain("<html", "data-tag-field");
 	}
 
@@ -93,17 +111,17 @@ class SearchControllerTests {
 			.header("HX-Request", "true"))
 			.hasStatusOk()
 			.bodyText()
-			// The whole form, for HTMX to swap
-			.contains("id=\"boolean-search\"", "value=\"Backend Engineer\"", "value=\"Europe\"",
+			// The whole page: HTMX swaps the filters, and the queries out of band
+			.contains("id=\"boolean-search\"", "id=\"search-output\"", "value=\"Backend Engineer\"", "value=\"Europe\"",
 					"name=\"workTypes\" value=\"REMOTE\" checked", "value=\"junior\"",
-					"site:apply.workable.com &quot;Backend Engineer&quot; senior remote Europe -junior")
+					"<span class=\"q-field\">site:apply.workable.com</span>", "<span class=\"q-exclude\">-junior</span>")
 			.doesNotContain("site:jobs.lever.co");
 	}
 
 	@Test
 	void speaksTheRequestsLanguage() {
-		assertThat(this.mvc.get().uri("/search").header(HttpHeaders.ACCEPT_LANGUAGE, "ro")).bodyText()
-			.contains("Generator de căutări booleene", "Cuvinte: 5 / 32", "Site-uri de joburi remote");
+		assertThat(this.mvc.get().uri("/search?titles=Java Developer").header(HttpHeaders.ACCEPT_LANGUAGE, "ro")).bodyText()
+			.contains("Constructor de căutări", "Cuvinte: ", "Site-uri de joburi remote");
 	}
 
 }

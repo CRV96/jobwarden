@@ -1,6 +1,7 @@
 package com.jobwarden.mcp.controller;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -70,6 +71,15 @@ record ToolCall(JsonNode arguments, @Nullable Long profileHeader) {
 		}
 	}
 
+	@Nullable LocalTime time(String name) {
+		String value = string(name);
+		try {
+			return (value == null) ? null : LocalTime.parse(value);
+		} catch (DateTimeParseException notATime) {
+			throw new ToolException(name + " must be a time of day as HH:MM");
+		}
+	}
+
 	<E extends Enum<E>> @Nullable E constant(String name, Class<E> type) {
 		String value = string(name);
 		return (value == null) ? null : constant(name, value, type);
@@ -105,6 +115,33 @@ record ToolCall(JsonNode arguments, @Nullable Long profileHeader) {
 		List<JsonNode> objects = new ArrayList<>();
 		value.forEach(objects::add);
 		return objects;
+	}
+
+	/**
+	 * An object, read with the same helpers.
+	 */
+	ToolCall requiredObject(String name) {
+		JsonNode value = this.arguments.get(name);
+		if (value == null || !value.isObject()) {
+			throw new ToolException(name + " is required, as an object");
+		}
+		return new ToolCall(value, this.profileHeader);
+	}
+
+	/**
+	 * A list of objects that may be missing or empty, each read with the same helpers.
+	 */
+	List<ToolCall> items(String name) {
+		JsonNode value = this.arguments.get(name);
+		if (value == null || value.isNull()) {
+			return List.of();
+		}
+		if (!value.isArray()) {
+			throw new ToolException(name + " must be a list");
+		}
+		List<ToolCall> items = new ArrayList<>();
+		value.forEach(item -> items.add(item(item)));
+		return items;
 	}
 
 	/** One item of a list of objects, read with the same helpers. */

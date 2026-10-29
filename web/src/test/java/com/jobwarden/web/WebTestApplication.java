@@ -1,8 +1,10 @@
 package com.jobwarden.web;
 
+import com.jobwarden.web.view.CountryNames;
 import com.jobwarden.web.view.Dates;
 import com.jobwarden.web.view.Money;
 import com.jobwarden.web.view.Names;
+import com.jobwarden.web.view.QuerySyntax;
 import com.jobwarden.web.view.Sharing;
 
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -16,7 +18,7 @@ import org.springframework.context.annotation.Import;
  * call are imported here, for every web test.
  */
 @SpringBootApplication
-@Import({ Dates.class, Money.class, Names.class, Sharing.class })
+@Import({ CountryNames.class, Dates.class, Money.class, Names.class, QuerySyntax.class, Sharing.class })
 class WebTestApplication {
 
 }

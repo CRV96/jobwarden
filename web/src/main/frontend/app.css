@@ -117,6 +117,29 @@
 }
 
 @layer components {
+	/* A page that fills the window from 1024 pixels wide, its panels scrolling each on their own: the window's height
+	   less the layout's padding above and below the page */
+	@media (width >= 64rem) {
+		.page-full {
+			height: calc(100dvh - 3rem);
+		}
+	}
+
+	/* The same from 1280 pixels wide, for a page of two panels side by side, too narrow for both below that */
+	@media (width >= 80rem) {
+		.page-split {
+			height: calc(100dvh - 3rem);
+		}
+	}
+
+	/* A column of cards on such a page, scrolling on its own when the page is as tall as the window, with room around
+	   for the cards' outlines and for the scroll bar on the right */
+	.scroll-panel {
+		margin: -2px -10px -2px -2px;
+		padding: 2px 10px 2px 2px;
+		overflow-y: auto;
+	}
+
 	/* — Text — */
 	.page-title {
 		font-size: 28px;
@@ -304,12 +327,14 @@
 		pointer-events: none;
 	}
 
-	.seg-opt:has(input:checked) {
+	/* Its options are radio buttons, or links to the option's page (the current one aria-current) */
+	.seg-opt:has(input:checked),
+	.seg-opt[aria-current] {
 		background: var(--jw-control-on);
 		box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.12), 0 1px 3px rgb(0 0 0 / 0.15);
 	}
 
-	.seg-opt:not(:has(input:checked)):hover {
+	.seg-opt:not(:has(input:checked), [aria-current]):hover {
 		background: color-mix(in srgb, var(--jw-ink) 7%, transparent);
 	}
 
@@ -521,6 +546,14 @@
 		min-width: 820px;
 		border-collapse: collapse;
 		table-layout: fixed;
+	}
+
+	/* Stays at the top while the rows scroll under it. The row's rule is painted above this background. */
+	.jobs-table thead {
+		position: sticky;
+		top: 0;
+		z-index: 1;
+		background: var(--jw-canvas);
 	}
 
 	.jobs-table th {
@@ -759,6 +792,45 @@
 		box-shadow: inset 0 0 0 0.5px var(--jw-line);
 	}
 
+	/* A query's parts, coloured by what they do (QuerySyntax), on the box's dark ground in both themes */
+	.query-box .q-operator {
+		color: #64b0ff;
+		font-weight: 600;
+	}
+
+	.query-box .q-field {
+		color: #7ddc96;
+	}
+
+	.query-box .q-phrase {
+		color: #ffd479;
+	}
+
+	.query-box .q-exclude {
+		color: #ff8f85;
+	}
+
+	.query-box .q-paren {
+		color: rgb(255 255 255 / 0.5);
+	}
+
+	/* A heading of the search page's filters: the group's icon and name */
+	.search-section-title {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		color: color-mix(in srgb, var(--jw-ink) 60%, transparent);
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	.search-section-title .ph {
+		color: var(--jw-accent);
+		font-size: 14px;
+	}
+
 	/* — The salaries page's charts: thin marks on hairline gridlines, one colour for the one series — */
 	.salary-chart {
 		display: grid;
@@ -875,6 +947,93 @@
 
 	.salary-axis > span.is-last {
 		translate: -100% 0;
+	}
+
+	/* The market salaries' chart: in each country's row, a lane per source, each in its own colour. A bar is the middle
+	   half of the salaries with a tick at the median; a diamond is a mean; the dashed line the profile's own median. */
+	.market-plot {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		gap: 4px;
+		padding: 3px 0;
+	}
+
+	.market-lane {
+		position: relative;
+		height: 10px;
+	}
+
+	.salary-mark.is-stack_overflow,
+	.market-key.is-stack_overflow {
+		--source: var(--jw-blue);
+	}
+
+	.salary-mark.is-adzuna,
+	.market-key.is-adzuna {
+		--source: var(--jw-green);
+	}
+
+	.salary-mark.is-eurostat,
+	.market-key.is-eurostat {
+		--source: var(--jw-purple);
+	}
+
+	.market-plot .salary-mark {
+		height: 8px;
+		background: var(--source, var(--jw-accent));
+	}
+
+	.market-plot .salary-mark:hover {
+		background: color-mix(in srgb, var(--source, var(--jw-accent)) 80%, var(--jw-ink));
+	}
+
+	.market-plot .salary-mark.is-point {
+		width: 10px;
+		height: 10px;
+		border-radius: 2px;
+		rotate: 45deg;
+	}
+
+	.market-plot .salary-mark.is-point .chart-tip {
+		rotate: -45deg;
+	}
+
+	.market-median {
+		position: absolute;
+		top: -2px;
+		bottom: -2px;
+		left: var(--median, 50%);
+		width: 2px;
+		translate: -1px 0;
+		background: var(--jw-surface);
+	}
+
+	.market-mine {
+		position: absolute;
+		z-index: 1;
+		top: -7px;
+		bottom: -7px;
+		left: var(--at);
+		border-left: 1.5px dashed color-mix(in srgb, var(--jw-ink) 55%, transparent);
+		pointer-events: none;
+	}
+
+	.market-key {
+		display: inline-block;
+		width: 10px;
+		height: 8px;
+		flex: none;
+		border-radius: 3px;
+		background: var(--source, var(--jw-accent));
+	}
+
+	.market-key.is-mine {
+		width: 0;
+		height: 12px;
+		border-left: 1.5px dashed color-mix(in srgb, var(--jw-ink) 55%, transparent);
+		border-radius: 0;
+		background: none;
 	}
 
 	/* A bar from the baseline: square there, rounded at the value's end */
@@ -1022,9 +1181,11 @@
 	}
 
 	/* — Dialogs, the side panel and menus — */
+	/* In the middle of the window: Tailwind's reset takes away the browser's margin: auto that puts it there */
 	.dialog {
 		display: none;
 		width: min(440px, calc(100% - 32px));
+		margin: auto;
 		flex-direction: column;
 		gap: 12px;
 		padding: 16px;
@@ -1132,6 +1293,214 @@
 		height: 0.5px;
 		margin: 2px 8px;
 		background: var(--jw-line);
+	}
+
+	/* A preset of the AI Assistant page: a big button, with an icon, a name and what it does */
+	.ai-preset {
+		display: flex;
+		align-items: flex-start;
+		gap: 10px;
+		padding: 10px 12px;
+		border: 0;
+		border-radius: 10px;
+		background: var(--jw-control);
+		box-shadow: var(--jw-shadow-sm);
+		color: inherit;
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.ai-preset:hover:not(:disabled) {
+		background: var(--jw-accent-tint);
+	}
+
+	.ai-preset:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	/* An entry on the calendar: an application's event or date on a day, tinted with its status's colour (st-*) */
+	.calendar-entry {
+		display: flex;
+		min-width: 0;
+		align-items: center;
+		gap: 4px;
+		padding: 2px 5px;
+		border: 0;
+		border-radius: 5px;
+		background: color-mix(in srgb, var(--st, var(--jw-gray)) 13%, transparent);
+		font-size: 11.5px;
+		line-height: 1.35;
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.calendar-entry:hover,
+	.calendar-entry.is-open {
+		background: color-mix(in srgb, var(--st, var(--jw-gray)) 26%, transparent);
+	}
+
+	.calendar-icon {
+		color: var(--st, currentColor);
+	}
+
+	/* The calendar's week and day: a column for the hours' labels, then one per day, never narrower than its text can be
+	   read at. One box scrolls both ways; the days above the hours stay at its top, the hours' labels at its left. */
+	.time-grid {
+		--hour: 68px;
+		--day-min: 7.5rem;
+		--gutter: 3.5rem;
+	}
+
+	.time-grid.is-day {
+		--hour: 84px;
+		--day-min: 14rem;
+	}
+
+	.time-grid-inner {
+		min-width: calc(var(--gutter) + var(--days) * var(--day-min));
+	}
+
+	.time-grid-row {
+		display: grid;
+		grid-template-columns: var(--gutter) repeat(var(--days), minmax(var(--day-min), 1fr));
+	}
+
+	.time-grid-top {
+		position: sticky;
+		z-index: 3;
+		top: 0;
+		background: var(--jw-surface);
+	}
+
+	.time-gutter {
+		position: sticky;
+		z-index: 2;
+		left: 0;
+		background: var(--jw-surface);
+	}
+
+	.time-grid-body {
+		height: calc(24 * var(--hour));
+	}
+
+	/* A line every hour, and a fainter one at each half */
+	.time-day {
+		position: relative;
+		border-left: 1px solid var(--jw-line);
+		background-image: linear-gradient(to bottom, var(--jw-line) 1px, transparent 1px),
+			linear-gradient(to bottom, color-mix(in srgb, var(--jw-line) 45%, transparent) 1px, transparent 1px);
+		background-position: 0 0, 0 calc(var(--hour) / 2);
+		background-size: 100% var(--hour);
+	}
+
+	.time-day.is-today {
+		background-color: color-mix(in srgb, var(--jw-accent) 4%, transparent);
+	}
+
+	.time-hour {
+		position: absolute;
+		top: calc(var(--at) * var(--hour));
+		right: 8px;
+		translate: 0 -50%;
+		color: color-mix(in srgb, var(--jw-ink) 55%, transparent);
+		font-size: 12px;
+		font-variant-numeric: tabular-nums;
+	}
+
+	/* An entry at its time, as long as it lasts, side by side with those it overlaps. Its text wraps, as much of it as
+	   the entry has room for. */
+	.calendar-entry.time-event {
+		position: absolute;
+		top: calc(var(--start) / 60 * var(--hour) + 1px);
+		left: calc(var(--lane) / var(--lanes) * 100% + 2px);
+		display: block;
+		width: calc(100% / var(--lanes) - 4px);
+		height: max(calc(var(--length) / 60 * var(--hour) - 2px), 24px);
+		padding: 3px 6px 3px 5px;
+		overflow: hidden;
+		border-left: 3px solid var(--st, var(--jw-gray));
+		border-radius: 4px;
+		background: color-mix(in srgb, var(--st, var(--jw-gray)) 16%, var(--jw-surface));
+		font-size: 12.5px;
+		line-height: 1.3;
+		overflow-wrap: break-word;
+	}
+
+	/* Opaque, so one grown over another stays readable */
+	.calendar-entry.time-event:hover,
+	.calendar-entry.time-event:focus-visible {
+		background: color-mix(in srgb, var(--st, var(--jw-gray)) 28%, var(--jw-surface));
+	}
+
+	/* What overlaps the entry in a day of the week: a badge on its top right corner */
+	.calendar-entry.time-event.is-badge {
+		right: 4px;
+		left: auto;
+		width: auto;
+		height: auto;
+		min-width: 28px;
+		padding: 1px 7px;
+		border-left: 0;
+		border-radius: 999px;
+		background: var(--jw-control-on);
+		box-shadow: var(--jw-shadow-sm);
+		font-size: 11.5px;
+		text-align: center;
+		z-index: 2;
+	}
+
+	.time-grid.is-day .calendar-entry.time-event {
+		padding: 4px 8px 4px 7px;
+		font-size: 14px;
+	}
+
+	.time-event-when {
+		margin-right: 4px;
+		color: color-mix(in srgb, var(--jw-ink) 65%, transparent);
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
+	}
+
+	.time-event-when .ph {
+		margin-right: 3px;
+		vertical-align: -1px;
+	}
+
+	.calendar-entry.time-event:hover,
+	.calendar-entry.time-event.is-open {
+		z-index: 1;
+	}
+
+	/* Pointed at, an entry too short for its text grows to show all of it, over what's below */
+	.calendar-entry.time-event:not(.is-badge):is(:hover, :focus-visible) {
+		z-index: 3;
+		height: auto;
+		min-height: max(calc(var(--length) / 60 * var(--hour) - 2px), 24px);
+		box-shadow: var(--jw-shadow-md);
+	}
+
+	/* Now, on today's column: a line with a dot */
+	.time-now {
+		position: absolute;
+		z-index: 2;
+		top: calc(var(--start) / 60 * var(--hour));
+		right: 0;
+		left: 0;
+		border-top: 2px solid var(--jw-red);
+		pointer-events: none;
+	}
+
+	.time-now::before {
+		position: absolute;
+		top: -5px;
+		left: -4px;
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: var(--jw-red);
+		content: "";
 	}
 }
 

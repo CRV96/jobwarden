@@ -33,4 +33,12 @@ public enum ApplicationStatus {
 		return this == REJECTED;
 	}
 
+	/**
+	 * Whether events with this status can say how and where the interview takes place ({@link InterviewFormat}, a
+	 * location or a meeting link, a duration): only an interview can.
+	 */
+	public boolean hasInterviewDetails() {
+		return this == INTERVIEWING;
+	}
+
 }

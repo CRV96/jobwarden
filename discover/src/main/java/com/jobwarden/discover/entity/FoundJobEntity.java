@@ -32,6 +32,8 @@ public class FoundJobEntity {
 
 	private @Nullable Long savedSearchId;
 
+	private @Nullable Long aiRequestId;
+
 	private @Nullable String searchLabel;
 
 	private String title;
@@ -69,6 +71,7 @@ public class FoundJobEntity {
 	public FoundJobEntity(long userId, NewFoundJob job, String link, @Nullable String source) {
 		this.userId = userId;
 		this.savedSearchId = job.searchId();
+		this.aiRequestId = job.requestId();
 		this.searchLabel = job.searchLabel();
 		this.title = job.title().strip();
 		this.company = job.company();

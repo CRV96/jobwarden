@@ -1,5 +1,11 @@
 package com.jobwarden.web.controller;
 
+import java.io.IOException;
+import java.io.Reader;
+import java.io.StringWriter;
+import java.io.Writer;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -16,13 +22,20 @@ import com.jobwarden.identity.service.UserService;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.ApplicationQuery;
 import com.jobwarden.jobs.dto.ApplicationSummary;
+import com.jobwarden.jobs.dto.CsvImport;
+import com.jobwarden.jobs.dto.CsvImportProblem;
+import com.jobwarden.jobs.dto.FollowUp;
 import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
 import com.jobwarden.jobs.dto.TimelineEvent;
+import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.ApplicationSort;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.CsvProblem;
+import com.jobwarden.jobs.enums.InterviewFormat;
 import com.jobwarden.jobs.enums.RejectionReason;
 import com.jobwarden.jobs.exception.JobsErrorCode;
+import com.jobwarden.jobs.service.ApplicationCsvService;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.web.user.CurrentUser;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +48,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
@@ -45,6 +59,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -97,6 +112,9 @@ class ApplicationControllerTests {
 
 	@MockitoBean
 	private ApplicationService applications;
+
+	@MockitoBean
+	private ApplicationCsvService csv;
 
 	@MockitoBean
 	private DiscoveryService discovery;
@@ -155,6 +173,38 @@ class ApplicationControllerTests {
 			.size(50)
 			.build();
 		then(this.applications).should().find(1, expected);
+	}
+
+	@Test
+	void marksTheJobsClaudeAppliedTo() {
+		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of(ApplicationSummary.builder()
+			.id(8)
+			.title("Data engineer")
+			.status(ApplicationStatus.APPLIED)
+			.appliedBy(AppliedBy.CLAUDE)
+			.capturedAt(Instant.now())
+			.build(), SUMMARY)));
+		given(this.applications.countByStatus(1, null)).willReturn(counts(ApplicationStatus.APPLIED, 2));
+
+		assertThat(this.mvc.get().uri("/applications")).bodyText()
+			.containsOnlyOnce("title=\"Claude applied to it for you, from the Auto-apply page\"");
+	}
+
+	@Test
+	void marksTheJobsTheExtensionAppliedTo() {
+		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of(ApplicationSummary.builder()
+			.id(8)
+			.title("Data engineer")
+			.status(ApplicationStatus.APPLIED)
+			.appliedBy(AppliedBy.EXTENSION)
+			.capturedAt(Instant.now())
+			.build(), SUMMARY)));
+		given(this.applications.countByStatus(1, null)).willReturn(counts(ApplicationStatus.APPLIED, 2));
+
+		assertThat(this.mvc.get().uri("/applications")).bodyText()
+			.containsOnlyOnce("title=\"The extension’s Easy Apply run sent it on LinkedIn\"")
+			.contains("ph-puzzle-piece")
+			.doesNotContain("Claude applied to it for you");
 	}
 
 	@Test
@@ -309,6 +359,102 @@ class ApplicationControllerTests {
 			.stageLabel("Final call")
 			.build();
 		then(this.applications).should().addEvent(1, 7, expected);
+	}
+
+	@Test
+	void addsAnInterviewWithHowWhereAndHowLong() {
+		assertThat(this.mvc.post()
+			.uri("/applications/7/events")
+			.param("eventDate", "2026-10-30")
+			.param("eventTime", "14:00")
+			.param("stageCategory", "INTERVIEWING")
+			.param("stageLabel", "Technical interview")
+			.param("interviewFormat", "VIDEO")
+			.param("interviewLocation", " https://meet.example.com/abc ")
+			.param("durationMinutes", "45")).hasStatusOk();
+		NewTimelineEvent expected = NewTimelineEvent.builder()
+			.eventDate(LocalDate.of(2026, 10, 30))
+			.eventTime(LocalTime.of(14, 0))
+			.stageCategory(ApplicationStatus.INTERVIEWING)
+			.stageLabel("Technical interview")
+			.interviewFormat(InterviewFormat.VIDEO)
+			.interviewLocation("https://meet.example.com/abc")
+			.durationMinutes(45)
+			.build();
+		then(this.applications).should().addEvent(1, 7, expected);
+	}
+
+	@Test
+	void leavesTheInterviewDetailsOutOfAnotherStatus() {
+		assertThat(this.mvc.post()
+			.uri("/applications/7/events")
+			.param("eventDate", "2026-10-30")
+			.param("stageCategory", "OFFER")
+			.param("interviewFormat", "ON_SITE")
+			.param("interviewLocation", "Head office")
+			.param("durationMinutes", "30")).hasStatusOk();
+
+		ArgumentCaptor<NewTimelineEvent> event = ArgumentCaptor.captor();
+		then(this.applications).should().addEvent(eq(1L), eq(7L), event.capture());
+		assertThat(event.getValue().interviewFormat()).isNull();
+		assertThat(event.getValue().interviewLocation()).isNull();
+		assertThat(event.getValue().durationMinutes()).isNull();
+	}
+
+	@Test
+	void showsAnInterviewsDetailsAndWhoToFollowUpWith() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(ApplicationDetails.builder()
+			.id(7)
+			.title("Backend engineer")
+			.status(ApplicationStatus.INTERVIEWING)
+			.capturedAt(APPLICATION.capturedAt())
+			.followUp(FollowUp.builder().contactName("Ana Popescu").contactEmail("ana@acme.example").build())
+			.timeline(List.of(TimelineEvent.builder()
+				.id(1)
+				.eventDate(LocalDate.of(2026, 10, 30))
+				.eventTime(LocalTime.of(14, 0))
+				.stageCategory(ApplicationStatus.INTERVIEWING)
+				.interviewFormat(InterviewFormat.VIDEO)
+				.interviewLocation("https://meet.example.com/abc")
+				.durationMinutes(45)
+				.build()))
+			.build()));
+
+		assertThat(this.mvc.get().uri("/applications/7")).hasStatusOk()
+			.bodyText()
+			.contains("Video call", "45 min", "href=\"https://meet.example.com/abc\"", "value=\"Ana Popescu\"",
+					"href=\"mailto:ana@acme.example\"");
+	}
+
+	@Test
+	void savesWhoToFollowUpWithAndWhen() {
+		assertThat(this.mvc.put()
+			.uri("/applications/7/follow-up")
+			.param("contactName", " Ana Popescu ")
+			.param("contactRole", "Recruiter")
+			.param("contactEmail", "ana@acme.example")
+			.param("contactPhone", "")
+			.param("contactLink", "")
+			.param("referredBy", "")
+			.param("deadline", "2026-11-15")
+			.param("followUpOn", "")).hasStatusOk()
+			.bodyText()
+			.contains("Saved");
+		then(this.applications).should().updateFollowUp(1, 7, FollowUp.builder()
+			.contactName("Ana Popescu")
+			.contactRole("Recruiter")
+			.contactEmail("ana@acme.example")
+			.deadline(LocalDate.of(2026, 11, 15))
+			.build());
+	}
+
+	@Test
+	void keepsAFollowUpWithAnInvalidEmailAndSaysWhy() {
+		assertThat(this.mvc.put().uri("/applications/7/follow-up").param("contactEmail", "ana at acme")).hasStatusOk()
+			.bodyText()
+			.contains("That isn’t an email address.")
+			.doesNotContain("Saved");
+		then(this.applications).should(never()).updateFollowUp(anyLong(), anyLong(), any());
 	}
 
 	@Test
@@ -521,6 +667,60 @@ class ApplicationControllerTests {
 			.headers()
 			.hasValue("HX-Refresh", "true");
 		then(this.applications).should().deleteAll(1, List.of(7L, 8L));
+	}
+
+	@Test
+	void downloadsEveryJobAsACsvFile() throws IOException {
+		willAnswer(call -> call.getArgument(1, Writer.class).append("\uFEFFtitle\r\nBackend engineer\r\n"))
+			.given(this.csv).export(eq(1L), any());
+
+		assertThat(this.mvc.get().uri("/applications/export")).hasStatusOk()
+			.hasContentType("text/csv;charset=UTF-8")
+			.hasBodyTextEqualTo("\uFEFFtitle\r\nBackend engineer\r\n")
+			.headers()
+			.hasValue("Content-Disposition", "attachment; filename=\"jobwarden-jobs-%1$s.csv\"; filename*=UTF-8''jobwarden-jobs-%1$s.csv"
+				.formatted(LocalDate.now()));
+	}
+
+	@Test
+	void importsACsvFileAndGoesBackToTheSettingsWithHowItWent() throws IOException {
+		CsvImport done = new CsvImport(2, 1, List.of(new CsvImportProblem(4, CsvProblem.NO_TITLE, null),
+				new CsvImportProblem(5, CsvProblem.UNKNOWN_STATUS, "Pending")));
+		given(this.csv.importCsv(eq(1L), any())).willReturn(done);
+		MockMultipartFile file = new MockMultipartFile("file", "jobs.csv", "text/csv",
+				"title\nBackend engineer\n".getBytes(StandardCharsets.UTF_8));
+
+		assertThat(this.mvc.post().multipart().uri("/applications/import").file(file))
+			.hasRedirectedUrl("/settings#jobs-data")
+			.flash()
+			.containsEntry("csvImport", done);
+	}
+
+	@Test
+	void readsAFileSavedInWindows1252AsExcelDoes() throws IOException {
+		given(this.csv.importCsv(eq(1L), any())).willReturn(new CsvImport(1, 0, List.of()));
+		MockMultipartFile file = new MockMultipartFile("file", "jobs.csv", "text/csv",
+				"title,location\nBackend engineer,Zürich\n".getBytes(Charset.forName("windows-1252")));
+
+		this.mvc.post().multipart().uri("/applications/import").file(file).exchange();
+
+		ArgumentCaptor<Reader> read = ArgumentCaptor.forClass(Reader.class);
+		then(this.csv).should().importCsv(eq(1L), read.capture());
+		StringWriter text = new StringWriter();
+		read.getValue().transferTo(text);
+		assertThat(text.toString()).isEqualTo("title,location\nBackend engineer,Zürich\n");
+	}
+
+	@Test
+	void saysWhyAFileWasntImported() throws IOException {
+		willThrow(new BusinessRuleException(JobsErrorCode.CSV_WITHOUT_TITLE_COLUMN, "No title column")).given(this.csv)
+			.importCsv(eq(1L), any());
+		MockMultipartFile file = new MockMultipartFile("file", "jobs.csv", "text/csv", "name\nX\n".getBytes());
+
+		assertThat(this.mvc.post().multipart().uri("/applications/import").file(file))
+			.hasRedirectedUrl("/settings#jobs-data")
+			.flash()
+			.containsEntry("csvImportError", "The file has no title column. Its first row must name the columns, e.g. title, company, status.");
 	}
 
 	private static Map<ApplicationStatus, Long> counts(ApplicationStatus status, long count) {

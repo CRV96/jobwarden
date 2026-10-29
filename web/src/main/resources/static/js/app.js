@@ -32,6 +32,10 @@ document.addEventListener('DOMContentLoaded', () => {
 	for (const choice of document.querySelectorAll('[data-theme-choice]')) {
 		choice.checked = choice.value === document.documentElement.dataset.theme;
 	}
+	// data-dismissible="<key>": a notice the user hid stays hidden, e.g. the one for a version, until there's another
+	for (const notice of document.querySelectorAll('[data-dismissible]')) {
+		notice.hidden = preferences.get(`hidden.${notice.dataset.dismissible}`) === 'true';
+	}
 });
 
 document.addEventListener('click', (event) => {
@@ -154,6 +158,23 @@ document.addEventListener('click', (event) => {
 		return;
 	}
 
+	// data-unclamp: shows the whole of the text next to it (data-clamped), cut after a few lines
+	const unclamper = target.closest('[data-unclamp]');
+	if (unclamper) {
+		unclamper.parentElement.querySelector('[data-clamped]')?.classList.remove('line-clamp-[8]');
+		unclamper.hidden = true;
+		return;
+	}
+
+	// data-dismiss: hides the data-dismissible notice it's in, for good
+	const dismisser = target.closest('[data-dismiss]');
+	if (dismisser) {
+		const notice = dismisser.closest('[data-dismissible]');
+		preferences.set(`hidden.${notice.dataset.dismissible}`, 'true');
+		notice.hidden = true;
+		return;
+	}
+
 	// data-copy-text: copies the text, and says so for a moment
 	const copier = target.closest('[data-copy-text]');
 	if (copier) {
@@ -165,6 +186,30 @@ document.addEventListener('click', (event) => {
 				copier.querySelector('[data-copy-done]').hidden = true;
 			}, 1500);
 		});
+		return;
+	}
+
+	// data-add-row="<list>": adds a blank row to that list of the CV page, from its <template data-row-template>
+	const rowAdder = target.closest('[data-add-row]');
+	if (rowAdder) {
+		const rows = document.querySelector(`[data-rows="${rowAdder.dataset.addRow}"]`);
+		const template = document.querySelector(`template[data-row-template="${rowAdder.dataset.addRow}"]`);
+		if (rows && template) {
+			rows.append(template.content.cloneNode(true));
+			numberRows(rows);
+			rows.lastElementChild?.querySelector('input, textarea')?.focus();
+		}
+		return;
+	}
+
+	// data-remove-row: removes the row it's in
+	const rowRemover = target.closest('[data-remove-row]');
+	if (rowRemover) {
+		const rows = rowRemover.closest('[data-rows]');
+		rowRemover.closest('[data-row]')?.remove();
+		if (rows) {
+			numberRows(rows);
+		}
 		return;
 	}
 
@@ -200,9 +245,30 @@ async function copyText(text) {
 	}
 }
 
+/**
+ * Numbers the fields of a list's rows from 0, in their order: experience[0].role, experience[1].role... The server
+ * binds them by number, so a removed row mustn't leave a gap.
+ */
+function numberRows(rows) {
+	[...rows.querySelectorAll('[data-row]')].forEach((row, index) => {
+		for (const field of row.querySelectorAll('[name]')) {
+			field.name = field.name.replace(/\[(\d+|i)\]/, `[${index}]`);
+		}
+	});
+}
+
 document.addEventListener('change', (event) => {
 	const target = event.target;
 	if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) {
+		return;
+	}
+
+	// data-max-bytes: a file field that refuses a file larger than that before it's sent, with the field's
+	// data-too-large message
+	if (target.matches('input[type="file"][data-max-bytes]')) {
+		const file = target.files?.[0];
+		target.setCustomValidity(file && file.size > Number(target.dataset.maxBytes) ? target.dataset.tooLarge ?? '' : '');
+		target.reportValidity();
 		return;
 	}
 
@@ -624,6 +690,48 @@ document.addEventListener('keydown', (event) => {
 		decide(button);
 	}
 });
+
+/**
+ * The calendar's month, on a screen it fills: each day shows the entries its cell has room for, and a link to the day
+ * with how many more there are (data-more, its data-message has {0}). Again whenever the cells change size: the window,
+ * the sidebar folding, the side panel.
+ */
+function fitCalendarDays() {
+	for (const day of document.querySelectorAll('[data-day-entries]')) {
+		const entries = [...day.querySelectorAll('.calendar-entry')];
+		const more = day.querySelector('[data-more]');
+		entries.forEach((entry) => {
+			entry.hidden = false;
+		});
+		more.hidden = true;
+		let hiddenCount = 0;
+		while (day.scrollHeight > day.clientHeight + 1 && hiddenCount < entries.length) {
+			hiddenCount++;
+			entries[entries.length - hiddenCount].hidden = true;
+			more.hidden = false;
+			more.textContent = fill(more.dataset.message, hiddenCount);
+		}
+	}
+}
+
+const calendarResizes = new ResizeObserver(() => requestAnimationFrame(fitCalendarDays));
+
+/**
+ * The calendar's week and day: the hours start at the one its data-scroll-to says (a minute of the day), and the month
+ * fits its days to its cells.
+ */
+function showCalendar() {
+	for (const grid of document.querySelectorAll('[data-calendar-fit]')) {
+		calendarResizes.observe(grid);
+	}
+	for (const hours of document.querySelectorAll('[data-time-scroll]:not([data-scrolled])')) {
+		const hour = parseFloat(getComputedStyle(hours).getPropertyValue('--hour')) || 52;
+		hours.scrollTop = (Number(hours.dataset.scrollTo) / 60) * hour;
+		hours.dataset.scrolled = '';
+	}
+}
+document.addEventListener('DOMContentLoaded', showCalendar);
+document.addEventListener('htmx:afterSettle', showCalendar);
 
 // data-close-dialog-on-success: a form in a dialog that closes it once HTMX has sent it, e.g. saving a search
 document.addEventListener('htmx:afterRequest', (event) => {

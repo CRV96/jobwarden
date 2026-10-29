@@ -10,6 +10,21 @@
 <span th:fragment="status-badge(status)" class="tag" th:classappend="|st-${#strings.toLowerCase(status.name())}|"
       th:text="#{${'status.' + status}}">Applied</span>
 
+<!--/* For a job Claude applied to from the Auto-apply page (appliedBy is CLAUDE), or the extension's Easy Apply run
+       (EXTENSION): next to its Applied status, as a tag, or where there's little room, as an icon. Nothing for one
+       the profile applied to itself. */-->
+<span th:fragment="applied-by(appliedBy)" class="tag text-accent" th:if="${appliedBy != null and appliedBy.name() != 'YOU'}"
+      th:with="claude=${appliedBy.name() == 'CLAUDE'}"
+      th:title="${claude} ? #{applied.byClaude.hint} : #{applied.byExtension.hint}">
+    <i class="ph" th:classappend="${claude} ? 'ph-sparkle' : 'ph-puzzle-piece'"></i><span
+        th:text="${claude} ? #{applied.byClaude} : #{applied.byExtension}">by Claude</span>
+</span>
+<i th:fragment="applied-by-icon(appliedBy)" class="ph text-accent" th:if="${appliedBy != null and appliedBy.name() != 'YOU'}"
+   th:with="claude=${appliedBy.name() == 'CLAUDE'}"
+   th:classappend="${claude} ? 'ph-sparkle' : 'ph-puzzle-piece'" role="img"
+   th:title="${claude} ? #{applied.byClaude.hint} : #{applied.byExtension.hint}"
+   th:aria-label="${claude} ? #{applied.byClaude.hint} : #{applied.byExtension.hint}"></i>
+
 <!--/* The site's own icon, as the browser showed it on the posting's tab, when the extension saved one (iconSources,
        see BaseController); otherwise a globe, or a pencil for a job added by hand without a link. */-->
 <th:block th:fragment="source-icon(source)">
@@ -149,6 +164,9 @@
                 <span class="w-[150px] flex-none text-[13px] text-ink/65 tabular-nums"
                       th:text="${event.eventTime != null} ? ${#temporals.format(event.eventDate.atTime(event.eventTime), #messages.msg('format.dateTime'))} : ${#temporals.format(event.eventDate, #messages.msg('format.date'))}">28 Sep 2026, 14:05</span>
                 <th:block th:replace="~{applications/fragments :: status-badge(${event.stageCategory})}">Interviewing</th:block>
+                <th:block th:if="${event.stageCategory.name() == 'APPLIED'}">
+                    <span th:replace="~{applications/fragments :: applied-by(${jobApplication.appliedBy})}"></span>
+                </th:block>
                 <span class="flex-1"></span>
                 <button th:if="${removable}" class="btn btn-ghost px-1 py-0.5 text-ink/45" type="button"
                         th:hx-delete="@{/applications/{id}/events/{eventId}(id=${jobApplication.id},eventId=${event.id})}"
@@ -157,6 +175,7 @@
                 </button>
             </div>
             <span class="text-[13px] font-medium" th:if="${event.stageLabel}" th:text="${event.stageLabel}">Technical interview</span>
+            <span th:replace="~{applications/fragments :: interview-details(${event})}"></span>
             <span class="text-[13px] text-danger" th:if="${event.rejectionReason}"
                   th:with="reason=#{${'rejectionReason.' + event.rejectionReason}}"
                   th:text="#{application.timeline.reason(${reason})}">Reason: Position filled</span>
@@ -189,6 +208,21 @@
                th:placeholder="#{application.event.stageLabel.placeholder}"
                th:data-for-statuses="${#strings.arrayJoin(statuses.?[hasStages()], ' ')}"
                th:hidden="${!current.hasStages()}" th:disabled="${!current.hasStages()}">
+        <div class="flex flex-wrap gap-1.5" th:data-for-statuses="${#strings.arrayJoin(statuses.?[hasInterviewDetails()], ' ')}"
+             th:hidden="${!current.hasInterviewDetails()}">
+            <select class="input w-auto flex-[1_1_140px]" name="interviewFormat" th:aria-label="#{application.interview.format}"
+                    th:disabled="${!current.hasInterviewDetails()}">
+                <option value="" th:text="#{application.interview.format.prompt}">How?</option>
+                <option th:each="format : ${interviewFormats}" th:value="${format}"
+                        th:text="#{${'interviewFormat.' + format}}">Video call</option>
+            </select>
+            <input class="input w-auto flex-[0_1_120px]" type="number" name="durationMinutes" min="1" max="1440"
+                   th:aria-label="#{application.interview.duration.label}" th:placeholder="#{application.interview.duration.placeholder}"
+                   th:disabled="${!current.hasInterviewDetails()}">
+            <input class="input flex-[2_1_220px]" type="text" name="interviewLocation" maxlength="500"
+                   th:aria-label="#{application.interview.location}" th:placeholder="#{application.interview.location.placeholder}"
+                   th:disabled="${!current.hasInterviewDetails()}">
+        </div>
         <select class="input" name="rejectionReason" required th:aria-label="#{application.rejectionReason}"
                 th:data-for-statuses="${#strings.arrayJoin(statuses.?[hasRejectionReason()], ' ')}"
                 th:hidden="${!current.hasRejectionReason()}" th:disabled="${!current.hasRejectionReason()}">
@@ -218,6 +252,83 @@
 </div>
 
 <span th:fragment="notes-saved" th:text="#{application.notes.saved}">Saved</span>
+
+<i th:fragment="interview-icon(format)" class="ph" aria-hidden="true"
+   th:classappend="${format.name() == 'PHONE'} ? 'ph-phone' : (${format.name() == 'VIDEO'} ? 'ph-video-camera' : (${format.name() == 'ON_SITE'} ? 'ph-buildings' : 'ph-laptop'))"></i>
+
+<!--/* How and where an interview takes place, under its event on the timeline. Only an http(s) place shows as a link:
+       the text is typed in, and a javascript: link would run on click. */-->
+<span th:fragment="interview-details(event)" class="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px] text-ink/75"
+      th:if="${event.interviewFormat != null or event.interviewLocation != null or event.durationMinutes != null}">
+    <span class="inline-flex items-center gap-1" th:if="${event.interviewFormat}">
+        <i th:replace="~{applications/fragments :: interview-icon(${event.interviewFormat})}"></i>
+        <span th:text="#{${'interviewFormat.' + event.interviewFormat}}">Video call</span>
+    </span>
+    <span class="inline-flex items-center gap-1" th:if="${event.durationMinutes}">
+        <i class="ph ph-timer"></i><span th:text="#{application.interview.duration(${event.durationMinutes})}">45 min</span>
+    </span>
+    <th:block th:if="${event.interviewLocation}" th:with="isLink=${#strings.startsWith(event.interviewLocation, 'http://') or #strings.startsWith(event.interviewLocation, 'https://')}">
+        <a class="link inline-flex min-w-0 items-center gap-1" th:if="${isLink}" th:href="${event.interviewLocation}"
+           target="_blank" rel="noopener noreferrer" th:title="${event.interviewLocation}">
+            <i class="ph ph-link"></i><span th:text="#{application.interview.join}">Join the meeting</span>
+        </a>
+        <span class="inline-flex min-w-0 items-center gap-1" th:unless="${isLink}">
+            <i class="ph ph-map-pin"></i><span class="truncate" th:text="${event.interviewLocation}">Str. Victoriei 1, Bucharest</span>
+        </span>
+    </th:block>
+</span>
+
+<!--/* Who to follow up with about the application, and when: saved as it's changed, like the notes. Its quick links
+       are what was saved when the card was shown; only an http(s) profile link shows as a link. */-->
+<form th:fragment="follow-up" class="flex flex-col gap-2" th:with="followUp=${jobApplication.followUp}"
+      th:hx-put="@{/applications/{id}/follow-up(id=${jobApplication.id})}" hx-trigger="change"
+      hx-target="find .follow-up-status" hx-swap="innerHTML">
+    <div class="flex items-baseline justify-between gap-2">
+        <h3 class="field-label mb-0" th:text="#{application.followUp}">Contact &amp; follow-up</h3>
+        <span class="follow-up-status text-[11px] text-ink/50" aria-live="polite"></span>
+    </div>
+    <div class="grid grid-cols-2 gap-1.5">
+        <input class="input" type="text" name="contactName" maxlength="200" autocomplete="off" th:value="${followUp.contactName}"
+               th:aria-label="#{application.followUp.name}" th:placeholder="#{application.followUp.name}">
+        <input class="input" type="text" name="contactRole" maxlength="200" autocomplete="off" th:value="${followUp.contactRole}"
+               th:aria-label="#{application.followUp.role}" th:placeholder="#{application.followUp.role.placeholder}">
+        <input class="input" type="email" name="contactEmail" maxlength="200" autocomplete="off" th:value="${followUp.contactEmail}"
+               th:aria-label="#{application.followUp.email}" th:placeholder="#{application.followUp.email}">
+        <input class="input" type="tel" name="contactPhone" maxlength="200" autocomplete="off" th:value="${followUp.contactPhone}"
+               th:aria-label="#{application.followUp.phone}" th:placeholder="#{application.followUp.phone}">
+        <input class="input col-span-2" type="url" name="contactLink" maxlength="500" autocomplete="off" th:value="${followUp.contactLink}"
+               th:aria-label="#{application.followUp.link}" th:placeholder="#{application.followUp.link.placeholder}">
+        <input class="input col-span-2" type="text" name="referredBy" maxlength="200" autocomplete="off" th:value="${followUp.referredBy}"
+               th:aria-label="#{application.followUp.referredBy}" th:placeholder="#{application.followUp.referredBy}">
+        <label class="flex min-w-0 flex-col gap-1">
+            <span class="text-xs text-ink/60" th:text="#{application.followUp.deadline}">Applications close</span>
+            <input class="input" type="date" name="deadline" th:value="${followUp.deadline}">
+        </label>
+        <label class="flex min-w-0 flex-col gap-1">
+            <span class="text-xs text-ink/60" th:text="#{application.followUp.on}">Follow up on</span>
+            <input class="input" type="date" name="followUpOn" th:value="${followUp.followUpOn}">
+        </label>
+    </div>
+    <div class="flex flex-wrap gap-1.5" th:if="${followUp.hasContact()}">
+        <a class="btn btn-ghost px-1.5 py-1 text-xs" th:if="${followUp.contactEmail}" th:href="|mailto:${followUp.contactEmail}|">
+            <i class="ph ph-envelope-simple"></i><span th:text="#{application.followUp.writeEmail}">Email</span>
+        </a>
+        <a class="btn btn-ghost px-1.5 py-1 text-xs" th:if="${followUp.contactPhone}" th:href="|tel:${#strings.replace(followUp.contactPhone, ' ', '')}|">
+            <i class="ph ph-phone"></i><span th:text="#{application.followUp.call}">Call</span>
+        </a>
+        <a class="btn btn-ghost px-1.5 py-1 text-xs" target="_blank" rel="noopener noreferrer"
+           th:if="${followUp.contactLink != null and (#strings.startsWith(followUp.contactLink, 'https://') or #strings.startsWith(followUp.contactLink, 'http://'))}"
+           th:href="${followUp.contactLink}">
+            <i class="ph ph-user-circle"></i><span th:text="#{application.followUp.openProfile}">Profile</span>
+        </a>
+    </div>
+</form>
+
+<span th:fragment="follow-up-status">
+    <span class="text-danger" th:if="${fieldErrors != null and !fieldErrors.isEmpty()}"
+          th:text="${fieldErrors.values().iterator().next()}">Not an email address.</span>
+    <th:block th:unless="${fieldErrors != null and !fieldErrors.isEmpty()}" th:text="#{application.notes.saved}">Saved</th:block>
+</span>
 
 <!--/* Asks before deleting. From the application's page, the list opens after; from the side panel, the page behind
        it reloads. */-->

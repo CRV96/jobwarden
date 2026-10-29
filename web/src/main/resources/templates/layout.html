@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--/* The layout of every page but the profile picker (layout-bare.html): the sidebar, and the page next to it.
-       section is the sidebar entry to show as the current one: 'jobs', 'discover', 'pipeline', 'salaries', 'search',
-       'settings' or null. */-->
+       section is the sidebar entry to show as the current one: 'search', 'hiring', 'discover', 'apply', 'jobs', 'pipeline', 'calendar',
+       'salaries', 'cv', 'settings' (in the profile menu) or null. */-->
 <html lang="en" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org" th:fragment="page(title, content, section)">
 <head th:fragment="head(title)">
     <meta charset="UTF-8">
@@ -31,8 +31,10 @@
     <link rel="icon" type="image/svg+xml" th:href="@{/favicon.svg}">
     <link rel="apple-touch-icon" th:href="@{/apple-touch-icon.png}">
     <link rel="stylesheet" th:href="@{/webjars/phosphor-icons__web/src/regular/style.css}">
-    <!--/* Only some pages show flags: the settings page next to the languages, the search page next to the locations */-->
-    <link rel="stylesheet" th:href="@{/webjars/flag-icons/css/flag-icons.min.css}" th:if="${languages != null or section == 'search'}">
+    <!--/* Only some pages show flags: the settings page next to the languages, the search page next to the locations,
+           the salaries page next to the countries, Who's hiring next to the posts */-->
+    <link rel="stylesheet" th:href="@{/webjars/flag-icons/css/flag-icons.min.css}"
+          th:if="${languages != null or section == 'search' or section == 'salaries' or section == 'hiring'}">
     <link rel="stylesheet" th:href="@{/css/app.css}">
     <!--/* By default HTMX doesn't send a form with an invalid field, and doesn't say why either. */-->
     <meta name="htmx-config" content='{"reportValidityOfForms": true}'>
@@ -60,6 +62,28 @@
         </div>
 
         <nav class="flex flex-col gap-0.5" th:aria-label="#{nav.label}">
+            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/search}"
+               th:aria-current="${section == 'search'} ? 'page'" th:title="#{nav.search}">
+                <i class="ph ph-list-magnifying-glass"></i>
+                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.search}">Search Builder</span>
+            </a>
+            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/hiring}"
+               th:aria-current="${section == 'hiring'} ? 'page'" th:title="#{nav.hiring}">
+                <i class="ph ph-megaphone-simple"></i>
+                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.hiring}">Who’s hiring</span>
+            </a>
+            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/discover}"
+               th:aria-current="${section == 'discover'} ? 'page'" th:title="#{nav.discover}">
+                <i class="ph ph-sparkle"></i>
+                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.discover}">Discover</span>
+                <span class="rounded-full bg-accent px-1.5 text-[11px] font-medium text-white max-md:hidden folded:hidden"
+                      th:if="${discoverCount != null and discoverCount > 0}" th:text="${discoverCount}">4</span>
+            </a>
+            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/apply}"
+               th:aria-current="${section == 'apply'} ? 'page'" th:title="#{nav.apply}">
+                <i class="ph ph-paper-plane-tilt"></i>
+                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.apply}">Auto-apply</span>
+            </a>
             <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/applications}"
                th:aria-current="${section == 'jobs'} ? 'page'" th:title="#{nav.jobs}">
                 <i class="ph ph-briefcase"></i>
@@ -67,41 +91,53 @@
                 <span class="text-[11px] text-ink/55 max-md:hidden folded:hidden" th:if="${applicationCount != null}"
                       th:text="${applicationCount}">57</span>
             </a>
-            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/discover}"
-               th:aria-current="${section == 'discover'} ? 'page'" th:title="#{nav.discover}">
-                <i class="ph ph-cards"></i>
-                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.discover}">Discover</span>
-                <span class="rounded-full bg-accent px-1.5 text-[11px] font-medium text-white max-md:hidden folded:hidden"
-                      th:if="${discoverCount != null and discoverCount > 0}" th:text="${discoverCount}">4</span>
-            </a>
             <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/pipeline}"
                th:aria-current="${section == 'pipeline'} ? 'page'" th:title="#{nav.pipeline}">
                 <i class="ph ph-kanban"></i>
                 <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.pipeline}">Pipeline</span>
+            </a>
+            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/calendar}"
+               th:aria-current="${section == 'calendar'} ? 'page'" th:title="#{nav.calendar}">
+                <i class="ph ph-calendar-dots"></i>
+                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.calendar}">Calendar</span>
             </a>
             <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/salaries}"
                th:aria-current="${section == 'salaries'} ? 'page'" th:title="#{nav.salaries}">
                 <i class="ph ph-coins"></i>
                 <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.salaries}">Salaries</span>
             </a>
-            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/search}"
-               th:aria-current="${section == 'search'} ? 'page'" th:title="#{nav.search}">
-                <i class="ph ph-list-magnifying-glass"></i>
-                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.search}">Search</span>
-            </a>
-            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/settings}"
-               th:aria-current="${section == 'settings'} ? 'page'" th:title="#{nav.settings}">
-                <i class="ph ph-gear-six"></i>
-                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.settings}">Settings</span>
+            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/cv}"
+               th:aria-current="${section == 'cv'} ? 'page'" th:title="#{nav.cv}">
+                <i class="ph ph-identification-card"></i>
+                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.cv}">CV</span>
             </a>
         </nav>
 
         <!--/* The selected profile, with a menu to switch to another. Pages that know it put it in the model as
                currentProfile, and the profiles to switch to as sidebarProfiles (see BaseController). */-->
         <div class="mt-auto">
+            <!--/* A newer JobWarden is out (BaseController puts the UpdateStatus in the model): until it runs, or the
+                   user hides the notice for that version (app.js: data-dismissible) */-->
+            <div class="mb-2" th:if="${update != null and update.updateAvailable()}"
+                 th:data-dismissible="|update-${update.latest.version}|">
+                <div class="flex items-start gap-2 rounded-lg bg-accent/10 p-2 text-xs max-md:hidden folded:hidden">
+                    <i class="ph ph-arrow-circle-up text-base text-accent"></i>
+                    <a class="min-w-0 flex-1 hover:underline" th:href="${update.latest.url}" target="_blank" rel="noopener noreferrer">
+                        <span class="block font-medium" th:text="#{update.available(${update.latest.version})}">JobWarden 0.2.0 is out</span>
+                        <span class="text-ink/60" th:text="#{update.see}">See what’s new</span>
+                    </a>
+                    <button class="btn btn-ghost size-5 flex-none p-0 text-ink/50" type="button" data-dismiss
+                            th:title="#{update.hide}" th:aria-label="#{update.hide}"><i class="ph ph-x text-xs"></i></button>
+                </div>
+                <a class="nav-item hidden justify-center px-0 max-md:flex folded:flex" th:href="${update.latest.url}" target="_blank"
+                   rel="noopener noreferrer" th:title="#{update.available(${update.latest.version})}">
+                    <i class="ph ph-arrow-circle-up text-accent"></i>
+                </a>
+            </div>
             <th:block th:if="${currentProfile != null and sidebarProfiles != null}">
                 <button id="profile-button" type="button" popovertarget="profile-menu" aria-haspopup="menu"
                         class="flex w-full items-center gap-1.5 rounded-lg p-[5px] text-left hover:bg-ink/7 max-md:justify-center folded:justify-center"
+                        th:classappend="${section == 'settings'} ? 'bg-ink/7'"
                         th:title="${currentProfile.name}">
                     <span class="avatar size-[30px]" th:text="${@names.initials(currentProfile.name)}">R</span>
                     <span class="min-w-0 flex-1 truncate text-[13px] max-md:hidden folded:hidden" th:text="${currentProfile.name}">Robert</span>
@@ -130,8 +166,17 @@
                     <a class="menu-item" role="menuitem" th:href="@{/profiles}">
                         <i class="ph ph-plus-circle text-[15px]"></i><span th:text="#{nav.addProfile}">Add another profile</span>
                     </a>
+                    <div class="menu-separator"></div>
+                    <a class="menu-item" role="menuitem" th:href="@{/settings}" th:aria-current="${section == 'settings'} ? 'page'">
+                        <i class="ph ph-gear-six text-[15px]"></i><span th:text="#{nav.settings}">Settings</span>
+                    </a>
                 </div>
             </th:block>
+            <a th:unless="${currentProfile}" class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/settings}"
+               th:aria-current="${section == 'settings'} ? 'page'" th:title="#{nav.settings}">
+                <i class="ph ph-gear-six"></i>
+                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.settings}">Settings</span>
+            </a>
             <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:unless="${currentProfile}"
                th:href="@{/profiles}" th:title="#{nav.chooseProfile}">
                 <i class="ph ph-user-circle"></i>

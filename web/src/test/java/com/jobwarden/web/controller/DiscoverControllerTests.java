@@ -3,16 +3,26 @@ package com.jobwarden.web.controller;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
+import com.jobwarden.cv.dto.Cv;
+import com.jobwarden.cv.dto.CvDetails;
+import com.jobwarden.cv.service.CvService;
+import com.jobwarden.discover.dto.AiRequest;
+import com.jobwarden.discover.dto.AiRequirements;
 import com.jobwarden.discover.dto.FoundJob;
 import com.jobwarden.discover.dto.SavedSearch;
 import com.jobwarden.discover.dto.SearchCount;
+import com.jobwarden.discover.enums.AiRequestKind;
+import com.jobwarden.discover.enums.AiRequestStatus;
 import com.jobwarden.discover.enums.Decision;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.service.UserService;
 import com.jobwarden.jobs.service.ApplicationService;
+import com.jobwarden.search.Recency;
 import com.jobwarden.search.SearchCriteria;
+import com.jobwarden.search.WorkType;
 import com.jobwarden.web.user.CurrentUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,9 +35,11 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 
 @WebMvcTest(DiscoverController.class)
 class DiscoverControllerTests {
@@ -53,12 +65,100 @@ class DiscoverControllerTests {
 	@MockitoBean
 	private DiscoveryService discovery;
 
+	@MockitoBean
+	private CvService cvs;
+
 	@BeforeEach
 	void profile() {
 		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
 		given(this.discovery.findSearches(1)).willReturn(List.of(REMOTE_JAVA));
 		given(this.discovery.countToReviewBySearch(1)).willReturn(List.of(new SearchCount(3L, 2), new SearchCount(null, 1)));
 		given(this.discovery.findDecided(eq(1L), any(Integer.class))).willReturn(List.of());
+		given(this.cvs.find(1)).willReturn(new Cv(null, CvDetails.builder().fullName("Robert").build()));
+	}
+
+	@Test
+	void asksForNothingAboutOneJobFromThePresets() {
+		assertThat(this.mvc.post().uri("/discover/requests").param("kind", "TAILOR_CV").param("useCv", "false")).hasStatusOk()
+			.bodyText()
+			.contains("Pick what Claude should do.");
+		then(this.discovery).should(never()).createRequest(anyLong(), any(), any(AiRequirements.class));
+	}
+
+	@Test
+	void offersThePresetsAndHandsAWaitingRequestToClaudeCode() {
+		given(this.discovery.findRequests(eq(1L), any(Integer.class))).willReturn(List.of(
+				request(12, AiRequestKind.FIND_JOBS_FOR_CV, AiRequestStatus.WAITING, 0, null),
+				request(11, AiRequestKind.CHECK_POSTINGS, AiRequestStatus.DONE, 0, "Checked 9 postings, closed 2.")));
+
+		assertThat(this.mvc.get().uri("/discover")).hasStatusOk()
+			.bodyText()
+			.contains("AI Assistant", "value=\"FIND_JOBS_FOR_CV\"", "value=\"FOLLOW_UP\"", "Find jobs matching my CV",
+					"Waiting for Claude", "Checked 9 postings, closed 2.",
+					"Do JobWarden request 12: call get_request with request_id 12 and profile_id 1",
+					"claude &quot;Do JobWarden request 12", "/loop 15m Do the waiting JobWarden requests",
+					// Open: the list asks again, with how many jobs the card had
+					"hx-trigger=\"every 5s\"", "seen")
+			.doesNotContain("You have no CV yet");
+	}
+
+	@Test
+	void needsACvForThePresetThatMatchesIt() {
+		given(this.cvs.find(1)).willReturn(new Cv(null, CvDetails.NONE));
+
+		assertThat(this.mvc.get().uri("/discover")).bodyText()
+			.contains("You have no CV yet")
+			.containsPattern("value=\"FIND_JOBS_FOR_CV\"[^>]*disabled=\"disabled\"");
+	}
+
+	@Test
+	void asksClaudeWithWhatToLookFor() {
+		assertThat(this.mvc.post()
+			.uri("/discover/requests")
+			.param("kind", "FIND_JOBS")
+			.param("titles", "Java Developer, Backend Engineer")
+			.param("locations", "Romania, Remote in Europe")
+			.param("workTypes", "REMOTE", "HYBRID")
+			.param("minSalary", " 4,000 EUR a month ")
+			.param("recency", "WEEK")
+			.param("useCv", "true")
+			.param("maxJobs", "20")
+			.header("HX-Request", "true")).hasStatusOk()
+			.bodyText()
+			.startsWith("<div id=\"ai-requests\"");
+		then(this.discovery).should().createRequest(1, AiRequestKind.FIND_JOBS, AiRequirements.builder()
+			.titles(List.of("Java Developer", "Backend Engineer"))
+			.locations(List.of("Romania", "Remote in Europe"))
+			.workTypes(Set.of(WorkType.REMOTE, WorkType.HYBRID))
+			.minSalary("4,000 EUR a month")
+			.recency(Recency.WEEK)
+			.useCv(true)
+			.maxJobs(20)
+			.build());
+	}
+
+	@Test
+	void reloadsTheCardWhenClaudeAddedJobs() {
+		given(this.discovery.findRequests(eq(1L), any(Integer.class)))
+			.willReturn(List.of(request(12, AiRequestKind.FIND_JOBS_FOR_CV, AiRequestStatus.DONE, 2, "Added 2 jobs.")));
+		given(this.discovery.findFoundJobsOfRequest(1, 12)).willReturn(List.of(job()));
+		given(this.discovery.countToReview(1, null)).willReturn(5L);
+
+		assertThat(this.mvc.get().uri("/discover/requests").param("seen", "3").header("HX-Request", "true")).hasStatusOk()
+			.satisfies(result -> assertThat(result).headers().hasValue("HX-Trigger", "found-jobs-changed"))
+			.bodyText()
+			.contains("Found 2 jobs", "Senior Java Developer", "Java and Kafka, fully remote")
+			// Nothing open: it stops asking
+			.doesNotContain("every 5s");
+		assertThat(this.mvc.get().uri("/discover/requests").param("seen", "5").header("HX-Request", "true"))
+			.headers()
+			.doesNotContainHeader("HX-Trigger");
+	}
+
+	@Test
+	void cancelsARequest() {
+		assertThat(this.mvc.post().uri("/discover/requests/12/cancel").header("HX-Request", "true")).hasStatusOk();
+		then(this.discovery).should().cancelRequest(1, 12);
 	}
 
 	@Test
@@ -155,6 +255,18 @@ class DiscoverControllerTests {
 			.searchName("Remote Java")
 			.decision(Decision.PENDING)
 			.foundAt(Instant.now())
+			.build();
+	}
+
+	private static AiRequest request(long id, AiRequestKind kind, AiRequestStatus status, long found, String summary) {
+		return AiRequest.builder()
+			.id(id)
+			.kind(kind)
+			.requirements(AiRequirements.NONE)
+			.status(status)
+			.summary(summary)
+			.foundJobs(found)
+			.createdAt(Instant.now())
 			.build();
 	}
 

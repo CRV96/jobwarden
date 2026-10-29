@@ -5,8 +5,11 @@ import java.time.LocalTime;
 
 import com.jobwarden.jobs.dto.NewTimelineEvent;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.InterviewFormat;
 import com.jobwarden.jobs.enums.RejectionReason;
 import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.jspecify.annotations.Nullable;
@@ -22,6 +25,8 @@ import static com.jobwarden.web.dto.FormValues.momentOrNow;
  * @param stageLabel only for a status with stages ({@link ApplicationStatus#hasStages()}); ignored for any other,
  * whose form doesn't show the field
  * @param rejectionReason required for a rejection, ignored for any other status
+ * @param interviewFormat with {@code interviewLocation} (an address or a meeting link) and {@code durationMinutes}:
+ * only for an interview ({@link ApplicationStatus#hasInterviewDetails()}), ignored for any other status
  */
 public record NewEventForm(
 		@DateTimeFormat(iso = DateTimeFormat.ISO.DATE) @Nullable LocalDate eventDate,
@@ -30,10 +35,22 @@ public record NewEventForm(
 		@Size(max = NewEventForm.STAGE_LABEL_MAX_LENGTH, message = "{validation.event.stageLabel.size}")
 		@Nullable String stageLabel,
 		@Nullable String note,
-		@Nullable RejectionReason rejectionReason) {
+		@Nullable RejectionReason rejectionReason,
+		@Nullable InterviewFormat interviewFormat,
+		@Size(max = NewEventForm.INTERVIEW_LOCATION_MAX_LENGTH, message = "{validation.event.interviewLocation.size}")
+		@Nullable String interviewLocation,
+		@Min(value = 1, message = "{validation.event.duration.range}")
+		@Max(value = NewEventForm.DURATION_MAX_MINUTES, message = "{validation.event.duration.range}")
+		@Nullable Integer durationMinutes) {
 
 	/** Also the {@code maxlength} of the stage field in applications/fragments.html. */
 	public static final int STAGE_LABEL_MAX_LENGTH = 200;
+
+	/** Also the {@code maxlength} of the interview's place field. */
+	public static final int INTERVIEW_LOCATION_MAX_LENGTH = 500;
+
+	/** A day: also the {@code max} of the duration field. */
+	public static final int DURATION_MAX_MINUTES = 1440;
 
 	/**
 	 * A rejection says why, so patterns show up over time. The form asks for it as soon as Rejected is picked.
@@ -52,6 +69,9 @@ public record NewEventForm(
 			.stageLabel(this.stageCategory.hasStages() ? blankToNull(this.stageLabel) : null)
 			.note(blankToNull(this.note))
 			.rejectionReason(this.stageCategory.hasRejectionReason() ? this.rejectionReason : null)
+			.interviewFormat(this.stageCategory.hasInterviewDetails() ? this.interviewFormat : null)
+			.interviewLocation(this.stageCategory.hasInterviewDetails() ? blankToNull(this.interviewLocation) : null)
+			.durationMinutes(this.stageCategory.hasInterviewDetails() ? this.durationMinutes : null)
 			.build();
 	}
 

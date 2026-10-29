@@ -62,8 +62,17 @@ class McpController {
 			yourself if you can. close_when_gone does it for the Saved and Applied jobs in one call.
 			Finding jobs: list_saved_searches gives the profile's searches with queries ready to run; run them with \
 			your web search, open the results, and add the real, open postings with add_found_jobs, each with a note \
-			on why it fits. They wait on the Discover page, where the profile saves, applies to or discards them; \
-			list_found_jobs shows what was decided, to learn what the profile likes.""";
+			on why it fits. They wait on the AI Assistant page, where the profile saves, applies to or discards them; \
+			list_found_jobs shows what was decided, to learn what the profile likes. get_cv gives the profile's CV, and \
+			save_tailored_cv keeps it rewritten for one job.
+			Who's hiring: recruiters' posts saying they're hiring, and the recruiters. list_recruiters gives the people \
+			the profile knows, those it follows first; add_recruiters adds those you find, add_hiring_posts their posts, \
+			list_hiring_posts the posts it has.
+			Auto-apply: list_apply_queue gives the jobs to apply to in the profile's browser, get_application_answers \
+			what to fill forms in with; start_apply and report_apply_result follow each job.
+			Requests: the profile asks for these from the AI Assistant page, a job's page, the Who's hiring page and the \
+			Auto-apply page, and the prompt names one. list_requests gives those waiting; get_request gives one's step-by-step \
+			instructions, and finish_request ends it with a summary the page shows.""";
 
 	private final Map<String, McpTool> tools;
 

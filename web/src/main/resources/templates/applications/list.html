@@ -7,10 +7,10 @@
 <body>
 <!--/* listParams is what the list shows (ApplicationListParams): its links keep the search, the status, the order and
        the page size. Enum values are shown through their messages: status.SAVED, status.APPLIED... */-->
-<main class="flex flex-col gap-4">
+<main class="page-full flex flex-col gap-4">
     <header th:replace="~{applications/fragments :: page-header(#{jobs.title}, ${applicationCount != null} ? #{jobs.subtitle(${applicationCount})} : null)}"></header>
 
-    <div class="flex flex-col gap-3">
+    <div class="flex min-h-0 flex-1 flex-col gap-3">
         <div class="flex flex-wrap items-center gap-2">
             <!--/* As you type, HTMX loads the list for the search and swaps in its rows and its status counts. Enter
                    loads the whole page, the same without HTMX. */-->
@@ -55,11 +55,12 @@
 
         <!--/* The rows and the pages. When an application changes in the side panel, HTMX reloads them, and the status
                counts with them; hx-disinherit keeps the rows' own requests from inheriting that. */-->
-        <div id="jobs" class="flex flex-col gap-2" hx-disinherit="*"
+        <div id="jobs" class="flex min-h-0 flex-1 flex-col gap-2" hx-disinherit="*"
              th:hx-get="@{${listParams.url()}}" hx-trigger="applications-changed from:body"
              hx-select="#jobs" hx-select-oob="#status-filter" hx-target="this" hx-swap="outerHTML">
             <th:block th:if="${applicationPage.hasContent()}">
-                <div class="overflow-x-auto">
+                <!--/* On a wide screen the rows scroll here, under their header, and the pages stay below */-->
+                <div class="min-h-0 flex-1 overflow-auto">
                     <table class="jobs-table">
                         <colgroup>
                             <col class="w-[31%]">
@@ -120,7 +121,12 @@
                                     <th:block th:replace="~{applications/fragments :: source(${summary.source})}"></th:block>
                                 </span>
                             </td>
-                            <td><span th:replace="~{applications/fragments :: status-badge(${summary.status})}">Applied</span></td>
+                            <td>
+                                <span class="flex items-center gap-1.5">
+                                    <span th:replace="~{applications/fragments :: status-badge(${summary.status})}">Applied</span>
+                                    <i th:replace="~{applications/fragments :: applied-by-icon(${summary.appliedBy})}"></i>
+                                </span>
+                            </td>
                             <td class="text-right text-xs text-ink/60" th:text="${@dates.relativeDay(summary.lastModified())}"
                                 th:title="${@dates.dateTime(summary.lastModified())}">Today</td>
                             <td class="text-right text-xs text-ink/60" th:text="${@dates.relativeDay(summary.capturedAt)}"

@@ -12,6 +12,8 @@ import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.enums.IdentityErrorCode;
 import com.jobwarden.identity.service.UserService;
 import com.jobwarden.jobs.service.ApplicationService;
+import com.jobwarden.market.dto.AdzunaKey;
+import com.jobwarden.market.service.AdzunaKeyService;
 import com.jobwarden.web.enums.Language;
 import com.jobwarden.web.user.CurrentUser;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,10 +53,14 @@ class LocalizationTests {
 	@MockitoBean
 	private DiscoveryService discovery;
 
+	@MockitoBean
+	private AdzunaKeyService adzunaKeys;
+
 	@BeforeEach
 	void oneProfile() {
 		given(this.users.findAll()).willReturn(List.of(ROBERT));
 		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+		given(this.adzunaKeys.find()).willReturn(AdzunaKey.NONE);
 	}
 
 	@Test

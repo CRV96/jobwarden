@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: page(~{::title}, ~{::main}, 'hiring')}">
+<head>
+    <title th:text="|#{hiring.title} · JobWarden|">Who’s hiring · JobWarden</title>
+</head>
+<body>
+<!--/* hiringParams is what the page shows (HiringParams), hiringPosts the posts it asks for, recruiters every recruiter.
+       hiringTags and hiringCountries come from all the posts, to filter by. The page's links are built from the
+       params, so each keeps the rest. */-->
+<main class="page-full flex flex-col gap-4" th:with="params=${hiringParams}, tab=${hiringParams.tab.name()}">
+    <header class="flex flex-wrap items-end gap-3">
+        <div class="min-w-[240px] flex-1">
+            <h1 class="page-title mb-1 flex items-center gap-2">
+                <i class="ph ph-megaphone-simple text-accent"></i><span th:text="#{hiring.title}">Who’s hiring</span>
+            </h1>
+            <p class="text-[13px] text-ink/60" th:text="#{hiring.subtitle}">Recruiters’ posts saying they’re hiring…</p>
+        </div>
+        <button class="btn btn-secondary" type="button" data-open-dialog="add-recruiter">
+            <i class="ph ph-user-plus"></i><span th:text="#{hiring.addRecruiter}">Add recruiter</span>
+        </button>
+    </header>
+
+    <div class="flex flex-wrap items-center gap-2">
+        <nav class="seg" th:aria-label="#{hiring.tabs}">
+            <a class="seg-opt" th:each="option : ${hiringTabs}" th:href="@{${params.withTab(option).url()}}"
+               th:aria-current="${option == params.tab} ? 'page'">
+                <span th:text="#{|hiring.tab.${option}|}">Posts</span>
+                <span class="text-ink/50" th:if="${option.name() == 'RECRUITERS'}" th:text="${#lists.size(recruiters)}">12</span>
+            </a>
+        </nav>
+        <form class="relative min-w-[200px] flex-[0_1_320px]" method="get" th:action="@{/hiring}" role="search">
+            <i class="ph ph-magnifying-glass pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-[15px] text-ink/50"></i>
+            <input class="input pl-8" type="search" name="q" th:value="${params.q}" th:placeholder="#{hiring.search}"
+                   th:aria-label="#{hiring.search}" autocomplete="off">
+            <input type="hidden" name="tab" th:if="${tab != 'POSTS'}" th:value="${tab}">
+            <input type="hidden" name="posted" th:if="${params.posted.name() != 'ANY'}" th:value="${params.posted}">
+            <input type="hidden" name="country" th:if="${params.country}" th:value="${params.country}">
+            <input type="hidden" name="tag" th:if="${params.tag}" th:value="${params.tag}">
+        </form>
+        <!--/* Every change reloads the page (app.js: data-auto-submit) */-->
+        <form method="get" th:action="@{/hiring}" th:if="${tab != 'RECRUITERS' and !hiringCountries.isEmpty()}">
+            <select class="input w-auto py-1 pr-7" name="country" data-auto-submit th:aria-label="#{hiring.country}">
+                <option value="" th:text="#{hiring.allCountries}">All countries</option>
+                <option th:each="code : ${hiringCountries}" th:value="${code}" th:text="${@countries.name(code)}"
+                        th:selected="${code == params.country}">Romania</option>
+            </select>
+            <input type="hidden" name="tab" th:if="${tab != 'POSTS'}" th:value="${tab}">
+            <input type="hidden" name="q" th:if="${params.q}" th:value="${params.q}">
+            <input type="hidden" name="posted" th:if="${params.posted.name() != 'ANY'}" th:value="${params.posted}">
+            <input type="hidden" name="tag" th:if="${params.tag}" th:value="${params.tag}">
+        </form>
+    </div>
+
+    <!--/* From 1024 pixels wide, asking Claude, the hashtags and the questions on the left, the posts on the right, each
+           scrolling on its own */-->
+    <div class="grid min-h-0 flex-1 gap-5 lg:grid-cols-[minmax(240px,300px)_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)]">
+        <aside class="scroll-panel flex min-h-0 min-w-0 flex-col gap-5 max-lg:order-2">
+            <section th:replace="~{hiring/hiring :: ask}"></section>
+
+            <section class="flex flex-col gap-2" th:unless="${hiringTags.isEmpty()}" aria-labelledby="tags-title">
+                <h2 id="tags-title" class="section-title" th:text="#{hiring.tags}">Popular hashtags</h2>
+                <div class="flex flex-wrap gap-x-2.5 gap-y-1 text-[13px]">
+                    <a class="hover:underline" th:each="tag : ${hiringTags}" th:href="@{${params.withTag(tag).url()}}"
+                       th:classappend="${tag == params.tag} ? 'font-semibold text-accent' : 'text-accent/85'" th:text="|#${tag}|">#hiring</a>
+                </div>
+            </section>
+
+            <section class="flex flex-col gap-1" aria-labelledby="faq-title">
+                <h2 id="faq-title" class="section-title mb-1" th:text="#{hiring.faq}">Questions</h2>
+                <details class="group border-b border-line py-2" th:each="topic : ${ {'source', 'updates', 'contact'} }">
+                    <summary class="flex cursor-pointer list-none items-center gap-2 text-[13px] font-medium">
+                        <span class="flex-1" th:text="#{|hiring.faq.${topic}.question|}">Where do these posts come from?</span>
+                        <i class="ph ph-caret-down text-xs text-ink/50 transition-transform group-open:rotate-180"></i>
+                    </summary>
+                    <p class="mt-1.5 text-xs text-pretty text-ink/65" th:text="#{|hiring.faq.${topic}.answer|}">Claude finds them…</p>
+                </details>
+            </section>
+        </aside>
+
+        <section class="scroll-panel flex min-h-0 min-w-0 flex-col gap-3" aria-live="polite" th:aria-label="#{hiring.title}">
+            <!--/* The posts: every one, or those of the recruiters followed */-->
+            <th:block th:if="${tab != 'RECRUITERS'}">
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <a class="chip chip-small" th:each="period : ${postedPeriods}" th:href="@{${params.withPosted(period).url()}}"
+                       th:aria-current="${period == params.posted} ? 'true'" th:text="#{|hiring.posted.${period}|}">All</a>
+                    <a class="chip chip-small" th:if="${params.tag}" th:href="@{${params.withTag(null).url()}}" aria-current="true"
+                       th:title="#{hiring.clearFilter}">
+                        <span th:text="|#${params.tag}|">#java</span><i class="ph ph-x text-[11px]"></i>
+                    </a>
+                    <th:block th:if="${params.recruiter != null}" th:each="author : ${recruiters}">
+                        <a class="chip chip-small" th:if="${author.id == params.recruiter}" th:href="@{/hiring}" aria-current="true"
+                           th:title="#{hiring.clearFilter}">
+                            <span th:text="#{hiring.postsBy(${author.name})}">Posts by Ana</span><i class="ph ph-x text-[11px]"></i>
+                        </a>
+                    </th:block>
+                    <span class="ml-auto text-xs text-ink/55" th:text="#{hiring.count(${#lists.size(hiringPosts)})}">12 posts</span>
+                </div>
+
+                <th:block th:each="post : ${hiringPosts}">
+                    <article th:replace="~{hiring/hiring :: post}"></article>
+                </th:block>
+
+                <div class="card flex flex-col items-center gap-3 p-8 text-center" th:if="${hiringPosts.isEmpty()}"
+                     th:with="following=${tab == 'FOLLOWING'}, nothing=${hiringCountries.isEmpty() and hiringTags.isEmpty() and !params.isFiltered()}">
+                    <span class="brand-mark size-11"><i class="ph ph-megaphone-simple text-[22px]"></i></span>
+                    <h2 class="text-[17px] font-semibold"
+                        th:text="${following} ? #{hiring.following.empty.title} : (${params.isFiltered()} ? #{hiring.empty.filtered.title} : #{hiring.empty.title})">No hiring posts yet</h2>
+                    <p class="max-w-[440px] text-ink/65"
+                       th:text="${following} ? #{hiring.following.empty.body} : (${params.isFiltered()} ? #{hiring.empty.filtered.body} : #{hiring.empty.body})">Ask Claude for posts…</p>
+                    <a class="link text-[13px]" th:if="${following}" th:href="@{/hiring(tab='RECRUITERS')}" th:text="#{hiring.tab.RECRUITERS}">Recruiters</a>
+                </div>
+            </th:block>
+
+            <!--/* The recruiters, those followed first, then those with the most posts: all of them, or those the filter
+                   (who) and the search show. Each says how it came: found by Claude (with why), a contact on a job, a
+                   post's author, or added by hand. */-->
+            <th:block th:if="${tab == 'RECRUITERS'}">
+                <p class="card flex items-center gap-2 p-3 text-[13px] text-danger" role="alert" th:if="${hiringError}">
+                    <i class="ph ph-warning-circle text-base"></i><span th:text="${hiringError}">A recruiter’s profile must be a web address.</span>
+                </p>
+                <nav class="flex flex-wrap items-center gap-1.5" th:aria-label="#{hiring.tab.RECRUITERS}" th:unless="${recruiters.isEmpty()}">
+                    <a class="chip chip-small" th:each="filter : ${recruiterFilters}" th:href="@{${params.withWho(filter).url()}}"
+                       th:aria-current="${filter == params.who} ? 'true'">
+                        <span th:text="#{|hiring.who.${filter}|}">All</span>
+                        <span class="chip-count" th:text="${recruiterCounts.get(filter)}">12</span>
+                    </a>
+                </nav>
+                <ul class="card flex flex-col divide-y divide-line" th:unless="${recruitersShown.isEmpty()}">
+                    <li class="flex flex-wrap items-start gap-3 px-4 py-3" th:each="recruiter : ${recruitersShown}"
+                        th:id="|recruiter-${recruiter.id}|" th:with="origin=${recruiter.origin.name()}">
+                        <span class="avatar size-10 text-sm" th:text="${@names.initials(recruiter.name)}">LB</span>
+                        <div class="flex min-w-[180px] flex-1 flex-col gap-0.5">
+                            <a class="truncate font-semibold hover:underline" th:href="${recruiter.profileUrl}" target="_blank"
+                               rel="noopener noreferrer" th:text="${recruiter.name}">Lorraine B.</a>
+                            <div class="truncate text-xs text-ink/60" th:if="${recruiter.headline}" th:text="${recruiter.headline}">IT Recruiter</div>
+                            <div class="flex flex-wrap items-center gap-x-1.5 text-xs text-ink/55"
+                                 th:if="${recruiter.company != null or recruiter.country != null}">
+                                <span th:if="${recruiter.company}"><i class="ph ph-buildings"></i> <th:block th:text="${recruiter.company}">Acme</th:block></span>
+                                <th:block th:if="${recruiter.country}">
+                                    <span th:if="${recruiter.company}" aria-hidden="true">·</span>
+                                    <span class="fi" th:classappend="|fi-${#strings.toLowerCase(recruiter.country)}|"></span>
+                                    <span th:text="${@countries.name(recruiter.country)}">Romania</span>
+                                </th:block>
+                            </div>
+                            <div class="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+                                <span class="tag" th:if="${origin == 'FOUND'}"><i class="ph ph-sparkle"></i><span th:text="#{hiring.who.FOUND}">Found by Claude</span></span>
+                                <span class="tag" th:if="${origin == 'HAND'}"><i class="ph ph-user-plus"></i><span th:text="#{hiring.origin.HAND}">Added by you</span></span>
+                                <th:block th:unless="${recruiter.contactFor.isEmpty()}">
+                                    <span class="tag st-applied"><i class="ph ph-address-book"></i><span th:text="#{hiring.contactFor}">Contact for</span></span>
+                                    <a class="text-accent hover:underline" th:each="job : ${recruiter.contactFor}"
+                                       th:href="@{/applications/{id}(id=${job.applicationId})}"
+                                       th:text="${job.company != null} ? |${job.title} · ${job.company}| : ${job.title}">Backend engineer · Acme</a>
+                                </th:block>
+                                <a class="text-accent hover:underline" th:if="${recruiter.posts > 0}" th:href="@{/hiring(recruiter=${recruiter.id})}"
+                                   th:text="#{hiring.count(${recruiter.posts})}">16 posts</a>
+                            </div>
+                            <p class="mt-1 text-xs text-pretty text-ink/75" th:if="${recruiter.note}" th:text="${recruiter.note}">Hires Java developers for Acme’s payments team.</p>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <button th:replace="~{hiring/hiring :: follow-button}"></button>
+                            <button class="btn btn-ghost btn-icon" type="button" th:hx-post="@{/hiring/recruiters/{id}/remove(id=${recruiter.id})}"
+                                    th:hx-target="|#recruiter-${recruiter.id}|" hx-swap="delete" th:hx-confirm="#{hiring.remove.confirm}"
+                                    th:title="#{hiring.remove}" th:aria-label="#{hiring.remove}">
+                                <i class="ph ph-x"></i>
+                            </button>
+                        </div>
+                    </li>
+                </ul>
+                <p class="card p-4 text-ink/60" th:if="${recruitersShown.isEmpty() and !recruiters.isEmpty()}" th:text="#{hiring.who.empty}">No one here yet.</p>
+                <div class="card flex flex-col items-center gap-3 p-8 text-center" th:if="${recruiters.isEmpty()}">
+                    <span class="brand-mark size-11"><i class="ph ph-users-three text-[22px]"></i></span>
+                    <h2 class="text-[17px] font-semibold" th:text="#{hiring.recruiters.empty.title}">No recruiters yet</h2>
+                    <p class="max-w-[440px] text-ink/65" th:text="#{hiring.recruiters.empty.body}">Ask Claude for recruiters…</p>
+                </div>
+            </th:block>
+        </section>
+    </div>
+
+    <dialog id="add-recruiter" class="dialog" aria-labelledby="add-recruiter-title">
+        <form class="flex flex-col gap-3" method="post" th:action="@{/hiring/recruiters}">
+            <h2 id="add-recruiter-title" class="dialog-title" th:text="#{hiring.addRecruiter.title}">Add a recruiter</h2>
+            <p class="text-[13px] text-pretty text-ink/70" th:text="#{hiring.addRecruiter.body}">You follow them from now on…</p>
+            <label class="flex flex-col gap-1">
+                <span class="field-label" th:text="#{hiring.addRecruiter.name}">Name</span>
+                <input class="input" type="text" name="name" required autocomplete="off">
+            </label>
+            <label class="flex flex-col gap-1">
+                <span class="field-label" th:text="#{hiring.addRecruiter.profile}">Profile</span>
+                <input class="input" type="url" name="profileUrl" required placeholder="https://www.linkedin.com/in/…">
+            </label>
+            <label class="flex flex-col gap-1">
+                <span class="field-label"><th:block th:text="#{hiring.addRecruiter.headline}">Headline</th:block>
+                    <span class="text-ink/50" th:text="#{newApplication.optional}">(optional)</span></span>
+                <input class="input" type="text" name="headline" th:placeholder="#{hiring.addRecruiter.headline.placeholder}">
+            </label>
+            <div class="dialog-actions">
+                <button class="btn btn-secondary" type="button" data-close-dialog th:text="#{action.cancel}">Cancel</button>
+                <button class="btn btn-primary" type="submit" th:text="#{hiring.addRecruiter.submit}">Add and follow</button>
+            </div>
+        </form>
+    </dialog>
+</main>
+
+<!--/* What the page asked Claude, posts or recruiters (askKind), and the form to ask: while the request is open, it
+       asks again every few seconds, and once Claude is done, the page reloads with what it added
+       (HiringController.latestRequest). */-->
+<section id="hiring-ask" th:fragment="ask" class="card flex flex-col gap-3 p-4"
+         th:with="request=${hiringRequest}, open=${hiringRequest != null and hiringRequest.status.isOpen()},
+                  status=${hiringRequest != null} ? ${hiringRequest.status.name()}, forRecruiters=${askKind.name() == 'FIND_RECRUITERS'}"
+         th:hx-get="${open} ? @{/hiring/requests/latest(kind=${askKind}, waiting=true)}" th:hx-trigger="${open} ? 'every 5s'"
+         hx-target="this" hx-swap="outerHTML">
+    <div>
+        <h2 class="flex items-center gap-1.5 font-semibold">
+            <i class="ph ph-sparkle text-accent"></i>
+            <span th:text="${forRecruiters} ? #{hiring.recruiters.ask} : #{hiring.ask}">Ask Claude for posts</span>
+        </h2>
+        <p class="text-xs text-ink/60" th:text="${forRecruiters} ? #{hiring.recruiters.ask.hint} : #{hiring.ask.hint}">Claude searches LinkedIn, X and Reddit…</p>
+    </div>
+    <form class="flex flex-col gap-2" th:unless="${open}" th:hx-post="@{/hiring/requests}" hx-target="#hiring-ask" hx-swap="outerHTML">
+        <input type="hidden" name="kind" th:value="${askKind}">
+        <label class="flex flex-col gap-1">
+            <span class="field-label" th:text="${forRecruiters} ? #{hiring.recruiters.ask.roles} : #{hiring.ask.roles}">Roles</span>
+            <input class="input" type="text" name="roles" th:placeholder="#{hiring.ask.roles.placeholder}" autocomplete="off">
+        </label>
+        <label class="flex flex-col gap-1">
+            <span class="field-label" th:text="#{hiring.ask.places}">Where</span>
+            <input class="input" type="text" name="places" th:placeholder="#{hiring.ask.places.placeholder}" autocomplete="off">
+        </label>
+        <label class="flex flex-col gap-1" th:unless="${forRecruiters}">
+            <span class="field-label" th:text="#{hiring.ask.recency}">Posted in the last</span>
+            <select class="input" name="recency">
+                <option value="DAY" th:text="#{hiring.posted.DAY}">Last 24 hours</option>
+                <option value="WEEK" th:text="#{hiring.posted.WEEK}">Last week</option>
+                <option value="MONTH" selected th:text="#{hiring.posted.MONTH}">Last month</option>
+            </select>
+        </label>
+        <label class="flex flex-col gap-1" th:if="${forRecruiters}">
+            <span class="field-label" th:text="#{hiring.recruiters.ask.count}">How many, at most</span>
+            <select class="input" name="count">
+                <option th:each="count : ${recruiterCountsOffered}" th:value="${count}" th:text="${count}">10</option>
+            </select>
+        </label>
+        <button class="btn btn-primary" type="submit">
+            <i class="ph ph-sparkle"></i>
+            <span th:text="${forRecruiters} ? #{hiring.recruiters.ask.submit} : #{hiring.ask.submit}">Find hiring posts</span>
+        </button>
+    </form>
+    <th:block th:if="${open}">
+        <div class="flex items-center gap-2">
+            <span class="tag st-interviewing">
+                <i class="ph ph-arrow-clockwise animate-spin" th:if="${status == 'WORKING'}"></i>
+                <span th:text="#{|ai.status.${status}|}">Waiting for Claude</span>
+            </span>
+            <span class="flex-1"></span>
+            <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button" th:hx-post="@{/hiring/requests/{id}/cancel(id=${request.id})}"
+                    hx-target="#hiring-ask" hx-swap="outerHTML" th:text="#{ai.cancel}">Cancel</button>
+        </div>
+        <th:block th:if="${status == 'WAITING'}">
+            <div class="text-xs text-ink/60" th:text="#{ai.prompt}">Paste this into Claude Code:</div>
+            <div class="flex items-start gap-2">
+                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${hiringPrompt.text}">Do JobWarden request 12…</code>
+                <button th:replace="~{discover/discover :: copy-button(${hiringPrompt.text})}"></button>
+            </div>
+            <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
+            <div class="flex items-start gap-2">
+                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${hiringPrompt.command}">claude "Do JobWarden request 12…"</code>
+                <button th:replace="~{discover/discover :: copy-button(${hiringPrompt.command})}"></button>
+            </div>
+        </th:block>
+    </th:block>
+    <p class="text-xs whitespace-pre-line text-ink/70" th:if="${request != null and !open and request.summary != null}"
+       th:classappend="${status == 'FAILED'} ? 'text-danger'"
+       th:text="#{hiring.ask.last(${@dates.relativeDay(request.createdAt)}, ${request.summary})}">Last asked today: added 12 posts.</p>
+</section>
+
+<!--/* One post: its author, to follow; the role and company it's for; the post itself, its hashtags; and what to do
+       with it. post is a HiringPost. */-->
+<article th:fragment="post" th:id="|post-${post.id}|" class="card flex flex-none flex-col gap-3 p-4">
+    <div class="flex items-start gap-3">
+        <span class="avatar size-10 text-sm" th:text="${@names.initials(post.recruiter.name)}">IO</span>
+        <div class="min-w-0 flex-1">
+            <a class="block truncate font-semibold hover:underline" th:href="${post.recruiter.profileUrl}" target="_blank"
+               rel="noopener noreferrer" th:text="${post.recruiter.name}">Iulia Oancea</a>
+            <div class="truncate text-xs text-ink/60" th:if="${post.recruiter.headline}" th:text="${post.recruiter.headline}">Talent Partner at Brightgrove</div>
+            <div class="flex flex-wrap items-center gap-x-1.5 text-xs text-ink/50">
+                <span th:text="${post.postedOn != null} ? ${@dates.relativeDay(post.postedOn)} : ${@dates.relativeDay(post.foundAt)}">23 days ago</span>
+                <th:block th:if="${post.country}">
+                    <span aria-hidden="true">·</span>
+                    <span class="fi" th:classappend="|fi-${#strings.toLowerCase(post.country)}|"></span>
+                    <span th:text="${@countries.name(post.country)}">Romania</span>
+                </th:block>
+            </div>
+        </div>
+        <th:block th:with="recruiter=${post.recruiter}">
+            <button th:replace="~{hiring/hiring :: follow-button}"></button>
+        </th:block>
+    </div>
+    <div class="flex flex-wrap gap-1.5" th:if="${post.role != null or post.company != null}">
+        <span class="tag st-applied" th:if="${post.role}"><i class="ph ph-briefcase"></i><span th:text="${post.role}">Java Developer</span></span>
+        <span class="tag" th:if="${post.company}"><i class="ph ph-buildings"></i><span th:text="${post.company}">Brightgrove</span></span>
+    </div>
+    <div class="flex flex-col items-start gap-1">
+        <p class="text-[13px] whitespace-pre-line text-ink/85" th:classappend="${post.isLong()} ? 'line-clamp-[8]'" data-clamped
+           th:text="${post.text}">I’m hiring Java Fullstack Engineers based in Romania…</p>
+        <button class="text-xs font-medium text-accent hover:underline" type="button" th:if="${post.isLong()}" data-unclamp
+                th:text="#{hiring.more}">Show more</button>
+    </div>
+    <div class="flex flex-wrap gap-x-2 gap-y-1 text-xs" th:unless="${post.tags.isEmpty()}">
+        <a class="text-accent hover:underline" th:each="tag : ${post.tags}" th:href="@{${hiringParams.withTag(tag).url()}}"
+           th:text="|#${tag}|">#hiring</a>
+    </div>
+    <div class="flex flex-wrap items-center gap-1.5 border-t border-line pt-3">
+        <a class="btn btn-secondary" th:href="${post.link}" target="_blank" rel="noopener noreferrer">
+            <i class="ph ph-arrow-square-out"></i><span th:text="#{hiring.viewPost}">View post</span>
+        </a>
+        <button class="btn btn-secondary" type="button" th:unless="${post.applicationId}" th:hx-post="@{/hiring/posts/{id}/save(id=${post.id})}"
+                th:hx-target="|#post-${post.id}|" hx-swap="outerHTML">
+            <i class="ph ph-bookmark-simple"></i><span th:text="#{hiring.save}">Save as a job</span>
+        </button>
+        <a class="btn btn-ghost text-success" th:if="${post.applicationId}" th:href="@{/applications/{id}(id=${post.applicationId})}">
+            <i class="ph ph-check-circle"></i><span th:text="#{hiring.saved}">Saved: open the job</span>
+        </a>
+        <span class="flex-1"></span>
+        <button class="btn btn-ghost" type="button" th:hx-post="@{/hiring/posts/{id}/hide(id=${post.id})}"
+                th:hx-target="|#post-${post.id}|" hx-swap="delete" th:title="#{hiring.hide.hint}">
+            <i class="ph ph-eye-slash"></i><span th:text="#{hiring.hide}">Hide</span>
+        </button>
+    </div>
+</article>
+
+<!--/* A recruiter's follow button, wherever it shows. HTMX swaps every one of theirs with the answer (hx-swap-oob, with
+       followOob), so they all say the same. recruiter is a Recruiter. */-->
+<button th:fragment="follow-button" type="button" class="btn btn-secondary flex-none"
+        th:classappend="|follow-${recruiter.id} ${recruiter.followed ? 'text-accent' : ''}|"
+        th:hx-post="@{/hiring/recruiters/{id}/follow(id=${recruiter.id})}"
+        th:hx-vals="|{&quot;followed&quot;: ${!recruiter.followed}}|" hx-swap="none"
+        th:attr="hx-swap-oob=${followOob} ? |outerHTML:.follow-${recruiter.id}|"
+        th:aria-pressed="${recruiter.followed}">
+    <i class="ph" th:classappend="${recruiter.followed} ? 'ph-check' : 'ph-plus'"></i>
+    <span th:text="${recruiter.followed} ? #{hiring.following} : #{hiring.follow}">Follow</span>
+</button>
+
+</body>
+</html>

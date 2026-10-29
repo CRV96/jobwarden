@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: page(~{::title}, ~{::main}, 'apply')}">
+<head>
+    <title th:text="|#{apply.title} · JobWarden|">Auto-apply · JobWarden</title>
+</head>
+<body>
+<!--/* applyJobs are the Saved jobs with a posting Claude can apply to; applyItems the jobs queued, the latest first, with
+       how each went; applyRun the latest run of Claude, with applyPrompt to paste into Claude Code. applyAnswers is
+       what the answers form shows; its custom rows are numbered by app.js (data-rows, data-row, data-add-row). */-->
+<main class="page-split flex flex-col gap-5" th:with="answers=${applyAnswers}">
+    <header class="flex flex-wrap items-end gap-3">
+        <div class="min-w-[260px] flex-1">
+            <h1 class="page-title mb-1 flex items-center gap-2">
+                <i class="ph ph-paper-plane-tilt text-accent"></i><span th:text="#{apply.title}">Auto-apply</span>
+            </h1>
+            <p class="text-[13px] text-ink/60" th:text="#{apply.subtitle}">Claude applies to your saved jobs in your browser…</p>
+        </div>
+    </header>
+
+    <div class="card flex items-center gap-2 p-3 text-[13px] text-success" role="status" th:if="${param.saved}">
+        <i class="ph ph-check-circle text-base"></i><span th:text="#{apply.answers.saved}">Saved: Claude answers with these.</span>
+    </div>
+
+    <!--/* From 1280 pixels wide, the jobs and how they went on the left, the answers on the right */-->
+    <div class="grid min-h-0 flex-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)]">
+        <div class="scroll-panel flex min-h-0 min-w-0 flex-col gap-5">
+            <section th:replace="~{apply/apply :: run}"></section>
+
+            <!--/* The Saved jobs to queue, and how far Claude goes */-->
+            <form class="card flex flex-col gap-3 p-4" method="post" th:action="@{/apply/queue}" aria-labelledby="queue-title">
+                <div>
+                    <h2 id="queue-title" class="font-semibold" th:text="#{apply.queue}">Apply to</h2>
+                    <p class="text-xs text-ink/60" th:text="#{apply.queue.hint}">Your saved jobs with a posting…</p>
+                </div>
+                <p class="text-[13px] text-danger" role="alert" th:if="${applyError}" th:text="#{apply.queue.none}">Tick a job first.</p>
+                <p class="text-[13px] text-ink/65" th:unless="${hasCv}">
+                    <th:block th:text="#{tailoredCv.noCv}">Claude needs your CV first.</th:block>
+                    <a class="link" th:href="@{/cv}" th:text="#{tailoredCv.addCv}">Go to the CV page</a>
+                </p>
+                <ul class="flex max-h-[22rem] flex-col divide-y divide-line overflow-y-auto rounded-lg border border-line"
+                    th:unless="${applyJobs.isEmpty()}">
+                    <li th:each="job : ${applyJobs}">
+                        <label class="flex cursor-pointer items-center gap-3 px-3 py-2 hover:bg-ink/4">
+                            <input class="check" type="checkbox" name="ids" th:value="${job.id}">
+                            <span th:replace="~{applications/fragments :: company-logo(${job.id}, ${job.company}, 24)}"></span>
+                            <span class="min-w-0 flex-1">
+                                <span class="block truncate font-medium" th:text="${job.title}">Backend engineer</span>
+                                <span class="block truncate text-xs text-ink/55"
+                                      th:text="${job.company != null} ? |${job.company} · ${job.source}| : ${job.source}">Acme · jobs.lever.co</span>
+                            </span>
+                        </label>
+                    </li>
+                </ul>
+                <p class="text-[13px] text-ink/60" th:if="${applyJobs.isEmpty()}" th:text="#{apply.queue.empty}">No saved job to apply to.</p>
+                <div class="seg self-start" role="radiogroup" th:aria-label="#{apply.mode}">
+                    <label class="seg-opt">
+                        <input type="radio" name="mode" value="REVIEW">
+                        <i class="ph ph-eye"></i><span th:text="#{apply.mode.REVIEW}">Fill in, I send</span>
+                    </label>
+                    <label class="seg-opt">
+                        <input type="radio" name="mode" value="SUBMIT" checked>
+                        <i class="ph ph-paper-plane-tilt"></i><span th:text="#{apply.mode.SUBMIT}">Send when all is answered</span>
+                    </label>
+                </div>
+                <p class="text-xs text-pretty text-ink/60" th:text="#{apply.rules}">Claude skips LinkedIn Easy Apply…</p>
+                <button class="btn btn-primary self-start" type="submit" th:disabled="${applyJobs.isEmpty() or !hasCv}">
+                    <i class="ph ph-sparkle"></i><span th:text="#{apply.submit}">Apply with Claude</span>
+                </button>
+            </form>
+
+            <!--/* How each job went, the latest first, with what's left to do */-->
+            <section class="flex flex-col gap-2" aria-labelledby="results-title" th:unless="${applyItems.isEmpty()}">
+                <h2 id="results-title" class="section-title" th:text="#{apply.results}">How it went</h2>
+                <ul class="card flex flex-col divide-y divide-line">
+                    <li class="flex flex-col gap-2 px-4 py-3" th:each="item : ${applyItems}" th:with="status=${item.status.name()}">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <a class="min-w-0 flex-1 truncate font-medium hover:underline" th:href="@{/applications/{id}(id=${item.applicationId})}"
+                               th:text="${item.company != null} ? |${item.title} · ${item.company}| : ${item.title}">Backend engineer · Acme</a>
+                            <span class="tag" th:classappend="${status == 'APPLIED'} ? 'st-offer' : (${status == 'NEEDS_ANSWER' or status == 'FILLED'} ? 'st-interviewing' : (${status == 'FAILED'} ? 'st-rejected' : (${status == 'QUEUED' or status == 'APPLYING'} ? 'st-applied' : 'st-withdrawn')))">
+                                <i class="ph ph-arrow-clockwise animate-spin" th:if="${status == 'APPLYING'}"></i>
+                                <span th:text="#{|apply.status.${status}|}">Applied</span>
+                            </span>
+                        </div>
+                        <div class="flex flex-wrap gap-x-2 text-xs text-ink/55">
+                            <span th:text="#{|apply.mode.${item.mode}|}">Send when all is answered</span>
+                            <th:block th:if="${item.site}"><span aria-hidden="true">·</span><span th:text="${item.site}">Greenhouse</span></th:block>
+                            <span aria-hidden="true">·</span>
+                            <span th:text="${@dates.relativeDay(item.finishedAt != null ? item.finishedAt : item.createdAt)}">Today</span>
+                        </div>
+                        <p class="text-[13px] whitespace-pre-line text-ink/80" th:if="${item.note}" th:text="${item.note}">Answered 12 questions.</p>
+                        <!--/* The question the form asked: answered here, it's kept for the next forms too */-->
+                        <form class="flex flex-col gap-1.5" method="post" th:if="${status == 'NEEDS_ANSWER' and item.question != null}"
+                              th:action="@{/apply/items/{id}/answer(id=${item.id})}">
+                            <label class="text-[13px] font-medium" th:for="|answer-${item.id}|" th:text="${item.question}">Why do you want to work here?</label>
+                            <div class="flex flex-wrap items-start gap-2">
+                                <textarea class="input min-w-0 flex-1" rows="2" name="answer" required th:id="|answer-${item.id}|"
+                                          maxlength="2000" th:placeholder="#{apply.answer.placeholder}"></textarea>
+                                <button class="btn btn-primary" type="submit" th:text="#{apply.answer.submit}">Answer and retry</button>
+                            </div>
+                        </form>
+                        <div class="flex flex-wrap gap-1.5">
+                            <form method="post" th:if="${status == 'FILLED'}" th:action="@{/apply/items/{id}/sent(id=${item.id})}">
+                                <button class="btn btn-primary" type="submit"><i class="ph ph-check"></i><span th:text="#{apply.sent}">I sent it</span></button>
+                            </form>
+                            <form method="post" th:if="${item.status.canRetry()}" th:action="@{/apply/items/{id}/retry(id=${item.id})}">
+                                <button class="btn btn-secondary" type="submit"><i class="ph ph-arrow-counter-clockwise"></i><span th:text="#{apply.retry}">Try again</span></button>
+                            </form>
+                            <form method="post" th:if="${item.status.isOpen() or status == 'FILLED' or status == 'NEEDS_ANSWER'}"
+                                  th:action="@{/apply/items/{id}/cancel(id=${item.id})}">
+                                <button class="btn btn-ghost" type="submit" th:text="#{ai.cancel}">Cancel</button>
+                            </form>
+                        </div>
+                    </li>
+                </ul>
+            </section>
+        </div>
+
+        <!--/* The answers forms ask for, beyond the CV */-->
+        <form class="scroll-panel flex min-h-0 min-w-0 flex-col gap-4" method="post" th:action="@{/apply/answers}" aria-labelledby="answers-title">
+            <div class="card flex flex-col gap-4 p-4">
+                <div>
+                    <h2 id="answers-title" class="font-semibold" th:text="#{apply.answers}">Your answers</h2>
+                    <p class="text-xs text-ink/60" th:text="#{apply.answers.hint}">What forms ask beyond your CV…</p>
+                </div>
+                <ul class="flex flex-col gap-1 text-[13px] text-danger" role="alert" th:unless="${fieldErrors.isEmpty()}">
+                    <li th:each="error : ${fieldErrors.values()}" th:text="${error}">This value isn’t valid.</li>
+                </ul>
+                <div class="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-ink/4 px-3 py-2 text-xs text-ink/70">
+                    <span th:text="#{apply.contact}">From your CV:</span>
+                    <span class="font-medium" th:if="${cvDetails.fullName}" th:text="${cvDetails.fullName}">Robert</span>
+                    <span th:each="contact : ${cvDetails.contacts()}" th:text="|· ${contact}|">· robert@example.com</span>
+                    <a class="link" th:href="@{/cv}" th:text="#{apply.contact.edit}">Change them on the CV page</a>
+                </div>
+
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <label class="flex flex-col gap-1 sm:col-span-2">
+                        <span class="field-label" th:text="#{apply.answers.workAuthorization}">Where can you work?</span>
+                        <input class="input" type="text" name="workAuthorization" maxlength="300" th:value="${answers.workAuthorization}"
+                               th:placeholder="#{apply.answers.workAuthorization.placeholder}">
+                    </label>
+                    <label class="flex flex-col gap-1">
+                        <span class="field-label" th:text="#{apply.answers.needsSponsorship}">Do you need a visa sponsored?</span>
+                        <select class="input" name="needsSponsorship">
+                            <option value="" th:text="#{apply.notSaid}" th:selected="${answers.needsSponsorship == null}">Not said</option>
+                            <option value="true" th:text="#{apply.yes}" th:selected="${answers.needsSponsorship == true}">Yes</option>
+                            <option value="false" th:text="#{apply.no}" th:selected="${answers.needsSponsorship == false}">No</option>
+                        </select>
+                    </label>
+                    <label class="flex flex-col gap-1">
+                        <span class="field-label" th:text="#{apply.answers.willingToRelocate}">Would you relocate?</span>
+                        <select class="input" name="willingToRelocate">
+                            <option value="" th:text="#{apply.notSaid}" th:selected="${answers.willingToRelocate == null}">Not said</option>
+                            <option value="true" th:text="#{apply.yes}" th:selected="${answers.willingToRelocate == true}">Yes</option>
+                            <option value="false" th:text="#{apply.no}" th:selected="${answers.willingToRelocate == false}">No</option>
+                        </select>
+                    </label>
+                    <label class="flex flex-col gap-1">
+                        <span class="field-label" th:text="#{apply.answers.noticePeriod}">Notice period</span>
+                        <input class="input" type="text" name="noticePeriod" maxlength="300" th:value="${answers.noticePeriod}"
+                               th:placeholder="#{apply.answers.noticePeriod.placeholder}">
+                    </label>
+                    <label class="flex flex-col gap-1">
+                        <span class="field-label" th:text="#{apply.answers.earliestStart}">Earliest start</span>
+                        <input class="input" type="text" name="earliestStart" maxlength="300" th:value="${answers.earliestStart}"
+                               th:placeholder="#{apply.answers.earliestStart.placeholder}">
+                    </label>
+                    <label class="flex flex-col gap-1">
+                        <span class="field-label" th:text="#{apply.answers.salaryExpectation}">Salary expectation</span>
+                        <input class="input" type="text" name="salaryExpectation" maxlength="300" th:value="${answers.salaryExpectation}"
+                               th:placeholder="#{apply.answers.salaryExpectation.placeholder}">
+                    </label>
+                    <label class="flex flex-col gap-1">
+                        <span class="field-label" th:text="#{apply.answers.yearsOfExperience}">Years of experience</span>
+                        <input class="input" type="number" name="yearsOfExperience" min="0" max="60" step="1" th:value="${answers.yearsOfExperience}">
+                    </label>
+                    <label class="flex flex-col gap-1 sm:col-span-2">
+                        <span class="field-label" th:text="#{apply.answers.workPreference}">Where and how you want to work</span>
+                        <input class="input" type="text" name="workPreference" maxlength="300" th:value="${answers.workPreference}"
+                               th:placeholder="#{apply.answers.workPreference.placeholder}">
+                    </label>
+                </div>
+
+                <fieldset class="flex flex-col gap-2">
+                    <legend class="field-label mb-1" th:text="#{apply.answers.coverLetter}">Cover letters</legend>
+                    <div class="seg self-start" role="radiogroup">
+                        <label class="seg-opt" th:each="choice : ${coverLetters}">
+                            <input type="radio" name="coverLetter" th:value="${choice}" th:checked="${choice == answers.coverLetter}">
+                            <span th:text="#{|apply.answers.coverLetter.${choice}|}">Claude writes one</span>
+                        </label>
+                    </div>
+                </fieldset>
+                <label class="flex items-start gap-2 text-[13px]">
+                    <input class="check mt-0.5" type="checkbox" name="declineVoluntary" value="true" th:checked="${answers.declineVoluntary}">
+                    <span th:text="#{apply.answers.declineVoluntary}">Decline the voluntary questions…</span>
+                </label>
+            </div>
+
+            <!--/* The profile's own questions and answers */-->
+            <div class="card flex flex-col gap-3 p-4">
+                <div>
+                    <h2 class="font-semibold" th:text="#{apply.custom}">Your own questions</h2>
+                    <p class="text-xs text-ink/60" th:text="#{apply.custom.hint}">Questions forms ask you often…</p>
+                </div>
+                <div class="flex flex-col gap-2" data-rows="custom">
+                    <th:block th:each="row, state : ${answers.custom}">
+                        <div th:replace="~{apply/apply :: custom-row(${state.index}, ${row})}"></div>
+                    </th:block>
+                </div>
+                <template data-row-template="custom"><div th:replace="~{apply/apply :: custom-row('i', null)}"></div></template>
+                <button class="btn btn-secondary self-start" type="button" data-add-row="custom">
+                    <i class="ph ph-plus"></i><span th:text="#{apply.custom.add}">Add a question</span>
+                </button>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 pb-1">
+                <button class="btn btn-primary" type="submit"><i class="ph ph-floppy-disk"></i><span th:text="#{cv.save}">Save</span></button>
+                <span class="text-xs text-ink/55" th:if="${answers.updatedAt}"
+                      th:text="#{cv.savedAt(${@dates.relativeDay(answers.updatedAt)})}">Last saved today</span>
+            </div>
+        </form>
+    </div>
+</main>
+
+<!--/* The latest run of Claude on the queue: while it's open, the page asks again every few seconds, and reloads once
+       Claude is done (ApplyController.run). */-->
+<section id="apply-run" th:fragment="run" class="card flex flex-col gap-3 p-4" th:if="${applyRun != null}"
+         th:with="run=${applyRun}, open=${applyRun.status.isOpen()}, status=${applyRun.status.name()}"
+         th:hx-get="${open} ? @{/apply/run(waiting=true)}" th:hx-trigger="${open} ? 'every 5s'" hx-target="this" hx-swap="outerHTML">
+    <div class="flex items-center gap-2">
+        <h2 class="flex flex-1 items-center gap-1.5 font-semibold">
+            <i class="ph ph-sparkle text-accent"></i><span th:text="#{apply.run}">Claude, applying</span>
+        </h2>
+        <span class="tag" th:classappend="${status == 'DONE'} ? 'st-offer' : (${status == 'FAILED'} ? 'st-rejected' : (${status == 'CANCELLED'} ? 'st-withdrawn' : 'st-interviewing'))">
+            <i class="ph ph-arrow-clockwise animate-spin" th:if="${status == 'WORKING'}"></i>
+            <span th:text="#{|ai.status.${status}|}">Waiting for Claude</span>
+        </span>
+        <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button" th:if="${open}"
+                th:hx-post="@{/apply/runs/{id}/cancel(id=${run.id})}" hx-target="#apply-run" hx-swap="outerHTML" th:text="#{ai.cancel}">Cancel</button>
+    </div>
+    <th:block th:if="${status == 'WAITING'}">
+        <p class="text-xs text-pretty text-ink/60" th:text="#{apply.run.chrome}">Claude needs your Chrome…</p>
+        <div class="text-xs text-ink/60" th:text="#{ai.prompt}">Paste this into Claude Code:</div>
+        <div class="flex items-start gap-2">
+            <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${applyPrompt.text}">Do JobWarden request 12…</code>
+            <button th:replace="~{discover/discover :: copy-button(${applyPrompt.text})}"></button>
+        </div>
+        <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
+        <div class="flex items-start gap-2">
+            <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="|claude --chrome &quot;${applyPrompt.text}&quot;|">claude --chrome "Do JobWarden request 12…"</code>
+            <button th:replace="~{discover/discover :: copy-button(|claude --chrome &quot;${applyPrompt.text}&quot;|)}"></button>
+        </div>
+    </th:block>
+    <p class="text-[13px] whitespace-pre-line text-ink/80" th:if="${run.summary}" th:text="${run.summary}">Applied to 3 jobs, 1 waits for an answer.</p>
+</section>
+
+<!--/* A question and its answer. index is the row's number, or 'i' in the <template> a new row is made from. */-->
+<div th:fragment="custom-row(index, row)" class="flex flex-col gap-1.5 rounded-lg border border-line p-3" data-row>
+    <input class="input" type="text" th:name="|custom[${index}].question|" th:value="${row?.question}" maxlength="300"
+           th:placeholder="#{apply.custom.question}" th:aria-label="#{apply.custom.question}">
+    <div class="flex items-start gap-2">
+        <textarea class="input min-w-0 flex-1" rows="2" th:name="|custom[${index}].answer|" maxlength="2000"
+                  th:placeholder="#{apply.custom.answer}" th:aria-label="#{apply.custom.answer}" th:text="${row?.answer}"></textarea>
+        <button class="btn btn-ghost btn-icon" type="button" data-remove-row th:title="#{cv.remove}" th:aria-label="#{cv.remove}">
+            <i class="ph ph-trash"></i>
+        </button>
+    </div>
+</div>
+
+</body>
+</html>

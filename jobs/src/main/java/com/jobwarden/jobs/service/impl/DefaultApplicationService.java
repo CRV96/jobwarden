@@ -2,7 +2,10 @@ package com.jobwarden.jobs.service.impl;
 
 import java.net.URI;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +16,9 @@ import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.ApplicationQuery;
 import com.jobwarden.jobs.dto.ApplicationSummary;
+import com.jobwarden.jobs.dto.CalendarEntry;
+import com.jobwarden.jobs.dto.FollowUp;
+import com.jobwarden.jobs.dto.JobContact;
 import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
 import com.jobwarden.jobs.dto.PngImage;
@@ -22,12 +28,15 @@ import com.jobwarden.jobs.entity.CompanyLogoEntity;
 import com.jobwarden.jobs.entity.SourceIconEntity;
 import com.jobwarden.jobs.entity.SourceIconKey;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.CalendarEntryKind;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.exception.JobsErrorCode;
 import com.jobwarden.jobs.exception.TimelineEventNotFoundException;
 import com.jobwarden.jobs.mapper.ApplicationMapper;
 import com.jobwarden.jobs.repository.ApplicationRepository;
+import com.jobwarden.jobs.repository.CalendarEvent;
 import com.jobwarden.jobs.repository.CompanyLogoRepository;
+import com.jobwarden.jobs.repository.FollowUpDates;
 import com.jobwarden.jobs.repository.SourceIconRepository;
 import com.jobwarden.jobs.service.ApplicationService;
 import lombok.CustomLog;
@@ -179,6 +188,7 @@ class DefaultApplicationService implements ApplicationService {
 	public void addEvent(long userId, long applicationId, NewTimelineEvent event) {
 		ApplicationEntity application = getOwnedApplication(userId, applicationId);
 		requireRejectionReasonOnlyOnRejection(event);
+		requireInterviewDetailsOnlyOnInterviews(event);
 		ApplicationStatus previousStatus = application.getCurrentStatus();
 		application.addEvent(event);
 		if (application.getCurrentStatus() != previousStatus) {
@@ -234,6 +244,51 @@ class DefaultApplicationService implements ApplicationService {
 	public void updateSalary(long userId, long applicationId, @Nullable String salary) {
 		getOwnedApplication(userId, applicationId).changeSalary(salary);
 		log.info("Updated the salary of application {}", applicationId);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<CalendarEntry> findCalendar(long userId, LocalDate from, LocalDate to) {
+		List<CalendarEntry> entries = new ArrayList<>();
+		for (CalendarEvent event : this.applications.findCalendarEvents(userId, from, to)) {
+			entries.add(CalendarEntry.builder()
+				.date(event.date())
+				.time(event.time())
+				.kind(CalendarEntryKind.EVENT)
+				.applicationId(event.applicationId())
+				.title(event.title())
+				.company(event.company())
+				.status(event.status())
+				.stageLabel(event.stageLabel())
+				.interviewFormat(event.interviewFormat())
+				.interviewLocation(event.interviewLocation())
+				.durationMinutes(event.durationMinutes())
+				.build());
+		}
+		for (FollowUpDates dates : this.applications.findFollowUpDates(userId, from, to)) {
+			addFollowUpDate(entries, dates, dates.deadline(), CalendarEntryKind.DEADLINE, from, to);
+			addFollowUpDate(entries, dates, dates.followUpOn(), CalendarEntryKind.FOLLOW_UP, from, to);
+		}
+		entries.sort(Comparator.comparing(CalendarEntry::date)
+			.thenComparing(CalendarEntry::time, Comparator.nullsFirst(Comparator.naturalOrder()))
+			.thenComparing(CalendarEntry::title));
+		log.debug("Read {} calendar entries of profile {} from {} to {}", entries.size(), userId, from, to);
+		return entries;
+	}
+
+	/**
+	 * @throws ApplicationNotFoundException if the user has no such application
+	 */
+	@Override
+	@Transactional
+	public void updateFollowUp(long userId, long applicationId, FollowUp followUp) {
+		getOwnedApplication(userId, applicationId).changeFollowUp(followUp);
+		log.info("Updated the follow-up of application {}", applicationId);
+	}
+
+	@Override
+	public List<JobContact> findContacts(long userId) {
+		return this.applications.findContacts(userId);
 	}
 
 	/**
@@ -326,13 +381,37 @@ class DefaultApplicationService implements ApplicationService {
 			.eventTime(application.initialStatusTime())
 			.stageCategory(application.initialStatus())
 			.rejectionReason(application.initialRejectionReason())
+			.appliedBy(application.appliedBy())
 			.build();
+	}
+
+	private static void addFollowUpDate(List<CalendarEntry> entries, FollowUpDates dates, @Nullable LocalDate date,
+			CalendarEntryKind kind, LocalDate from, LocalDate to) {
+		if (date != null && !date.isBefore(from) && !date.isAfter(to)) {
+			entries.add(CalendarEntry.builder()
+				.date(date)
+				.kind(kind)
+				.applicationId(dates.applicationId())
+				.title(dates.title())
+				.company(dates.company())
+				.status(dates.status())
+				.build());
+		}
 	}
 
 	private static void requireRejectionReasonOnlyOnRejection(NewTimelineEvent event) {
 		if (event.rejectionReason() != null && !event.stageCategory().hasRejectionReason()) {
 			throw new BusinessRuleException(JobsErrorCode.REJECTION_REASON_NOT_ALLOWED,
 					"A rejection reason is only allowed on a REJECTED event, not on " + event.stageCategory());
+		}
+	}
+
+	private static void requireInterviewDetailsOnlyOnInterviews(NewTimelineEvent event) {
+		boolean hasDetails = event.interviewFormat() != null || event.interviewLocation() != null
+				|| event.durationMinutes() != null;
+		if (hasDetails && !event.stageCategory().hasInterviewDetails()) {
+			throw new BusinessRuleException(JobsErrorCode.INTERVIEW_DETAILS_NOT_ALLOWED,
+					"Interview details are only allowed on an INTERVIEWING event, not on " + event.stageCategory());
 		}
 	}
 
