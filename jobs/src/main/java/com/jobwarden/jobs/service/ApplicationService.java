@@ -1,5 +1,6 @@
 package com.jobwarden.jobs.service;
 
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -9,6 +10,9 @@ import java.util.Set;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.ApplicationQuery;
 import com.jobwarden.jobs.dto.ApplicationSummary;
+import com.jobwarden.jobs.dto.CalendarEntry;
+import com.jobwarden.jobs.dto.FollowUp;
+import com.jobwarden.jobs.dto.JobContact;
 import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
 import com.jobwarden.jobs.dto.PngImage;
@@ -67,6 +71,12 @@ public interface ApplicationService {
 	Optional<ApplicationDetails> findById(long userId, long applicationId);
 
 	/**
+	 * What happens between the two days, both included: the events of the applications' timelines, their deadlines and
+	 * the days to follow up on them. By day, and within a day the entries without a time first, like on a timeline.
+	 */
+	List<CalendarEntry> findCalendar(long userId, LocalDate from, LocalDate to);
+
+	/**
 	 * The application tracking this link, if the profile has one. The extension looks up the page it's on with it.
 	 */
 	Optional<ApplicationDetails> findByLink(long userId, String link);
@@ -95,6 +105,9 @@ public interface ApplicationService {
 
 	/**
 	 * Adds an event to the timeline. The application's status follows its latest event.
+	 *
+	 * @throws com.jobwarden.common.exception.BusinessRuleException if the event has a rejection reason without being a
+	 * rejection, or interview details without being an interview
 	 */
 	void addEvent(long userId, long applicationId, NewTimelineEvent event);
 
@@ -113,6 +126,17 @@ public interface ApplicationService {
 	 * @param salary as the posting gives it, e.g. "5,000 EUR a month"; {@code null} to clear it
 	 */
 	void updateSalary(long userId, long applicationId, @Nullable String salary);
+
+	/**
+	 * @param followUp who to follow up with and when, replacing what was known; {@link FollowUp#NONE} to clear it
+	 */
+	void updateFollowUp(long userId, long applicationId, FollowUp followUp);
+
+	/**
+	 * @return the people saved as the contact of the profile's jobs, with a name or a profile link, the jobs added last
+	 * first
+	 */
+	List<JobContact> findContacts(long userId);
 
 	/**
 	 * Takes back "I applied", for an application that got no further: it goes back to

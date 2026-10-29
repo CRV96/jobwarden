@@ -9,13 +9,18 @@ import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.ApplicationQuery;
 import com.jobwarden.jobs.dto.ApplicationSummary;
+import com.jobwarden.jobs.dto.CalendarEntry;
+import com.jobwarden.jobs.dto.FollowUp;
 import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
 import com.jobwarden.jobs.dto.PngImage;
 import com.jobwarden.jobs.dto.TimelineEvent;
 import com.jobwarden.jobs.dto.TrackedApplication;
+import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.ApplicationSort;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.CalendarEntryKind;
+import com.jobwarden.jobs.enums.InterviewFormat;
 import com.jobwarden.jobs.enums.RejectionReason;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.exception.JobsErrorCode;
@@ -292,6 +297,44 @@ class ApplicationServiceTests {
 	}
 
 	@Test
+	void remembersWhoSentTheApplicationUntilItIsTakenBack() {
+		long byHand = create(this.userId, "Backend engineer", ApplicationStatus.SAVED);
+		long byClaude = this.applications.create(NewApplication.builder()
+			.userId(this.userId)
+			.title("Data engineer")
+			.initialStatus(ApplicationStatus.APPLIED)
+			.initialStatusDate(TODAY)
+			.appliedBy(AppliedBy.CLAUDE)
+			.build());
+		this.applications.addEvent(this.userId, byHand, NewTimelineEvent.builder()
+			.eventDate(TODAY)
+			.stageCategory(ApplicationStatus.APPLIED)
+			.appliedBy(AppliedBy.YOU)
+			.build());
+		// A later Applied event doesn't change who sent it
+		this.applications.addEvent(this.userId, byClaude, NewTimelineEvent.builder()
+			.eventDate(TODAY)
+			.stageCategory(ApplicationStatus.APPLIED)
+			.appliedBy(AppliedBy.YOU)
+			.build());
+
+		assertThat(this.applications.findById(this.userId, byClaude).orElseThrow().appliedBy()).isEqualTo(AppliedBy.CLAUDE);
+		assertThat(this.applications.findAll(this.userId, null)).extracting(ApplicationSummary::title, ApplicationSummary::appliedBy)
+			.containsExactlyInAnyOrder(tuple("Backend engineer", AppliedBy.YOU), tuple("Data engineer", AppliedBy.CLAUDE));
+		assertThat(this.applications.find(this.userId, ApplicationQuery.builder()
+			.sort(ApplicationSort.ADDED)
+			.direction(Sort.Direction.DESC)
+			.page(0)
+			.size(20)
+			.build()).getContent())
+			.extracting(ApplicationSummary::appliedBy)
+			.containsExactlyInAnyOrder(AppliedBy.YOU, AppliedBy.CLAUDE);
+
+		this.applications.moveBackToSaved(this.userId, byHand);
+		assertThat(this.applications.findById(this.userId, byHand).orElseThrow().appliedBy()).isNull();
+	}
+
+	@Test
 	void movesABookmarkAppliedToByMistakeBackToSaved() {
 		long id = this.applications.track(newApplication(this.userId, "Backend engineer", ApplicationStatus.SAVED))
 			.id();
@@ -539,6 +582,97 @@ class ApplicationServiceTests {
 		assertThat(this.applications.findById(this.userId, id).orElseThrow().notes()).isNull();
 		assertThatExceptionOfType(ApplicationNotFoundException.class)
 			.isThrownBy(() -> this.applications.updateNotes(this.otherUserId, id, "Not yours"));
+	}
+
+	@Test
+	void keepsWhoToFollowUpWithAndWhen() {
+		long id = create(this.userId, "Backend engineer", ApplicationStatus.APPLIED);
+		assertThat(this.applications.findById(this.userId, id).orElseThrow().followUp()).isEqualTo(FollowUp.NONE);
+
+		FollowUp followUp = FollowUp.builder()
+			.contactName("Ana Popescu")
+			.contactRole("Recruiter")
+			.contactEmail("ana@acme.example")
+			.contactPhone("+40 721 000 000")
+			.contactLink("https://www.linkedin.com/in/ana")
+			.referredBy("Mihai")
+			.deadline(TODAY.plusDays(14))
+			.followUpOn(TODAY.plusDays(7))
+			.build();
+		this.applications.updateFollowUp(this.userId, id, followUp);
+		assertThat(this.applications.findById(this.userId, id).orElseThrow().followUp()).isEqualTo(followUp);
+
+		this.applications.updateFollowUp(this.userId, id, FollowUp.NONE);
+		assertThat(this.applications.findById(this.userId, id).orElseThrow().followUp()).isEqualTo(FollowUp.NONE);
+		assertThatExceptionOfType(ApplicationNotFoundException.class)
+			.isThrownBy(() -> this.applications.updateFollowUp(this.otherUserId, id, followUp));
+	}
+
+	@Test
+	void keepsHowAndWhereAnInterviewTakesPlaceOnlyOnAnInterview() {
+		long id = create(this.userId, "Backend engineer", ApplicationStatus.APPLIED);
+		NewTimelineEvent offerWithAPlace = NewTimelineEvent.builder()
+			.eventDate(TODAY)
+			.stageCategory(ApplicationStatus.OFFER)
+			.interviewLocation("Head office")
+			.build();
+
+		assertThatThrownBy(() -> this.applications.addEvent(this.userId, id, offerWithAPlace))
+			.isInstanceOfSatisfying(BusinessRuleException.class, exception -> assertThat(exception.getErrorCode())
+				.isEqualTo(JobsErrorCode.INTERVIEW_DETAILS_NOT_ALLOWED));
+
+		this.applications.addEvent(this.userId, id, NewTimelineEvent.builder()
+			.eventDate(TODAY.plusDays(3))
+			.eventTime(LocalTime.of(14, 0))
+			.stageCategory(ApplicationStatus.INTERVIEWING)
+			.stageLabel("Technical interview")
+			.interviewFormat(InterviewFormat.VIDEO)
+			.interviewLocation("https://meet.example.com/abc")
+			.durationMinutes(60)
+			.build());
+
+		assertThat(this.applications.findById(this.userId, id).orElseThrow().timeline()).last().satisfies(event -> {
+			assertThat(event.interviewFormat()).isEqualTo(InterviewFormat.VIDEO);
+			assertThat(event.interviewLocation()).isEqualTo("https://meet.example.com/abc");
+			assertThat(event.durationMinutes()).isEqualTo(60);
+		});
+	}
+
+	@Test
+	void putsTheTimelinesAndTheFollowUpDatesOnTheCalendar() {
+		long backend = create(this.userId, "Backend engineer", ApplicationStatus.APPLIED);
+		this.applications.addEvent(this.userId, backend, NewTimelineEvent.builder()
+			.eventDate(TODAY.plusDays(3))
+			.eventTime(LocalTime.of(14, 0))
+			.stageCategory(ApplicationStatus.INTERVIEWING)
+			.stageLabel("Technical interview")
+			.interviewFormat(InterviewFormat.ON_SITE)
+			.build());
+		this.applications.updateFollowUp(this.userId, backend, FollowUp.builder()
+			.followUpOn(TODAY.plusDays(3))
+			.deadline(TODAY.plusDays(60))
+			.build());
+		long platform = create(this.userId, "Platform engineer", ApplicationStatus.SAVED);
+		this.applications.updateFollowUp(this.userId, platform, FollowUp.builder().deadline(TODAY.plusDays(5)).build());
+		create(this.otherUserId, "Someone else's job", ApplicationStatus.APPLIED);
+
+		assertThat(this.applications.findCalendar(this.userId, TODAY, TODAY.plusDays(30)))
+			.extracting(CalendarEntry::date, CalendarEntry::kind, CalendarEntry::title, CalendarEntry::status)
+			.containsExactly(
+					tuple(TODAY, CalendarEntryKind.EVENT, "Backend engineer", ApplicationStatus.APPLIED),
+					tuple(TODAY, CalendarEntryKind.EVENT, "Platform engineer", ApplicationStatus.SAVED),
+					// The follow-up has no time, so it comes before the interview at 14:00
+					tuple(TODAY.plusDays(3), CalendarEntryKind.FOLLOW_UP, "Backend engineer", ApplicationStatus.INTERVIEWING),
+					tuple(TODAY.plusDays(3), CalendarEntryKind.EVENT, "Backend engineer", ApplicationStatus.INTERVIEWING),
+					tuple(TODAY.plusDays(5), CalendarEntryKind.DEADLINE, "Platform engineer", ApplicationStatus.SAVED));
+		assertThat(this.applications.findCalendar(this.userId, TODAY.plusDays(3), TODAY.plusDays(3)))
+			.filteredOn(CalendarEntry::isInterview)
+			.singleElement()
+			.satisfies(interview -> {
+				assertThat(interview.time()).isEqualTo(LocalTime.of(14, 0));
+				assertThat(interview.stageLabel()).isEqualTo("Technical interview");
+				assertThat(interview.interviewFormat()).isEqualTo(InterviewFormat.ON_SITE);
+			});
 	}
 
 	@Test

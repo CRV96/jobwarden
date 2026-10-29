@@ -48,7 +48,7 @@ class ApplicationQueriesImpl implements ApplicationQueries {
 		rows.select(builder.construct(ApplicationSummary.class, application.get("id"), application.get("title"),
 				application.get("company"), application.get("location"), application.get("salary"),
 				application.get("link"), application.get("source"), application.get("currentStatus"),
-				application.get("capturedAt"), application.get("updatedAt")))
+				application.get("capturedAt"), application.get("updatedAt"), application.get("appliedBy")))
 			.where(matching(builder, application, userId, query.search(), query.status()))
 			.orderBy(order(builder, application, query));
 

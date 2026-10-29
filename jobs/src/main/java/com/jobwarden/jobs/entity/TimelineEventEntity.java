@@ -6,6 +6,7 @@ import java.time.LocalTime;
 
 import com.jobwarden.jobs.dto.NewTimelineEvent;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.InterviewFormat;
 import com.jobwarden.jobs.enums.RejectionReason;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -52,6 +53,13 @@ public class TimelineEventEntity {
 	@Enumerated(EnumType.STRING)
 	private RejectionReason rejectionReason;
 
+	@Enumerated(EnumType.STRING)
+	private @Nullable InterviewFormat interviewFormat;
+
+	private @Nullable String interviewLocation;
+
+	private @Nullable Integer durationMinutes;
+
 	@CreationTimestamp
 	private Instant createdAt;
 
@@ -64,6 +72,9 @@ public class TimelineEventEntity {
 		this.stageLabel = event.stageLabel();
 		this.note = event.note();
 		this.rejectionReason = event.rejectionReason();
+		this.interviewFormat = event.interviewFormat();
+		this.interviewLocation = event.interviewLocation();
+		this.durationMinutes = event.durationMinutes();
 	}
 
 	/**

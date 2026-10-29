@@ -92,7 +92,7 @@ class DefaultSalaryServiceTests {
 	}
 
 	@Test
-	void showsTheMostCommonCurrencyByDefault() {
+	void showsEurosByDefault() {
 		given(this.applications.findAll(2, null)).willReturn(List.of(
 				application(6, "A", ApplicationStatus.APPLIED, "5000 RON"),
 				application(7, "B", ApplicationStatus.APPLIED, "6000 RON"),
@@ -100,7 +100,8 @@ class DefaultSalaryServiceTests {
 
 		SalaryOverview overview = this.salaries.overview(2, null, SalaryPeriod.MONTH);
 
-		assertThat(overview.currency()).isEqualTo("RON");
+		// Even when most of the salaries are in another currency
+		assertThat(overview.currency()).isEqualTo("EUR");
 		// GBP is always offered, but these rates have none for it
 		assertThat(overview.currencies()).containsExactly("EUR", "RON", "USD");
 		assertThat(overview.ratesDate()).isEqualTo(LocalDate.of(2026, 10, 23));
