@@ -37,6 +37,7 @@
 		<module>jobs</module>
 		<module>search</module>
 		<module>discover</module>
+		<module>market</module>
 		<module>capture</module>
 		<module>mcp</module>
 		<module>web</module>
@@ -75,6 +76,11 @@
 			<dependency>
 				<groupId>com.jobwarden</groupId>
 				<artifactId>jobwarden-discover</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.jobwarden</groupId>
+				<artifactId>jobwarden-market</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 			<dependency>

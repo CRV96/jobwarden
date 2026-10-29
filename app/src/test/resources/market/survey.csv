@@ -1,0 +1,16 @@
+ResponseId,MainBranch,Employment,DevType,Country,LanguageHaveWorkedWith,ConvertedCompYearly
+1,I am a developer by profession,Employed,"Developer, back-end",Romania,Java;SQL,40000
+2,I am a developer by profession,Employed,"Developer, back-end",Romania,Java;SQL,50000
+3,I am a developer by profession,Employed,"Developer, back-end",Romania,Java;SQL,60000
+4,I am a developer by profession,Employed,"Developer, back-end",Romania,Java;SQL,70000
+5,I am a developer by profession,Employed,"Developer, back-end",Romania,Java;SQL,80000
+6,I am a developer by profession,Employed,"Developer, back-end",Germany,Java;Kotlin,70000
+7,I am a developer by profession,Employed,"Developer, back-end",Germany,Java;Kotlin,75000
+8,I am a developer by profession,Employed,"Developer, back-end",Germany,Java;Kotlin,80000
+9,I am a developer by profession,Employed,"Developer, back-end",Germany,Java;Kotlin,85000
+10,I am a developer by profession,Employed,"Developer, back-end",Germany,Java;Kotlin,90000
+11,I am a developer by profession,Employed,"Developer, front-end",Germany,TypeScript,60000
+12,I am a developer by profession,Employed,"Developer, front-end",Germany,TypeScript,65000
+13,I am a developer by profession,Employed,"Developer, front-end",Germany,TypeScript,70000
+14,I am a developer by profession,Employed,"Developer, front-end",Germany,TypeScript,75000
+15,I am a developer by profession,Employed,"Developer, front-end",Germany,TypeScript,80000

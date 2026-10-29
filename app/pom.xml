@@ -34,6 +34,10 @@
 		</dependency>
 		<dependency>
 			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-market</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
 			<artifactId>jobwarden-capture</artifactId>
 		</dependency>
 		<dependency>
