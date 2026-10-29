@@ -1,6 +1,6 @@
-Required Notice: Copyright 2026 CRV (https://github.com/CRV96/job_tracker)
+Required Notice: Copyright 2026 CRV (https://github.com/CRV96/jobwarden)
 
-Licensor Line of Business: JobWarden, job application tracking software (https://github.com/CRV96/job_tracker)
+Licensor Line of Business: JobWarden, job application tracking software (https://github.com/CRV96/jobwarden)
 
 # PolyForm Shield License 1.0.0
 

@@ -22,7 +22,7 @@ Pull requests from contributors who have not signed the CLA will not be merged.
 
 _Version 1.0_
 
-This Contributor License Agreement ("Agreement") is between you and Robert-Vasile Ciapă, together with any successors and assigns (the "Owner"). It applies to every Contribution you submit to the JobWarden project (the "Project", <https://github.com/CRV96/job_tracker>).
+This Contributor License Agreement ("Agreement") is between you and Robert-Vasile Ciapă, together with any successors and assigns (the "Owner"). It applies to every Contribution you submit to the JobWarden project (the "Project", <https://github.com/CRV96/jobwarden>).
 
 ### 1. Definitions
 
