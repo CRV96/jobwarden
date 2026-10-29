@@ -11,7 +11,7 @@
         <p class="text-[13px] text-ink/60" th:text="#{settings.subtitle}">Appearance, language and the browser extension</p>
     </header>
 
-    <div class="flex max-w-[640px] flex-col gap-6">
+    <div class="grid items-start gap-x-12 gap-y-6 xl:grid-cols-2">
         <!--/* Kept by the browser, not the server: app.js applies and saves the choice. */-->
         <section class="flex flex-col gap-2">
             <h2 class="section-title" th:text="#{settings.appearance}">Appearance</h2>
@@ -59,6 +59,68 @@
                         <span class="text-[11px] tracking-[0.04em] opacity-55" th:text="${#strings.toUpperCase(language.tag)}">EN</span>
                     </a>
                 </div>
+            </div>
+        </section>
+
+        <!--/* The profile's jobs as a CSV file (ApplicationCsvService): exported, and imported back or from a spreadsheet.
+               After an import, ApplicationController.importCsv comes back here and says how it went, once: the first
+               rows that couldn't be imported, and how many more. */-->
+        <section id="jobs-data" class="flex flex-col gap-2" th:if="${currentProfile}">
+            <h2 class="section-title" th:text="#{settings.jobs}">Your jobs</h2>
+            <div class="card flex items-start gap-3 p-3" role="status" th:if="${csvImport}"
+                 th:with="problems=${csvImport.problems()}, shown=10">
+                <i class="ph ph-file-csv text-lg text-accent"></i>
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                    <p class="font-medium" th:text="#{jobs.import.done(${csvImport.imported()}, ${csvImport.skipped()})}">Import done: 12 added, 3 already there.</p>
+                    <th:block th:unless="${problems.isEmpty()}">
+                        <p class="text-xs text-ink/65" th:text="#{jobs.import.problems}">These rows weren’t imported:</p>
+                        <ul class="flex flex-col text-xs text-danger">
+                            <li th:each="problem, row : ${problems}" th:if="${row.index < shown}"
+                                th:text="#{|jobs.import.problem.${problem.problem()}|(${problem.row()}, ${problem.value()})}">Row 7: no title.</li>
+                            <li th:if="${#lists.size(problems) > shown}" th:text="#{jobs.import.more(${#lists.size(problems) - shown})}">And 4 more.</li>
+                        </ul>
+                    </th:block>
+                    <a class="link text-xs" th:href="@{/applications}" th:text="#{nav.jobs}">Jobs</a>
+                </div>
+            </div>
+            <p class="card flex items-center gap-2 p-3 text-danger" role="alert" th:if="${csvImportError}">
+                <i class="ph ph-warning-circle text-lg"></i><span th:text="${csvImportError}">The file has no title column.</span>
+            </p>
+            <div class="card flex flex-col gap-3 p-3">
+                <div class="flex flex-wrap items-center gap-3">
+                    <i class="ph ph-download-simple text-[22px] text-accent"></i>
+                    <div class="min-w-[200px] flex-1">
+                        <div class="font-medium" th:text="#{jobs.export}">Export</div>
+                        <div class="text-xs text-ink/60" th:text="#{jobs.export.hint}">Download every job as a CSV file</div>
+                    </div>
+                    <a class="btn btn-secondary" th:href="@{/applications/export}" download>
+                        <i class="ph ph-file-csv"></i><span th:text="#{jobs.export}">Export</span>
+                    </a>
+                </div>
+                <div class="border-t border-line"></div>
+                <form class="flex items-start gap-3" method="post" enctype="multipart/form-data" th:action="@{/applications/import}">
+                    <i class="ph ph-upload-simple text-[22px] text-accent"></i>
+                    <div class="flex min-w-0 flex-1 flex-col gap-2">
+                        <div>
+                            <div class="font-medium" th:text="#{jobs.import.title}">Import jobs from a CSV file</div>
+                            <div class="text-xs text-pretty text-ink/60" th:text="#{jobs.import.body}">One row per job…</div>
+                        </div>
+                        <details class="text-xs text-ink/60">
+                            <summary class="cursor-pointer" th:text="#{jobs.import.columns}">Columns it reads:</summary>
+                            <code class="mt-1 block leading-relaxed text-ink/80">title, company, location, status, status_date,
+                                applied_on, applied_by, salary, employment_type, link, rejection_reason, contact_name, contact_role,
+                                contact_email, contact_phone, contact_link, referred_by, deadline, follow_up_on, notes,
+                                description</code>
+                        </details>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <input class="input w-auto max-w-full min-w-0 flex-1" type="file" name="file" required
+                                   accept=".csv,.tsv,.txt,text/csv,text/plain" th:aria-label="#{jobs.import.file}" th:title="#{jobs.import.file}">
+                            <button class="btn btn-primary" type="submit">
+                                <i class="ph ph-upload-simple"></i><span th:text="#{jobs.import.submit}">Import</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </div>
         </section>
 
@@ -113,6 +175,93 @@
                     </div>
                     <div class="text-xs text-ink/60" th:text="#{settings.claude.then}">Then ask Claude, e.g. “Check my open applications in JobWarden and close the ones whose posting is gone”.</div>
                 </div>
+            </div>
+        </section>
+
+        <!--/* The key for Adzuna's API (the market module's AdzunaKeyService), which the Salaries page asks for the salaries
+               in job ads: the server's, not a profile's. A key saved here takes the place of the ADZUNA_APP_ID and
+               ADZUNA_APP_KEY environment variables. After it's saved, only the app key's last characters show; after
+               saving, SettingsController comes back here and says how it went, once. */-->
+        <section id="salaries" class="flex flex-col gap-2">
+            <h2 class="section-title" th:text="#{settings.salaries}">Salaries</h2>
+            <p class="card flex items-center gap-2 p-3" th:if="${adzunaCheck}"
+               th:role="${adzunaCheck.name() == 'REFUSED'} ? 'alert' : 'status'"
+               th:classappend="${adzunaCheck.name() == 'REFUSED'} ? 'text-danger' : (${adzunaCheck.name() == 'ACCEPTED'} ? 'text-success' : 'text-accent')">
+                <i class="ph text-lg" th:classappend="${adzunaCheck.name() == 'ACCEPTED'} ? 'ph-check-circle' : 'ph-warning-circle'"></i>
+                <span th:text="#{|settings.adzuna.${adzunaCheck}|}">Adzuna accepted the key.</span>
+            </p>
+            <p class="card flex items-center gap-2 p-3 text-danger" role="alert" th:if="${adzunaError}">
+                <i class="ph ph-warning-circle text-lg"></i><span th:text="${adzunaError}">Enter the app key.</span>
+            </p>
+            <p class="card flex items-center gap-2 p-3" role="status" th:if="${adzunaRemoved}">
+                <i class="ph ph-check-circle text-lg text-success"></i><span th:text="#{settings.adzuna.removed}">The saved key is removed.</span>
+            </p>
+            <div class="card flex items-start gap-3 p-3">
+                <i class="ph ph-coins text-[22px] text-accent"></i>
+                <div class="flex min-w-0 flex-1 flex-col gap-3">
+                    <div>
+                        <div class="font-medium" th:text="#{settings.adzuna.name}">Adzuna key</div>
+                        <div class="text-xs text-pretty text-ink/60" th:text="#{settings.adzuna.body}">
+                            For the salaries in current job ads, on the Salaries page.</div>
+                    </div>
+                    <div class="flex flex-col gap-1 text-xs">
+                        <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1" th:if="${adzunaKey.appId() != null}">
+                            <dt class="text-ink/55" th:text="#{settings.adzuna.appId}">App ID</dt>
+                            <dd class="min-w-0 truncate font-mono" th:text="${adzunaKey.appId()}">1a2b3c4d</dd>
+                            <dt class="text-ink/55" th:text="#{settings.adzuna.appKey}">App key</dt>
+                            <dd class="font-mono" th:text="|••••${adzunaKey.keyEnding()}|">••••5f6e</dd>
+                        </dl>
+                        <p class="text-pretty text-ink/60" th:text="#{|settings.adzuna.source.${adzunaKey.source()}|}">
+                            No key yet: the Salaries page leaves job ads out.</p>
+                    </div>
+                    <form class="flex flex-wrap items-end gap-2" method="post" th:action="@{/settings/adzuna}">
+                        <label class="flex min-w-[150px] flex-1 flex-col gap-1">
+                            <span class="field-label" th:text="#{settings.adzuna.appId}">App ID</span>
+                            <input class="input font-mono" type="text" name="appId" required maxlength="100"
+                                   autocomplete="off" spellcheck="false" th:value="${adzunaAppId}">
+                        </label>
+                        <label class="flex min-w-[150px] flex-1 flex-col gap-1">
+                            <span class="field-label" th:text="#{settings.adzuna.appKey}">App key</span>
+                            <input class="input font-mono" type="password" name="appKey" required maxlength="100"
+                                   autocomplete="new-password" spellcheck="false">
+                        </label>
+                        <button class="btn btn-primary" type="submit">
+                            <i class="ph ph-key"></i>
+                            <span th:text="${adzunaKey.source().name() == 'SETTINGS'} ? #{settings.adzuna.replace} : #{settings.adzuna.save}">Save</span>
+                        </button>
+                    </form>
+                    <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <a class="link" href="https://developer.adzuna.com/signup" target="_blank" rel="noopener noreferrer"
+                           th:text="#{settings.adzuna.signUp}">Get a free key at developer.adzuna.com</a>
+                        <form method="post" th:action="@{/settings/adzuna/remove}" th:if="${adzunaKey.source().name() == 'SETTINGS'}">
+                            <button class="btn btn-ghost text-danger" type="submit">
+                                <i class="ph ph-trash"></i><span th:text="#{settings.adzuna.remove}">Remove the saved key</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!--/* The version running, and whether a newer one is out on GitHub (the updates module) */-->
+        <section class="flex flex-col gap-2" th:if="${update}">
+            <h2 class="section-title" th:text="#{settings.about}">About</h2>
+            <div class="card flex flex-wrap items-start gap-3 p-3">
+                <i class="ph text-[22px]" th:classappend="${update.updateAvailable()} ? 'ph-arrow-circle-up text-accent' : 'ph-shield-check text-ink/60'"></i>
+                <div class="flex min-w-[200px] flex-1 flex-col gap-1">
+                    <div class="font-medium" th:text="#{settings.version(${update.version})}">JobWarden 0.1.0</div>
+                    <div class="text-xs text-ink/60" th:if="${update.updateAvailable()}"
+                         th:text="#{settings.version.newer(${update.latest.version})}">JobWarden 0.2.0 is out on GitHub.</div>
+                    <div class="text-xs text-ink/60" th:if="${update.latest != null and !update.updateAvailable()}"
+                         th:text="#{settings.version.upToDate}">Up to date: the latest release on GitHub.</div>
+                    <div class="text-xs text-ink/60" th:if="${update.latest == null}" th:text="#{settings.version.unknown}">
+                        No release on GitHub yet, or GitHub couldn’t be reached.</div>
+                    <div class="text-xs text-ink/60" th:text="#{settings.version.how}">To update, get the release’s code…</div>
+                </div>
+                <a class="btn btn-secondary" th:href="${update.updateAvailable()} ? ${update.latest.url} : ${update.releases}"
+                   target="_blank" rel="noopener noreferrer">
+                    <i class="ph ph-github-logo"></i><span th:text="${update.updateAvailable()} ? #{update.see} : #{settings.version.releases}">Releases</span>
+                </a>
             </div>
         </section>
     </div>
