@@ -41,6 +41,7 @@
 		<module>cv</module>
 		<module>updates</module>
 		<module>hiring</module>
+		<module>apply</module>
 		<module>capture</module>
 		<module>mcp</module>
 		<module>web</module>
@@ -97,6 +98,11 @@
 			<dependency>
 				<groupId>com.jobwarden</groupId>
 				<artifactId>jobwarden-hiring</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.jobwarden</groupId>
+				<artifactId>jobwarden-apply</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 			<dependency>

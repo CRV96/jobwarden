@@ -50,6 +50,10 @@
 		</dependency>
 		<dependency>
 			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-apply</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
 			<artifactId>jobwarden-capture</artifactId>
 		</dependency>
 		<dependency>
