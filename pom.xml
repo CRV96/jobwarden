@@ -38,6 +38,7 @@
 		<module>search</module>
 		<module>discover</module>
 		<module>market</module>
+		<module>cv</module>
 		<module>capture</module>
 		<module>mcp</module>
 		<module>web</module>
@@ -47,6 +48,9 @@
 	<properties>
 		<java.version>25</java.version>
 		<spring-modulith.version>2.1.1</spring-modulith.version>
+		<pdfbox.version>3.0.7</pdfbox.version>
+		<openhtmltopdf.version>1.1.97</openhtmltopdf.version>
+		<jsoup.version>1.23.2</jsoup.version>
 		<!-- Only the app module is runnable; lets `./mvnw -pl app -am spring-boot:run` work from the root. -->
 		<spring-boot.run.skip>true</spring-boot.run.skip>
 	</properties>
@@ -82,6 +86,27 @@
 				<groupId>com.jobwarden</groupId>
 				<artifactId>jobwarden-market</artifactId>
 				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.jobwarden</groupId>
+				<artifactId>jobwarden-cv</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<!-- The CV: reading an uploaded PDF's text, and making a PDF from the CV page's fields -->
+			<dependency>
+				<groupId>org.apache.pdfbox</groupId>
+				<artifactId>pdfbox</artifactId>
+				<version>${pdfbox.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.github.openhtmltopdf</groupId>
+				<artifactId>openhtmltopdf-pdfbox</artifactId>
+				<version>${openhtmltopdf.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.jsoup</groupId>
+				<artifactId>jsoup</artifactId>
+				<version>${jsoup.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>com.jobwarden</groupId>
