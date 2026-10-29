@@ -10,6 +10,7 @@ const showOnIconInput = document.getElementById('show-on-icon');
 const status = document.getElementById('status');
 
 translatePage();
+document.getElementById('version').textContent = message('extensionVersion', chrome.runtime.getManifest().version);
 
 // Listen before the first await, so a quick click can't submit the form the browser's way
 form.addEventListener('submit', save);

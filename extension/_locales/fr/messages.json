@@ -205,5 +205,119 @@
   },
   "showOnIconHint": {
     "message": "★ enregistrée, ✓ envoyée. Chrome vous demande d’autoriser JobWarden à voir l’adresse de vos onglets ; chaque page ouverte est alors recherchée sur votre serveur."
+  },
+  "updateAvailable": {
+    "message": "JobWarden $1 est sorti : récupérez le dernier code"
+  },
+  "updateReload": {
+    "message": "Votre serveur JobWarden est en $1 : rechargez l’extension pour suivre"
+  },
+  "extensionVersion": {
+    "message": "Extension JobWarden $1"
+  },
+  "runTitle": {
+    "message": "Tournée Easy Apply"
+  },
+  "runHint": {
+    "message": "Parcourt cette recherche et envoie chaque offre Easy Apply avec votre CV et les réponses de la page Candidature auto de JobWarden. S’arrête à une question que vos réponses ne couvrent pas, et aux vérifications de sécurité de LinkedIn."
+  },
+  "runLimit": {
+    "message": "Arrêter après"
+  },
+  "runLimitUnit": {
+    "message": "candidatures"
+  },
+  "runSaveOthers": {
+    "message": "Enregistrer les autres offres pour Candidature auto"
+  },
+  "runWarning": {
+    "message": "Les conditions de LinkedIn n’autorisent pas les candidatures automatisées, et LinkedIn peut restreindre les comptes qui en font."
+  },
+  "runStart": {
+    "message": "Lancer la tournée"
+  },
+  "runStopButton": {
+    "message": "Arrêter la tournée"
+  },
+  "runGoing": {
+    "message": "Une tournée est en cours dans cet onglet : $1 envoyée(s) jusqu’ici."
+  },
+  "runCouldNotStart": {
+    "message": "La tournée n’a pas pu démarrer : $1. Si vous venez de mettre JobWarden à jour, rechargez l’extension (chrome://extensions), puis la page LinkedIn, et réessayez."
+  },
+  "runBarTitle": {
+    "message": "JobWarden · Tournée Easy Apply"
+  },
+  "runStarting": {
+    "message": "Démarrage…"
+  },
+  "runOpening": {
+    "message": "Ouverture de $1…"
+  },
+  "runFilling": {
+    "message": "Candidature à $1…"
+  },
+  "runThisJob": {
+    "message": "l’offre suivante"
+  },
+  "runCounts": {
+    "message": "$1 envoyée(s) sur $2 au plus · $3 enregistrée(s) · $4 passée(s)"
+  },
+  "runNeedsAnswer": {
+    "message": "Le formulaire demande « $1 », que vos réponses ne couvrent pas. Répondez dans le formulaire, ou dans Vos propres questions sur la page Candidature auto de JobWarden, puis Continuer. Dans les deux cas, JobWarden la garde pour les formulaires suivants."
+  },
+  "runAQuestion": {
+    "message": "une question"
+  },
+  "runFormError": {
+    "message": "LinkedIn indique : « $1 » Corrigez dans le formulaire, puis Continuer."
+  },
+  "runSecurityCheck": {
+    "message": "LinkedIn veut vérifier que c’est bien vous. Faites-le vous-même, puis Continuer."
+  },
+  "runFormDidntOpen": {
+    "message": "Le formulaire Easy Apply ne s’est pas ouvert. Regardez la page, puis Continuer pour réessayer."
+  },
+  "runStuck": {
+    "message": "Le formulaire n’a pas avancé comme prévu. Regardez-le, puis Continuer, ou passez cette offre."
+  },
+  "runUnsure": {
+    "message": "LinkedIn n’a pas montré qu’il a envoyé la candidature. A-t-elle été envoyée ?"
+  },
+  "runLimitReached": {
+    "message": "Terminé : $1 envoyée(s), autant que prévu pour cette tournée."
+  },
+  "runDone": {
+    "message": "Terminé : plus d’offres dans cette recherche."
+  },
+  "runStopped": {
+    "message": "Arrêtée."
+  },
+  "runFailed": {
+    "message": "La tournée s’est arrêtée : $1"
+  },
+  "runSignedOut": {
+    "message": "LinkedIn vous a déconnecté. Connectez-vous, puis relancez la tournée."
+  },
+  "runServerError": {
+    "message": "JobWarden n’a pas accepté la demande ($1). Vérifiez qu’il tourne, puis Continuer."
+  },
+  "runContinue": {
+    "message": "Continuer"
+  },
+  "runSkip": {
+    "message": "Passer cette offre"
+  },
+  "runSent": {
+    "message": "Oui, elle a été envoyée"
+  },
+  "runNotSent": {
+    "message": "Non"
+  },
+  "runStop": {
+    "message": "Arrêter"
+  },
+  "runClose": {
+    "message": "Fermer"
   }
 }

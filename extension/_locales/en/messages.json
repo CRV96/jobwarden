@@ -205,5 +205,119 @@
   },
   "showOnIconHint": {
     "message": "★ bookmarked, ✓ applied. Chrome asks you to let JobWarden see your tabs’ addresses; each page you open is then looked up on your server."
+  },
+  "updateAvailable": {
+    "message": "JobWarden $1 is out: get the latest code"
+  },
+  "updateReload": {
+    "message": "Your JobWarden server runs $1: reload the extension to match it"
+  },
+  "extensionVersion": {
+    "message": "JobWarden extension $1"
+  },
+  "runTitle": {
+    "message": "Easy Apply run"
+  },
+  "runHint": {
+    "message": "Goes through this search and sends each Easy Apply job with your CV and the answers on JobWarden’s Auto-apply page. It stops at a question your answers don’t cover, and at LinkedIn’s security checks."
+  },
+  "runLimit": {
+    "message": "Stop after"
+  },
+  "runLimitUnit": {
+    "message": "applications"
+  },
+  "runSaveOthers": {
+    "message": "Save the other jobs for Auto-apply"
+  },
+  "runWarning": {
+    "message": "LinkedIn’s terms don’t allow automated applying, and LinkedIn can restrict accounts that do it."
+  },
+  "runStart": {
+    "message": "Start the run"
+  },
+  "runStopButton": {
+    "message": "Stop the run"
+  },
+  "runGoing": {
+    "message": "A run is going on in this tab: $1 sent so far."
+  },
+  "runCouldNotStart": {
+    "message": "The run couldn’t start: $1. If you just updated JobWarden, reload the extension (chrome://extensions), then the LinkedIn page, and try again."
+  },
+  "runBarTitle": {
+    "message": "JobWarden · Easy Apply run"
+  },
+  "runStarting": {
+    "message": "Starting…"
+  },
+  "runOpening": {
+    "message": "Opening $1…"
+  },
+  "runFilling": {
+    "message": "Applying to $1…"
+  },
+  "runThisJob": {
+    "message": "the next job"
+  },
+  "runCounts": {
+    "message": "Sent $1 of at most $2 · saved $3 · skipped $4"
+  },
+  "runNeedsAnswer": {
+    "message": "The form asks “$1”, which your answers don’t cover. Answer it on the form, or under Your own questions on JobWarden’s Auto-apply page, then Continue. Either way, JobWarden keeps it for the next forms."
+  },
+  "runAQuestion": {
+    "message": "a question"
+  },
+  "runFormError": {
+    "message": "LinkedIn says: “$1” Fix it on the form, then Continue."
+  },
+  "runSecurityCheck": {
+    "message": "LinkedIn wants to check it’s you. Do it yourself, then Continue."
+  },
+  "runFormDidntOpen": {
+    "message": "The Easy Apply form didn’t open. Look at the page, then Continue to try again."
+  },
+  "runStuck": {
+    "message": "The form didn’t go on as expected. Look at it, then Continue, or skip this job."
+  },
+  "runUnsure": {
+    "message": "LinkedIn didn’t show that it sent the application. Was it sent?"
+  },
+  "runLimitReached": {
+    "message": "Done: $1 sent, as many as you set for this run."
+  },
+  "runDone": {
+    "message": "Done: no more jobs in this search."
+  },
+  "runStopped": {
+    "message": "Stopped."
+  },
+  "runFailed": {
+    "message": "The run stopped: $1"
+  },
+  "runSignedOut": {
+    "message": "LinkedIn signed you out. Sign in, then start the run again."
+  },
+  "runServerError": {
+    "message": "JobWarden didn’t take the request ($1). Check that it’s running, then Continue."
+  },
+  "runContinue": {
+    "message": "Continue"
+  },
+  "runSkip": {
+    "message": "Skip this job"
+  },
+  "runSent": {
+    "message": "Yes, it was sent"
+  },
+  "runNotSent": {
+    "message": "No"
+  },
+  "runStop": {
+    "message": "Stop"
+  },
+  "runClose": {
+    "message": "Close"
   }
 }

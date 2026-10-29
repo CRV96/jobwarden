@@ -205,5 +205,119 @@
   },
   "showOnIconHint": {
     "message": "★ guardada, ✓ enviada. Chrome te pedirá permiso para que JobWarden vea las direcciones de tus pestañas; cada página que abras se consultará en tu servidor."
+  },
+  "updateAvailable": {
+    "message": "Ya está JobWarden $1: consigue el código más reciente"
+  },
+  "updateReload": {
+    "message": "Tu servidor JobWarden usa la $1: vuelve a cargar la extensión para igualarla"
+  },
+  "extensionVersion": {
+    "message": "Extensión de JobWarden $1"
+  },
+  "runTitle": {
+    "message": "Ronda de Easy Apply"
+  },
+  "runHint": {
+    "message": "Recorre esta búsqueda y envía cada empleo con Easy Apply con tu CV y las respuestas de la página Postulación automática de JobWarden. Se detiene ante una pregunta que tus respuestas no cubren y ante las comprobaciones de seguridad de LinkedIn."
+  },
+  "runLimit": {
+    "message": "Parar tras"
+  },
+  "runLimitUnit": {
+    "message": "postulaciones"
+  },
+  "runSaveOthers": {
+    "message": "Guardar los demás empleos para Postulación automática"
+  },
+  "runWarning": {
+    "message": "Las condiciones de LinkedIn no permiten postular de forma automatizada, y LinkedIn puede restringir las cuentas que lo hacen."
+  },
+  "runStart": {
+    "message": "Empezar la ronda"
+  },
+  "runStopButton": {
+    "message": "Parar la ronda"
+  },
+  "runGoing": {
+    "message": "Hay una ronda en curso en esta pestaña: $1 enviadas hasta ahora."
+  },
+  "runCouldNotStart": {
+    "message": "La ronda no pudo empezar: $1. Si acabas de actualizar JobWarden, recarga la extensión (chrome://extensions), luego la página de LinkedIn, y vuelve a intentarlo."
+  },
+  "runBarTitle": {
+    "message": "JobWarden · Ronda de Easy Apply"
+  },
+  "runStarting": {
+    "message": "Empezando…"
+  },
+  "runOpening": {
+    "message": "Abriendo $1…"
+  },
+  "runFilling": {
+    "message": "Postulando a $1…"
+  },
+  "runThisJob": {
+    "message": "el siguiente empleo"
+  },
+  "runCounts": {
+    "message": "$1 enviadas de $2 como máximo · $3 guardadas · $4 omitidas"
+  },
+  "runNeedsAnswer": {
+    "message": "El formulario pregunta «$1», que tus respuestas no cubren. Respóndela en el formulario o en Tus propias preguntas de la página Postulación automática de JobWarden y luego Continuar. En ambos casos, JobWarden la guarda para los siguientes formularios."
+  },
+  "runAQuestion": {
+    "message": "una pregunta"
+  },
+  "runFormError": {
+    "message": "LinkedIn dice: «$1» Corrígelo en el formulario y luego Continuar."
+  },
+  "runSecurityCheck": {
+    "message": "LinkedIn quiere comprobar que eres tú. Hazlo tú y luego Continuar."
+  },
+  "runFormDidntOpen": {
+    "message": "El formulario de Easy Apply no se abrió. Mira la página y luego Continuar para intentarlo de nuevo."
+  },
+  "runStuck": {
+    "message": "El formulario no avanzó como se esperaba. Míralo y luego Continuar, u omite este empleo."
+  },
+  "runUnsure": {
+    "message": "LinkedIn no mostró que enviara la postulación. ¿Se envió?"
+  },
+  "runLimitReached": {
+    "message": "Listo: $1 enviadas, tantas como fijaste para esta ronda."
+  },
+  "runDone": {
+    "message": "Listo: no quedan empleos en esta búsqueda."
+  },
+  "runStopped": {
+    "message": "Parada."
+  },
+  "runFailed": {
+    "message": "La ronda se detuvo: $1"
+  },
+  "runSignedOut": {
+    "message": "LinkedIn cerró tu sesión. Inicia sesión y vuelve a empezar la ronda."
+  },
+  "runServerError": {
+    "message": "JobWarden no aceptó la solicitud ($1). Comprueba que está en marcha y luego Continuar."
+  },
+  "runContinue": {
+    "message": "Continuar"
+  },
+  "runSkip": {
+    "message": "Omitir este empleo"
+  },
+  "runSent": {
+    "message": "Sí, se envió"
+  },
+  "runNotSent": {
+    "message": "No"
+  },
+  "runStop": {
+    "message": "Parar"
+  },
+  "runClose": {
+    "message": "Cerrar"
   }
 }
