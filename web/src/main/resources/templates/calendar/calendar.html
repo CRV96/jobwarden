@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: page(~{::title}, ~{::main}, 'calendar')}">
+<head>
+    <title th:text="|#{calendar.title} · JobWarden|">Calendar · JobWarden</title>
+</head>
+<body>
+<!--/* The calendar a month, a week or a day at a time (calendarView, around calendarDate): the month as a grid of days
+       (calendarMonth, a CalendarMonth), a week or a day hour by hour (calendarDays, a CalendarDays). Next to it,
+       upcoming is what's coming up in the next 30 days. Each entry is a CalendarEntry: an event of a timeline, a
+       deadline or a day to follow up; a click opens its application in the side panel, like a card of the pipeline.
+       From 1024 pixels wide the page fills the window: the calendar and the list stretch with it. The month's days are as tall
+       as the window lets them be there, and of a fixed height on smaller screens; app.js fits each day's entries to its
+       cell either way (data-day-entries), with a link to the day for the rest. */-->
+<main class="page-full flex flex-col gap-4"
+      th:with="view=${calendarView}, viewName=${calendarView.name()}, dateFormat=#{format.date}">
+    <header class="flex flex-wrap items-end gap-3">
+        <div class="min-w-[240px] flex-1">
+            <h1 class="page-title mb-1" th:text="#{calendar.title}">Calendar</h1>
+            <p class="text-[13px] text-ink/60" th:text="#{calendar.subtitle}">Interviews, status changes, deadlines and follow-ups.</p>
+        </div>
+        <nav class="seg" th:aria-label="#{calendar.view}">
+            <a class="seg-opt" th:each="option : ${calendarViews}" th:href="@{/calendar(view=${option.parameter()}, date=${calendarDate})}"
+               th:aria-current="${option == view} ? 'page'" th:text="#{|calendar.view.${option}|}">Month</a>
+        </nav>
+        <nav class="flex items-center gap-1.5 max-sm:w-full" th:aria-label="#{calendar.dates}">
+            <a class="btn btn-secondary btn-icon" th:href="@{/calendar(view=${view.parameter()}, date=${view.step(calendarDate, -1)})}"
+               th:title="#{|calendar.previous.${viewName}|}" th:aria-label="#{|calendar.previous.${viewName}|}"><i class="ph ph-caret-left"></i></a>
+            <h2 class="min-w-[12rem] text-center text-[15px] font-semibold first-letter:uppercase max-sm:min-w-0 max-sm:flex-1">
+                <th:block th:if="${viewName == 'MONTH'}" th:text="${#temporals.format(calendarDate, 'LLLL yyyy')}">October 2026</th:block>
+                <th:block th:if="${viewName == 'WEEK'}"
+                          th:text="|${#temporals.format(calendarDays.days[0].date, dateFormat)} – ${#temporals.format(calendarDays.days[6].date, dateFormat)}|">26 Oct 2026 – 1 Nov 2026</th:block>
+                <th:block th:if="${viewName == 'DAY'}" th:text="${#temporals.format(calendarDate, 'EEEE, ' + dateFormat)}">Tuesday, 27 Oct 2026</th:block>
+            </h2>
+            <a class="btn btn-secondary btn-icon" th:href="@{/calendar(view=${view.parameter()}, date=${view.step(calendarDate, 1)})}"
+               th:title="#{|calendar.next.${viewName}|}" th:aria-label="#{|calendar.next.${viewName}|}"><i class="ph ph-caret-right"></i></a>
+            <a class="btn btn-ghost" th:href="@{/calendar(view=${view.parameter()})}" th:text="#{calendar.today}">Today</a>
+        </nav>
+    </header>
+
+    <!--/* When an application changes in the side panel, HTMX reloads the calendar, like the pipeline. */-->
+    <div id="calendar" class="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_clamp(240px,24vw,400px)]" hx-disinherit="*"
+         th:hx-get="@{/calendar(view=${view.parameter()}, date=${calendarDate})}" hx-trigger="applications-changed from:body"
+         hx-select="#calendar" hx-target="this" hx-swap="outerHTML">
+        <section class="card flex min-h-0 flex-col overflow-hidden" th:aria-label="#{calendar.title}">
+            <!--/* The month: a row per week, as tall as the window lets them be */-->
+            <th:block th:if="${viewName == 'MONTH'}" th:with="grid=${calendarMonth}">
+                <div class="grid grid-cols-7 border-b border-line bg-ink/3 text-center text-[11px] tracking-[0.06em] text-ink/60 uppercase">
+                    <div class="py-1.5" th:each="day : ${grid.weeks[0]}" th:text="${#temporals.format(day.date, 'EEE')}">Mon</div>
+                </div>
+                <div class="grid min-h-0 flex-1 lg:[grid-template-rows:repeat(var(--weeks),minmax(0,1fr))]"
+                     th:style="|--weeks: ${#lists.size(grid.weeks)}|" data-calendar-fit>
+                    <div class="grid min-h-0 grid-cols-7" th:each="week : ${grid.weeks}">
+                        <div class="flex h-28 min-w-0 flex-col gap-1 overflow-hidden border-b border-l border-line p-1.5 first:border-l-0 max-sm:h-[76px] lg:h-auto lg:min-h-0"
+                             th:each="day : ${week}" th:classappend="${day.inMonth} ? '' : 'bg-ink/3 text-ink/45'">
+                            <a class="self-end rounded-full text-xs tabular-nums hover:bg-ink/10"
+                               th:classappend="${day.today} ? 'bg-accent px-1.5 font-semibold text-white hover:bg-accent' : 'px-1 text-ink/60'"
+                               th:href="@{/calendar(view='day', date=${day.date})}" th:title="#{calendar.openDay}"
+                               th:text="${day.date.dayOfMonth}" th:aria-current="${day.today} ? 'date'">27</a>
+                            <div class="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden" data-day-entries>
+                                <th:block th:each="entry : ${day.entries}"><button th:replace="~{calendar/calendar :: entry(${entry}, true)}"></button></th:block>
+                                <a class="px-1 text-[11px] text-ink/55 hover:underline" data-more hidden
+                                   th:data-message="#{calendar.more('{0}')}" th:href="@{/calendar(view='day', date=${day.date})}">+2 more</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </th:block>
+
+            <!--/* A week or a day: a column per day, the entries without a time above, the others at their time. One box
+                   scrolls both ways: down through the hours, which app.js starts at days.scrollTo, and sideways when the
+                   days are narrower than they can be read at; the days and the hours' labels stay in view. */-->
+            <div class="time-grid min-h-0 flex-1 overflow-auto max-lg:h-[75vh] max-lg:flex-none" th:if="${viewName != 'MONTH'}"
+                 th:with="days=${calendarDays}" th:style="|--days: ${#lists.size(days.days)}|"
+                 th:classappend="${viewName == 'DAY'} ? 'is-day'" data-time-scroll th:data-scroll-to="${days.scrollTo}">
+                <div class="time-grid-inner">
+                    <div class="time-grid-top">
+                        <div class="time-grid-row border-b border-line bg-ink/3">
+                            <div class="time-gutter"></div>
+                            <a class="flex flex-col items-center gap-0.5 border-l border-line py-1.5 hover:bg-ink/5" th:each="day : ${days.days}"
+                               th:href="@{/calendar(view='day', date=${day.date})}" th:title="#{calendar.openDay}">
+                                <span class="text-[11px] tracking-[0.06em] text-ink/60 uppercase" th:text="${#temporals.format(day.date, 'EEE')}">Mon</span>
+                                <span class="rounded-full px-1.5 text-[17px] leading-tight font-semibold tabular-nums"
+                                      th:classappend="${day.today} ? 'bg-accent text-white'" th:aria-current="${day.today} ? 'date'"
+                                      th:text="${day.date.dayOfMonth}">27</span>
+                            </a>
+                        </div>
+                        <div class="time-grid-row border-b border-line">
+                            <div class="time-gutter px-1.5 py-1.5 text-right text-[11px] leading-tight text-ink/50" th:text="#{calendar.allDay}">All day</div>
+                            <div class="flex min-w-0 flex-col gap-1 border-l border-line p-1" th:each="day : ${days.days}">
+                                <th:block th:each="entry : ${day.allDay}"><button th:replace="~{calendar/calendar :: entry(${entry}, false)}"></button></th:block>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="time-grid-row time-grid-body">
+                        <div class="time-gutter relative">
+                            <span class="time-hour" th:each="hour : ${#numbers.sequence(1, 23)}" th:style="|--at: ${hour}|"
+                                  th:text="|${#numbers.formatInteger(hour, 2)}:00|">08:00</span>
+                        </div>
+                        <div class="time-day" th:each="day : ${days.days}" th:classappend="${day.today} ? 'is-today'">
+                            <!--/* The text flows: the time and the job first, the step and how it takes place after, as much
+                                   as the entry has room for; the title says it all */-->
+                            <button class="calendar-entry time-event" type="button" data-drawer-row th:each="timed : ${day.timed}"
+                                    th:with="entry=${timed.entry}" th:classappend="|st-${#strings.toLowerCase(entry.status.name())}|"
+                                    th:style="|--start: ${timed.start}; --length: ${timed.length}; --lane: ${timed.lane}; --lanes: ${timed.lanes}|"
+                                    th:hx-get="@{/applications/{id}/drawer(id=${entry.applicationId})}" hx-target="#drawer-content" hx-swap="innerHTML"
+                                    th:title="|${timed.hasLength() ? #temporals.format(entry.time, 'HH:mm') + '–' + #temporals.format(timed.endTime(), 'HH:mm') : #temporals.format(entry.time, 'HH:mm')} ${entry.company != null ? #messages.msg('calendar.entryTitle', entry.title, entry.company) : entry.title}|">
+                                <span class="time-event-when"><i th:replace="~{calendar/calendar :: entry-icon(${entry})}"></i>
+                                    <th:block th:text="${timed.hasLength()} ? |${#temporals.format(entry.time, 'HH:mm')}–${#temporals.format(timed.endTime(), 'HH:mm')}| : ${#temporals.format(entry.time, 'HH:mm')}">14:00–15:00</th:block></span>
+                                <span class="font-medium"><th:block th:replace="~{calendar/calendar :: entry-name(${entry})}"></th:block></span>
+                                <span class="block text-ink/65" th:if="${entry.stageLabel != null or entry.interviewFormat != null}"
+                                      th:text="${entry.stageLabel != null and entry.interviewFormat != null} ? |${entry.stageLabel} · #{${'interviewFormat.' + entry.interviewFormat}}| : (${entry.stageLabel} ?: #{${'interviewFormat.' + entry.interviewFormat}})">Technical interview · Video call</span>
+                            </button>
+                            <!--/* What the lanes had no room for: in the week, a badge that links to the day, which has
+                                   room for more */-->
+                            <a class="calendar-entry time-event" th:each="block : ${day.more}" th:classappend="${block.isBadge()} ? 'is-badge'"
+                               th:style="|--start: ${block.start}; --length: ${block.length}; --lane: ${block.lane}; --lanes: ${block.lanes}|"
+                               th:href="${viewName == 'WEEK'} ? @{/calendar(view='day', date=${day.date})}"
+                               th:title="${#strings.listJoin(block.entries.![company != null ? #messages.msg('calendar.entryTitle', title, company) : title], ', ')}">
+                                <span class="font-medium tabular-nums" th:text="|+${block.count()}|">+5</span>
+                            </a>
+                            <span class="time-now" th:if="${day.today and days.now != null}" th:style="|--start: ${days.now}|"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <ul class="flex flex-wrap gap-x-4 gap-y-1 border-t border-line px-3 py-2 text-xs text-ink/60" th:aria-label="#{calendar.legend}">
+                <li class="inline-flex items-center gap-1.5"><i class="ph ph-chat-circle-text"></i><span th:text="#{calendar.legend.interview}">Interview</span></li>
+                <li class="inline-flex items-center gap-1.5"><i class="ph ph-flag"></i><span th:text="#{calendar.legend.status}">Status change</span></li>
+                <li class="inline-flex items-center gap-1.5"><i class="ph ph-hourglass-medium"></i><span th:text="#{calendar.kind.DEADLINE}">Applications close</span></li>
+                <li class="inline-flex items-center gap-1.5"><i class="ph ph-bell-ringing"></i><span th:text="#{calendar.kind.FOLLOW_UP}">Follow up</span></li>
+            </ul>
+        </section>
+
+        <!--/* As tall as the calendar; the list scrolls inside it */-->
+        <aside class="card flex min-h-0 flex-col gap-2 p-4" aria-labelledby="upcoming-title">
+            <h2 id="upcoming-title" class="section-title" th:text="#{calendar.upcoming}">Coming up</h2>
+            <p class="text-xs text-ink/55" th:if="${upcoming.isEmpty()}" th:text="#{calendar.upcoming.empty}">Nothing in the next 30 days.</p>
+            <ul class="-mx-1 flex min-h-0 flex-1 flex-col divide-y divide-line overflow-y-auto px-1">
+                <li th:each="entry : ${upcoming}">
+                    <button class="flex w-full items-start gap-2.5 py-2 text-left hover:bg-ink/3" type="button" data-drawer-row
+                            th:hx-get="@{/applications/{id}/drawer(id=${entry.applicationId})}" hx-target="#drawer-content" hx-swap="innerHTML">
+                        <span class="flex w-11 flex-none flex-col items-center rounded-md bg-ink/5 py-1 leading-tight">
+                            <span class="text-[10px] text-ink/60 uppercase" th:text="${#temporals.format(entry.date, 'MMM')}">Oct</span>
+                            <span class="text-[15px] font-semibold tabular-nums" th:text="${entry.date.dayOfMonth}">30</span>
+                        </span>
+                        <span class="min-w-0 flex-1">
+                            <span class="block truncate text-[13px] font-medium" th:text="${entry.title}">Backend engineer</span>
+                            <span class="block truncate text-xs text-ink/55" th:text="${entry.company}" th:if="${entry.company}">Acme</span>
+                            <span class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-ink/70"
+                                  th:classappend="|st-${#strings.toLowerCase(entry.status.name())}|">
+                                <span class="inline-flex items-center gap-1">
+                                    <i th:replace="~{calendar/calendar :: entry-icon(${entry})}"></i>
+                                    <span th:text="${entry.kind.name() == 'EVENT'} ? (${entry.stageLabel} ?: #{${'status.' + entry.status}}) : #{${'calendar.kind.' + entry.kind}}">Technical interview</span>
+                                </span>
+                                <span class="tabular-nums" th:if="${entry.time}" th:text="${#temporals.format(entry.time, 'HH:mm')}">14:00</span>
+                                <span th:if="${entry.interviewFormat}" th:text="#{${'interviewFormat.' + entry.interviewFormat}}">Video call</span>
+                            </span>
+                        </span>
+                    </button>
+                </li>
+            </ul>
+        </aside>
+    </div>
+
+    <dialog th:replace="~{applications/fragments :: drawer-dialog}"></dialog>
+</main>
+
+<!--/* An entry in a day of the month, or above the hours: its icon, its time if it has one, and its job. A day of the
+       month on a phone (compact) has room for only the icon and the time. */-->
+<button th:fragment="entry(entry, compact)" class="calendar-entry flex-none" type="button" data-drawer-row
+        th:classappend="|st-${#strings.toLowerCase(entry.status.name())}|"
+        th:hx-get="@{/applications/{id}/drawer(id=${entry.applicationId})}" hx-target="#drawer-content" hx-swap="innerHTML"
+        th:title="${entry.company != null} ? #{calendar.entryTitle(${entry.title}, ${entry.company})} : ${entry.title}">
+    <i th:replace="~{calendar/calendar :: entry-icon(${entry})}"></i>
+    <span class="tabular-nums text-ink/60" th:if="${entry.time}" th:text="${#temporals.format(entry.time, 'HH:mm')}">14:00</span>
+    <span class="min-w-0 truncate" th:classappend="${compact} ? 'max-sm:hidden'"><th:block th:replace="~{calendar/calendar :: entry-name(${entry})}"></th:block></span>
+</button>
+
+<!--/* An entry's job: its title, and the company's name when there's one, e.g. Software Engineer at Microsoft */-->
+<th:block th:fragment="entry-name(entry)"
+          th:text="${entry.company != null} ? #{calendar.entryTitle(${entry.title}, ${entry.company})} : ${entry.title}">Backend engineer at Acme</th:block>
+
+<!--/* What an entry is: an interview (its format's icon), another status, a deadline or a day to follow up. In the
+       status's colour (st-* on the entry). */-->
+<i th:fragment="entry-icon(entry)" class="ph calendar-icon flex-none" aria-hidden="true"
+   th:classappend="${entry.kind.name() == 'DEADLINE'} ? 'ph-hourglass-medium' : (${entry.kind.name() == 'FOLLOW_UP'} ? 'ph-bell-ringing' : (${entry.isInterview()} ? (${entry.interviewFormat == null} ? 'ph-chat-circle-text' : (${entry.interviewFormat.name() == 'PHONE'} ? 'ph-phone' : (${entry.interviewFormat.name() == 'VIDEO'} ? 'ph-video-camera' : (${entry.interviewFormat.name() == 'ON_SITE'} ? 'ph-buildings' : 'ph-laptop')))) : 'ph-flag'))"></i>
+</body>
+</html>

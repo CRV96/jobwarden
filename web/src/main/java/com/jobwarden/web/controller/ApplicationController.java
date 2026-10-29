@@ -1,5 +1,14 @@
 package com.jobwarden.web.controller;
 
+import java.io.IOException;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -9,8 +18,10 @@ import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.InterviewFormat;
 import com.jobwarden.jobs.enums.RejectionReason;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
+import com.jobwarden.jobs.service.ApplicationCsvService;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.web.constants.AppConstants.ControllerConstants;
 import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
@@ -18,6 +29,7 @@ import com.jobwarden.web.constants.AppConstants.HtmxEvents;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.constants.AppConstants.Views;
 import com.jobwarden.web.dto.ApplicationListParams;
+import com.jobwarden.web.dto.FollowUpForm;
 import com.jobwarden.web.dto.NewApplicationForm;
 import com.jobwarden.web.dto.NewEventForm;
 import com.jobwarden.web.dto.NotesForm;
@@ -30,6 +42,7 @@ import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.data.domain.Page;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -42,6 +55,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
  * Every page here needs a profile: {@link #requireProfile} sends the browser to the profile picker if none is
@@ -56,7 +71,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 @RequiredArgsConstructor
 class ApplicationController extends BaseController {
 
+	private static final MediaType CSV = new MediaType("text", "csv", StandardCharsets.UTF_8);
+
 	private final ApplicationService applications;
+
+	private final ApplicationCsvService csv;
 
 	/**
 	 * The list, searched, filtered, sorted and paged as its address says. An address past the last page (e.g. after
@@ -74,6 +93,32 @@ class ApplicationController extends BaseController {
 		addImages(model, userId);
 		addFormChoices(model);
 		return Views.APPLICATION_LIST;
+	}
+
+	/**
+	 * Every job of the profile as a CSV file, e.g. to keep a copy or to open in a spreadsheet.
+	 */
+	@GetMapping("/export")
+	ResponseEntity<byte[]> export(Model model) throws IOException {
+		StringWriter csv = new StringWriter();
+		this.csv.export(requireProfile(model).id(), csv);
+		return attachment(csv.toString().getBytes(StandardCharsets.UTF_8), CSV, "jobwarden-jobs-" + LocalDate.now() + ".csv");
+	}
+
+	/**
+	 * Adds a job for each row of a CSV file, from the settings page, which then says how it went, once.
+	 */
+	@PostMapping("/import")
+	String importCsv(@RequestParam MultipartFile file, Model model, RedirectAttributes redirect) throws IOException {
+		long userId = requireProfile(model).id();
+		try {
+			redirect.addFlashAttribute(ModelAttributes.CSV_IMPORT,
+					this.csv.importCsv(userId, new StringReader(text(file.getBytes()))));
+		} catch (BusinessRuleException refused) {
+			log.debug("CSV file of profile {} not imported: {}", userId, refused.getMessage());
+			redirect.addFlashAttribute(ModelAttributes.CSV_IMPORT_ERROR, message(refused));
+		}
+		return redirectTo(ControllerConstants.SETTINGS + "#jobs-data");
 	}
 
 	@GetMapping("/new")
@@ -155,6 +200,23 @@ class ApplicationController extends BaseController {
 	}
 
 	/**
+	 * Called by HTMX as the contact and follow-up fields change. Returns only what the card's status shows: that
+	 * they're saved, or why they aren't.
+	 */
+	@PutMapping("/{id}/follow-up")
+	String updateFollowUp(@PathVariable long id, @Valid FollowUpForm form, BindingResult result, Model model) {
+		long userId = requireProfile(model).id();
+		if (result.hasErrors()) {
+			Map<String, String> errors = fieldErrors(result);
+			log.debug("Follow-up of application {} not saved, fields with errors: {}", id, errors.keySet());
+			model.addAttribute(ModelAttributes.FIELD_ERRORS, errors);
+		} else {
+			this.applications.updateFollowUp(userId, id, form.toFollowUp());
+		}
+		return Views.FOLLOW_UP_STATUS_FRAGMENT;
+	}
+
+	/**
 	 * Called by HTMX from the salaries page, for a salary it couldn't read. {@code HX-Refresh} then shows the page
 	 * with the salary in it.
 	 */
@@ -230,11 +292,28 @@ class ApplicationController extends BaseController {
 	}
 
 	/**
-	 * What the forms on these pages offer: statuses, rejection reasons, and now as the default date and time.
+	 * The file's text: UTF-8, or else Windows-1252, as Excel saves "CSV (Comma delimited)" on Windows.
+	 */
+	private static String text(byte[] bytes) {
+		try {
+			return StandardCharsets.UTF_8.newDecoder()
+				.onMalformedInput(CodingErrorAction.REPORT)
+				.onUnmappableCharacter(CodingErrorAction.REPORT)
+				.decode(ByteBuffer.wrap(bytes))
+				.toString();
+		} catch (CharacterCodingException notUtf8) {
+			return new String(bytes, Charset.forName("windows-1252"));
+		}
+	}
+
+	/**
+	 * What the forms on these pages offer: statuses, rejection reasons, interview formats, and now as the default date
+	 * and time.
 	 */
 	private static void addFormChoices(Model model) {
 		model.addAttribute(ModelAttributes.STATUSES, ApplicationStatus.values());
 		model.addAttribute(ModelAttributes.REJECTION_REASONS, RejectionReason.values());
+		model.addAttribute(ModelAttributes.INTERVIEW_FORMATS, InterviewFormat.values());
 		model.addAttribute(ModelAttributes.NOW, LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES));
 	}
 

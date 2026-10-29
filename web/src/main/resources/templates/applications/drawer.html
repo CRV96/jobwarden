@@ -11,7 +11,10 @@
     <div class="flex items-start gap-3">
         <span th:replace="~{applications/fragments :: company-logo(${jobApplication.id}, ${jobApplication.company}, 40)}"></span>
         <div class="min-w-0 flex-1">
-            <div class="mb-1 text-xs text-ink/60" th:text="${jobApplication.company} ?: #{application.unknownCompany}">Acme</div>
+            <div class="mb-1 flex items-center gap-2 text-xs text-ink/60">
+                <span th:text="${jobApplication.company} ?: #{application.unknownCompany}">Acme</span>
+                <span th:replace="~{applications/fragments :: applied-by(${jobApplication.appliedBy})}"></span>
+            </div>
             <h2 class="text-[21px] leading-tight font-bold tracking-[-0.02em]">
                 <a class="hover:text-accent hover:underline" th:href="${pageUrl}" th:text="${jobApplication.title}">Backend engineer</a>
             </h2>
@@ -31,6 +34,8 @@
         <section th:replace="~{applications/fragments :: description}"></section>
     </th:block>
     <section th:replace="~{applications/fragments :: timeline}"></section>
+    <section th:replace="~{applications/tailored-cv :: loader(${jobApplication.id})}"></section>
+    <form th:replace="~{applications/fragments :: follow-up}"></form>
     <div th:replace="~{applications/fragments :: notes}"></div>
 
     <div class="mt-auto flex items-center gap-1.5">
