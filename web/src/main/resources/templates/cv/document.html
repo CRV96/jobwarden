@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<!--/* The CV built from the CV page's fields (cvDetails, a CvDetails): the page's preview, and the HTML CvPdf makes the
+       PDF from. openhtmltopdf reads CSS 2.1 and a little of CSS 3, so the layout is blocks and tables, without flex or
+       grid; and there are no @{...} links, since the PDF is made outside a request. In the PDF the font is Noto Sans,
+       which CvPdf embeds; on screen it's loaded as a web font (the screen-only styles). */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}" th:with="cv=${cvDetails}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${cv.fullName} ? |CV · ${cv.fullName}| : 'CV'">CV</title>
+    <style media="screen">
+        @font-face { font-family: 'Noto Sans'; src: url('/fonts/NotoSans-Regular.ttf'); font-weight: 400; font-style: normal; }
+        @font-face { font-family: 'Noto Sans'; src: url('/fonts/NotoSans-Bold.ttf'); font-weight: 700; font-style: normal; }
+        @font-face { font-family: 'Noto Sans'; src: url('/fonts/NotoSans-Italic.ttf'); font-weight: 400; font-style: italic; }
+        html { background: #e9e9ec; }
+        body { box-sizing: border-box; width: 210mm; min-height: 297mm; margin: 24px auto; padding: 16mm;
+               background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08); }
+        @media (max-width: 860px) { body { width: auto; min-height: 0; margin: 0; padding: 24px; box-shadow: none; } }
+    </style>
+    <style>
+        @page { size: A4; margin: 16mm 16mm 18mm; }
+        body { margin: 0; color: #1d1d1f; font-family: 'Noto Sans', sans-serif; font-size: 10pt; line-height: 1.45; }
+        h1 { margin: 0; font-size: 22pt; font-weight: 700; line-height: 1.15; }
+        .headline { margin-top: 3pt; color: #0058b8; font-size: 12pt; }
+        .contact { margin-top: 7pt; color: #555; font-size: 9pt; }
+        .contact span { white-space: nowrap; }
+        .contact .dot { padding: 0 4pt; color: #b0b0b6; }
+        .contact a { color: #555; text-decoration: none; }
+        h2 { margin: 16pt 0 7pt; padding-bottom: 2pt; border-bottom: 0.75pt solid #d0d0d6; color: #0058b8;
+             font-size: 10pt; font-weight: 700; letter-spacing: 1pt; text-transform: uppercase; }
+        .summary { margin: 0; white-space: pre-line; }
+        .entry { margin-bottom: 9pt; page-break-inside: avoid; }
+        .entry table { width: 100%; border-collapse: collapse; }
+        .entry td { padding: 0; vertical-align: top; }
+        .what { font-weight: 700; }
+        .where { color: #444; }
+        .when { width: 32%; color: #666; font-size: 9pt; text-align: right; white-space: nowrap; }
+        .description { margin-top: 3pt; white-space: pre-line; }
+        .skill { display: inline-block; margin: 0 4pt 5pt 0; padding: 1pt 7pt; border: 0.75pt solid #c9d6ea;
+                 border-radius: 8pt; background: #f1f6fd; font-size: 9pt; }
+        .pairs td { padding: 0 14pt 3pt 0; vertical-align: top; }
+        .muted { color: #666; }
+        .empty { color: #888; font-style: italic; }
+    </style>
+</head>
+<body>
+<th:block th:if="${cv.isFilledIn()}">
+    <h1 th:text="${cv.fullName}">Robert Ciapă</h1>
+    <div class="headline" th:if="${cv.headline}" th:text="${cv.headline}">Senior Java Developer</div>
+    <!--/* The contact line: a dot between the parts. Only http(s) addresses become links. */-->
+    <div class="contact" th:unless="${cv.contacts().isEmpty()}">
+        <th:block th:each="part, row : ${cv.contacts()}"
+                  th:with="isLink=${#strings.startsWith(part, 'https://') or #strings.startsWith(part, 'http://')}">
+            <span class="dot" th:unless="${row.first}">·</span>
+            <span th:if="${isLink}"><a th:href="${part}"
+                  th:text="${#strings.replace(#strings.replace(part, 'https://', ''), 'http://', '')}">linkedin.com/in/robert</a></span>
+            <span th:unless="${isLink}" th:text="${part}">Bucharest, Romania</span>
+        </th:block>
+    </div>
+
+    <th:block th:if="${cv.summary}">
+        <h2 th:text="#{cv.doc.summary}">Summary</h2>
+        <p class="summary" th:text="${cv.summary}">Java developer with ten years of…</p>
+    </th:block>
+
+    <th:block th:unless="${cv.experience.isEmpty()}">
+        <h2 th:text="#{cv.doc.experience}">Experience</h2>
+        <div class="entry" th:each="job : ${cv.experience}">
+            <table>
+                <tr>
+                    <td>
+                        <span class="what" th:text="${job.role}">Senior Java Developer</span><span class="where"
+                              th:if="${job.company}" th:text="| · ${job.company}|"> · Acme</span>
+                        <div class="muted" th:if="${job.location}" th:text="${job.location}">Bucharest</div>
+                    </td>
+                    <td class="when" th:if="${job.start != null or job.end != null}"
+                        th:text="${job.start != null and job.end != null} ? |${job.start} – ${job.end}| : (${job.start} ?: ${job.end})">2021 – Present</td>
+                </tr>
+            </table>
+            <div class="description" th:if="${job.description}" th:text="${job.description}">Built the payments platform.</div>
+        </div>
+    </th:block>
+
+    <th:block th:unless="${cv.education.isEmpty()}">
+        <h2 th:text="#{cv.doc.education}">Education</h2>
+        <div class="entry" th:each="school : ${cv.education}">
+            <table>
+                <tr>
+                    <td>
+                        <span class="what" th:text="${school.degree}">BSc Computer Science</span><span class="where"
+                              th:if="${school.school}" th:text="| · ${school.school}|"> · University of Bucharest</span>
+                        <div class="muted" th:if="${school.location}" th:text="${school.location}">Bucharest</div>
+                    </td>
+                    <td class="when" th:if="${school.start != null or school.end != null}"
+                        th:text="${school.start != null and school.end != null} ? |${school.start} – ${school.end}| : (${school.start} ?: ${school.end})">2014 – 2018</td>
+                </tr>
+            </table>
+            <div class="description" th:if="${school.description}" th:text="${school.description}">Thesis on…</div>
+        </div>
+    </th:block>
+
+    <th:block th:unless="${cv.skills.isEmpty()}">
+        <h2 th:text="#{cv.doc.skills}">Skills</h2>
+        <div><span class="skill" th:each="skill : ${cv.skills}" th:text="${skill}">Java</span></div>
+    </th:block>
+
+    <th:block th:unless="${cv.languages.isEmpty()}">
+        <h2 th:text="#{cv.doc.languages}">Languages</h2>
+        <table class="pairs">
+            <tr th:each="language : ${cv.languages}">
+                <td class="what" th:text="${language.language}">Romanian</td>
+                <td class="muted" th:text="${language.level}">Native</td>
+            </tr>
+        </table>
+    </th:block>
+
+    <th:block th:unless="${cv.certifications.isEmpty()}">
+        <h2 th:text="#{cv.doc.certifications}">Certifications</h2>
+        <table class="pairs">
+            <tr th:each="certification : ${cv.certifications}">
+                <td class="what" th:text="${certification.name}">Oracle Certified Professional, Java SE 17</td>
+                <td class="muted" th:text="${certification.issuer != null and certification.year != null} ? |${certification.issuer}, ${certification.year}| : (${certification.issuer} ?: ${certification.year})">Oracle, 2023</td>
+            </tr>
+        </table>
+    </th:block>
+</th:block>
+<p class="empty" th:unless="${cv.isFilledIn()}" th:text="#{cv.doc.empty}">Fill in your name, a job or a degree, and save: your CV shows here.</p>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<!--/* A job's AI-proof CV: the profile's CV as Claude rewrote it for the job (TailoredCvController). On the job's page
+       and in the side panel, the loader asks for the card after the rest, since it reads the CV and Claude's requests.
+       Inside the job's own HTMX element, so every request here names its own target. */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<section th:fragment="loader(jobId)" class="flex flex-col gap-2" th:hx-get="@{/applications/{id}/cv/card(id=${jobId})}"
+         hx-trigger="load" hx-target="this" hx-swap="outerHTML">
+    <h2 class="section-title flex items-center gap-1.5">
+        <i class="ph ph-sparkle text-accent"></i><span th:text="#{tailoredCv.title}">AI-proof CV</span>
+    </h2>
+</section>
+
+<!--/* tailoredCv is the CV for the job, or null; cvRequest the latest request to tailor it, or null; hasCv whether there's
+       a CV to tailor; cvPrompt what to paste into Claude Code while the request waits. While it's open, the card asks
+       again every few seconds, and shows the CV once Claude saves it. */-->
+<section id="tailored-cv" th:fragment="card" class="flex flex-col gap-3"
+         th:with="status=${cvRequest != null} ? ${cvRequest.status.name()}, open=${cvRequest != null and cvRequest.status.isOpen()},
+                  cardUrl=@{/applications/{id}/cv/card(id=${cvJobId})}"
+         th:hx-get="${open} ? ${cardUrl}" th:hx-trigger="${open} ? 'every 5s'" hx-target="this" hx-swap="outerHTML">
+    <div class="flex items-center gap-2">
+        <h2 class="section-title flex flex-1 items-center gap-1.5">
+            <i class="ph ph-sparkle text-accent"></i><span th:text="#{tailoredCv.title}">AI-proof CV</span>
+        </h2>
+        <span class="text-xs text-ink/55" th:if="${tailoredCv}"
+              th:text="#{tailoredCv.updated(${@dates.relativeDay(tailoredCv.updatedAt)})}">Tailored: Today</span>
+    </div>
+
+    <p class="text-[13px] text-ink/65" th:unless="${hasCv}">
+        <th:block th:text="#{tailoredCv.noCv}">Claude needs your CV first: upload it or fill it in.</th:block>
+        <a class="link" th:href="@{/cv}" th:text="#{tailoredCv.addCv}">Go to the CV page</a>
+    </p>
+    <p class="text-[13px] text-pretty text-ink/65" th:if="${hasCv and tailoredCv == null and !open}"
+       th:text="#{tailoredCv.hint}">Claude rewrites your CV for this job…</p>
+
+    <!--/* Asked, not done yet: what to paste into Claude Code while it waits */-->
+    <th:block th:if="${open}">
+        <div class="flex items-center gap-2">
+            <span class="tag st-interviewing">
+                <i class="ph ph-arrow-clockwise animate-spin" th:if="${status == 'WORKING'}"></i>
+                <span th:text="#{|ai.status.${status}|}">Waiting for Claude</span>
+            </span>
+            <span class="flex-1"></span>
+            <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button" th:hx-post="@{/applications/{id}/cv/cancel(id=${cvJobId})}"
+                    hx-target="#tailored-cv" hx-swap="outerHTML" th:text="#{ai.cancel}">Cancel</button>
+        </div>
+        <th:block th:if="${status == 'WAITING'}">
+            <div class="text-xs text-ink/60" th:text="#{ai.prompt}">Paste this into Claude Code:</div>
+            <div class="flex items-start gap-2">
+                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${cvPrompt.text}">Do JobWarden request 12…</code>
+                <button th:replace="~{discover/discover :: copy-button(${cvPrompt.text})}"></button>
+            </div>
+            <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
+            <div class="flex items-start gap-2">
+                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${cvPrompt.command}">claude "Do JobWarden request 12…"</code>
+                <button th:replace="~{discover/discover :: copy-button(${cvPrompt.command})}"></button>
+            </div>
+        </th:block>
+    </th:block>
+    <p class="text-[13px] text-danger" role="alert" th:if="${status == 'FAILED'}"
+       th:text="#{tailoredCv.failed(${cvRequest.summary} ?: '')}">Claude couldn’t tailor it: the posting has no description.</p>
+
+    <!--/* The CV for the job: how it matches the posting, what Claude changed, and the CV itself */-->
+    <th:block th:if="${tailoredCv}">
+        <div class="flex flex-col gap-1.5" th:unless="${tailoredCv.matchedKeywords.isEmpty()}">
+            <span class="text-xs text-ink/60" th:text="#{tailoredCv.matched}">The posting’s keywords it names</span>
+            <div class="flex flex-wrap gap-1">
+                <span class="tag st-offer" th:each="keyword : ${tailoredCv.matchedKeywords}" th:text="${keyword}">Java</span>
+            </div>
+        </div>
+        <div class="flex flex-col gap-1.5" th:unless="${tailoredCv.missingKeywords.isEmpty()}">
+            <span class="text-xs text-ink/60" th:text="#{tailoredCv.missing}">Asked for, but not on your CV</span>
+            <div class="flex flex-wrap gap-1">
+                <span class="tag st-interviewing" th:each="keyword : ${tailoredCv.missingKeywords}" th:text="${keyword}">Kubernetes</span>
+            </div>
+        </div>
+        <div class="flex flex-col gap-1" th:if="${tailoredCv.notes}">
+            <span class="text-xs text-ink/60" th:text="#{tailoredCv.notes}">What Claude changed</span>
+            <p class="text-[13px] whitespace-pre-line text-ink/80" th:text="${tailoredCv.notes}">Put Kafka first…</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-1.5">
+            <a class="btn btn-primary" th:href="@{/applications/{id}/cv/pdf(id=${cvJobId})}">
+                <i class="ph ph-file-pdf"></i><span th:text="#{cv.pdf}">Download PDF</span>
+            </a>
+            <a class="btn btn-secondary" th:href="@{/applications/{id}/cv(id=${cvJobId})}" target="_blank" rel="noopener">
+                <i class="ph ph-arrow-square-out"></i><span th:text="#{cv.preview}">Preview</span>
+            </a>
+            <button class="btn btn-ghost" type="button" th:hx-post="@{/applications/{id}/cv/delete(id=${cvJobId})}"
+                    th:hx-confirm="#{tailoredCv.deleteConfirm}" hx-target="#tailored-cv" hx-swap="outerHTML">
+                <i class="ph ph-trash"></i><span th:text="#{action.delete}">Delete</span>
+            </button>
+        </div>
+    </th:block>
+
+    <button class="btn btn-secondary self-start" type="button" th:if="${hasCv and !open}"
+            th:hx-post="@{/applications/{id}/cv/request(id=${cvJobId})}" hx-target="#tailored-cv" hx-swap="outerHTML">
+        <i class="ph ph-sparkle"></i><span th:text="${tailoredCv} ? #{tailoredCv.again} : #{tailoredCv.ask}">Ask Claude to tailor it</span>
+    </button>
+</section>
+
+</body>
+</html>
