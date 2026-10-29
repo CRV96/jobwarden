@@ -2,21 +2,49 @@ package com.jobwarden.mcp.controller;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
+import com.jobwarden.apply.dto.ApplicationAnswers;
+import com.jobwarden.apply.dto.ApplyItem;
+import com.jobwarden.apply.dto.CustomAnswer;
+import com.jobwarden.apply.enums.ApplyMode;
+import com.jobwarden.apply.enums.ApplyStatus;
+import com.jobwarden.apply.enums.CoverLetter;
+import com.jobwarden.apply.service.AutoApplyService;
+import com.jobwarden.cv.dto.Cv;
+import com.jobwarden.cv.dto.CvDetails;
+import com.jobwarden.cv.dto.CvExperience;
+import com.jobwarden.cv.dto.CvFile;
+import com.jobwarden.cv.dto.CvLanguage;
+import com.jobwarden.cv.dto.TailoredCv;
+import com.jobwarden.cv.service.CvService;
 import com.jobwarden.discover.dto.AddedFoundJobs;
+import com.jobwarden.discover.dto.AiRequest;
+import com.jobwarden.discover.dto.AiRequirements;
 import com.jobwarden.discover.dto.FoundJob;
 import com.jobwarden.discover.dto.NewFoundJob;
 import com.jobwarden.discover.dto.SavedSearch;
+import com.jobwarden.discover.enums.AiRequestKind;
+import com.jobwarden.discover.enums.AiRequestStatus;
 import com.jobwarden.discover.enums.Decision;
 import com.jobwarden.discover.service.DiscoveryService;
+import com.jobwarden.hiring.dto.AddedHiringPosts;
+import com.jobwarden.hiring.dto.AddedRecruiters;
+import com.jobwarden.hiring.dto.NewHiringPost;
+import com.jobwarden.hiring.dto.NewRecruiter;
+import com.jobwarden.hiring.dto.Recruiter;
+import com.jobwarden.hiring.enums.RecruiterOrigin;
+import com.jobwarden.hiring.service.HiringService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.service.UserService;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.ApplicationSummary;
+import com.jobwarden.jobs.dto.FollowUp;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.InterviewFormat;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.mcp.dto.PostingCheck;
 import com.jobwarden.mcp.enums.Verdict;
@@ -48,7 +76,8 @@ import static org.mockito.Mockito.never;
  * {@code @WebMvcTest} loads only the controller: the tool sets it calls are imported, with the services they use mocked.
  */
 @WebMvcTest(McpController.class)
-@Import({ JobTools.class, DiscoverTools.class, Profiles.class })
+@Import({ JobTools.class, DiscoverTools.class, CvTools.class, RequestTools.class, HiringTools.class, ApplyTools.class,
+		Profiles.class })
 class McpControllerTests {
 
 	private static final User ROBERT = new User(1, "Robert", Instant.parse("2026-09-28T10:00:00Z"));
@@ -69,6 +98,15 @@ class McpControllerTests {
 
 	@MockitoBean
 	private PostingChecker checker;
+
+	@MockitoBean
+	private CvService cvs;
+
+	@MockitoBean
+	private HiringService hiring;
+
+	@MockitoBean
+	private AutoApplyService autoApply;
 
 	@BeforeEach
 	void oneProfile() {
@@ -108,7 +146,8 @@ class McpControllerTests {
 		assertThat(rpc("tools/list", "{}")).bodyJson().satisfies(body -> {
 			assertThat(body).extractingPath("$.result.tools[*].name").asArray()
 				.contains("list_profiles", "list_jobs", "get_job", "check_postings", "update_job_status",
-						"list_saved_searches", "save_search", "add_found_jobs", "list_found_jobs");
+						"update_follow_up", "get_cv", "save_tailored_cv", "list_requests", "get_request", "finish_request", "list_saved_searches", "save_search", "add_found_jobs", "list_found_jobs", "list_recruiters", "add_recruiters", "list_hiring_posts", "add_hiring_posts",
+						"get_application_answers", "list_apply_queue", "start_apply", "report_apply_result");
 			assertThat(body).extractingPath("$.result.tools[?(@.name == 'update_job_status')].inputSchema.required[*]")
 				.asArray()
 				.containsExactly("job_id", "status");
@@ -185,6 +224,382 @@ class McpControllerTests {
 	}
 
 	@Test
+	void logsAnInterviewWithItsTimeAndPlace() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.APPLIED)),
+				Optional.of(job(ApplicationStatus.INTERVIEWING)));
+
+		assertThat(callTool("update_job_status", """
+				{"job_id": 7, "status": "INTERVIEWING", "date": "2026-11-03", "time": "14:30", "stage": "HR call",
+				 "interview_format": "video", "interview_location": "https://meet.example.com/x", "duration_minutes": 30}
+				""")).bodyJson().extractingPath("$.result.isError").isEqualTo(false);
+		ArgumentCaptor<NewTimelineEvent> event = ArgumentCaptor.forClass(NewTimelineEvent.class);
+		then(this.applications).should().addEvent(eq(1L), eq(7L), event.capture());
+		assertThat(event.getValue()).isEqualTo(NewTimelineEvent.builder()
+			.eventDate(LocalDate.of(2026, 11, 3))
+			.eventTime(LocalTime.of(14, 30))
+			.stageCategory(ApplicationStatus.INTERVIEWING)
+			.stageLabel("HR call")
+			.interviewFormat(InterviewFormat.VIDEO)
+			.interviewLocation("https://meet.example.com/x")
+			.durationMinutes(30)
+			.build());
+	}
+
+	@Test
+	void changesOnlyTheFollowUpFieldsItIsGiven() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(ApplicationDetails.builder()
+			.id(7)
+			.title("Java Developer")
+			.status(ApplicationStatus.APPLIED)
+			.capturedAt(Instant.now())
+			.followUp(FollowUp.builder().contactName("Ana").contactPhone("+40 721 000 000").build())
+			.timeline(List.of())
+			.build()));
+
+		assertThat(callTool("update_follow_up",
+				"{\"job_id\": 7, \"contact_email\": \"ana@acme.example\", \"contact_phone\": \"\", \"follow_up_on\": \"2026-11-10\"}"))
+			.bodyJson()
+			.extractingPath("$.result.structuredContent.follow_up.contact_email")
+			.isEqualTo("ana@acme.example");
+		then(this.applications).should().updateFollowUp(1, 7, FollowUp.builder()
+			.contactName("Ana")
+			.contactEmail("ana@acme.example")
+			.followUpOn(LocalDate.of(2026, 11, 10))
+			.build());
+	}
+
+	@Test
+	void givesTheCvWithoutItsContactDetails() {
+		given(this.cvs.find(1)).willReturn(new Cv(new CvFile("cv.pdf", "application/pdf", 84_000, 12, Instant.parse("2026-10-20T10:00:00Z")),
+				CvDetails.builder()
+					.fullName("Robert")
+					.email("robert@example.com")
+					.headline("Senior Java Developer")
+					.skills(List.of("Java", "Kafka"))
+					.experience(List.of(new CvExperience("Java Developer", "Acme", "Bucharest", "2021", "Present", null)))
+					.build()));
+		given(this.cvs.fileText(1)).willReturn(Optional.of("Java, Spring"));
+
+		assertThat(callTool("get_cv", "{}")).bodyJson().satisfies(body -> {
+			assertThat(body).extractingPath("$.result.structuredContent.has_cv").isEqualTo(true);
+			assertThat(body).extractingPath("$.result.structuredContent.fields.headline").isEqualTo("Senior Java Developer");
+			assertThat(body).extractingPath("$.result.structuredContent.fields.experience[0].company").isEqualTo("Acme");
+			assertThat(body).extractingPath("$.result.structuredContent.fields").asMap().doesNotContainKey("email");
+			assertThat(body).extractingPath("$.result.structuredContent.file.text").isEqualTo("Java, Spring");
+		});
+	}
+
+	@Test
+	void saysWhenThereIsNoCv() {
+		given(this.cvs.find(1)).willReturn(new Cv(null, CvDetails.NONE));
+
+		assertThat(callTool("get_cv", "{}")).bodyJson()
+			.extractingPath("$.result.structuredContent")
+			.asMap()
+			.containsEntry("has_cv", false)
+			.doesNotContainKeys("fields", "file");
+	}
+
+	@Test
+	void handsOutTheWaitingRequestsWithTheirInstructions() {
+		AiRequest waiting = AiRequest.builder()
+			.id(12)
+			.kind(AiRequestKind.FIND_JOBS_FOR_CV)
+			.requirements(AiRequirements.builder().locations(List.of("Romania")).maxJobs(10).build())
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build();
+		given(this.discovery.findOpenRequests(1)).willReturn(List.of(waiting));
+		given(this.discovery.startRequest(1, 12)).willReturn(waiting);
+
+		assertThat(callTool("list_requests", "{}")).bodyJson()
+			.extractingPath("$.result.structuredContent.requests[0].kind")
+			.isEqualTo("FIND_JOBS_FOR_CV");
+		assertThat(callTool("get_request", "{\"request_id\": 12}")).bodyJson().satisfies(body -> {
+			assertThat(body).extractingPath("$.result.structuredContent.requirements.locations[0]").isEqualTo("Romania");
+			assertThat(body).extractingPath("$.result.structuredContent.requirements.use_cv").isEqualTo(true);
+			assertThat(body).extractingPath("$.result.structuredContent.instructions").asString()
+				.contains("Call get_cv", "add_found_jobs and request_id 12, at most 10 jobs", "finish_request with request_id 12");
+		});
+		then(this.discovery).should().startRequest(1, 12);
+	}
+
+	@Test
+	void handsOutARequestToTailorTheCvToAJob() {
+		AiRequest waiting = AiRequest.builder()
+			.id(14)
+			.kind(AiRequestKind.TAILOR_CV)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.applicationId(7L)
+			.createdAt(Instant.now())
+			.build();
+		given(this.discovery.startRequest(1, 14)).willReturn(waiting);
+
+		assertThat(callTool("get_request", "{\"request_id\": 14}")).bodyJson().satisfies(body -> {
+			assertThat(body).extractingPath("$.result.structuredContent.job_id").isEqualTo(7);
+			assertThat(body).doesNotHavePath("$.result.structuredContent.requirements");
+			assertThat(body).extractingPath("$.result.structuredContent.instructions").asString()
+				.contains("Call get_cv", "get_job with job_id 7", "never add a skill", "save_tailored_cv and job_id 7",
+						"finish_request with request_id 14");
+		});
+	}
+
+	@Test
+	void savesTheCvTailoredToAJobWithTheCvPagesContactDetails() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(ApplicationDetails.builder()
+			.id(7)
+			.title("Backend engineer")
+			.company("Acme")
+			.status(ApplicationStatus.SAVED)
+			.capturedAt(Instant.now())
+			.timeline(List.of())
+			.build()));
+		given(this.cvs.find(1)).willReturn(new Cv(null, CvDetails.builder()
+			.fullName("Robert Ciapă")
+			.email("robert@example.com")
+			.github("github.com/robert")
+			.build()));
+		given(this.cvs.saveTailored(eq(1L), eq(7L), any(), any(), any(), any())).willAnswer(call -> TailoredCv.builder()
+			.applicationId(7)
+			.details(call.getArgument(2))
+			.matchedKeywords(call.getArgument(3))
+			.missingKeywords(call.getArgument(4))
+			.updatedAt(Instant.now())
+			.build());
+
+		assertThat(callTool("save_tailored_cv", """
+				{"job_id": 7, "cv": {"full_name": "Someone Else", "email": "other@example.com", "phone": "+40 700 000 000",
+				 "headline": "Backend Engineer", "skills": ["Spring Boot", "Kafka"],
+				 "experience": [{"role": "Java Developer", "company": "Acme", "start": "2021", "end": "Present",
+				                 "description": "Built payments"}],
+				 "languages": [{"language": "English", "level": "C1"}]},
+				 "matched_keywords": ["Spring Boot"], "missing_keywords": ["Kubernetes"], "notes": "Put Kafka first."}
+				""")).bodyJson().satisfies(body -> {
+			assertThat(body).extractingPath("$.result.structuredContent.title").isEqualTo("Backend engineer");
+			assertThat(body).extractingPath("$.result.structuredContent.jobs").isEqualTo(1);
+			assertThat(body).extractingPath("$.result.structuredContent.page").isEqualTo("/applications/7");
+		});
+		ArgumentCaptor<CvDetails> saved = ArgumentCaptor.forClass(CvDetails.class);
+		then(this.cvs).should().saveTailored(eq(1L), eq(7L), saved.capture(), eq(List.of("Spring Boot")),
+				eq(List.of("Kubernetes")), eq("Put Kafka first."));
+		assertThat(saved.getValue()).satisfies(cv -> {
+			assertThat(cv.fullName()).isEqualTo("Robert Ciapă");
+			assertThat(cv.email()).isEqualTo("robert@example.com");
+			assertThat(cv.phone()).isEqualTo("+40 700 000 000");
+			assertThat(cv.github()).isEqualTo("github.com/robert");
+			assertThat(cv.headline()).isEqualTo("Backend Engineer");
+			assertThat(cv.experience()).containsExactly(
+					new CvExperience("Java Developer", "Acme", null, "2021", "Present", "Built payments"));
+			assertThat(cv.languages()).containsExactly(new CvLanguage("English", "C1"));
+		});
+	}
+
+	@Test
+	void savesATailoredCvOnlyForTheProfilesOwnJobs() {
+		given(this.applications.findById(1, 8)).willReturn(Optional.empty());
+
+		assertThat(callTool("save_tailored_cv", "{\"job_id\": 8, \"cv\": {\"headline\": \"Backend Engineer\"}}"))
+			.bodyJson()
+			.extractingPath("$.result.isError")
+			.isEqualTo(true);
+		then(this.cvs).should(never()).saveTailored(anyLong(), anyLong(), any(), any(), any(), any());
+	}
+
+	@Test
+	void addsHiringPostsWithTheirAuthors() {
+		given(this.hiring.addPosts(eq(1L), any())).willReturn(new AddedHiringPosts(List.of(), List.of("https://example.com/2")));
+
+		assertThat(callTool("add_hiring_posts", """
+				{"posts": [{"link": "https://www.linkedin.com/posts/ana-1", "text": "We're hiring #java",
+				            "posted_on": "2026-10-20", "role": "Java Developer", "company": "Acme", "country": "RO",
+				            "author": {"name": "Ana Pop", "headline": "IT Recruiter", "profile_url": "https://www.linkedin.com/in/ana"}}]}
+				""")).bodyJson()
+			.extractingPath("$.result.structuredContent.skipped[0]")
+			.isEqualTo("https://example.com/2");
+		then(this.hiring).should().addPosts(1, List.of(NewHiringPost.builder()
+			.link("https://www.linkedin.com/posts/ana-1")
+			.text("We're hiring #java")
+			.postedOn(LocalDate.of(2026, 10, 20))
+			.role("Java Developer")
+			.company("Acme")
+			.country("RO")
+			.authorName("Ana Pop")
+			.authorHeadline("IT Recruiter")
+			.authorProfileUrl("https://www.linkedin.com/in/ana")
+			.build()));
+		assertThat(callTool("add_hiring_posts", "{\"posts\": [{\"link\": \"https://example.com/1\", \"text\": \"Hiring\"}]}"))
+			.bodyJson()
+			.extractingPath("$.result.content[0].text")
+			.isEqualTo("author is required, as an object");
+	}
+
+	@Test
+	void addsTheRecruitersFoundWithWhyToFollowThem() {
+		given(this.hiring.addFoundRecruiters(eq(1L), any())).willReturn(new AddedRecruiters(List.of(Recruiter.builder()
+			.id(4)
+			.name("Bob Ionescu")
+			.profileUrl("https://www.linkedin.com/in/bob")
+			.company("Acme")
+			.origin(RecruiterOrigin.FOUND)
+			.build()), List.of()));
+
+		assertThat(callTool("add_recruiters", """
+				{"recruiters": [{"name": "Bob Ionescu", "headline": "Technical Recruiter at Acme",
+				                 "profile_url": "https://www.linkedin.com/in/bob", "company": "Acme", "country": "RO",
+				                 "note": "Hires Java developers for the payments team."}]}
+				""")).bodyJson()
+			.extractingPath("$.result.structuredContent.added[0].origin")
+			.isEqualTo("FOUND");
+		then(this.hiring).should().addFoundRecruiters(1, List.of(NewRecruiter.builder()
+			.name("Bob Ionescu")
+			.headline("Technical Recruiter at Acme")
+			.profileUrl("https://www.linkedin.com/in/bob")
+			.company("Acme")
+			.country("RO")
+			.note("Hires Java developers for the payments team.")
+			.build()));
+	}
+
+	@Test
+	void handsOutARequestForRecruiters() {
+		AiRequest waiting = AiRequest.builder()
+			.id(22)
+			.kind(AiRequestKind.FIND_RECRUITERS)
+			.requirements(AiRequirements.builder().titles(List.of("Java Developer")).locations(List.of("Romania")).maxJobs(20).build())
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build();
+		given(this.discovery.startRequest(1, 22)).willReturn(waiting);
+
+		assertThat(callTool("get_request", "{\"request_id\": 22}")).bodyJson().satisfies(body -> {
+			assertThat(body).extractingPath("$.result.structuredContent.requirements.titles[0]").isEqualTo("Java Developer");
+			assertThat(body).extractingPath("$.result.structuredContent.instructions").asString()
+				.contains("list_recruiters", "list_jobs with status SAVED", "add_recruiters, at most 20",
+						"finish_request with request_id 22");
+		});
+	}
+
+	@Test
+	void listsTheRecruitersTheProfileFollowsFirst() {
+		given(this.hiring.findRecruiters(1)).willReturn(List.of(Recruiter.builder()
+			.id(3)
+			.name("Ana Pop")
+			.profileUrl("https://www.linkedin.com/in/ana")
+			.followed(true)
+			.posts(4)
+			.build()));
+
+		assertThat(callTool("list_recruiters", "{}")).bodyJson().satisfies(body -> {
+			assertThat(body).extractingPath("$.result.structuredContent.recruiters[0].profile_url")
+				.isEqualTo("https://www.linkedin.com/in/ana");
+			assertThat(body).extractingPath("$.result.structuredContent.recruiters[0].followed").isEqualTo(true);
+		});
+	}
+
+	@Test
+	void givesTheAnswersToFillFormsInWith() {
+		given(this.cvs.find(1)).willReturn(new Cv(null, CvDetails.builder()
+			.fullName("Robert Ciapă")
+			.email("robert@example.com")
+			.phone("+40 700 000 000")
+			.build()));
+		given(this.autoApply.findAnswers(1)).willReturn(ApplicationAnswers.builder()
+			.workAuthorization("EU citizen")
+			.needsSponsorship(false)
+			.noticePeriod("1 month")
+			.coverLetter(CoverLetter.WRITE)
+			.declineVoluntary(true)
+			.custom(List.of(new CustomAnswer("Driving licence?", "Yes, B")))
+			.build());
+
+		assertThat(callTool("get_application_answers", "{}")).bodyJson().satisfies(body -> {
+			assertThat(body).extractingPath("$.result.structuredContent.contact.email").isEqualTo("robert@example.com");
+			assertThat(body).extractingPath("$.result.structuredContent.work_authorization").isEqualTo("EU citizen");
+			assertThat(body).extractingPath("$.result.structuredContent.needs_sponsorship").isEqualTo(false);
+			assertThat(body).extractingPath("$.result.structuredContent.cover_letter").isEqualTo("WRITE");
+			assertThat(body).extractingPath("$.result.structuredContent.custom[0].answer").isEqualTo("Yes, B");
+		});
+	}
+
+	@Test
+	void listsTheJobsToApplyToWithTheCvToUpload() {
+		given(this.autoApply.findOpenItems(1)).willReturn(List.of(ApplyItem.builder()
+			.id(3)
+			.applicationId(7)
+			.title("Backend engineer")
+			.company("Acme")
+			.link("https://jobs.lever.co/acme/7")
+			.mode(ApplyMode.SUBMIT)
+			.status(ApplyStatus.QUEUED)
+			.createdAt(Instant.now())
+			.build()));
+
+		assertThat(callTool("list_apply_queue", "{}")).bodyJson().satisfies(body -> {
+			assertThat(body).extractingPath("$.result.structuredContent.jobs[0].item_id").isEqualTo(3);
+			assertThat(body).extractingPath("$.result.structuredContent.jobs[0].mode").isEqualTo("SUBMIT");
+			assertThat(body).extractingPath("$.result.structuredContent.jobs[0].has_tailored_cv").isEqualTo(false);
+			assertThat(body).extractingPath("$.result.structuredContent.jobs[0].cv_url")
+				.isEqualTo("http://localhost/claude/cv?profile=1&job=7");
+		});
+	}
+
+	@Test
+	void reportsHowApplyingWent() {
+		given(this.autoApply.report(1, 3, ApplyStatus.NEEDS_ANSWER, "Workday", null, "Willing to work weekends?"))
+			.willReturn(ApplyItem.builder()
+				.id(3)
+				.applicationId(7)
+				.title("Backend engineer")
+				.mode(ApplyMode.SUBMIT)
+				.status(ApplyStatus.NEEDS_ANSWER)
+				.question("Willing to work weekends?")
+				.createdAt(Instant.now())
+				.build());
+
+		assertThat(callTool("report_apply_result", """
+				{"item_id": 3, "result": "NEEDS_ANSWER", "site": "Workday", "question": "Willing to work weekends?"}
+				""")).bodyJson()
+			.extractingPath("$.result.structuredContent.status")
+			.isEqualTo("NEEDS_ANSWER");
+		then(this.autoApply).should().report(1, 3, ApplyStatus.NEEDS_ANSWER, "Workday", null, "Willing to work weekends?");
+	}
+
+	@Test
+	void handsOutARequestToApplyWithItsRules() {
+		given(this.discovery.startRequest(1, 30)).willReturn(AiRequest.builder()
+			.id(30)
+			.kind(AiRequestKind.AUTO_APPLY)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+
+		assertThat(callTool("get_request", "{\"request_id\": 30}")).bodyJson()
+			.extractingPath("$.result.structuredContent.instructions")
+			.asString()
+			.contains("Claude in Chrome", "get_application_answers", "list_apply_queue", "start_apply", "LinkedIn Easy Apply",
+					"Never solve or get around a CAPTCHA", "NEEDS_ANSWER", "Mode REVIEW", "finish_request with request_id 30");
+	}
+
+	@Test
+	void finishesARequestWithASummary() {
+		given(this.discovery.finishRequest(1, 12, false, "LinkedIn blocked every search")).willReturn(AiRequest.builder()
+			.id(12)
+			.kind(AiRequestKind.FIND_JOBS)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.FAILED)
+			.summary("LinkedIn blocked every search")
+			.createdAt(Instant.now())
+			.build());
+
+		assertThat(callTool("finish_request", "{\"request_id\": 12, \"summary\": \"LinkedIn blocked every search\", \"done\": false}"))
+			.bodyJson()
+			.extractingPath("$.result.structuredContent.status")
+			.isEqualTo("FAILED");
+	}
+
+	@Test
 	void saysWhatIsMissing() {
 		assertThat(callTool("update_job_status", "{\"status\": \"REJECTED\"}")).bodyJson().satisfies(body -> {
 			assertThat(body).extractingPath("$.result.isError").isEqualTo(true);
@@ -254,7 +669,7 @@ class McpControllerTests {
 		given(this.discovery.countToReview(1, null)).willReturn(4L);
 
 		assertThat(callTool("add_found_jobs", """
-				{"search_id": 3, "jobs": [
+				{"search_id": 3, "request_id": 12, "jobs": [
 				  {"title": "Java Developer", "link": "https://jobs.lever.co/acme/1", "note": "Remote, Kafka", "posted_on": "2026-10-24"},
 				  {"title": "Java Developer", "link": "https://jobs.lever.co/acme/2"}]}"""))
 			.bodyJson()
@@ -267,6 +682,7 @@ class McpControllerTests {
 		ArgumentCaptor<List<NewFoundJob>> jobs = ArgumentCaptor.forClass(List.class);
 		then(this.discovery).should().addFoundJobs(eq(1L), jobs.capture());
 		assertThat(jobs.getValue().getFirst().searchId()).isEqualTo(3);
+		assertThat(jobs.getValue().getFirst().requestId()).isEqualTo(12);
 		assertThat(jobs.getValue().getFirst().postedOn()).isEqualTo(LocalDate.of(2026, 10, 24));
 	}
 

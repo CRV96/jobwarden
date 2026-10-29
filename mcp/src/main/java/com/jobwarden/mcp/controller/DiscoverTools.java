@@ -42,7 +42,7 @@ import static com.jobwarden.mcp.controller.Schemas.string;
 import static com.jobwarden.mcp.controller.Schemas.strings;
 
 /**
- * Finding jobs for the Discover page: the searches the profile saved, with queries ready to run, and the jobs found
+ * Finding jobs for the AI Assistant page: the searches the profile saved, with queries ready to run, and the jobs found
  * for them, which wait there to be saved, applied to or discarded.
  */
 @Component
@@ -125,12 +125,13 @@ class DiscoverTools implements McpToolSet {
 				"posted_on", date("When the posting went up, as YYYY-MM-DD, if it says")),
 				"title", "link");
 		return new McpTool("add_found_jobs", "Add found jobs",
-				"Adds jobs you found to the profile's Discover page, where they wait to be saved, applied to or "
+				"Adds jobs you found to the profile's AI Assistant page, where they wait to be saved, applied to or "
 						+ "discarded. Only real postings that are still open, each with its own link. Links the profile already "
 						+ "has, as found jobs (also discarded ones) or as applications, are left out and listed as skipped. "
 						+ "At most " + MAX_JOBS_AT_ONCE + " at once.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
 						"search_id", integer("The saved search they were found for, from list_saved_searches"),
+						"request_id", integer("The request from the AI Assistant page they were found for, from get_request"),
 						"search_label", string("Without a saved search: what they were searched for, e.g. Remote Kotlin jobs"),
 						"jobs", list(job, "The jobs found")),
 						"jobs"),
@@ -141,6 +142,7 @@ class DiscoverTools implements McpToolSet {
 						throw new ToolException("At most " + MAX_JOBS_AT_ONCE + " jobs at once: add the rest in another call");
 					}
 					Long searchId = call.number("search_id");
+					Long requestId = call.number("request_id");
 					String label = call.string("search_label");
 					List<NewFoundJob> found = items.stream().map(call::item).map(item -> NewFoundJob.builder()
 						.title(item.requiredString("title"))
@@ -153,6 +155,7 @@ class DiscoverTools implements McpToolSet {
 						.postedOn(item.date("posted_on"))
 						.searchId(searchId)
 						.searchLabel(label)
+						.requestId(requestId)
 						.build()).toList();
 					AddedFoundJobs added = this.discovery.addFoundJobs(userId, found);
 					return Map.of("added", added.added().stream().map(DiscoverTools::row).toList(), "skipped",
@@ -162,7 +165,7 @@ class DiscoverTools implements McpToolSet {
 
 	private McpTool listFoundJobs() {
 		return new McpTool("list_found_jobs", "List found jobs",
-				"The jobs found for the profile and what became of them: PENDING (waiting on the Discover page), SAVED or "
+				"The jobs found for the profile and what became of them: PENDING (waiting on the AI Assistant page), SAVED or "
 						+ "APPLIED (now applications) or DISCARDED. Use it to learn what the profile likes before searching again.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
 						"decision", oneOf(Decision.values(), "Only the jobs with this decision; all of them if left out"),
@@ -213,7 +216,7 @@ class DiscoverTools implements McpToolSet {
 
 	/**
 	 * @param googleTruncated whether the Google query had to leave out terms to stay within Google's 32 words
-	 * @param waitingForADecision how many of the jobs found for it still wait on the Discover page
+	 * @param waitingForADecision how many of the jobs found for it still wait on the AI Assistant page
 	 */
 	record SearchView(long id, String name, ObjectNode criteria, Map<String, QueryView> queries,
 			boolean googleTruncated, long waitingForADecision) {

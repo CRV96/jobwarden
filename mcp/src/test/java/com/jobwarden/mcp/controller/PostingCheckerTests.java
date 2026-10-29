@@ -5,6 +5,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 import com.jobwarden.mcp.dto.PostingCheck;
 import com.jobwarden.mcp.enums.Verdict;
@@ -34,6 +35,8 @@ class PostingCheckerTests {
 				"<html><body><h1>Java Developer</h1><span class=\"closed\">No longer accepting applications</span></body></html>"));
 		server.createContext("/expired", exchange -> respond(exchange, 200, jobPosting(LocalDate.now().minusDays(3))));
 		server.createContext("/open", exchange -> respond(exchange, 200, jobPosting(LocalDate.now().plusDays(30))));
+		server.createContext("/expired-with-slashes", exchange -> respond(exchange, 200,
+				jobPosting(LocalDate.now().minusDays(3).format(DateTimeFormatter.ofPattern("yyyy/MM/dd")))));
 		server.createContext("/plain", exchange -> respond(exchange, 200, "<html><body>Apply now</body></html>"));
 		server.createContext("/scripted", exchange -> respond(exchange, 200,
 				"<html><script>const message = 'This job is no longer available';</script><body>Apply now</body></html>"));
@@ -88,6 +91,15 @@ class PostingCheckerTests {
 	}
 
 	@Test
+	void readsAnEndDateWrittenWithSlashes() {
+		// As Société Générale's careers site writes it: "validThrough": "2026/08/25"
+		PostingCheck check = this.checker.check(address("/expired-with-slashes"));
+
+		assertThat(check.verdict()).isEqualTo(Verdict.CLOSED);
+		assertThat(check.certain()).isTrue();
+	}
+
+	@Test
 	void aPageThatOnlyLoadsIsOpenButNotCertainly() {
 		PostingCheck check = this.checker.check(address("/plain"));
 
@@ -136,9 +148,13 @@ class PostingCheckerTests {
 	}
 
 	private static String jobPosting(LocalDate validThrough) {
+		return jobPosting(validThrough + "T00:00");
+	}
+
+	private static String jobPosting(String validThrough) {
 		return """
 				<html><head><script type="application/ld+json">
-				{"@context": "https://schema.org", "@type": "JobPosting", "title": "Java Developer", "validThrough": "%sT00:00"}
+				{"@context": "https://schema.org", "@type": "JobPosting", "title": "Java Developer", "validThrough": "%s"}
 				</script></head><body>Java Developer</body></html>""".formatted(validThrough);
 	}
 

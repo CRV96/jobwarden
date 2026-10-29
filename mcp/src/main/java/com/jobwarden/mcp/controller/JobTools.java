@@ -9,6 +9,7 @@ import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -19,10 +20,13 @@ import java.util.concurrent.Semaphore;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.ApplicationQuery;
 import com.jobwarden.jobs.dto.ApplicationSummary;
+import com.jobwarden.jobs.dto.FollowUp;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
 import com.jobwarden.jobs.dto.TimelineEvent;
 import com.jobwarden.jobs.enums.ApplicationSort;
+import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.InterviewFormat;
 import com.jobwarden.jobs.enums.RejectionReason;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.service.ApplicationService;
@@ -76,7 +80,7 @@ class JobTools implements McpToolSet {
 
 	@Override
 	public List<McpTool> tools() {
-		return List.of(listProfiles(), listJobs(), getJob(), checkPostings(), updateJobStatus());
+		return List.of(listProfiles(), listJobs(), getJob(), checkPostings(), updateJobStatus(), updateFollowUp());
 	}
 
 	private McpTool listProfiles() {
@@ -109,7 +113,8 @@ class JobTools implements McpToolSet {
 
 	private McpTool getJob() {
 		return new McpTool("get_job", "Get a job",
-				"One job: its details, the posting's description as it was saved, the notes, and its timeline.",
+				"One job: its details, the posting's description as it was saved, the notes, who to follow up with and "
+						+ "when, and its timeline, interviews with their format, place and duration.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(), "job_id", integer("The job, from list_jobs")),
 						"job_id"),
 				true, false, call -> {
@@ -118,8 +123,9 @@ class JobTools implements McpToolSet {
 					ApplicationDetails job = this.applications.findById(userId, jobId)
 						.orElseThrow(() -> new ApplicationNotFoundException(jobId));
 					return new JobDetails(job.id(), job.title(), job.company(), job.location(), job.salary(),
-							job.employmentType(), job.status(), job.link(), job.source(), job.notes(), job.description(),
-							job.capturedAt(), job.timeline().stream().map(JobTools::step).toList());
+							job.employmentType(), job.status(), job.link(), job.source(), job.notes(),
+							followUp(job.followUp()), job.description(), job.capturedAt(),
+							job.timeline().stream().map(JobTools::step).toList());
 				});
 	}
 
@@ -230,35 +236,96 @@ class JobTools implements McpToolSet {
 	private McpTool updateJobStatus() {
 		return new McpTool("update_job_status", "Update a job's status",
 				"Adds a step to the job's timeline, which moves it to that status: e.g. POSITION_CLOSED when its posting "
-						+ "is gone, NO_RESPONSE when the company never answered. Without a date, it's now.",
+						+ "is gone, NO_RESPONSE when the company never answered, INTERVIEWING for an interview, with its date, "
+						+ "time, format and place. Without a date, it's now.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
 						"job_id", integer("The job, from list_jobs"),
 						"status", oneOf(ApplicationStatus.values(), "The status to move the job to"),
 						"note", string("Why, for the timeline: e.g. what showed the posting is gone"),
 						"date", date("When it happened, as YYYY-MM-DD; today if left out"),
+						"time", string("With date: the time of day, as HH:MM, e.g. an interview's start"),
 						"stage", string("For INTERVIEWING and OFFER: the company's own step, e.g. Technical interview"),
-						"rejection_reason", oneOf(RejectionReason.values(), "For REJECTED: why, if known")),
+						"rejection_reason", oneOf(RejectionReason.values(), "For REJECTED: why, if known"),
+						"interview_format", oneOf(InterviewFormat.values(), "For INTERVIEWING: how it takes place"),
+						"interview_location", string("For INTERVIEWING: the address, or the meeting's link"),
+						"duration_minutes", integer("For INTERVIEWING: how long it takes, in minutes"),
+						"applied_by", oneOf(new AppliedBy[] { AppliedBy.YOU, AppliedBy.CLAUDE }, "For APPLIED: who sent the application, YOU if left "
+								+ "out; CLAUDE only when you sent it yourself")),
 						"job_id", "status"),
 				false, false, call -> {
 					long userId = this.profiles.of(call);
 					long jobId = call.requiredNumber("job_id");
 					ApplicationStatus status = call.constant("status", ApplicationStatus.class);
 					LocalDate date = call.date("date");
+					LocalTime time = call.time("time");
+					Long duration = call.number("duration_minutes");
+					if (duration != null && (duration < 1 || duration > 1440)) {
+						throw new ToolException("duration_minutes must be between 1 and 1440");
+					}
+					boolean interview = status.hasInterviewDetails();
 					ApplicationStatus before = this.applications.findById(userId, jobId)
 						.orElseThrow(() -> new ApplicationNotFoundException(jobId))
 						.status();
 					this.applications.addEvent(userId, jobId, NewTimelineEvent.builder()
 						.eventDate((date != null) ? date : LocalDate.now())
-						.eventTime((date != null) ? null : LocalTime.now().truncatedTo(ChronoUnit.MINUTES))
+						.eventTime((date != null) ? time : LocalTime.now().truncatedTo(ChronoUnit.MINUTES))
 						.stageCategory(status)
 						.stageLabel(status.hasStages() ? call.string("stage") : null)
 						.note(shortened(call.string("note")))
 						.rejectionReason(call.constant("rejection_reason", RejectionReason.class))
+						.interviewFormat(interview ? call.constant("interview_format", InterviewFormat.class) : null)
+						.interviewLocation(interview ? call.string("interview_location") : null)
+						.durationMinutes((interview && duration != null) ? duration.intValue() : null)
+						.appliedBy((status == ApplicationStatus.APPLIED) ? Objects.requireNonNullElse(
+								call.constant("applied_by", AppliedBy.class), AppliedBy.YOU) : null)
 						.build());
 					ApplicationStatus after = this.applications.findById(userId, jobId).orElseThrow().status();
 					log.info("Claude moved application {} of profile {} from {} to {}", jobId, userId, before, after);
 					return Map.of("job_id", jobId, "previous_status", before, "status", after);
 				});
+	}
+
+	private McpTool updateFollowUp() {
+		return new McpTool("update_follow_up", "Update a job's contact and follow-up",
+				"Sets who to follow up with about the job (the recruiter or hiring manager, from an email or the posting), "
+						+ "who referred the profile, when applications close and when to follow up next. Only the fields given "
+						+ "change; an empty string clears one.",
+				object(properties(Profiles.ARGUMENT, Profiles.schema(),
+						"job_id", integer("The job, from list_jobs"),
+						"contact_name", string("The person to talk to"),
+						"contact_role", string("What they do, e.g. Recruiter"),
+						"contact_email", string("Their email address"),
+						"contact_phone", string("Their phone number"),
+						"contact_link", string("Their profile's address, e.g. on LinkedIn"),
+						"referred_by", string("Who referred the profile for the job"),
+						"deadline", date("When applications close, as YYYY-MM-DD"),
+						"follow_up_on", date("When to follow up next, as YYYY-MM-DD")),
+						"job_id"),
+				false, false, call -> {
+					long userId = this.profiles.of(call);
+					long jobId = call.requiredNumber("job_id");
+					FollowUp before = this.applications.findById(userId, jobId)
+						.orElseThrow(() -> new ApplicationNotFoundException(jobId))
+						.followUp();
+					FollowUp after = FollowUp.builder()
+						.contactName(changed(call, "contact_name", before.contactName()))
+						.contactRole(changed(call, "contact_role", before.contactRole()))
+						.contactEmail(changed(call, "contact_email", before.contactEmail()))
+						.contactPhone(changed(call, "contact_phone", before.contactPhone()))
+						.contactLink(changed(call, "contact_link", before.contactLink()))
+						.referredBy(changed(call, "referred_by", before.referredBy()))
+						.deadline(call.arguments().has("deadline") ? call.date("deadline") : before.deadline())
+						.followUpOn(call.arguments().has("follow_up_on") ? call.date("follow_up_on") : before.followUpOn())
+						.build();
+					this.applications.updateFollowUp(userId, jobId, after);
+					log.info("Claude updated the follow-up of application {} of profile {}", jobId, userId);
+					return Map.of("job_id", jobId, "follow_up", followUp(after));
+				});
+	}
+
+	/** The argument when it's given, an empty one clearing the value; else the value as it was. */
+	private static @Nullable String changed(ToolCall call, String name, @Nullable String before) {
+		return call.arguments().has(name) ? call.string(name) : before;
 	}
 
 	private static @Nullable String shortened(@Nullable String note) {
@@ -292,7 +359,13 @@ class JobTools implements McpToolSet {
 
 	private static Step step(TimelineEvent event) {
 		return new Step(event.eventDate(), event.eventTime(), event.stageCategory(), event.stageLabel(), event.note(),
-				event.rejectionReason());
+				event.rejectionReason(), event.interviewFormat(), event.interviewLocation(), event.durationMinutes());
+	}
+
+	private static @Nullable FollowUpView followUp(FollowUp followUp) {
+		return followUp.equals(FollowUp.NONE) ? null : new FollowUpView(followUp.contactName(), followUp.contactRole(),
+				followUp.contactEmail(), followUp.contactPhone(), followUp.contactLink(), followUp.referredBy(),
+				followUp.deadline(), followUp.followUpOn());
 	}
 
 	record Profile(long id, String name) {
@@ -305,12 +378,18 @@ class JobTools implements McpToolSet {
 
 	record JobDetails(long id, String title, @Nullable String company, @Nullable String location,
 			@Nullable String salary, @Nullable String employmentType, ApplicationStatus status, @Nullable String link,
-			@Nullable String source, @Nullable String notes, @Nullable String description, Instant added,
-			List<Step> timeline) {
+			@Nullable String source, @Nullable String notes, @Nullable FollowUpView followUp,
+			@Nullable String description, Instant added, List<Step> timeline) {
 	}
 
 	record Step(LocalDate date, @Nullable LocalTime time, ApplicationStatus status, @Nullable String stage,
-			@Nullable String note, @Nullable RejectionReason rejectionReason) {
+			@Nullable String note, @Nullable RejectionReason rejectionReason, @Nullable InterviewFormat interviewFormat,
+			@Nullable String interviewLocation, @Nullable Integer durationMinutes) {
+	}
+
+	record FollowUpView(@Nullable String contactName, @Nullable String contactRole, @Nullable String contactEmail,
+			@Nullable String contactPhone, @Nullable String contactLink, @Nullable String referredBy,
+			@Nullable LocalDate deadline, @Nullable LocalDate followUpOn) {
 	}
 
 	/**

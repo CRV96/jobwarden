@@ -78,7 +78,8 @@ class PostingChecker {
 
 	private static final Pattern JOB_POSTING = Pattern.compile("\"@type\"\\s*:\\s*\\[?\\s*\"JobPosting\"");
 
-	private static final Pattern VALID_THROUGH = Pattern.compile("\"validThrough\"\\s*:\\s*\"(\\d{4}-\\d{2}-\\d{2})");
+	/** Its date as ISO 8601 has it, or with slashes as some sites write it: 2026/08/25. */
+	private static final Pattern VALID_THROUGH = Pattern.compile("\"validThrough\"\\s*:\\s*\"(\\d{4}([-/])\\d{2}\\2\\d{2})");
 
 	/** Not text a reader sees: what's inside is left out before looking for words. */
 	private static final Pattern HIDDEN = Pattern.compile("<(script|style|noscript|template|svg)\\b[^>]*>.*?</\\1>",
@@ -187,7 +188,8 @@ class PostingChecker {
 			if (JOB_POSTING.matcher(data).find()) {
 				hasJobPosting = true;
 				Matcher validThrough = VALID_THROUGH.matcher(data);
-				if (validThrough.find() && LocalDate.parse(validThrough.group(1)).isBefore(LocalDate.now())) {
+				if (validThrough.find()
+						&& LocalDate.parse(validThrough.group(1).replace('/', '-')).isBefore(LocalDate.now())) {
 					return result(start, Verdict.CLOSED, true, "Its job data says it ran until " + validThrough.group(1),
 							status, finalUrl, "\"validThrough\": \"" + validThrough.group(1) + "\"");
 				}
