@@ -4,20 +4,33 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.jobwarden.cv.dto.Cv;
+import com.jobwarden.cv.service.CvService;
+import com.jobwarden.discover.dto.AiRequest;
 import com.jobwarden.discover.dto.SavedSearch;
 import com.jobwarden.discover.dto.SearchCount;
+import com.jobwarden.discover.enums.AiRequestStatus;
 import com.jobwarden.discover.enums.Decision;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.web.constants.AppConstants.ControllerConstants;
+import com.jobwarden.web.constants.AppConstants.HtmxEvents;
 import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.search.Recency;
+import com.jobwarden.search.WorkType;
+import com.jobwarden.web.dto.AiRequestForm;
 import com.jobwarden.web.dto.SearchFilters;
+import com.jobwarden.web.view.ClaudePrompts;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
+import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,18 +40,27 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 /**
- * The jobs Claude found for the profile, one card at a time, to save, apply to or discard; and the searches it finds
- * them for, which the search page saves here.
+ * The AI Assistant page: what the profile asks Claude to do (its presets, as requests Claude picks up through the MCP
+ * server), the jobs Claude found, one card at a time, to save, apply to or discard, and the searches it finds them for,
+ * which the search page saves here.
  */
 @Controller
 @RequestMapping(ControllerConstants.DISCOVER)
+@CustomLog
 @RequiredArgsConstructor
 class DiscoverController extends BaseController {
 
 	/** How many of the latest decisions the page lists, to undo one. */
 	private static final int RECENT = 8;
 
+	/** How many of the latest requests the page lists, and of those, how many list the jobs found for them. */
+	private static final int REQUESTS = 6;
+
+	private static final int REQUESTS_WITH_JOBS = 3;
+
 	private final DiscoveryService discovery;
+
+	private final CvService cvs;
 
 	/**
 	 * @param search only the jobs found for this saved search
@@ -49,7 +71,51 @@ class DiscoverController extends BaseController {
 		List<SavedSearch> searches = addReview(model, userId, search);
 		model.addAttribute(ModelAttributes.SEARCH_URLS, searches.stream()
 			.collect(Collectors.toMap(SavedSearch::id, saved -> SearchFilters.url(saved.criteria()))));
+		Cv cv = this.cvs.find(userId);
+		model.addAttribute(ModelAttributes.HAS_CV, cv.file() != null || cv.details().isFilledIn());
+		model.addAttribute(ModelAttributes.WORK_TYPES, WorkType.values());
+		model.addAttribute(ModelAttributes.RECENCIES, Recency.values());
+		addRequests(model, userId);
 		return Views.DISCOVER;
+	}
+
+	/**
+	 * Called by HTMX from a preset's button, with what to look for: the request waits for Claude, and the answer is
+	 * the list of requests with its prompt.
+	 */
+	@PostMapping("/requests")
+	String ask(@Valid AiRequestForm form, BindingResult result, Model model) {
+		long userId = requireProfile(model).id();
+		if (result.hasErrors()) {
+			log.debug("Request to Claude not made, fields with errors: {}", fieldErrors(result).keySet());
+			model.addAttribute(ModelAttributes.AI_ERROR, errorMessage(result));
+		} else {
+			this.discovery.createRequest(userId, form.kind(), form.toRequirements());
+		}
+		addRequests(model, userId);
+		return Views.DISCOVER_REQUESTS_FRAGMENT;
+	}
+
+	/**
+	 * Called by HTMX every few seconds while a request is open. When the jobs to review changed since the page last
+	 * showed them ({@code seen}), it tells the card to load again.
+	 */
+	@GetMapping("/requests")
+	String requests(@RequestParam(required = false) @Nullable Long seen, Model model, HttpServletResponse response) {
+		long userId = requireProfile(model).id();
+		addRequests(model, userId);
+		if (seen != null && seen != this.discovery.countToReview(userId, null)) {
+			response.setHeader(HtmxHeaders.TRIGGER, HtmxEvents.FOUND_JOBS_CHANGED);
+		}
+		return Views.DISCOVER_REQUESTS_FRAGMENT;
+	}
+
+	@PostMapping("/requests/{id}/cancel")
+	String cancel(@PathVariable long id, Model model) {
+		long userId = requireProfile(model).id();
+		this.discovery.cancelRequest(userId, id);
+		addRequests(model, userId);
+		return Views.DISCOVER_REQUESTS_FRAGMENT;
 	}
 
 	/**
@@ -84,6 +150,24 @@ class DiscoverController extends BaseController {
 	String deleteSearch(@PathVariable long id, Model model) {
 		this.discovery.deleteSearch(requireProfile(model).id(), id);
 		return redirectTo(ControllerConstants.DISCOVER);
+	}
+
+	/**
+	 * The latest requests, the jobs found for the latest of them, and the prompts that hand them to Claude Code.
+	 */
+	private void addRequests(Model model, long userId) {
+		List<AiRequest> requests = this.discovery.findRequests(userId, REQUESTS);
+		model.addAttribute(ModelAttributes.AI_REQUESTS, requests);
+		model.addAttribute(ModelAttributes.AI_REQUEST_JOBS, requests.stream()
+			.filter(request -> request.foundJobs() > 0)
+			.limit(REQUESTS_WITH_JOBS)
+			.collect(Collectors.toMap(AiRequest::id, request -> this.discovery.findFoundJobsOfRequest(userId, request.id()))));
+		model.addAttribute(ModelAttributes.AI_PROMPTS, requests.stream()
+			.filter(request -> request.status() == AiRequestStatus.WAITING)
+			.collect(Collectors.toMap(AiRequest::id, request -> ClaudePrompts.forRequest(request.id(), userId))));
+		model.addAttribute(ModelAttributes.AI_LOOP_PROMPT, ClaudePrompts.loop(userId));
+		model.addAttribute(ModelAttributes.AI_OPEN, requests.stream().anyMatch(request -> request.status().isOpen()));
+		model.addAttribute(ModelAttributes.TO_REVIEW_ALL, this.discovery.countToReview(userId, null));
 	}
 
 	/**
