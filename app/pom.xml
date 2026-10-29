@@ -46,6 +46,10 @@
 		</dependency>
 		<dependency>
 			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-hiring</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
 			<artifactId>jobwarden-capture</artifactId>
 		</dependency>
 		<dependency>

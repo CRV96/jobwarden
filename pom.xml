@@ -40,6 +40,7 @@
 		<module>market</module>
 		<module>cv</module>
 		<module>updates</module>
+		<module>hiring</module>
 		<module>capture</module>
 		<module>mcp</module>
 		<module>web</module>
@@ -91,6 +92,11 @@
 			<dependency>
 				<groupId>com.jobwarden</groupId>
 				<artifactId>jobwarden-updates</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.jobwarden</groupId>
+				<artifactId>jobwarden-hiring</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 			<dependency>
