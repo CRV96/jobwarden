@@ -1,5 +1,6 @@
 package com.jobwarden.discover.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -37,6 +38,16 @@ public interface FoundJobRepository extends JpaRepository<FoundJobEntity, Long> 
 	List<FoundJobEntity> findByUserIdAndDecisionOrderByDecidedAtDescIdDesc(long userId, Decision decision, Limit limit);
 
 	List<FoundJobEntity> findByUserIdOrderByFoundAtDescIdDesc(long userId, Limit limit);
+
+	/** The jobs found for a request, in the order Claude added them. */
+	List<FoundJobEntity> findByUserIdAndAiRequestIdOrderByIdAsc(long userId, long aiRequestId);
+
+	@Query("""
+			select f.aiRequestId, count(f)
+			from FoundJobEntity f
+			where f.userId = :userId and f.aiRequestId in :requestIds
+			group by f.aiRequestId""")
+	List<Object[]> countByRequest(long userId, Collection<Long> requestIds);
 
 	List<FoundJobEntity> findByUserIdAndDecisionNotOrderByDecidedAtDescIdDesc(long userId, Decision decision, Limit limit);
 
