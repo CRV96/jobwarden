@@ -2,28 +2,39 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{layout :: page(~{::title}, ~{::main}, 'search')}">
 <head>
-    <title th:text="|#{search.title} · JobWarden|">Boolean search · JobWarden</title>
+    <title th:text="|#{search.title} · JobWarden|">Search Builder · JobWarden</title>
 </head>
 <body>
-<main class="flex max-w-[980px] flex-col gap-5">
-    <header>
-        <h1 class="page-title mb-1" th:text="#{search.heading}">Boolean search generator</h1>
-        <p class="text-[15px] text-ink/60" th:text="#{search.subtitle}">Turn a few keywords into Boolean queries for Google, LinkedIn, Reddit and X.</p>
+<!--/* A workspace that fills the window: the description on top, the filters on the left, and on the right the query
+       of every platform, each with its own buttons, and the bar that saves the search. The filters and the queries
+       scroll each on their own. */-->
+<main class="page-full flex flex-col gap-4">
+    <header class="flex flex-wrap items-end gap-3">
+        <div class="min-w-[240px] flex-1">
+            <h1 class="page-title mb-1" th:text="#{search.title}">Search Builder</h1>
+            <p class="text-[13px] text-ink/60" th:text="#{search.subtitle}">Describe the job you want and get ready-made searches for company career sites, LinkedIn, Reddit and X.</p>
+        </div>
+        <a class="btn btn-ghost" th:href="@{/search}"><i class="ph ph-arrow-counter-clockwise"></i><span th:text="#{search.reset}">Start over</span></a>
+        <button class="btn btn-secondary" type="button" data-open-dialog="search-help">
+            <i class="ph ph-question"></i><span th:text="#{search.help}">How it works</span>
+        </button>
     </header>
 
     <!--/* A description fills in the filters (DescriptionParser), keeping the sites: the server answers with the whole
-           page, and HTMX swaps its form. app.js shows the examples while the field is empty. */-->
+           page, and HTMX swaps its filters, and its queries out of band. app.js shows the examples while the field is
+           empty. */-->
     <form class="relative" th:hx-get="@{/search}" hx-target="#boolean-search" hx-select="#boolean-search" hx-swap="outerHTML"
-          hx-replace-url="true" hx-include="#boolean-search [name='sites'], #boolean-search [name='platform']">
+          hx-select-oob="#search-output" hx-replace-url="true"
+          hx-include="#boolean-search [name='sites'], #boolean-search [name='platform']">
         <div class="card flex items-center gap-2 p-1.5 pl-3 focus-within:shadow-[0_0_0_3.5px_color-mix(in_srgb,var(--jw-accent)_40%,transparent)]">
             <i class="ph ph-sparkle text-base text-accent"></i>
-            <input id="describe" class="min-w-0 flex-1 bg-transparent py-1.5 text-sm outline-none placeholder:text-ink/45 focus-visible:outline-none"
+            <input id="describe" class="min-w-0 flex-1 bg-transparent py-2 text-[15px] outline-none placeholder:text-ink/45 focus-visible:outline-none"
                    type="text" name="describe" required autocomplete="off" th:value="${description}"
                    th:placeholder="#{search.describe.placeholder}" th:aria-label="#{search.describe.label}"
                    data-examples="describe-examples" role="combobox" aria-autocomplete="none" aria-expanded="false"
                    aria-controls="describe-examples">
-            <button class="btn btn-primary btn-icon" type="submit" th:title="#{search.describe.button}" th:aria-label="#{search.describe.button}">
-                <i class="ph ph-magic-wand text-base"></i>
+            <button class="btn btn-primary" type="submit">
+                <i class="ph ph-magic-wand text-base"></i><span class="max-sm:hidden" th:text="#{search.describe.button}">Fill in the filters</span>
             </button>
         </div>
         <ul id="describe-examples" class="tag-options" role="listbox" th:aria-label="#{search.describe.examples}" hidden>
@@ -34,131 +45,146 @@
         </ul>
     </form>
 
-    <!--/* Any change asks for the queries again (SearchController), and the address follows, so a search can be
-           bookmarked. The excluded terms are typed: they ask once the typing stops. */-->
-    <form id="boolean-search" class="grid items-start gap-5 lg:grid-cols-2" th:hx-get="@{/search}"
-          hx-trigger="submit, change, input changed delay:300ms from:#search-excludes" hx-sync="this:replace"
-          hx-target="#search-output" hx-select="#search-output" hx-swap="outerHTML" hx-replace-url="true">
-        <div class="flex flex-col gap-4">
-            <div>
-                <label class="field-label" for="search-titles" th:text="#{search.titles}">Job titles</label>
-                <div th:replace="~{:: tag-field('titles', 'search-titles', ${criteria.titles}, ${titleSuggestions}, 'ph-briefcase', #{search.titles.placeholder}, false)}"></div>
+    <div class="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(300px,2fr)_minmax(0,3fr)] xl:grid-cols-[minmax(360px,440px)_minmax(0,1fr)]">
+        <!--/* Any change asks for the queries again (SearchController), and the address follows, so a search can be
+               bookmarked. The excluded terms are typed: they ask once the typing stops. The platform goes along, as it
+               always did: with it, a search without sites has none, instead of the default ones. */-->
+        <form id="boolean-search" class="card flex min-h-0 flex-col" th:hx-get="@{/search}"
+              hx-trigger="submit, change, input changed delay:300ms from:#search-excludes" hx-sync="this:replace"
+              hx-target="#search-output" hx-select="#search-output" hx-swap="outerHTML" hx-replace-url="true">
+            <input type="hidden" name="platform" th:value="${selectedPlatform}">
+            <div class="flex items-center gap-2 border-b border-line px-4 py-3">
+                <i class="ph ph-sliders-horizontal text-base text-accent"></i>
+                <h2 class="flex-1 font-semibold" th:text="#{search.filters}">Filters</h2>
             </div>
-
-            <div>
-                <label class="field-label" for="search-locations" th:text="#{search.locations}">Location / region</label>
-                <div th:replace="~{:: tag-field('locations', 'search-locations', ${criteria.locations}, ${locationSuggestions}, 'ph-map-pin', #{search.locations.placeholder}, false)}"></div>
-            </div>
-
-            <div>
-                <label class="field-label" for="search-skills" th:text="#{search.skills}">Skills / keywords</label>
-                <div th:replace="~{:: tag-field('skills', 'search-skills', ${criteria.skills}, ${skillSuggestions}, 'ph-code', #{search.skills.placeholder}, true)}"></div>
-            </div>
-
-            <div>
-                <label class="field-label" for="search-sites" th:text="#{search.sites}">Sites or domains (Google only)</label>
-                <div th:replace="~{:: tag-field('sites', 'search-sites', ${criteria.sites}, ${siteSuggestions}, 'ph-link', #{search.sites.placeholder}, true)}"></div>
-                <div class="mt-2 flex flex-wrap gap-1.5">
-                    <button class="chip chip-small" type="button" th:each="board : ${jobBoards}" data-add-to="sites"
-                            th:data-value="${board.domain}" th:hidden="${#lists.contains(criteria.sites, board.domain)}">
-                        <i class="ph ph-plus text-[11px]"></i><span th:text="${board.name}">Workable</span>
-                    </button>
-                </div>
-                <p class="mt-2 text-xs leading-5 text-ink/60" th:text="#{search.sites.hint}">
-                    Applicant tracking systems (ATS) like Lever, Greenhouse and Ashby host the job pages of thousands of companies.</p>
-            </div>
-
-            <fieldset>
-                <legend class="field-label" th:text="#{search.workType}">Work type</legend>
-                <div class="flex flex-wrap gap-1.5">
-                    <label class="chip chip-small" th:each="type : ${workTypes}">
-                        <input type="checkbox" name="workTypes" th:value="${type}" th:checked="${#sets.contains(criteria.workTypes, type)}">
-                        <span th:text="#{|search.workType.${type}|}">Remote</span>
-                    </label>
-                </div>
-            </fieldset>
-
-            <fieldset>
-                <legend class="field-label" th:text="#{search.employmentType}">Employment type</legend>
-                <div class="flex flex-wrap gap-1.5">
-                    <label class="chip chip-small" th:each="type : ${employmentTypes}">
-                        <input type="checkbox" name="employmentTypes" th:value="${type}" th:checked="${#sets.contains(criteria.employmentTypes, type)}">
-                        <span th:text="#{|search.employmentType.${type}|}">Full-time</span>
-                    </label>
-                </div>
-            </fieldset>
-
-            <fieldset>
-                <legend class="field-label" th:text="#{search.recency}">Date posted (applies to the opened search)</legend>
-                <div class="flex flex-wrap gap-1.5">
-                    <label class="chip chip-small" th:each="recency : ${recencies}">
-                        <input type="radio" name="recency" th:value="${recency}" th:checked="${recency == criteria.recency}">
-                        <span th:text="#{|search.recency.${recency}|}">Any time</span>
-                    </label>
-                </div>
-            </fieldset>
-
-            <details class="group" th:open="${!criteria.excludes.isEmpty()}">
-                <summary class="inline-flex cursor-pointer list-none items-center gap-1.5 font-medium select-none [&::-webkit-details-marker]:hidden">
-                    <span th:text="#{search.advanced}">Advanced settings</span>
-                    <i class="ph ph-caret-down text-xs opacity-60 transition-transform group-open:rotate-180"></i>
-                </summary>
-                <div class="mt-3">
-                    <label class="field-label" for="search-excludes" th:text="#{search.excludes}">Terms to exclude</label>
-                    <input id="search-excludes" class="input" type="text" name="excludes" autocomplete="off"
-                           th:value="${#strings.listJoin(criteria.excludes, ', ')}" th:placeholder="#{search.excludes.placeholder}">
-                </div>
-            </details>
-        </div>
-
-        <div class="flex flex-col gap-3 lg:sticky lg:top-6">
-            <!--/* The platforms are radio buttons of the form, so the server shows the picked one's query, and its
-                   address keeps it. Each has an id, so HTMX keeps the focus on it across the swap. */-->
-            <div id="search-output" class="card flex flex-col gap-3 p-4" th:fragment="output"
-                 th:with="query=${queries.get(selectedPlatform)}">
-                <div class="flex flex-wrap gap-1.5" role="radiogroup" th:aria-label="#{search.platforms}">
-                    <label class="chip chip-small" th:each="platform : ${platforms}">
-                        <input type="radio" name="platform" th:id="|platform-${platform}|" th:value="${platform}"
-                               th:checked="${platform == selectedPlatform}">
-                        <i class="ph text-[14px]" th:classappend="${platformIcons[platform.name()]}"></i>
-                        <span th:text="#{|search.platform.${platform}|}">Google + ATS</span>
-                    </label>
-                </div>
-                <pre class="query-box" th:if="${!query.query.isEmpty()}" th:text="${query.query}">(site:jobs.lever.co OR site:boards.greenhouse.io)</pre>
-                <pre class="query-box text-white/50" th:if="${query.query.isEmpty()}" th:text="#{search.output.empty}">Add a job title or a keyword to get a query.</pre>
-                <p class="-mt-1.5 text-xs" th:if="${selectedPlatform.name() == 'GOOGLE' and !query.query.isEmpty()}"
-                   th:classappend="${queries.googleTruncated} ? 'text-[var(--jw-orange)]' : 'text-ink/55'"
-                   th:text="${queries.googleTruncated} ? #{search.truncated(${googleWordLimit})} : #{search.words(${queries.googleWords}, ${googleWordLimit})}">5 / 32 words</p>
-                <div class="flex flex-wrap gap-2">
-                    <button class="btn btn-secondary" type="button" th:data-copy-text="${query.query}" th:disabled="${query.query.isEmpty()}">
-                        <span class="inline-flex items-center gap-1.5" data-copy-idle><i class="ph ph-copy"></i><span th:text="#{search.copy}">Copy</span></span>
-                        <span class="inline-flex items-center gap-1.5" data-copy-done hidden><i class="ph ph-check text-success"></i><span th:text="#{search.copied}">Copied</span></span>
-                    </button>
-                    <a class="btn btn-primary" th:if="${query.searchUrl}" th:href="${query.searchUrl}" target="_blank" rel="noopener noreferrer">
-                        <i class="ph ph-arrow-square-out"></i><span th:text="#{search.open}">Open search</span>
-                    </a>
-                </div>
-            </div>
-            <!--/* Saved, the filters are a search Claude finds jobs for, which wait on the Discover page */-->
-            <div class="card flex flex-col gap-2 p-4">
-                <div class="flex items-start gap-3">
-                    <i class="ph ph-cards text-[20px] text-accent"></i>
-                    <div class="min-w-0 flex-1">
-                        <div class="font-medium" th:text="#{search.save.heading}">Let Claude find jobs for it</div>
-                        <p class="text-xs leading-5 text-ink/60" th:text="#{search.save.body}">Save the search: Claude looks for jobs for your saved searches and adds them to Discover.</p>
+            <div class="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-4">
+                <section class="flex flex-col gap-3" aria-labelledby="filters-what">
+                    <h3 id="filters-what" class="search-section-title"><i class="ph ph-briefcase"></i><span th:text="#{search.section.what}">What</span></h3>
+                    <div>
+                        <label class="field-label" for="search-titles" th:text="#{search.titles}">Job titles</label>
+                        <div th:replace="~{:: tag-field('titles', 'search-titles', ${criteria.titles}, ${titleSuggestions}, 'ph-briefcase', #{search.titles.placeholder}, false)}"></div>
                     </div>
-                    <button class="btn btn-secondary" type="button" data-open-dialog="save-search">
-                        <i class="ph ph-bookmark-simple"></i><span th:text="#{search.save}">Save search</span>
-                    </button>
-                </div>
-                <p id="search-saved" hidden></p>
+                    <div>
+                        <label class="field-label" for="search-skills" th:text="#{search.skills}">Skills / keywords</label>
+                        <div th:replace="~{:: tag-field('skills', 'search-skills', ${criteria.skills}, ${skillSuggestions}, 'ph-code', #{search.skills.placeholder}, true)}"></div>
+                    </div>
+                </section>
+
+                <section class="flex flex-col gap-3" aria-labelledby="filters-where">
+                    <h3 id="filters-where" class="search-section-title"><i class="ph ph-map-pin"></i><span th:text="#{search.section.where}">Where</span></h3>
+                    <div>
+                        <label class="field-label" for="search-locations" th:text="#{search.locations}">Location / region</label>
+                        <div th:replace="~{:: tag-field('locations', 'search-locations', ${criteria.locations}, ${locationSuggestions}, 'ph-map-pin', #{search.locations.placeholder}, false)}"></div>
+                    </div>
+                    <fieldset>
+                        <legend class="field-label" th:text="#{search.workType}">Work type</legend>
+                        <div class="flex flex-wrap gap-1.5">
+                            <label class="chip chip-small" th:each="type : ${workTypes}">
+                                <input type="checkbox" name="workTypes" th:value="${type}" th:checked="${#sets.contains(criteria.workTypes, type)}">
+                                <span th:text="#{|search.workType.${type}|}">Remote</span>
+                            </label>
+                        </div>
+                    </fieldset>
+                </section>
+
+                <section class="flex flex-col gap-3" aria-labelledby="filters-which">
+                    <h3 id="filters-which" class="search-section-title"><i class="ph ph-funnel"></i><span th:text="#{search.section.which}">Which jobs</span></h3>
+                    <fieldset>
+                        <legend class="field-label" th:text="#{search.employmentType}">Employment type</legend>
+                        <div class="flex flex-wrap gap-1.5">
+                            <label class="chip chip-small" th:each="type : ${employmentTypes}">
+                                <input type="checkbox" name="employmentTypes" th:value="${type}" th:checked="${#sets.contains(criteria.employmentTypes, type)}">
+                                <span th:text="#{|search.employmentType.${type}|}">Full-time</span>
+                            </label>
+                        </div>
+                    </fieldset>
+                    <fieldset>
+                        <legend class="field-label" th:text="#{search.recency}">Date posted (applies to the opened search)</legend>
+                        <div class="flex flex-wrap gap-1.5">
+                            <label class="chip chip-small" th:each="recency : ${recencies}">
+                                <input type="radio" name="recency" th:value="${recency}" th:checked="${recency == criteria.recency}">
+                                <span th:text="#{|search.recency.${recency}|}">Any time</span>
+                            </label>
+                        </div>
+                    </fieldset>
+                    <div>
+                        <label class="field-label" for="search-excludes" th:text="#{search.excludes}">Terms to exclude</label>
+                        <input id="search-excludes" class="input" type="text" name="excludes" autocomplete="off"
+                               th:value="${#strings.listJoin(criteria.excludes, ', ')}" th:placeholder="#{search.excludes.placeholder}">
+                    </div>
+                </section>
+
+                <section class="flex flex-col gap-3" aria-labelledby="filters-sources">
+                    <h3 id="filters-sources" class="search-section-title"><i class="ph ph-google-logo"></i><span th:text="#{search.section.sources}">Where Google looks</span></h3>
+                    <div>
+                        <label class="field-label" for="search-sites" th:text="#{search.sites}">Sites or domains (Google only)</label>
+                        <div th:replace="~{:: tag-field('sites', 'search-sites', ${criteria.sites}, ${siteSuggestions}, 'ph-link', #{search.sites.placeholder}, true)}"></div>
+                        <div class="mt-2 flex flex-wrap gap-1.5">
+                            <button class="chip chip-small" type="button" th:each="board : ${jobBoards}" data-add-to="sites"
+                                    th:data-value="${board.domain}" th:hidden="${#lists.contains(criteria.sites, board.domain)}">
+                                <i class="ph ph-plus text-[11px]"></i><span th:text="${board.name}">Workable</span>
+                            </button>
+                        </div>
+                        <p class="mt-2 text-xs leading-5 text-ink/60" th:text="#{search.sites.hint}">
+                            Applicant tracking systems (ATS) like Lever, Greenhouse and Ashby host the job pages of thousands of companies.</p>
+                    </div>
+                </section>
             </div>
-            <p class="px-1 text-xs leading-5 text-ink/60">
-                <span th:text="#{search.extension.body}">Found a posting? Save it to JobWarden with the browser extension.</span>
-                <a class="link font-medium" th:href="@{/settings}" th:text="#{search.extension.link}">Set up the extension</a>
-            </p>
+        </form>
+
+        <div class="flex min-h-0 flex-col gap-3">
+            <!--/* Every platform's query at once, each with its own buttons: open them one after another. Without a job
+                   title or a keyword the queries would find any job at all, so the page asks for one instead. */-->
+            <div id="search-output" th:fragment="output" class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto"
+                 th:with="empty=${criteria.titles.isEmpty() and criteria.skills.isEmpty()}">
+                <div class="card flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center" th:if="${empty}">
+                    <span class="brand-mark size-11"><i class="ph ph-list-magnifying-glass text-[22px]"></i></span>
+                    <h2 class="text-[17px] font-semibold" th:text="#{search.output.empty.title}">Your queries show here</h2>
+                    <p class="max-w-[440px] text-ink/65" th:text="#{search.output.empty}">Add a job title or a keyword to get a query.</p>
+                </div>
+                <article class="card flex flex-col gap-3 p-4" th:unless="${empty}" th:each="query : ${queries.all}"
+                         th:with="platform=${query.platform}, google=${query.platform.name() == 'GOOGLE'}"
+                         th:id="|query-${platform}|" th:aria-labelledby="|query-${platform}-title|">
+                    <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+                        <span class="grid size-9 flex-none place-items-center rounded-lg bg-accent-tint text-accent-ink">
+                            <i class="ph text-[18px]" th:classappend="${platformIcons[platform.name()]}"></i>
+                        </span>
+                        <div class="min-w-[10rem] flex-1">
+                            <h2 class="font-semibold" th:id="|query-${platform}-title|" th:text="#{|search.platform.${platform}|}">Google + ATS</h2>
+                            <p class="text-xs text-ink/60" th:text="#{|search.platform.${platform}.hint|}">Job pages on the applicant tracking systems companies use</p>
+                        </div>
+                        <button class="btn btn-secondary" type="button" th:data-copy-text="${query.query}" th:disabled="${query.query.isEmpty()}">
+                            <span class="inline-flex items-center gap-1.5" data-copy-idle><i class="ph ph-copy"></i><span th:text="#{search.copy}">Copy</span></span>
+                            <span class="inline-flex items-center gap-1.5" data-copy-done hidden><i class="ph ph-check text-success"></i><span th:text="#{search.copied}">Copied</span></span>
+                        </button>
+                        <a class="btn btn-primary" th:if="${query.searchUrl}" th:href="${query.searchUrl}" target="_blank" rel="noopener noreferrer">
+                            <i class="ph ph-arrow-square-out"></i><span th:text="#{search.open}">Open search</span>
+                        </a>
+                    </div>
+                    <!--/* The query, its parts coloured by what they do (QuerySyntax) */-->
+                    <pre class="query-box min-h-0" th:unless="${query.query.isEmpty()}"><span th:each="token : ${@querySyntax.tokens(query.query)}"
+                         th:class="|q-${#strings.toLowerCase(token.kind.name())}|" th:text="${token.text}">site:jobs.lever.co</span></pre>
+                    <p class="text-xs text-ink/55" th:if="${query.query.isEmpty()}" th:text="#{search.output.none}">Nothing to search here with these filters.</p>
+                    <p class="-mt-1 text-xs" th:if="${google and !query.query.isEmpty()}"
+                       th:classappend="${queries.googleTruncated} ? 'text-[var(--jw-orange)]' : 'text-ink/55'"
+                       th:text="${queries.googleTruncated} ? #{search.truncated(${googleWordLimit})} : #{search.words(${queries.googleWords}, ${googleWordLimit})}">5 / 32 words</p>
+                </article>
+            </div>
+
+            <!--/* Saved, the filters are a search Claude finds jobs for, which wait on the AI Assistant page */-->
+            <div class="card flex flex-wrap items-center gap-3 p-3">
+                <i class="ph ph-sparkle text-[20px] text-accent"></i>
+                <div class="min-w-[14rem] flex-1">
+                    <div class="font-medium" th:text="#{search.save.heading}">Let Claude find jobs for it</div>
+                    <p class="text-xs leading-5 text-ink/60" th:text="#{search.save.body}">Save the search: Claude looks for jobs for your saved searches.</p>
+                    <p id="search-saved" hidden></p>
+                </div>
+                <button class="btn btn-primary" type="button" data-open-dialog="save-search">
+                    <i class="ph ph-bookmark-simple"></i><span th:text="#{search.save}">Save search</span>
+                </button>
+            </div>
         </div>
-    </form>
+    </div>
 
     <!--/* Sends the search form's filters too (hx-include), so the saved search is what the page shows */-->
     <dialog id="save-search" class="dialog" aria-labelledby="save-search-title">
@@ -178,18 +204,30 @@
         </form>
     </dialog>
 
-    <section class="mt-4 flex max-w-[760px] flex-col gap-2" aria-labelledby="search-faq">
-        <h2 id="search-faq" class="section-title" th:text="#{search.faq}">Questions</h2>
-        <div class="card divide-y divide-line">
-            <details class="group px-4 py-3" th:each="topic : ${ {'boolean', 'ats', 'limit', 'remote'} }">
-                <summary class="flex cursor-pointer list-none items-center gap-3 font-medium select-none [&::-webkit-details-marker]:hidden">
-                    <span class="flex-1" th:text="#{|search.faq.${topic}.question|}">What is a Boolean search?</span>
-                    <i class="ph ph-caret-down text-xs opacity-60 transition-transform group-open:rotate-180"></i>
-                </summary>
-                <p class="mt-2 leading-6 text-ink/70" th:text="#{|search.faq.${topic}.answer|}">A search that combines keywords with operators.</p>
-            </details>
+    <!--/* How the queries work, and where postings go once found */-->
+    <dialog id="search-help" class="dialog w-[min(640px,calc(100%-32px))]" aria-labelledby="search-help-title">
+        <div class="flex flex-col gap-3">
+            <div class="flex items-center gap-2">
+                <h2 id="search-help-title" class="dialog-title flex-1" th:text="#{search.faq}">Questions</h2>
+                <button class="btn btn-ghost btn-icon" type="button" data-close-dialog th:title="#{action.close}" th:aria-label="#{action.close}">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+            <div class="divide-y divide-line">
+                <details class="group py-3" th:each="topic : ${ {'boolean', 'ats', 'limit', 'remote'} }" th:open="${topic == 'boolean'}">
+                    <summary class="flex cursor-pointer list-none items-center gap-3 font-medium select-none [&::-webkit-details-marker]:hidden">
+                        <span class="flex-1" th:text="#{|search.faq.${topic}.question|}">What is a Boolean search?</span>
+                        <i class="ph ph-caret-down text-xs opacity-60 transition-transform group-open:rotate-180"></i>
+                    </summary>
+                    <p class="mt-2 leading-6 text-ink/70" th:text="#{|search.faq.${topic}.answer|}">A search that combines keywords with operators.</p>
+                </details>
+            </div>
+            <p class="text-xs leading-5 text-ink/60">
+                <span th:text="#{search.extension.body}">Found a posting? Save it to JobWarden with the browser extension.</span>
+                <a class="link font-medium" th:href="@{/settings}" th:text="#{search.extension.link}">Set up the extension</a>
+            </p>
         </div>
-    </section>
+    </dialog>
 </main>
 
 <!--/* What the page says once the search is saved (DiscoverController.saveSearch) */-->
