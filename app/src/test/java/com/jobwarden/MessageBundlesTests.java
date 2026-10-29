@@ -26,7 +26,7 @@ class MessageBundlesTests {
 
 	/** Must match spring.messages.basename in application.properties. */
 	private static final List<String> BUNDLES = List.of("i18n/web", "i18n/common-errors", "i18n/identity-errors",
-			"i18n/jobs-errors", "i18n/discover-errors");
+			"i18n/jobs-errors", "i18n/discover-errors", "i18n/cv-errors", "i18n/hiring-errors", "i18n/apply-errors");
 
 	@Test
 	void everyTranslationHasExactlyTheEnglishKeys() throws IOException {
