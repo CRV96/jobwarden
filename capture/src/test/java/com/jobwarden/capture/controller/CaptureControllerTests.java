@@ -15,6 +15,7 @@ import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.dto.PngImage;
 import com.jobwarden.jobs.dto.TimelineEvent;
 import com.jobwarden.jobs.dto.TrackedApplication;
+import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.exception.JobsErrorCode;
@@ -163,6 +164,24 @@ class CaptureControllerTests {
 	}
 
 	@Test
+	void tracksWhatTheEasyApplyRunSentAsAppliedByTheExtension() {
+		given(this.users.exists(1)).willReturn(true);
+		given(this.applications.track(any())).willReturn(new TrackedApplication(7, true));
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(application(ApplicationStatus.APPLIED)));
+
+		assertThat(this.mvc.post()
+			.uri(this.capturePath)
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(CAPTURE.replace("\"APPLY\"", "\"EASY_APPLY\"")))
+			.hasStatus(HttpStatus.CREATED);
+
+		ArgumentCaptor<NewApplication> tracked = ArgumentCaptor.captor();
+		then(this.applications).should().track(tracked.capture());
+		assertThat(tracked.getValue().initialStatus()).isEqualTo(ApplicationStatus.APPLIED);
+		assertThat(tracked.getValue().appliedBy()).isEqualTo(AppliedBy.EXTENSION);
+	}
+
+	@Test
 	void keepsTheSitesIcon() {
 		given(this.users.exists(1)).willReturn(true);
 		given(this.applications.track(any())).willReturn(new TrackedApplication(7, true));
@@ -305,6 +324,21 @@ class CaptureControllerTests {
 			.param("link", LINK))
 			.hasStatus(HttpStatus.NO_CONTENT)
 			.hasHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, FIREFOX_EXTENSION);
+	}
+
+	@Test
+	void takesACaptureFromChromesExtension() {
+		given(this.users.exists(1)).willReturn(true);
+		given(this.applications.track(any())).willReturn(new TrackedApplication(7, true));
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(application(ApplicationStatus.APPLIED)));
+
+		// Chrome doesn't apply CORS to an extension with the host permission, but sends its origin with a POST
+		assertThat(this.mvc.post()
+			.uri(this.capturePath)
+			.header(HttpHeaders.ORIGIN, "chrome-extension://abcdefghijklmnopabcdefghijklmnop")
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(CAPTURE))
+			.hasStatus(HttpStatus.CREATED);
 	}
 
 	@Test

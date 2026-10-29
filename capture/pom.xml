@@ -9,7 +9,7 @@
 	</parent>
 	<artifactId>jobwarden-capture</artifactId>
 	<name>JobWarden :: Capture</name>
-	<description>REST endpoint the browser extension sends captured job postings to</description>
+	<description>REST API of the browser extension: captured job postings, and the answers of the Easy Apply run</description>
 
 	<dependencies>
 		<dependency>
@@ -23,6 +23,18 @@
 		<dependency>
 			<groupId>com.jobwarden</groupId>
 			<artifactId>jobwarden-identity</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-updates</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-apply</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-cv</artifactId>
 		</dependency>
 
 		<dependency>

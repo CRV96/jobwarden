@@ -36,12 +36,13 @@ import org.springframework.web.bind.annotation.RestController;
  * The extension's API. It saves captures in the jobs module and looks up, moves back or removes what it saved.
  * Every answer about an application is a {@link CapturedApplication}, so the extension always shows its current state.
  * <p>
- * Chrome lets an extension with the host permission call the server without CORS; Firefox doesn't, so its extensions
- * (moz-extension://, with an id that differs from one install to the next) are allowed here. Web pages are not.
+ * The extensions are allowed as origins here (with an id that differs from one install to the next), and web pages
+ * are not. Firefox applies CORS to its extensions (moz-extension://). Chrome doesn't to one with the host permission,
+ * but it still sends its origin (chrome-extension://) with a POST, which Spring would turn away.
  */
 @RestController
 @RequestMapping("${jobwarden.capture.path}")
-@CrossOrigin(originPatterns = "moz-extension://*")
+@CrossOrigin(originPatterns = { "moz-extension://*", "chrome-extension://*" })
 @CustomLog
 @RequiredArgsConstructor
 class CaptureController {
@@ -135,6 +136,7 @@ class CaptureController {
 			.initialStatus(request.action().getInitialStatus())
 			.initialStatusDate(now.toLocalDate())
 			.initialStatusTime(includeTime ? now.toLocalTime() : null)
+			.appliedBy(request.action().getAppliedBy())
 			.sourceIcon(request.toSourceIcon())
 			// Before the application is saved, outside its transaction: downloading can take a few seconds
 			.companyLogo(this.logos.download(request.logoUrl()).orElse(null))
