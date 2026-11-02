@@ -1,4 +1,6 @@
 # JobWarden
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a-Coffee-FFDD00?logo=buy-me-a-coffee&logoColor=black)](buymeacoffee.com/robertciapa)
+[![Support me on Revolut](https://img.shields.io/badge/Support%20me-Revolut-0075EB?logo=revolut&logoColor=white)](revolut.me/robertcrv)
 
 The keeper of your job hunt: save job postings from the browser in one click, and keep every application's story, from the first save to the offer.
 
