@@ -585,6 +585,19 @@ class ApplicationServiceTests {
 	}
 
 	@Test
+	void changesTheLocation() {
+		long id = create(this.userId, "Backend engineer", ApplicationStatus.APPLIED);
+
+		this.applications.updateLocation(this.userId, id, "Bucharest, hybrid");
+		assertThat(this.applications.findById(this.userId, id).orElseThrow().location()).isEqualTo("Bucharest, hybrid");
+
+		this.applications.updateLocation(this.userId, id, null);
+		assertThat(this.applications.findById(this.userId, id).orElseThrow().location()).isNull();
+		assertThatExceptionOfType(ApplicationNotFoundException.class)
+			.isThrownBy(() -> this.applications.updateLocation(this.otherUserId, id, "Not yours"));
+	}
+
+	@Test
 	void keepsWhoToFollowUpWithAndWhen() {
 		long id = create(this.userId, "Backend engineer", ApplicationStatus.APPLIED);
 		assertThat(this.applications.findById(this.userId, id).orElseThrow().followUp()).isEqualTo(FollowUp.NONE);
@@ -773,6 +786,52 @@ class ApplicationServiceTests {
 		this.applications.track(posting);
 
 		assertThat(this.applications.findSourceIcon(this.userId, "example.com")).contains(icon(2));
+	}
+
+	@Test
+	void tidiesUpTheApplicationsThatGotNoAnswer() {
+		long silent = this.applications.create(applied("Silent for weeks", TODAY.minusDays(40)));
+		long recent = this.applications.create(applied("Applied this week", TODAY.minusDays(3)));
+		long week = this.applications.create(applied("Applied ten days ago", TODAY.minusDays(10)));
+		long planned = this.applications.create(applied("Follow-up planned", TODAY.minusDays(2)));
+		this.applications.updateFollowUp(this.userId, planned, FollowUp.builder().followUpOn(TODAY.plusDays(20)).build());
+		long saved = create(this.userId, "Only bookmarked", ApplicationStatus.SAVED);
+		long others = this.applications.create(NewApplication.builder()
+			.userId(this.otherUserId)
+			.title("Someone else's")
+			.initialStatus(ApplicationStatus.APPLIED)
+			.initialStatusDate(TODAY.minusDays(40))
+			.build());
+
+		var tidied = this.applications.tidyUnanswered(this.userId, 30, 7, "The company never answered.");
+
+		assertThat(tidied.movedToNoResponse()).containsExactly(silent);
+		assertThat(tidied.followUpsSet()).containsExactlyInAnyOrder(recent, week);
+		assertThat(tidied.waiting()).isEqualTo(4);
+		assertThat(this.applications.findById(this.userId, silent).orElseThrow()).satisfies(application -> {
+			assertThat(application.status()).isEqualTo(ApplicationStatus.NO_RESPONSE);
+			assertThat(application.timeline().getLast().note()).isEqualTo("The company never answered.");
+		});
+		// A week after applying, or tomorrow once that's past; one planned already keeps its day
+		assertThat(this.applications.findById(this.userId, recent).orElseThrow().followUp().followUpOn())
+			.isEqualTo(TODAY.plusDays(4));
+		assertThat(this.applications.findById(this.userId, week).orElseThrow().followUp().followUpOn())
+			.isEqualTo(TODAY.plusDays(1));
+		assertThat(this.applications.findById(this.userId, planned).orElseThrow().followUp().followUpOn())
+			.isEqualTo(TODAY.plusDays(20));
+		assertThat(this.applications.findById(this.userId, saved).orElseThrow().status()).isEqualTo(ApplicationStatus.SAVED);
+		assertThat(this.applications.findById(this.otherUserId, others).orElseThrow().status())
+			.isEqualTo(ApplicationStatus.APPLIED);
+	}
+
+	private NewApplication applied(String title, LocalDate on) {
+		return NewApplication.builder()
+			.userId(this.userId)
+			.title(title)
+			.link("https://example.com/jobs/" + title.hashCode())
+			.initialStatus(ApplicationStatus.APPLIED)
+			.initialStatusDate(on)
+			.build();
 	}
 
 	private long insertProfile(String name) {
