@@ -5,6 +5,7 @@
 The keeper of your job hunt: save job postings from the browser in one click, and keep every application's story, from the first save to the offer.
 
 [![Build](https://github.com/CRV96/jobwarden/actions/workflows/build.yml/badge.svg)](https://github.com/CRV96/jobwarden/actions/workflows/build.yml)
+![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/CRV96/jobwarden?utm_source=oss&utm_medium=github&utm_campaign=CRV96%2Fjobwarden&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
 
 ## Running locally
 
