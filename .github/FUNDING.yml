@@ -1,6 +1,4 @@
 # These are supported funding model platforms
 
-github: # Replace with up to 4 GitHub Sponsors-enabled usernames e.g., [user1, user2]
-patreon: # Replace with a single Patreon username
-buy_me_a_coffee: [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a-Coffee-FFDD00?logo=buy-me-a-coffee&logoColor=black)](buymeacoffee.com/robertciapa)
-revolut: [![Support me on Revolut](https://img.shields.io/badge/Support%20me-Revolut-0075EB?logo=revolut&logoColor=white)](revolut.me/robertcrv)
+buy_me_a_coffee: robertciapa
+custom: [![Support me on Revolut](https://img.shields.io/badge/Support%20me-Revolut-0075EB?logo=revolut&logoColor=white)](revolut.me/robertcrv)
