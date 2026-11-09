@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.1.1</version>
+		<version>4.1.2</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.jobwarden</groupId>
@@ -51,11 +51,11 @@
 
 	<properties>
 		<java.version>25</java.version>
-		<spring-modulith.version>2.1.1</spring-modulith.version>
-		<pdfbox.version>3.0.7</pdfbox.version>
-		<openhtmltopdf.version>1.1.97</openhtmltopdf.version>
-		<jsoup.version>1.23.2</jsoup.version>
-		<greenmail.version>2.1.5</greenmail.version>
+		<spring-modulith.version>2.1.2</spring-modulith.version>
+		<pdfbox.version>3.0.8</pdfbox.version>
+		<openhtmltopdf.version>1.1.108</openhtmltopdf.version>
+		<jsoup.version>1.24.1</jsoup.version>
+		<greenmail.version>2.1.15</greenmail.version>
 		<!-- Only the app module is runnable; lets `./mvnw -pl app -am spring-boot:run` work from the root. -->
 		<spring-boot.run.skip>true</spring-boot.run.skip>
 		<jacoco.version>0.8.16</jacoco.version>
