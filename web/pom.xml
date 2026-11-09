@@ -12,7 +12,7 @@
 	<description>Browser UI: server-rendered pages, shared layout and styles</description>
 
 	<properties>
-		<htmx.version>2.0.11</htmx.version>
+		<htmx.version>4.0.1</htmx.version>
 		<phosphor-icons.version>2.1.2</phosphor-icons.version>
 		<flag-icons.version>7.5.0</flag-icons.version>
 		<frontend-maven-plugin.version>2.0.2</frontend-maven-plugin.version>
