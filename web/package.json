@@ -5,7 +5,7 @@
     "watch": "tailwindcss -i src/main/frontend/app.css -o target/classes/static/css/app.css --watch=always"
   },
   "devDependencies": {
-    "@tailwindcss/cli": "4.3.3",
-    "tailwindcss": "4.3.3"
+    "@tailwindcss/cli": "4.3.5",
+    "tailwindcss": "4.3.5"
   }
 }
