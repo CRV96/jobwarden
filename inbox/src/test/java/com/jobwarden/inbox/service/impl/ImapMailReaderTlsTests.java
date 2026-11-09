@@ -24,7 +24,6 @@ import com.icegreen.greenmail.util.GreenMailUtil;
 import com.icegreen.greenmail.util.ServerSetup;
 import com.icegreen.greenmail.util.ServerSetupTest;
 import com.jobwarden.inbox.enums.MailProblem;
-import com.jobwarden.inbox.service.impl.MailReader.MailFailure;
 import com.jobwarden.inbox.service.impl.MailReader.Tested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -50,7 +49,7 @@ class ImapMailReaderTlsTests {
 	private final ImapMailReader reader = new ImapMailReader(5000, true);
 
 	@Test
-	void trustsTheCertificateAServerOnThisComputerShowedWhenItWasConnected() throws Exception {
+	void trustsTheCertificateAServerOnThisComputerShowedWhenItWasConnected() {
 		greenMail.setUser("robert@proton.me", "robert@proton.me", "bridge-password")
 			.deliver(GreenMailUtil.createTextEmail("robert@proton.me", "hr@acme.com", "Your application",
 					"We received your application.", greenMail.getSmtp().getServerSetup()));
@@ -68,8 +67,9 @@ class ImapMailReaderTlsTests {
 		// Another certificate, after: not the server it was
 		MailServer changed = new MailServer(server.host(), server.port(), server.username(), server.password(),
 				server.folder(), false, ANOTHER);
+		Instant now = Instant.now();
 		assertThatExceptionOfType(MailFailure.class)
-			.isThrownBy(() -> this.reader.fetch(changed, null, null, Instant.now(), 10))
+			.isThrownBy(() -> this.reader.fetch(changed, null, null, now, 10))
 			.satisfies(failed -> assertThat(failed.problem()).isEqualTo(MailProblem.CERTIFICATE_CHANGED));
 	}
 
@@ -86,8 +86,9 @@ class ImapMailReaderTlsTests {
 			// After STARTTLS too, only that certificate
 			MailServer changed = new MailServer(server.host(), server.port(), server.username(), server.password(),
 					server.folder(), true, ANOTHER);
+			Instant now = Instant.now();
 			assertThatExceptionOfType(MailFailure.class)
-				.isThrownBy(() -> this.reader.fetch(changed, null, null, Instant.now(), 10))
+				.isThrownBy(() -> this.reader.fetch(changed, null, null, now, 10))
 				.satisfies(failed -> assertThat(failed.problem()).isEqualTo(MailProblem.CERTIFICATE_CHANGED));
 		}
 	}
@@ -95,10 +96,10 @@ class ImapMailReaderTlsTests {
 	@Test
 	void neverReadsAServerWithoutTls() {
 		greenMail.setUser("robert@example.com", "robert", "app-password");
+		MailServer plain = new MailServer("127.0.0.1", ServerSetupTest.IMAP.getPort(), "robert", "app-password", "INBOX");
 
 		assertThatExceptionOfType(MailFailure.class)
-			.isThrownBy(() -> this.reader.test(new MailServer("127.0.0.1", ServerSetupTest.IMAP.getPort(), "robert",
-					"app-password", "INBOX")))
+			.isThrownBy(() -> this.reader.test(plain))
 			.withMessageContaining("STARTTLS");
 	}
 
@@ -109,7 +110,8 @@ class ImapMailReaderTlsTests {
 			port = nobody.getLocalPort();
 		}
 
-		assertThatExceptionOfType(MailFailure.class).isThrownBy(() -> this.reader.test(local(port)))
+		MailServer down = local(port);
+		assertThatExceptionOfType(MailFailure.class).isThrownBy(() -> this.reader.test(down))
 			.satisfies(failed -> assertThat(failed.problem()).isEqualTo(MailProblem.LOCAL_SERVER_DOWN));
 	}
 

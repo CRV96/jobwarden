@@ -49,6 +49,9 @@ public class CalendarIcs {
 
 	private static final String CRLF = "\r\n";
 
+	/** What ends every entry's UID, after what it is and its id */
+	private static final String UID_DOMAIN = "@jobwarden";
+
 	private final MessageSource messages;
 
 	/**
@@ -126,9 +129,9 @@ public class CalendarIcs {
 	/** The same for the same entry every time, so an app updates it rather than adding it again. */
 	private static String uid(CalendarEntry entry) {
 		return switch (entry.kind()) {
-			case EVENT -> "event-" + entry.eventId() + "@jobwarden";
-			case DEADLINE -> "deadline-" + entry.applicationId() + "@jobwarden";
-			case FOLLOW_UP -> "follow-up-" + entry.applicationId() + "@jobwarden";
+			case EVENT -> "event-" + entry.eventId() + UID_DOMAIN;
+			case DEADLINE -> "deadline-" + entry.applicationId() + UID_DOMAIN;
+			case FOLLOW_UP -> "follow-up-" + entry.applicationId() + UID_DOMAIN;
 		};
 	}
 

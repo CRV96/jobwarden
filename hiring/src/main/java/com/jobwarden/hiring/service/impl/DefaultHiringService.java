@@ -116,11 +116,11 @@ class DefaultHiringService implements HiringService {
 	@Override
 	@Transactional(readOnly = true)
 	public Set<String> findKnownLinks(long userId, Collection<String> links) {
-		Set<String> posts = findPostLinks(userId);
+		Set<String> postLinks = Set.copyOf(this.posts.findLinks(userId));
 		Set<String> known = new LinkedHashSet<>();
 		for (String link : links) {
 			String address = webAddress(link);
-			if (address != null && (posts.contains(address)
+			if (address != null && (postLinks.contains(address)
 					|| this.recruiters.findByUserIdAndProfileUrl(userId, address).isPresent())) {
 				known.add(link);
 			}
@@ -337,10 +337,19 @@ class DefaultHiringService implements HiringService {
 			return null;
 		}
 		boolean linkedIn = host.equals("linkedin.com") || host.endsWith(".linkedin.com");
-		String path = (uri.getRawPath() != null) ? uri.getRawPath().replaceAll("/+$", "") : "";
+		String path = (uri.getRawPath() != null) ? withoutTrailingSlashes(uri.getRawPath()) : "";
 		String query = (!linkedIn && uri.getRawQuery() != null) ? "?" + uri.getRawQuery() : "";
 		return scheme + "://" + (linkedIn ? "www.linkedin.com" : host) + ((uri.getPort() != -1) ? ":" + uri.getPort() : "")
 				+ path + query;
+	}
+
+	/** Not replaceAll("/+$"): that takes quadratic time on many slashes that aren't at the end */
+	private static String withoutTrailingSlashes(String path) {
+		int end = path.length();
+		while (end > 0 && path.charAt(end - 1) == '/') {
+			end--;
+		}
+		return path.substring(0, end);
 	}
 
 	private static @Nullable String country(@Nullable String code) {

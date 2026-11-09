@@ -32,7 +32,6 @@ import com.jobwarden.inbox.repository.MailAccountRepository;
 import com.jobwarden.inbox.service.InboxService;
 import com.jobwarden.inbox.service.impl.JobEmails.Found;
 import com.jobwarden.inbox.service.impl.MailReader.Fetched;
-import com.jobwarden.inbox.service.impl.MailReader.MailFailure;
 import com.jobwarden.inbox.service.impl.MailReader.Tested;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.ApplicationSummary;

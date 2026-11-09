@@ -12,6 +12,44 @@
     </header>
 
     <div class="grid items-start gap-x-12 gap-y-6 xl:grid-cols-2">
+        <!--/* The profile's photo (ProfileController), which shows next to its name: in the menu and on the Profiles
+               page. A file larger than the server takes is refused before it's sent (app.js: data-max-bytes). */-->
+        <section id="profile" class="flex flex-col gap-2" th:if="${currentProfile}">
+            <h2 class="section-title" th:text="#{settings.profile}">Your profile</h2>
+            <output class="card flex items-center gap-2 p-3 text-success" th:if="${profileImageSaved} or ${profileImageRemoved}">
+                <i class="ph ph-check-circle text-lg"></i>
+                <span th:text="${profileImageSaved} ? #{settings.profile.photo.saved} : #{settings.profile.photo.removed}">Saved.</span>
+            </output>
+            <div class="flex flex-wrap items-start gap-3">
+                <span th:replace="~{profiles/list :: avatar(${currentProfile}, 'size-16 text-xl')}">R</span>
+                <div class="flex min-w-[200px] flex-1 flex-col gap-2">
+                    <div>
+                        <div class="font-medium" th:text="${currentProfile.name}">Robert</div>
+                        <div class="text-xs text-pretty text-ink/60" th:text="#{settings.profile.photo.hint}">A PNG, JPEG or GIF, up to 5 MB.</div>
+                    </div>
+                    <form class="flex flex-wrap items-center gap-2" method="post" enctype="multipart/form-data"
+                          th:action="@{/profiles/image}">
+                        <label class="contents">
+                            <span class="sr-only" th:text="#{settings.profile.photo.choose}">Choose a photo</span>
+                            <input class="input w-auto max-w-full flex-1" type="file" name="image" required
+                                   accept="image/png,image/jpeg,image/gif"
+                                   th:data-max-bytes="${profileImageMaxBytes}" th:data-too-large="#{settings.profile.photo.tooLarge}">
+                        </label>
+                        <button class="btn btn-primary" type="submit">
+                            <i class="ph ph-upload-simple"></i><span
+                                th:text="${currentProfile.hasImage()} ? #{settings.profile.photo.replace} : #{settings.profile.photo.upload}">Upload</span>
+                        </button>
+                    </form>
+                    <p class="field-error" role="alert" th:if="${profileImageError}" th:text="${profileImageError}">That photo is too large.</p>
+                    <form th:if="${currentProfile.hasImage()}" method="post" th:action="@{/profiles/image/remove}">
+                        <button class="btn btn-ghost px-1.5 py-1 text-xs" type="submit">
+                            <i class="ph ph-trash"></i><span th:text="#{settings.profile.photo.remove}">Remove photo</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
         <!--/* Kept by the browser, not the server: app.js applies and saves the choice. */-->
         <section class="flex flex-col gap-2">
             <h2 class="section-title" th:text="#{settings.appearance}">Appearance</h2>
@@ -129,9 +167,9 @@
                mailbox, where to connect one. */-->
         <section id="inbox" class="flex flex-col gap-2" th:if="${currentProfile}">
             <h2 class="section-title" th:text="#{nav.inbox}">Inbox</h2>
-            <p class="card flex items-center gap-2 p-3 text-success" role="status" th:if="${inboxSaved}">
+            <output class="card flex items-center gap-2 p-3 text-success" th:if="${inboxSaved}">
                 <i class="ph ph-check-circle text-lg"></i><span th:text="#{settings.inbox.saved}">Saved.</span>
-            </p>
+            </output>
             <div class="card flex items-start gap-3 p-3" th:unless="${mailAccount}">
                 <i class="ph ph-envelope-simple text-[22px] text-accent"></i>
                 <div class="flex min-w-0 flex-1 flex-col gap-1">

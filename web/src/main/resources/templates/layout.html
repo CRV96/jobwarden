@@ -152,13 +152,13 @@
                         class="flex w-full items-center gap-1.5 rounded-lg p-[5px] text-left hover:bg-ink/7 max-md:justify-center folded:justify-center"
                         th:classappend="${section == 'settings'} ? 'bg-ink/7'"
                         th:title="${currentProfile.name}">
-                    <span class="avatar size-[30px]" th:text="${@names.initials(currentProfile.name)}">R</span>
+                    <span th:replace="~{profiles/list :: avatar(${currentProfile}, 'size-[30px]')}">R</span>
                     <span class="min-w-0 flex-1 truncate text-[13px] max-md:hidden folded:hidden" th:text="${currentProfile.name}">Robert</span>
                     <i class="ph ph-caret-up-down text-xs opacity-50 max-md:hidden folded:hidden"></i>
                 </button>
                 <div id="profile-menu" class="menu bottom-16 left-3" popover role="menu" aria-labelledby="profile-button">
                     <div class="flex items-center gap-2.5 px-2 pt-2 pb-2.5">
-                        <span class="avatar size-8" th:text="${@names.initials(currentProfile.name)}">R</span>
+                        <span th:replace="~{profiles/list :: avatar(${currentProfile}, 'size-8')}">R</span>
                         <div class="min-w-0">
                             <div class="truncate text-[13px] font-semibold" th:text="${currentProfile.name}">Robert</div>
                             <!--/* The id as text, so it shows 1000 and not 1,000. The extension asks for it. */-->
@@ -171,7 +171,7 @@
                         <form th:each="profile : ${sidebarProfiles}" th:unless="${profile.id == currentProfile.id}"
                               method="post" th:action="@{/profiles/{id}/select(id=${profile.id})}">
                             <button class="menu-item" type="submit" role="menuitem">
-                                <span class="avatar size-[22px] text-[11px]" th:text="${@names.initials(profile.name)}">A</span>
+                                <span th:replace="~{profiles/list :: avatar(${profile}, 'size-[22px] text-[11px]')}">A</span>
                                 <span class="min-w-0 flex-1 truncate" th:text="${profile.name}">Ana</span>
                             </button>
                         </form>
@@ -216,7 +216,8 @@
        a card per reminder, from the template, until it's closed */-->
 <div id="reminder-cards" class="fixed right-4 bottom-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2" aria-live="polite"></div>
 <template id="reminder-card">
-    <div class="card flex items-start gap-3 p-3 shadow-lg" role="status" data-reminder-card>
+    <!--/* #reminder-cards is a polite live region: screen readers say each card added */-->
+    <div class="card flex items-start gap-3 p-3 shadow-lg" data-reminder-card>
         <span class="brand-mark size-8"><i class="ph ph-alarm text-base"></i></span>
         <div class="min-w-0 flex-1">
             <div class="text-[13px] font-semibold" data-title></div>

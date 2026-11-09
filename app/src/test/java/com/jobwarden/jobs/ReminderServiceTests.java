@@ -100,18 +100,17 @@ class ReminderServiceTests {
 	void refusesMinutesBeforeAnEntryWithoutATimeAndAnEntryThatIsntThere() {
 		long job = create(this.userId);
 		this.applications.updateFollowUp(this.userId, job, FollowUp.builder().deadline(TODAY.plusDays(4)).build());
+		ReminderTarget deadline = new ReminderTarget(job, CalendarEntryKind.DEADLINE, null);
+		ReminderTarget followUp = new ReminderTarget(job, CalendarEntryKind.FOLLOW_UP, null);
 
 		assertThatExceptionOfType(BusinessRuleException.class)
-			.isThrownBy(() -> this.reminders.set(this.userId, new ReminderTarget(job, CalendarEntryKind.DEADLINE, null),
-					ReminderLead.MINUTES_15, true))
+			.isThrownBy(() -> this.reminders.set(this.userId, deadline, ReminderLead.MINUTES_15, true))
 			.satisfies(error -> assertThat(error.getErrorCode()).isEqualTo(JobsErrorCode.REMINDER_NOT_ALLOWED));
 		assertThatExceptionOfType(BusinessRuleException.class)
-			.isThrownBy(() -> this.reminders.set(this.userId, new ReminderTarget(job, CalendarEntryKind.FOLLOW_UP, null),
-					ReminderLead.DAY_1, true))
+			.isThrownBy(() -> this.reminders.set(this.userId, followUp, ReminderLead.DAY_1, true))
 			.satisfies(error -> assertThat(error.getErrorCode()).isEqualTo(JobsErrorCode.CALENDAR_ENTRY_NOT_FOUND));
 		assertThatExceptionOfType(ApplicationNotFoundException.class)
-			.isThrownBy(() -> this.reminders.set(this.otherUserId, new ReminderTarget(job, CalendarEntryKind.DEADLINE, null),
-					ReminderLead.DAY_1, true));
+			.isThrownBy(() -> this.reminders.set(this.otherUserId, deadline, ReminderLead.DAY_1, true));
 	}
 
 	@Test

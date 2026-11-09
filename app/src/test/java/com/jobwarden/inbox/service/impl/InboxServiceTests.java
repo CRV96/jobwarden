@@ -24,7 +24,6 @@ import com.jobwarden.inbox.exception.EmailUpdateNotFoundException;
 import com.jobwarden.inbox.exception.InboxErrorCode;
 import com.jobwarden.inbox.service.InboxService;
 import com.jobwarden.inbox.service.impl.MailReader.Fetched;
-import com.jobwarden.inbox.service.impl.MailReader.MailFailure;
 import com.jobwarden.inbox.service.impl.MailReader.Tested;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.NewApplication;

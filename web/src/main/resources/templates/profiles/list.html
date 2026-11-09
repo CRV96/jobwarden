@@ -21,7 +21,7 @@
             <form method="post" th:action="@{/profiles/{id}/select(id=${profile.id})}">
                 <button class="flex w-full items-center gap-2.5 rounded-[10px] bg-surface px-3 py-2.5 text-left shadow-sm hover:shadow-md" type="submit"
                         th:aria-current="${currentProfile != null and currentProfile.id == profile.id} ? 'true'">
-                    <span class="avatar size-[30px]" th:text="${@names.initials(profile.name)}">R</span>
+                    <span th:replace="~{profiles/list :: avatar(${profile}, 'size-[30px]')}">R</span>
                     <span class="min-w-0 flex-1">
                         <span class="block truncate text-[13px] font-medium" th:text="${profile.name}">Robert</span>
                         <!--/* The id as text, so it shows 1000 and not 1,000. The extension asks for it. */-->
@@ -43,5 +43,13 @@
 
     <a class="link text-[13px]" th:if="${currentProfile}" th:href="@{/applications}" th:text="#{profiles.back}">Back to your jobs</a>
 </main>
+
+<!--/* A profile's photo, or its initials without one, in a circle of the given size. Its name is beside it wherever it
+       shows, so the photo has no text of its own. The address changes with the photo, so the browser keeps it until
+       then (ProfileController). */-->
+<span th:fragment="avatar(profile, size)" class="avatar overflow-hidden" th:classappend="${size}"><img
+      th:if="${profile.hasImage()}" class="size-full object-cover" alt=""
+      th:src="@{/profiles/{id}/image(id=${profile.id}, v=${profile.imageChangedAt.toEpochMilli()})}"><th:block
+      th:unless="${profile.hasImage()}" th:text="${@names.initials(profile.name)}">R</th:block></span>
 </body>
 </html>

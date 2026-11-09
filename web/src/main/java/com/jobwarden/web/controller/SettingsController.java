@@ -5,6 +5,7 @@ import java.util.Locale;
 import java.util.Optional;
 
 import com.jobwarden.identity.dto.User;
+import com.jobwarden.identity.service.UserService;
 import com.jobwarden.inbox.dto.MailAccount;
 import com.jobwarden.inbox.enums.InboxAutomation;
 import com.jobwarden.inbox.service.InboxService;
@@ -68,6 +69,7 @@ class SettingsController extends BaseController {
 		model.addAttribute(ModelAttributes.SERVER_URL, serverUrl);
 		model.addAttribute(ModelAttributes.MCP_URL, serverUrl + this.mcpPath);
 		model.addAttribute(ModelAttributes.ADZUNA_KEY, this.adzunaKeys.find());
+		model.addAttribute(ModelAttributes.PROFILE_IMAGE_MAX_BYTES, UserService.MAX_IMAGE_BYTES);
 		if (model.getAttribute(ModelAttributes.CURRENT_PROFILE) instanceof User profile) {
 			Optional<MailAccount> mailbox = this.inbox.findAccount(profile.id());
 			model.addAttribute(ModelAttributes.MAIL_ACCOUNT, mailbox.orElse(null));

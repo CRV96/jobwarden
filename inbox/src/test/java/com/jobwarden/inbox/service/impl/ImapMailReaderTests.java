@@ -8,7 +8,6 @@ import com.icegreen.greenmail.user.GreenMailUser;
 import com.icegreen.greenmail.util.GreenMailUtil;
 import com.icegreen.greenmail.util.ServerSetupTest;
 import com.jobwarden.inbox.service.impl.MailReader.Fetched;
-import com.jobwarden.inbox.service.impl.MailReader.MailFailure;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -80,8 +79,8 @@ class ImapMailReaderTests {
 	void saysWhyItCouldntSignIn() {
 		this.reader.test(this.server);
 
-		assertThatExceptionOfType(MailFailure.class).isThrownBy(() -> this.reader.test(new MailServer("127.0.0.1",
-				ServerSetupTest.IMAP.getPort(), "robert", "wrong", "INBOX")));
+		MailServer wrongPassword = new MailServer("127.0.0.1", ServerSetupTest.IMAP.getPort(), "robert", "wrong", "INBOX");
+		assertThatExceptionOfType(MailFailure.class).isThrownBy(() -> this.reader.test(wrongPassword));
 	}
 
 	private void deliver(String from, String subject, String body) throws Exception {

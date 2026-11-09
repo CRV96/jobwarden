@@ -262,8 +262,7 @@ class DefaultReminderService implements ReminderService {
 	 */
 	private ReminderNotice notice(ReminderEntity reminder, CalendarEntry entry, LocalDateTime now, Locale locale) {
 		String what = switch (entry.kind()) {
-			case EVENT -> (entry.stageLabel() != null) ? entry.stageLabel()
-					: message(entry.isInterview() ? "notice.interview" : "notice.event", locale);
+			case EVENT -> eventName(entry, locale);
 			case DEADLINE, FOLLOW_UP -> message("notice." + entry.kind(), locale);
 		};
 		StringBuilder body = new StringBuilder((entry.company() != null)
@@ -304,6 +303,14 @@ class DefaultReminderService implements ReminderService {
 		}
 		String day = entry.date().format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale));
 		return (time == null) ? message("notice.when.on", locale, day) : message("notice.when.onAt", locale, day, time);
+	}
+
+	/** The stage's own name, or what it is */
+	private String eventName(CalendarEntry entry, Locale locale) {
+		if (entry.stageLabel() != null) {
+			return entry.stageLabel();
+		}
+		return message(entry.isInterview() ? "notice.interview" : "notice.event", locale);
 	}
 
 	private String message(String key, Locale locale, Object... arguments) {

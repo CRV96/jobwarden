@@ -57,16 +57,18 @@
 <!--/* A page of a column's cards (pipelineCards, of pipelineStatus), then, while there are more, the button that loads the
        next page in its place: on a click, or on its own once the column is scrolled to it. */-->
 <th:block th:fragment="cards">
-    <!--/* A click, or Enter, opens the application in the side panel; dragging it to another column gives it that status
-           (app.js: data-drag-card). Not a <button>: Firefox can't drag one. */-->
-    <div class="card flex cursor-grab flex-col gap-1.5 p-2.5 text-left hover:shadow-md" role="button" tabindex="0" draggable="true"
+    <!--/* A click on the card opens the application in the side panel; dragging it to another column gives it that status
+           (app.js: data-drag-card). The card isn't a <button>, as Firefox can't drag one: its title is, the one keyboards
+           and screen readers reach. Its click, from Enter or Space as well, is the card's. */-->
+    <div class="card flex cursor-grab flex-col gap-1.5 p-2.5 text-left hover:shadow-md" draggable="true"
          data-drawer-row th:each="summary : ${pipelineCards.content}" th:data-drag-card="${summary.id}"
          th:data-status="${summary.status}" th:data-events-url="@{/applications/{id}/events(id=${summary.id})}"
-         th:hx-get="@{/applications/{id}/drawer(id=${summary.id})}" hx-trigger="click, keydown[key=='Enter' || key==' ']"
+         th:hx-get="@{/applications/{id}/drawer(id=${summary.id})}" hx-trigger="click"
          hx-target="#drawer-content" hx-swap="innerHTML">
         <span class="flex items-center gap-2">
             <span th:replace="~{applications/fragments :: company-logo(${summary.id}, ${summary.company}, 28)}"></span>
-            <span class="min-w-0 text-sm leading-tight font-medium wrap-anywhere" th:text="${summary.title}">Backend engineer</span>
+            <button class="min-w-0 cursor-[inherit] rounded-sm text-left text-sm leading-tight font-medium wrap-anywhere" type="button"
+                    th:text="${summary.title}">Backend engineer</button>
         </span>
         <span class="text-xs text-ink/65" th:if="${summary.company != null or summary.location != null}"
               th:text="${summary.company != null and summary.location != null} ? |${summary.company} · ${summary.location}| : (${summary.company} ?: ${summary.location})">Acme · Remote</span>

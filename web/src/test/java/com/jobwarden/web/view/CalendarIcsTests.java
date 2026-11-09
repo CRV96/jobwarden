@@ -78,8 +78,8 @@ class CalendarIcsTests {
 		assertThat(CalendarIcs.text("a, b; c\\d\ne")).isEqualTo("a\\, b\\; c\\\\d\\ne");
 		StringBuilder folded = new StringBuilder();
 		CalendarIcs.line(folded, "SUMMARY:" + "ă".repeat(60));
-		assertThat(folded.toString().split("\r\n")).allSatisfy(line -> assertThat(line.getBytes(StandardCharsets.UTF_8).length)
-			.isLessThanOrEqualTo(75));
+		assertThat(folded.toString().split("\r\n")).allSatisfy(line -> assertThat(line.getBytes(StandardCharsets.UTF_8))
+			.hasSizeLessThanOrEqualTo(75));
 		assertThat(folded.toString().replace("\r\n ", "")).isEqualTo("SUMMARY:" + "ă".repeat(60) + "\r\n");
 	}
 

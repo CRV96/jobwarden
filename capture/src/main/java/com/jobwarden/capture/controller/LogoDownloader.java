@@ -1,10 +1,6 @@
 package com.jobwarden.capture.controller;
 
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
@@ -13,14 +9,10 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.Iterator;
 import java.util.Optional;
 import java.util.function.Predicate;
 
-import javax.imageio.ImageIO;
-import javax.imageio.ImageReader;
-import javax.imageio.stream.ImageInputStream;
-
+import com.jobwarden.common.image.Images;
 import com.jobwarden.common.net.PublicAddresses;
 import com.jobwarden.jobs.dto.PngImage;
 import lombok.CustomLog;
@@ -48,9 +40,6 @@ class LogoDownloader {
 
 	/** More than any logo takes; anything bigger isn't one. */
 	private static final int MAX_BYTES = 1024 * 1024;
-
-	/** Nor are larger images, and decoding one could take more memory than the server should give it. */
-	private static final int MAX_PIXELS_A_SIDE = 4096;
 
 	private static final int MAX_REDIRECTS = 3;
 
@@ -82,7 +71,7 @@ class LogoDownloader {
 			return Optional.empty();
 		}
 		try {
-			return Optional.of(new PngImage(toPng(fetch(URI.create(address)))));
+			return Optional.of(new PngImage(Images.fittedPng(fetch(URI.create(address)), SIZE)));
 		} catch (IOException | IllegalArgumentException exception) {
 			log.debug("No company logo from {}: {}", address, exception.getMessage());
 		} catch (InterruptedException exception) {
@@ -116,7 +105,7 @@ class LogoDownloader {
 				if (bytes.length > MAX_BYTES) {
 					throw new IOException("It's over " + MAX_BYTES + " bytes");
 				}
-				return decode(bytes);
+				return Images.read(bytes);
 			}
 		}
 	}
@@ -131,50 +120,5 @@ class LogoDownloader {
 			}
 		}
 	}
-
-	/**
-	 * Reads the image's size before the image, so a huge one is refused before it takes the memory.
-	 */
-	private static BufferedImage decode(byte[] bytes) throws IOException {
-		try (ImageInputStream input = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
-			Iterator<ImageReader> readers = ImageIO.getImageReaders(input);
-			if (!readers.hasNext()) {
-				throw new IOException("Not an image Java reads");
-			}
-			ImageReader reader = readers.next();
-			try {
-				reader.setInput(input, true, true);
-				if (reader.getWidth(0) > MAX_PIXELS_A_SIDE || reader.getHeight(0) > MAX_PIXELS_A_SIDE) {
-					throw new IOException("It's over " + MAX_PIXELS_A_SIDE + " pixels a side");
-				}
-				return reader.read(0);
-			} finally {
-				reader.dispose();
-			}
-		}
-	}
-
-	/**
-	 * Scales the image down to fit {@link #SIZE} pixels, keeping its shape, and encodes it as a PNG. Encoding it anew
-	 * also leaves out anything the file had besides the picture.
-	 */
-	private static byte[] toPng(BufferedImage image) throws IOException {
-		double scale = Math.min(1, (double) SIZE / Math.max(image.getWidth(), image.getHeight()));
-		int width = Math.max(1, (int) Math.round(image.getWidth() * scale));
-		int height = Math.max(1, (int) Math.round(image.getHeight() * scale));
-		BufferedImage scaled = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-		Graphics2D graphics = scaled.createGraphics();
-		try {
-			graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-			graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-			graphics.drawImage(image, 0, 0, width, height, null);
-		} finally {
-			graphics.dispose();
-		}
-		ByteArrayOutputStream png = new ByteArrayOutputStream();
-		ImageIO.write(scaled, "png", png);
-		return png.toByteArray();
-	}
-
 
 }

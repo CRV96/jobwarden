@@ -32,6 +32,9 @@ import org.springframework.stereotype.Component;
 @Component
 class GitHubApi {
 
+	/** Where a repository is, before its owner/name */
+	private static final String REPOS = "/repos/";
+
 	private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
 	/** The most repositories listed: a CV shows a few. */
@@ -94,13 +97,13 @@ class GitHubApi {
 	 * @return its details, languages and the start of its README; empty when it's gone, or the token can't read it
 	 */
 	Optional<GitHubProject> project(String fullName, @Nullable String token) {
-		Answer repository = get("/repos/" + fullName, token, false);
+		Answer repository = get(REPOS + fullName, token, false);
 		if (repository.status() == 404) {
 			return Optional.empty();
 		}
 		JsonNode details = repository.json();
 		List<String> languages = new ArrayList<>();
-		get("/repos/" + fullName + "/languages", token, true).json()
+		get(REPOS + fullName + "/languages", token, true).json()
 			.properties()
 			.stream()
 			.sorted(Comparator.comparingLong((Map.Entry<String, JsonNode> language) -> language.getValue().asLong()).reversed())
@@ -114,7 +117,7 @@ class GitHubApi {
 	}
 
 	private @Nullable String readme(String fullName, @Nullable String token) {
-		HttpResponse<String> response = send("/repos/" + fullName + "/readme", token, "application/vnd.github.raw+json");
+		HttpResponse<String> response = send(REPOS + fullName + "/readme", token, "application/vnd.github.raw+json");
 		if (response.statusCode() == 404) {
 			return null;
 		}

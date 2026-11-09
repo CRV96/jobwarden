@@ -32,7 +32,8 @@ final class CvText {
 
 	private static final Pattern TAB = Pattern.compile("<w:tab\\s*/>");
 
-	private static final Pattern TAG = Pattern.compile("<[^>]*>");
+	/** Not <[^>]*>: a tag holds no <, and stopping at one keeps the time linear when a document has many without > */
+	private static final Pattern TAG = Pattern.compile("<[^<>]*>");
 
 	private static final Pattern ENTITY = Pattern.compile("&(#x?[0-9a-fA-F]+|amp|lt|gt|quot|apos);");
 

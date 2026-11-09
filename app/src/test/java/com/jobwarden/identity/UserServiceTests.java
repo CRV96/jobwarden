@@ -1,5 +1,13 @@
 package com.jobwarden.identity;
 
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+
+import javax.imageio.ImageIO;
+
 import com.jobwarden.TestcontainersConfiguration;
 import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.identity.dto.User;
@@ -77,6 +85,56 @@ class UserServiceTests {
 
 		assertThat(this.users.exists(robert.id())).isTrue();
 		assertThat(this.users.exists(Long.MAX_VALUE)).isFalse();
+	}
+
+	@Test
+	void keepsAPhotoAsASmallSquarePngAndSaysWhenItChanged() throws IOException {
+		User robert = this.users.create("Robert");
+		byte[] photo = jpeg(new BufferedImage(800, 600, BufferedImage.TYPE_INT_RGB));
+
+		User changed = this.users.changeImage(robert.id(), photo);
+
+		assertThat(robert.hasImage()).isFalse();
+		assertThat(changed.hasImage()).isTrue();
+		assertThat(this.users.findById(robert.id())).get().extracting(User::imageChangedAt).isEqualTo(changed.imageChangedAt());
+		BufferedImage kept = ImageIO.read(new ByteArrayInputStream(this.users.findImage(robert.id()).orElseThrow()));
+		assertThat(kept.getWidth()).isEqualTo(160);
+		assertThat(kept.getHeight()).isEqualTo(160);
+		// Another replaces it
+		this.users.changeImage(robert.id(), jpeg(new BufferedImage(50, 50, BufferedImage.TYPE_INT_RGB)));
+		assertThat(ImageIO.read(new ByteArrayInputStream(this.users.findImage(robert.id()).orElseThrow())).getWidth())
+			.isEqualTo(50);
+	}
+
+	@Test
+	void removesThePhoto() throws IOException {
+		User robert = this.users.create("Robert");
+		this.users.changeImage(robert.id(), jpeg(new BufferedImage(100, 100, BufferedImage.TYPE_INT_RGB)));
+
+		User removed = this.users.removeImage(robert.id());
+
+		assertThat(removed.hasImage()).isFalse();
+		assertThat(this.users.findImage(robert.id())).isEmpty();
+		assertThat(this.users.findAll()).singleElement().extracting(User::hasImage).isEqualTo(false);
+	}
+
+	@Test
+	void refusesAFileThatIsntAPhotoOrIsTooLarge() {
+		long robert = this.users.create("Robert").id();
+		byte[] text = "Not a photo".getBytes(StandardCharsets.UTF_8);
+		byte[] tooLarge = new byte[UserService.MAX_IMAGE_BYTES + 1];
+
+		assertThatThrownBy(() -> this.users.changeImage(robert, text)).isInstanceOfSatisfying(BusinessRuleException.class,
+				exception -> assertThat(exception.getErrorCode()).isEqualTo(IdentityErrorCode.IMAGE_UNREADABLE));
+		assertThatThrownBy(() -> this.users.changeImage(robert, tooLarge)).isInstanceOfSatisfying(BusinessRuleException.class,
+				exception -> assertThat(exception.getErrorCode()).isEqualTo(IdentityErrorCode.IMAGE_TOO_LARGE));
+		assertThat(this.users.findImage(robert)).isEmpty();
+	}
+
+	private static byte[] jpeg(BufferedImage image) throws IOException {
+		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+		ImageIO.write(image, "jpeg", bytes);
+		return bytes.toByteArray();
 	}
 
 }

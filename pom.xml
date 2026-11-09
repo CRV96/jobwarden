@@ -58,6 +58,19 @@
 		<greenmail.version>2.1.5</greenmail.version>
 		<!-- Only the app module is runnable; lets `./mvnw -pl app -am spring-boot:run` work from the root. -->
 		<spring-boot.run.skip>true</spring-boot.run.skip>
+		<jacoco.version>0.8.16</jacoco.version>
+		<sonar-maven-plugin.version>5.8.0.7211</sonar-maven-plugin.version>
+
+		<!-- SonarCloud, as CI runs it after the build (.github/workflows/ci.yml) -->
+		<sonar.host.url>https://sonarcloud.io</sonar.host.url>
+		<sonar.organization>crv96</sonar.organization>
+		<sonar.projectKey>CRV96_job_tracker</sonar.projectKey>
+		<!-- What all the tests cover, in every module: most of them are the app module's, which gathers it (coverage) -->
+		<sonar.coverage.jacoco.xmlReportPaths>${project.basedir}/../app/target/site/jacoco-aggregate/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+		<!-- The migrations are PostgreSQL's SQL, not Oracle's PL/SQL, whose rules SonarCloud would apply to them -->
+		<sonar.issue.ignore.multicriteria>migrations</sonar.issue.ignore.multicriteria>
+		<sonar.issue.ignore.multicriteria.migrations.ruleKey>plsql:*</sonar.issue.ignore.multicriteria.migrations.ruleKey>
+		<sonar.issue.ignore.multicriteria.migrations.resourceKey>**/db/migration/*.sql</sonar.issue.ignore.multicriteria.migrations.resourceKey>
 	</properties>
 
 	<dependencyManagement>
@@ -159,6 +172,20 @@
 	</dependencyManagement>
 
 	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.jacoco</groupId>
+					<artifactId>jacoco-maven-plugin</artifactId>
+					<version>${jacoco.version}</version>
+				</plugin>
+				<plugin>
+					<groupId>org.sonarsource.scanner.maven</groupId>
+					<artifactId>sonar-maven-plugin</artifactId>
+					<version>${sonar-maven-plugin.version}</version>
+				</plugin>
+			</plugins>
+		</pluginManagement>
 		<plugins>
 			<!-- Lombok runs as an annotation processor. Since JDK 23 processors must be listed explicitly. -->
 			<plugin>
@@ -175,5 +202,28 @@
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<!-- ./mvnw verify -Pcoverage: JaCoCo measures what each module's tests cover; the app module puts it together -->
+		<profile>
+			<id>coverage</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.jacoco</groupId>
+						<artifactId>jacoco-maven-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>prepare-agent</id>
+								<goals>
+									<goal>prepare-agent</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
 </project>

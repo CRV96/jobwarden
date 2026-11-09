@@ -65,6 +65,20 @@ class DefaultCvService implements CvService {
 	@Override
 	@Transactional
 	public CvDetails saveDetails(long userId, CvDetails changed) {
+		return save(userId, changed);
+	}
+
+	@Override
+	@Transactional
+	public CvDetails saveProjects(long userId, List<CvProject> projects) {
+		CvDetails current = this.details.findById(userId).map(DefaultCvService::toCvDetails).orElse(CvDetails.NONE);
+		CvDetails changed = save(userId, current.toBuilder().projects(projects).build());
+		log.info("Saved {} projects on the CV of profile {}", changed.projects().size(), userId);
+		return changed;
+	}
+
+	/** In the transaction of the method that calls it */
+	private CvDetails save(long userId, CvDetails changed) {
 		CvDetails tidied = tidied(changed);
 		CvDetailsEntity entity = this.details.findById(userId).orElseGet(() -> new CvDetailsEntity(userId));
 		entity.changePersonalDetails(tidied.fullName(), tidied.headline(), tidied.email(), tidied.phone(),
@@ -74,15 +88,6 @@ class DefaultCvService implements CvService {
 		CvDetails saved = toCvDetails(this.details.saveAndFlush(entity));
 		log.info("Saved the CV details of profile {}", userId);
 		return saved;
-	}
-
-	@Override
-	@Transactional
-	public CvDetails saveProjects(long userId, List<CvProject> projects) {
-		CvDetails current = this.details.findById(userId).map(DefaultCvService::toCvDetails).orElse(CvDetails.NONE);
-		CvDetails changed = saveDetails(userId, current.toBuilder().projects(projects).build());
-		log.info("Saved {} projects on the CV of profile {}", changed.projects().size(), userId);
-		return changed;
 	}
 
 	/**

@@ -105,7 +105,6 @@ public final class AppConstants {
 		public static final String DISCOVER_REVIEW_FRAGMENT = DISCOVER + " :: review";
 		/** The requests to Claude, which HTMX swaps as one is made, cancelled, or changes while it's open. */
 		public static final String DISCOVER_REQUESTS_FRAGMENT = DISCOVER + " :: requests";
-		/** What the search page shows once a search is saved. */
 		/** What saving a search answers: that it's saved, and the menu of saved filters, out of band. */
 		public static final String SEARCH_SAVED_FRAGMENT = "search/search :: saved-answer";
 
@@ -128,7 +127,7 @@ public final class AppConstants {
 		public static final String SALARIES_MARKET_FRAGMENT = "salaries/market :: market";
 		public static final String SEARCH = "search/search";
 		/** The search page's queries, which HTMX swaps as the filters change. */
-		public static final String SEARCH_OUTPUT_FRAGMENT = SEARCH + " :: output";
+		public static final String SEARCH_OUTPUT_FRAGMENT = SEARCH + " :: queries";
 		public static final String SETTINGS = "settings/settings";
 	}
 
@@ -169,6 +168,12 @@ public final class AppConstants {
 		public static final String READING_INTERVALS = "readingIntervals";
 		public static final String INBOX_AUTOMATIONS = "inboxAutomations";
 		public static final String INBOX_SAVED = "inboxSaved";
+		/** The profile's photo: saved or removed, said once back on the settings page, or why it wasn't saved */
+		public static final String PROFILE_IMAGE_SAVED = "profileImageSaved";
+		public static final String PROFILE_IMAGE_REMOVED = "profileImageRemoved";
+		public static final String PROFILE_IMAGE_ERROR = "profileImageError";
+		/** The largest photo file, in bytes, which the page checks before sending one. */
+		public static final String PROFILE_IMAGE_MAX_BYTES = "profileImageMaxBytes";
 		/** Claude's latest sorting of the updates waiting, and its prompt; what JobWarden and Claude decided lately. */
 		public static final String SORT_REQUEST = "sortRequest";
 		public static final String SORT_PROMPT = "sortPrompt";

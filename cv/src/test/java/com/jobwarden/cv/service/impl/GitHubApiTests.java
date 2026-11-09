@@ -53,7 +53,7 @@ class GitHubApiTests {
 		assertThat(this.api.user("nobody")).isEmpty();
 		assertThat(this.api.tokenOwner(TOKEN)).contains("CRV96");
 		assertThat(this.api.tokenOwner("expired")).isEmpty();
-		assertThat(this.asked.get("/user")).isEqualTo("Bearer expired");
+		assertThat(this.asked).containsEntry("/user", "Bearer expired");
 	}
 
 	@Test

@@ -404,11 +404,7 @@
 		opacity: 0.6;
 	}
 
-	/* A job's card folded to its header (app.js: data-collapse), its arrow turned to say so */
-	[data-collapse][data-collapsed] > :not(:first-child) {
-		display: none !important;
-	}
-
+	/* A job's card folded to its header (app.js: data-collapse, and the rule after the layers), its arrow turned to say so */
 	.collapse-toggle i {
 		transition: transform 0.15s;
 	}
@@ -1534,6 +1530,12 @@
 		background: var(--jw-red);
 		content: "";
 	}
+}
+
+/* A job's card folded to its header (app.js: data-collapse). Outside the layers, so it wins over the utilities its
+   children have, such as flex, without !important. */
+[data-collapse][data-collapsed] > :not(:first-child) {
+	display: none;
 }
 
 @keyframes drawer-in {

@@ -82,8 +82,8 @@
             <li class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5" th:each="update : ${decidedForYou}"
                 th:with="applied=${update.decision.name() == 'APPLIED'}, claude=${update.decidedBy.name() == 'CLAUDE'}">
                 <i class="ph flex-none text-base" th:classappend="${claude} ? 'ph-sparkle text-accent' : 'ph-lightning text-ink/55'"
-                   th:title="${claude} ? #{inbox.decided.byClaude} : #{inbox.decided.byJobWarden}" role="img"
-                   th:aria-label="${claude} ? #{inbox.decided.byClaude} : #{inbox.decided.byJobWarden}"></i>
+                   th:title="${claude} ? #{inbox.decided.byClaude} : #{inbox.decided.byJobWarden}" aria-hidden="true"></i>
+                <span class="sr-only" th:text="${claude} ? #{inbox.decided.byClaude} : #{inbox.decided.byJobWarden}">Done by Claude</span>
                 <div class="min-w-0 flex-[1_1_220px]">
                     <div class="truncate text-[13px] font-medium" th:text="${update.subject} ?: #{inbox.noSubject}">Your application to Acme</div>
                     <div class="truncate text-xs text-ink/60" th:text="${update.sender}">Ana Pop &lt;ana@acme.com&gt;</div>

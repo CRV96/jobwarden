@@ -30,7 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 class DefaultGitHubService implements GitHubService {
 
 	/** GitHub's user names: letters, digits and single hyphens, up to 39. */
-	private static final Pattern USERNAME = Pattern.compile("[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})");
+	private static final Pattern USERNAME = Pattern.compile("[A-Za-z0-9][A-Za-z0-9-]{0,38}");
 
 	/** owner/name, nothing that could reach another part of the API. */
 	private static final Pattern FULL_NAME = Pattern.compile("[A-Za-z0-9-]{1,39}/[A-Za-z0-9._-]{1,100}");

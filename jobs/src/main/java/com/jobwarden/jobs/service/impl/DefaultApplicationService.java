@@ -265,14 +265,14 @@ class DefaultApplicationService implements ApplicationService {
 	@Override
 	@Transactional(readOnly = true)
 	public List<CalendarEntry> findCalendar(long userId, LocalDate from, LocalDate to) {
-		Map<ReminderTarget, Set<ReminderLead>> reminders = CalendarEntries.byTarget(this.reminders.findByUserId(userId));
+		Map<ReminderTarget, Set<ReminderLead>> leads = CalendarEntries.byTarget(this.reminders.findByUserId(userId));
 		List<CalendarEntry> entries = new ArrayList<>();
 		for (CalendarEvent event : this.applications.findCalendarEvents(userId, from, to)) {
-			entries.add(CalendarEntries.of(event, reminders));
+			entries.add(CalendarEntries.of(event, leads));
 		}
 		for (FollowUpDates dates : this.applications.findFollowUpDates(userId, from, to)) {
-			addFollowUpDate(entries, dates, dates.deadline(), CalendarEntryKind.DEADLINE, from, to, reminders);
-			addFollowUpDate(entries, dates, dates.followUpOn(), CalendarEntryKind.FOLLOW_UP, from, to, reminders);
+			addFollowUpDate(entries, dates, dates.deadline(), CalendarEntryKind.DEADLINE, from, to, leads);
+			addFollowUpDate(entries, dates, dates.followUpOn(), CalendarEntryKind.FOLLOW_UP, from, to, leads);
 		}
 		entries.sort(CalendarEntries.ORDER);
 		log.debug("Read {} calendar entries of profile {} from {} to {}", entries.size(), userId, from, to);

@@ -205,7 +205,6 @@ final class DocxHtml {
 			if (!W.equals(xml.getNamespaceURI())) {
 				return;
 			}
-			Paragraph paragraph = this.paragraphs.peek();
 			switch (xml.getLocalName()) {
 				case "p" -> this.paragraphs.push(new Paragraph());
 				case "tbl" -> {
@@ -214,53 +213,37 @@ final class DocxHtml {
 				}
 				case "tr" -> this.html.append("<tr>");
 				case "tc" -> this.html.append("<td>");
-				case "pStyle" -> {
+				// Field codes, deleted text and the document's last section: never shown
+				case "instrText", "delText", "sectPr" -> skip(xml);
+				default -> {
+					Paragraph paragraph = this.paragraphs.peek();
 					if (paragraph != null) {
-						paragraph.style = this.styles.getOrDefault(xml.getAttributeValue(W, "val"), "");
+						startInParagraph(paragraph, xml);
 					}
 				}
-				case "numPr" -> {
-					if (paragraph != null) {
-						paragraph.listItem = true;
-					}
-				}
-				case "jc" -> {
-					if (paragraph != null) {
-						paragraph.align = xml.getAttributeValue(W, "val");
-					}
-				}
-				case "r" -> {
-					if (paragraph != null) {
-						paragraph.run = new Run();
-					}
-				}
+			}
+		}
+
+		/** What starts inside a paragraph: its style, its runs and their text */
+		private void startInParagraph(Paragraph paragraph, XMLStreamReader xml) {
+			switch (xml.getLocalName()) {
+				case "pStyle" -> paragraph.style = this.styles.getOrDefault(xml.getAttributeValue(W, "val"), "");
+				case "numPr" -> paragraph.listItem = true;
+				case "jc" -> paragraph.align = xml.getAttributeValue(W, "val");
+				case "r" -> paragraph.run = new Run();
 				case "b", "i", "u" -> {
-					if (paragraph != null && paragraph.run != null && !isOff(xml)) {
+					if (paragraph.run != null && !isOff(xml)) {
 						paragraph.run.mark(xml.getLocalName());
 					}
 				}
-				case "t" -> {
-					if (paragraph != null) {
-						paragraph.inText = true;
-					}
-				}
+				case "t" -> paragraph.inText = true;
 				case "tab" -> {
-					if (paragraph != null && paragraph.run != null) {
-						paragraph.text(" ");
+					if (paragraph.run != null) {
+						paragraph.text("\u2003");
 					}
 				}
-				case "br", "cr" -> {
-					if (paragraph != null) {
-						paragraph.lineBreak();
-					}
-				}
-				case "hyperlink" -> {
-					if (paragraph != null) {
-						paragraph.link = this.links.get(xml.getAttributeValue(R, "id"));
-					}
-				}
-				// Field codes, deleted text and the document's last section: never shown
-				case "instrText", "delText", "sectPr" -> skip(xml);
+				case "br", "cr" -> paragraph.lineBreak();
+				case "hyperlink" -> paragraph.link = this.links.get(xml.getAttributeValue(R, "id"));
 				default -> {
 					// Nothing to show for it
 				}
@@ -280,19 +263,9 @@ final class DocxHtml {
 					closeList();
 					this.html.append("</td>");
 				}
-				case "t" -> {
+				case "t", "r", "hyperlink" -> {
 					if (paragraph != null) {
-						paragraph.inText = false;
-					}
-				}
-				case "r" -> {
-					if (paragraph != null) {
-						paragraph.endRun();
-					}
-				}
-				case "hyperlink" -> {
-					if (paragraph != null) {
-						paragraph.link = null;
+						paragraph.end(xml.getLocalName());
 					}
 				}
 				default -> {
@@ -391,16 +364,30 @@ final class DocxHtml {
 			this.content.append("<br>");
 		}
 
+		/** Its text, a run or a link ends */
+		void end(String element) {
+			switch (element) {
+				case "t" -> this.inText = false;
+				case "r" -> endRun();
+				case "hyperlink" -> this.link = null;
+				default -> {
+					// Nothing else ends inside a paragraph
+				}
+			}
+		}
+
 		void endRun() {
 			Run ended = this.run;
 			this.run = null;
 			if (ended == null || ended.text.isEmpty()) {
 				return;
 			}
-			String html = escape(ended.text.toString());
+			// The first mark innermost: <u><b>text</b></u>
+			StringBuilder marked = new StringBuilder(escape(ended.text.toString()));
 			for (String mark : ended.marks) {
-				html = "<" + mark + ">" + html + "</" + mark + ">";
+				marked.insert(0, "<" + mark + ">").append("</").append(mark).append('>');
 			}
+			String html = marked.toString();
 			if (this.link != null && (this.link.startsWith("https://") || this.link.startsWith("http://"))) {
 				html = "<a href=\"" + escape(this.link) + "\" target=\"_blank\" rel=\"noopener noreferrer\">" + html + "</a>";
 			}

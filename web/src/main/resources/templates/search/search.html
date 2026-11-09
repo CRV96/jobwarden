@@ -136,7 +136,7 @@
         <div class="flex min-h-0 flex-col gap-3">
             <!--/* Every platform's query at once, each with its own buttons: open them one after another. Without a job
                    title or a keyword the queries would find any job at all, so the page asks for one instead. */-->
-            <div id="search-output" th:fragment="output" class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto"
+            <div id="search-output" th:fragment="queries" class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto"
                  th:with="empty=${criteria.titles.isEmpty() and criteria.skills.isEmpty()}">
                 <div class="card flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center" th:if="${empty}">
                     <span class="brand-mark size-11"><i class="ph ph-list-magnifying-glass text-[22px]"></i></span>
@@ -235,11 +235,11 @@
        HTMX swaps in out of band so it has the new one. It takes the place of the page's empty #search-saved, so it
        has the same id: given here with th:id, as the page itself has it already. */-->
 <th:block th:fragment="saved-answer">
-    <p th:id="'search-saved'" class="flex flex-wrap items-center gap-x-1.5 text-xs text-ink/70" role="status">
+    <output th:id="'search-saved'" class="flex flex-wrap items-center gap-x-1.5 text-xs text-ink/70">
         <i class="ph ph-check-circle text-success"></i>
         <span th:text="#{search.saved(${savedSearch.name})}">Saved as “Remote Java”.</span>
         <a class="link font-medium" th:href="@{/discover(search=${savedSearch.id})}" th:text="#{search.saved.link}">Open Discover</a>
-    </p>
+    </output>
     <div th:replace="~{search/search :: saved-filters(oob=true)}"></div>
 </th:block>
 

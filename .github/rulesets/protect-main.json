@@ -16,6 +16,14 @@
       "parameters": { "severity": "errors" }
     },
     {
+      "type": "code_scanning",
+      "parameters": {
+        "code_scanning_tools": [
+          { "tool": "CodeQL", "security_alerts_threshold": "high_or_higher", "alerts_threshold": "errors" }
+        ]
+      }
+    },
+    {
       "type": "pull_request",
       "parameters": {
         "required_approving_review_count": 0,
@@ -32,7 +40,10 @@
         "strict_required_status_checks_policy": false,
         "do_not_enforce_on_create": false,
         "required_status_checks": [
-          { "context": "build", "integration_id": 15368 }
+          { "context": "build", "integration_id": 15368 },
+          { "context": "dependency-review", "integration_id": 15368 },
+          { "context": "docker", "integration_id": 15368 },
+          { "context": "SonarCloud Code Analysis", "integration_id": 12526 }
         ]
       }
     }

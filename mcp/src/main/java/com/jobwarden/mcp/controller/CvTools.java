@@ -70,9 +70,7 @@ class CvTools implements McpToolSet {
 					boolean filledIn = details.isFilledIn() || !details.skills().isEmpty() || details.summary() != null;
 					// The file's text says again what the fields say: only without them, unless asked
 					FileView file = (cv.file() == null) ? null
-							: new FileView(cv.file().fileName(), cv.file().uploadedAt(), (full || !filledIn)
-									? this.cvs.fileText(userId).map(text -> shortened(text, full ? MAX_TEXT_LENGTH : BRIEF_TEXT_LENGTH))
-										.orElse(null) : null);
+							: new FileView(cv.file().fileName(), cv.file().uploadedAt(), fileText(userId, full, filledIn));
 					return new CvView(filledIn || file != null, filledIn ? details(details, full) : null, file);
 				});
 	}
@@ -174,6 +172,15 @@ class CvTools implements McpToolSet {
 					certification.requiredString("name"), certification.string("issuer"), certification.string("year")))
 				.toList())
 			.build();
+	}
+
+	/** The file's text: all of it when asked, the start of it without the fields, nothing with them */
+	private @Nullable String fileText(long userId, boolean full, boolean filledIn) {
+		if (!full && filledIn) {
+			return null;
+		}
+		int length = full ? MAX_TEXT_LENGTH : BRIEF_TEXT_LENGTH;
+		return this.cvs.fileText(userId).map(text -> shortened(text, length)).orElse(null);
 	}
 
 	private static @Nullable String firstOf(@Nullable String saved, @Nullable String written) {

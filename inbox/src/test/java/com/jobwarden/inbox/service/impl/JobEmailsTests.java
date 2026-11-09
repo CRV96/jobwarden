@@ -24,9 +24,13 @@ class JobEmailsTests {
 
 	@Test
 	void tellsARejectionAndTheJobByItsCompanyAndTitle() {
-		Optional<Found> found = read("no-reply@greenhouse.io", "Your application to Acme",
-				"Hi Robert,\n\nThank you for your interest in the Platform Engineer role at Acme. After careful "
-						+ "consideration, we have decided to move forward with other candidates.\n\nBest, the Acme team");
+		Optional<Found> found = read("no-reply@greenhouse.io", "Your application to Acme", """
+				Hi Robert,
+
+				Thank you for your interest in the Platform Engineer role at Acme. After careful \
+				consideration, we have decided to move forward with other candidates.
+
+				Best, the Acme team""");
 
 		assertThat(found).hasValueSatisfying(update -> {
 			assertThat(update.status()).isEqualTo(ApplicationStatus.REJECTED);

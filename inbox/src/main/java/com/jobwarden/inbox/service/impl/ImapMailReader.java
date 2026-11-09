@@ -115,8 +115,8 @@ class ImapMailReader implements MailReader {
 				for (Message message : kept) {
 					messages.add(read(message, validity, uid(uids, message)));
 				}
-				long newest = fresh.isEmpty() ? newestUid(folder, uids, goOn ? lastUid : 0)
-						: uid(uids, fresh.getLast());
+				long after = goOn ? lastUid : 0;
+				long newest = fresh.isEmpty() ? newestUid(folder, uids, after) : uid(uids, fresh.getLast());
 				log.debug("Read {} new emails from {}", messages.size(), server);
 				return new Fetched(validity, newest, messages);
 			} finally {
@@ -135,9 +135,10 @@ class ImapMailReader implements MailReader {
 		String protocol = (this.tls && !server.starttls()) ? "imaps" : "imap";
 		Properties properties = new Properties();
 		properties.put("mail.store.protocol", protocol);
-		properties.put("mail." + protocol + ".connectiontimeout", this.timeoutMillis);
-		properties.put("mail." + protocol + ".timeout", this.timeoutMillis);
-		properties.put("mail." + protocol + ".writetimeout", this.timeoutMillis);
+		String own = "mail." + protocol + ".";
+		properties.put(own + "connectiontimeout", this.timeoutMillis);
+		properties.put(own + "timeout", this.timeoutMillis);
+		properties.put(own + "writetimeout", this.timeoutMillis);
 		if (this.tls) {
 			if (server.starttls()) {
 				// Required: a server that doesn't turn TLS on isn't read at all
@@ -147,10 +148,10 @@ class ImapMailReader implements MailReader {
 			if (trust != null) {
 				// An object, not a name: put, not setProperty. STARTTLS uses it too. Without the fallback, a
 				// certificate it refuses isn't tried again the usual way.
-				properties.put("mail." + protocol + ".ssl.socketFactory", trust.socketFactory());
-				properties.put("mail." + protocol + ".socketFactory.fallback", "false");
+				properties.put(own + "ssl.socketFactory", trust.socketFactory());
+				properties.put(own + "socketFactory.fallback", "false");
 			} else {
-				properties.put("mail." + protocol + ".ssl.checkserveridentity", "true");
+				properties.put(own + "ssl.checkserveridentity", "true");
 			}
 		}
 		Store store = Session.getInstance(properties).getStore(protocol);

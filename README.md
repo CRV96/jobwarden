@@ -21,6 +21,33 @@ Build and run all tests (tests use Testcontainers, so Docker must be running):
 ./mvnw verify
 ```
 
+### Running with Docker
+
+The [Dockerfile](Dockerfile) builds the server from these sources; each release and every merge to `main` also publish it as `ghcr.io/crv96/jobwarden` (`latest` and the version, or `edge` for `main`). It needs PostgreSQL:
+
+```yaml
+# compose.yaml: docker compose up -d, then http://localhost:8080
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment: [POSTGRES_DB=jobwarden, POSTGRES_USER=jobwarden, POSTGRES_PASSWORD=jobwarden]
+    volumes: [postgres-data:/var/lib/postgresql]
+  jobwarden:
+    image: ghcr.io/crv96/jobwarden:latest
+    depends_on: [postgres]
+    ports: ['127.0.0.1:8080:8080']
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/jobwarden
+      - SPRING_DATASOURCE_USERNAME=jobwarden
+      - SPRING_DATASOURCE_PASSWORD=jobwarden
+    volumes: [jobwarden-key:/home/jobwarden/.jobwarden]
+volumes:
+  postgres-data:
+  jobwarden-key:
+```
+
+The `jobwarden-key` volume keeps the key that encrypts the mailboxes' passwords and the GitHub token; without it, a new container means connecting them again. JobWarden has no sign-in, so the port is published on this computer only: see [SECURITY.md](SECURITY.md#running-jobwarden-safely).
+
 ### Frontend
 
 Pages are server-rendered with Thymeleaf; HTMX handles partial updates without a page reload. The menu lists the Search Builder, Who's hiring, AI Assistant, Auto-apply, Jobs, Pipeline, Calendar, Salaries and CV; Settings are in the profile menu at its foot. From 1024 pixels wide every page fills the window (`page-full` in `app.css`), and its lists and panels scroll on their own: the jobs under their header row, each pipeline column, the calendar. Pages of two panels side by side (the AI Assistant, the CV, the salaries, a job's page) do so from 1280 pixels (`page-split`, with `scroll-panel` for each panel); narrower, their panels stack and the page scrolls. Tailwind CSS is compiled during the Maven build, which downloads its own Node into `web/target/`, so nothing extra needs installing. While editing templates, keep the CSS up to date with:
@@ -228,7 +255,15 @@ The pages are in English, Romanian, French, German, Polish, Spanish, Portuguese 
 
 ## Testing
 
-`./mvnw verify` runs everything; so does CI on every pull request and on every push to `main`. Each kind of test has one place:
+`./mvnw verify` runs everything. On every pull request and every push to `main`, GitHub Actions runs:
+
+- [CI](.github/workflows/ci.yml): the build and all the tests, with what they cover (`-Pcoverage`, JaCoCo), then SonarCloud's analysis of it; on pull requests, a review of the dependencies they add, which fails on a high-severity vulnerability.
+- [CodeQL](.github/workflows/codeql.yml): code scanning of the Java, the JavaScript and the workflows, weekly too.
+- [Docker image](.github/workflows/docker.yml): builds the image, and on `main` and tags publishes it.
+
+[CodeRabbit](.coderabbit.yaml) reviews each pull request, and [Dependabot](.github/dependabot.yml) keeps the dependencies and the actions up to date. The "Protect Main" ruleset ([.github/rulesets](.github/rulesets)) makes a pull request wait for the build, the dependency review, the image, SonarCloud's quality gate and CodeQL. See [SECURITY.md](SECURITY.md) for reporting a vulnerability.
+
+Each kind of test has one place:
 
 | Test | Where | Example |
 |---|---|---|
@@ -250,7 +285,7 @@ To release a version:
 1. Set it everywhere: `./mvnw versions:set -DnewVersion=0.2.0 -DgenerateBackupPoms=false`, and `"version": "0.2.0"` in the manifest.
 2. Commit, then tag the commit and push the tag: `git tag v0.2.0 && git push origin v0.2.0`.
 
-The [Release workflow](.github/workflows/release.yml) checks that the tag, the Maven projects and the manifest say the same, builds and tests, and publishes a GitHub release with the app's jar, the extension's zip, and notes made from the pull requests since the last release.
+The [Release workflow](.github/workflows/release.yml) checks that the tag, the Maven projects and the manifest say the same, builds and tests, and publishes a GitHub release with the app's jar, the extension's zip, and notes made from the pull requests since the last release; the [Docker workflow](.github/workflows/docker.yml) publishes the tag's image. Each is attested as built from the tag ([SECURITY.md](SECURITY.md#how-the-project-is-checked) shows how to verify it).
 
 Running servers ask GitHub for the latest release as they start and every six hours (`jobwarden.updates.repository`; `jobwarden.updates.check=false` never asks). A newer one shows in the sidebar (until it's hidden for that version), in Settings → About, and in the extension's popup, which also says when the server already runs a newer version than the extension. To update: get the release's code (git pull, or its files), restart the app, then reload the extension.
 

@@ -116,26 +116,44 @@ public class Secrets {
 	private byte[] fileKey() {
 		try {
 			if (Files.exists(this.keyFile)) {
-				return decode(Files.readString(this.keyFile).strip());
+				return readKey();
 			}
 			byte[] bytes = new byte[KEY_BYTES];
 			RANDOM.nextBytes(bytes);
 			Files.createDirectories(this.keyFile.toAbsolutePath().getParent());
-			try {
-				Files.writeString(this.keyFile, Base64.getEncoder().encodeToString(bytes), StandardOpenOption.CREATE_NEW,
-						StandardOpenOption.WRITE);
-			} catch (FileAlreadyExistsException madeMeanwhile) {
-				return decode(Files.readString(this.keyFile).strip());
+			if (!writeNewKey(bytes)) {
+				return readKey();
 			}
-			try {
-				Files.setPosixFilePermissions(this.keyFile, PosixFilePermissions.fromString("rw-------"));
-			} catch (UnsupportedOperationException notPosix) {
-				// Windows: the user's own folder keeps it from the others
-			}
+			keepToTheOwner();
 			log.info("Made the key JobWarden encrypts passwords and tokens with, in {}", this.keyFile);
 			return bytes;
 		} catch (IOException failed) {
 			throw new UncheckedIOException("Couldn't read or make the key file " + this.keyFile, failed);
+		}
+	}
+
+	private byte[] readKey() throws IOException {
+		return decode(Files.readString(this.keyFile).strip());
+	}
+
+	/**
+	 * @return {@code false} if another module wrote one meanwhile
+	 */
+	private boolean writeNewKey(byte[] bytes) throws IOException {
+		try {
+			Files.writeString(this.keyFile, Base64.getEncoder().encodeToString(bytes), StandardOpenOption.CREATE_NEW,
+					StandardOpenOption.WRITE);
+			return true;
+		} catch (FileAlreadyExistsException madeMeanwhile) {
+			return false;
+		}
+	}
+
+	private void keepToTheOwner() throws IOException {
+		try {
+			Files.setPosixFilePermissions(this.keyFile, PosixFilePermissions.fromString("rw-------"));
+		} catch (UnsupportedOperationException notPosix) {
+			// Windows: the user's own folder keeps it from the others
 		}
 	}
 

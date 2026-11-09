@@ -1,0 +1,67 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit's reviews of pull requests. It reviews every pull request to main that isn't a draft.
+language: en-US
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: true
+  auto_review:
+    enabled: true
+    drafts: false
+
+  # Not reviewed: builds, and the translations, which follow the English messages (a large change touches dozens of
+  # them, and CodeRabbit skips a pull request with too many files)
+  path_filters:
+    - '!**/target/**'
+    - '!**/node_modules/**'
+    - '!**/package-lock.json'
+    - '!**/src/main/resources/i18n/*_*.properties'
+    - '!extension/_locales/{de,es,fr,hi,pl,pt,ro}/**'
+
+  path_instructions:
+    - path: '**/*.java'
+      instructions: >-
+        Spring Boot with Spring Modulith: each top-level package is a module, and another module may use only what it
+        exposes (its service interfaces, dtos, enums and exceptions, as @NamedInterface packages), never its impl or
+        repositories. Every query is scoped to the profile (userId) that owns the data. Null-safety is JSpecify
+        (@Nullable where null is allowed). Check transactions, and that untrusted input (captured pages, emails, MCP tool
+        arguments) is validated and size-limited.
+    - path: '**/src/main/resources/db/migration/*.sql'
+      instructions: >-
+        Flyway migrations for PostgreSQL. A migration that has been released is never edited: changes go in a new
+        V<n>__<module>_<what>.sql. Check constraints, indexes for the queries that use them, and that existing rows
+        stay valid.
+    - path: '**/templates/**/*.html'
+      instructions: >-
+        Thymeleaf with HTMX. Check that text comes from the messages (#{...}), that th:utext is never used on user
+        data, that every field has a label and every icon-only button an accessible name, and that HTMX targets exist.
+    - path: 'extension/**'
+      instructions: >-
+        A Manifest V3 browser extension for Chrome and Firefox. Check permissions stay minimal, that page content is
+        never put into the DOM as HTML, and that it only talks to the JobWarden server the user set.
+    - path: '.github/workflows/**'
+      instructions: >-
+        Actions are pinned to a commit with the version in a comment. Check permissions are the least each job needs,
+        and that no untrusted input (titles, branch names) reaches a run: script directly.
+
+  tools:
+    actionlint:
+      enabled: true
+    gitleaks:
+      enabled: true
+    hadolint:
+      enabled: true
+    shellcheck:
+      enabled: true
+
+  # Javadoc where it helps, not on every method: a coverage number would only ask for comments that say nothing
+  pre_merge_checks:
+    docstrings:
+      mode: 'off'
+
+chat:
+  auto_reply: true

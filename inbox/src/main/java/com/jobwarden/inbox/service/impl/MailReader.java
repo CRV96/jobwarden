@@ -3,7 +3,6 @@ package com.jobwarden.inbox.service.impl;
 import java.time.Instant;
 import java.util.List;
 
-import com.jobwarden.inbox.enums.MailProblem;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -44,31 +43,6 @@ interface MailReader {
 	 * @param lastUid the last email there is, read or not: where to start next time
 	 */
 	record Fetched(long uidValidity, long lastUid, List<MailMessage> messages) {
-	}
-
-	/**
-	 * The mailbox couldn't be read: the server, the sign-in or the folder.
-	 */
-	class MailFailure extends RuntimeException {
-
-		private final @Nullable MailProblem problem;
-
-		MailFailure(String message, Throwable cause) {
-			this(message, null, cause);
-		}
-
-		/**
-		 * @param problem what went wrong, when it's one JobWarden can explain
-		 */
-		MailFailure(String message, @Nullable MailProblem problem, Throwable cause) {
-			super(message, cause);
-			this.problem = problem;
-		}
-
-		@Nullable MailProblem problem() {
-			return this.problem;
-		}
-
 	}
 
 }

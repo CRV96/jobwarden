@@ -127,7 +127,16 @@ public class QueryGenerator {
 
 	/** A domain as Google's site: wants it, without the scheme and the trailing slash. */
 	private static String site(String domain) {
-		return "site:" + plain(domain).replaceFirst("^https?://", "").replaceFirst("/+$", "");
+		return "site:" + withoutTrailingSlashes(plain(domain).replaceFirst("^https?://", ""));
+	}
+
+	/** Not replaceFirst("/+$"): that takes quadratic time on many slashes that aren't at the end */
+	private static String withoutTrailingSlashes(String text) {
+		int end = text.length();
+		while (end > 0 && text.charAt(end - 1) == '/') {
+			end--;
+		}
+		return text.substring(0, end);
 	}
 
 	private static List<String> excluded(Collection<String> terms, String operator) {

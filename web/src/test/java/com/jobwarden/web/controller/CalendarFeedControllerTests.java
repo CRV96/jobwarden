@@ -43,9 +43,17 @@ class CalendarFeedControllerTests {
 
 		assertThat(this.mvc.get().uri("/calendar/feed.ics?token=s3cret")).hasStatusOk()
 			.hasContentTypeCompatibleWith("text/calendar")
-			.hasBodyTextEqualTo("BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//JobWarden//Calendar//EN\r\nCALSCALE:GREGORIAN\r\n"
-					+ "METHOD:PUBLISH\r\nX-WR-CALNAME:JobWarden\r\nREFRESH-INTERVAL;VALUE=DURATION:PT1H\r\n"
-					+ "X-PUBLISHED-TTL:PT1H\r\nEND:VCALENDAR\r\n");
+			.hasBodyTextEqualTo("""
+					BEGIN:VCALENDAR\r
+					VERSION:2.0\r
+					PRODID:-//JobWarden//Calendar//EN\r
+					CALSCALE:GREGORIAN\r
+					METHOD:PUBLISH\r
+					X-WR-CALNAME:JobWarden\r
+					REFRESH-INTERVAL;VALUE=DURATION:PT1H\r
+					X-PUBLISHED-TTL:PT1H\r
+					END:VCALENDAR\r
+					""");
 		assertThat(this.mvc.get().uri("/calendar/feed.ics?token=s3cret&download=true")).headers()
 			.hasValue("Content-Disposition", "attachment; filename=\"jobwarden.ics\"");
 	}
