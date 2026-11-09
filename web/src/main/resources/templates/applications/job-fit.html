@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<!--/* How well the profile fits a job (JobFitController): the score, the posting's requirements it comes from, and what
+       JobWarden noticed about the posting on its own. On the job's page and in the side panel, the loader asks for the
+       card after the rest. Inside the job's own HTMX element, so every request here names its own target. */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<section th:fragment="loader(jobId)" class="flex flex-col gap-2" data-collapse="fit" th:hx-get="@{/applications/{id}/fit(id=${jobId})}"
+         hx-trigger="load" hx-target="this" hx-swap="outerHTML">
+    <h2 class="section-title flex items-center gap-1.5">
+        <i class="ph ph-gauge text-accent"></i><span th:text="#{fit.title}">Fit</span>
+    </h2>
+</section>
+
+<!--/* jobFit is the fit, or null; fitFlags what JobWarden noticed, shown with a fit or without; fitRequest the latest
+       request to score the job, or null; fitPrompt what to paste into Claude Code while it waits. */-->
+<section id="job-fit" th:fragment="card" class="flex flex-col gap-3" data-collapse="fit"
+         th:with="status=${fitRequest != null} ? ${fitRequest.status.name()}, open=${fitRequest != null and fitRequest.status.isOpen()},
+                  cardUrl=@{/applications/{id}/fit(id=${fitJobId})}, fit=${jobFit}"
+         th:hx-get="${open} ? ${cardUrl}" th:hx-trigger="${open} ? 'every 5s'" hx-target="this" hx-swap="outerHTML">
+    <div class="flex items-center gap-2">
+        <h2 class="section-title flex flex-1 items-center gap-1.5">
+            <i class="ph ph-gauge text-accent"></i><span th:text="#{fit.title}">Fit</span>
+        </h2>
+        <span class="text-xs text-ink/55" th:if="${fit != null and fit.updatedAt != null}"
+              th:text="#{fit.updated(${@dates.relativeDay(fit.updatedAt)})}">Scored: Today</span>
+    </div>
+
+    <!--/* What JobWarden noticed on its own: a dealbreaker first */-->
+    <div class="flex items-start gap-2 rounded-lg p-2.5 text-[13px]" th:each="flag : ${fitFlags}"
+         th:classappend="${flag.kind.name() == 'NO_SPONSORSHIP'} ? 'bg-danger/10' : 'bg-[color-mix(in_srgb,var(--jw-orange)_12%,transparent)]'">
+        <i class="ph mt-0.5 text-[15px]"
+           th:classappend="${flag.kind.name() == 'NO_SPONSORSHIP'} ? 'ph-prohibit text-danger' : 'ph-ghost text-[var(--jw-orange)]'"></i>
+        <div class="flex min-w-0 flex-col gap-0.5">
+            <span class="font-medium" th:text="#{|fit.flag.${flag.kind}|}">Rules out sponsoring a visa, which you need</span>
+            <span class="text-xs text-pretty text-ink/70" th:if="${flag.evidence}" th:text="|“${flag.evidence}”|">“Candidates must have the right to work in the UK.”</span>
+            <span class="text-xs text-ink/70" th:if="${flag.since}"
+                  th:text="#{fit.flag.since(${@dates.date(flag.since)})}">Up since 12 Aug 2026.</span>
+            <a class="link text-xs" th:if="${flag.otherApplicationId}" th:href="@{/applications/{id}(id=${flag.otherApplicationId})}"
+               th:text="#{fit.flag.other}">The one saved before</a>
+        </div>
+    </div>
+
+    <p class="text-[13px] text-pretty text-ink/65" th:if="${fit == null and !open}" th:text="#{fit.hint}">
+        Claude reads the posting’s requirements against your CV…</p>
+
+    <!--/* Asked, not done yet: what to paste into Claude Code while it waits */-->
+    <th:block th:if="${open}">
+        <div class="flex items-center gap-2">
+            <span class="tag st-interviewing">
+                <i class="ph ph-arrow-clockwise animate-spin" th:if="${status == 'WORKING'}"></i>
+                <span th:text="#{|ai.status.${status}|}">Waiting for Claude</span>
+            </span>
+            <span class="flex-1"></span>
+            <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button" th:hx-post="@{/applications/{id}/fit/cancel(id=${fitJobId})}"
+                    hx-target="#job-fit" hx-swap="outerHTML" th:text="#{ai.cancel}">Cancel</button>
+        </div>
+        <th:block th:if="${status == 'WAITING'}">
+            <div class="text-xs text-ink/60" th:text="#{ai.prompt}">Paste this into Claude Code:</div>
+            <div class="flex items-start gap-2">
+                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${fitPrompt.text}">Do JobWarden request 12…</code>
+                <button th:replace="~{discover/discover :: copy-button(${fitPrompt.text})}"></button>
+            </div>
+            <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
+            <div class="flex items-start gap-2">
+                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${fitPrompt.command}">claude "Do JobWarden request 12…"</code>
+                <button th:replace="~{discover/discover :: copy-button(${fitPrompt.command})}"></button>
+            </div>
+        </th:block>
+    </th:block>
+    <p class="text-[13px] text-danger" role="alert" th:if="${status == 'FAILED'}"
+       th:text="#{fit.failed(${fitRequest.summary} ?: '')}">Claude couldn’t score it: …</p>
+
+    <!--/* The score, out of 5, and the requirements it comes from: the must-haves first, as Claude listed them */-->
+    <th:block th:if="${fit}">
+        <div class="flex items-center gap-3">
+            <span class="text-[28px] leading-none font-bold tabular-nums" th:text="${fit.score}">4.4</span>
+            <div class="flex flex-col gap-1">
+                <span th:replace="~{applications/job-fit :: verdict(${fit.score})}"></span>
+                <span class="text-xs text-ink/55" th:text="#{fit.outOf}">out of 5</span>
+            </div>
+        </div>
+        <p class="text-[13px] text-pretty text-ink/80" th:if="${fit.summary}" th:text="${fit.summary}">Strong on Java and Kafka; no Kubernetes.</p>
+        <ul class="flex flex-col gap-1.5">
+            <li class="flex items-start gap-2 text-[13px]" th:each="requirement : ${fit.requirements}">
+                <i class="ph mt-0.5 flex-none text-[15px]" th:title="#{|fit.match.${requirement.match}|}"
+                   th:classappend="${requirement.match.name() == 'MET'} ? 'ph-check-circle text-success' : (${requirement.match.name() == 'PARTIAL'} ? 'ph-circle-half text-[var(--jw-orange)]' : 'ph-x-circle text-danger')"></i>
+                <span class="min-w-0 flex-1">
+                    <span th:text="${requirement.text}">5+ years of Java</span>
+                    <span class="ml-1 text-[11px] text-ink/50 uppercase" th:if="${requirement.importance.name() == 'MUST'}"
+                          th:text="#{fit.must}">must</span>
+                    <span class="block text-xs text-ink/55" th:if="${requirement.note}" th:text="${requirement.note}">8 years, at Acme and Globex</span>
+                </span>
+            </li>
+        </ul>
+        <button class="btn btn-ghost self-start" type="button" th:hx-post="@{/applications/{id}/fit/delete(id=${fitJobId})}"
+                th:hx-confirm="#{fit.deleteConfirm}" hx-target="#job-fit" hx-swap="outerHTML">
+            <i class="ph ph-trash"></i><span th:text="#{action.delete}">Delete</span>
+        </button>
+    </th:block>
+
+    <button class="btn btn-secondary self-start" type="button" th:unless="${open}"
+            th:hx-post="@{/applications/{id}/fit/request(id=${fitJobId})}" hx-target="#job-fit" hx-swap="outerHTML">
+        <i class="ph ph-sparkle"></i><span th:text="${fit} ? #{fit.again} : #{fit.ask}">Ask Claude to score it</span>
+    </button>
+</section>
+
+<!--/* What a score says, in its colour: a strong fit green, a partial one orange, a weak one red */-->
+<span th:fragment="verdict(score)" class="tag"
+      th:classappend="${score >= 4} ? 'st-offer' : (${score >= 3} ? 'st-interviewing' : 'st-rejected')"
+      th:text="${score >= 4} ? #{fit.verdict.STRONG} : (${score >= 3} ? #{fit.verdict.PARTIAL} : #{fit.verdict.WEAK})">Strong fit</span>
+
+<!--/* A job's score on the list and the pipeline, in the same colours, or nothing when it has none */-->
+<span th:fragment="score(score)" th:if="${score != null}" class="tag tabular-nums"
+      th:classappend="${score >= 4} ? 'st-offer' : (${score >= 3} ? 'st-interviewing' : 'st-rejected')"
+      th:title="${score >= 4} ? #{fit.verdict.STRONG} : (${score >= 3} ? #{fit.verdict.PARTIAL} : #{fit.verdict.WEAK})">
+    <i class="ph ph-gauge"></i><th:block th:text="${score}">4.4</th:block>
+</span>
+
+</body>
+</html>

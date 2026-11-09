@@ -4,6 +4,7 @@ import java.net.URI;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -110,6 +111,21 @@ class DefaultHiringService implements HiringService {
 	@Transactional(readOnly = true)
 	public Set<String> findPostLinks(long userId) {
 		return Set.copyOf(this.posts.findLinks(userId));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Set<String> findKnownLinks(long userId, Collection<String> links) {
+		Set<String> posts = findPostLinks(userId);
+		Set<String> known = new LinkedHashSet<>();
+		for (String link : links) {
+			String address = webAddress(link);
+			if (address != null && (posts.contains(address)
+					|| this.recruiters.findByUserIdAndProfileUrl(userId, address).isPresent())) {
+				known.add(link);
+			}
+		}
+		return known;
 	}
 
 	@Override

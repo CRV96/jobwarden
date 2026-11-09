@@ -7,6 +7,7 @@ import com.jobwarden.cv.dto.CvDetails;
 import com.jobwarden.cv.dto.CvEducation;
 import com.jobwarden.cv.dto.CvExperience;
 import com.jobwarden.cv.dto.CvLanguage;
+import com.jobwarden.cv.dto.CvProject;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import tools.jackson.core.type.TypeReference;
@@ -45,6 +46,11 @@ final class CvJson {
 	}
 
 	static List<CvExperience> experience(String json) {
+		return JSON.readValue(json, new TypeReference<>() {
+		});
+	}
+
+	static List<CvProject> projects(String json) {
 		return JSON.readValue(json, new TypeReference<>() {
 		});
 	}

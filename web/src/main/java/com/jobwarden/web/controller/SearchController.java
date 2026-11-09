@@ -2,7 +2,11 @@ package com.jobwarden.web.controller;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+import com.jobwarden.discover.dto.SavedSearch;
+import com.jobwarden.discover.service.DiscoveryService;
+import com.jobwarden.identity.dto.User;
 import com.jobwarden.search.DescriptionParser;
 import com.jobwarden.search.EmploymentType;
 import com.jobwarden.search.GeneratedQueries;
@@ -25,13 +29,16 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 /**
- * The Boolean search generator. It needs no profile: nothing is saved, the address holds the filters (see
- * {@link SearchFilters}), so a search can be bookmarked.
+ * The Boolean search generator. It needs no profile: the address holds the filters (see {@link SearchFilters}), so a
+ * search can be bookmarked. With one, the filters can be saved under a name (DiscoverController.saveSearch), to open
+ * them again here, and for Claude to find jobs for.
  */
 @Controller
 @RequestMapping(ControllerConstants.SEARCH)
@@ -45,6 +52,8 @@ class SearchController extends BaseController {
 	private final QueryGenerator queries;
 
 	private final DescriptionParser descriptions;
+
+	private final DiscoveryService discovery;
 
 	/**
 	 * The page, with the queries for the filters in its address. As the filters change, HTMX asks again for the
@@ -86,7 +95,31 @@ class SearchController extends BaseController {
 			.map(board -> new TagSuggestion(board.domain(), board.name(), board.domain(), null))
 			.toList());
 		model.addAttribute(ModelAttributes.JOB_BOARDS, SearchSuggestions.JOB_BOARDS);
+		if (model.getAttribute(ModelAttributes.CURRENT_PROFILE) instanceof User profile) {
+			addSavedFilters(model, this.discovery, profile.id());
+		}
 		return Views.SEARCH;
+	}
+
+	/**
+	 * Called by HTMX from the saved filters' menu: forgets them, and answers with the menu.
+	 */
+	@PostMapping("/saved/{id}/delete")
+	String deleteSaved(@PathVariable long id, Model model) {
+		long userId = requireProfile(model).id();
+		this.discovery.deleteSearch(userId, id);
+		addSavedFilters(model, this.discovery, userId);
+		return Views.SAVED_FILTERS_FRAGMENT;
+	}
+
+	/**
+	 * The profile's saved searches, each with the address that opens its filters here.
+	 */
+	static void addSavedFilters(Model model, DiscoveryService discovery, long userId) {
+		List<SavedSearch> searches = discovery.findSearches(userId);
+		model.addAttribute(ModelAttributes.SAVED_SEARCHES, searches);
+		model.addAttribute(ModelAttributes.SEARCH_URLS, searches.stream()
+			.collect(Collectors.toMap(SavedSearch::id, search -> SearchFilters.url(search.criteria()))));
 	}
 
 	private static List<TagSuggestion> suggestions(List<String> values) {

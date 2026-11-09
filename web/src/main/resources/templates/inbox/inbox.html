@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: page(~{::title}, ~{::main}, 'inbox')}">
+<head>
+    <title th:text="|#{inbox.title} · JobWarden|">Inbox · JobWarden</title>
+</head>
+<body>
+<!--/* The recruiters' emails JobWarden read from the profile's mailbox (InboxController): each with what it says about one
+       of the profile's jobs, to apply to the job's timeline or dismiss (emailUpdates). Next to them, the mailbox:
+       connected (mailAccount), or the form to connect one. Nothing changes a job until the profile applies it. */-->
+<main class="page-split flex flex-col gap-4">
+    <header>
+        <h1 class="page-title mb-1" th:text="#{inbox.title}">Inbox</h1>
+        <p class="text-[13px] text-pretty text-ink/60" th:text="#{inbox.subtitle}">Recruiters’ emails, read from your mailbox…</p>
+    </header>
+
+    <div class="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <div class="scroll-panel flex min-h-0 flex-col gap-3">
+            <section th:replace="~{inbox/inbox :: updates}"></section>
+        </div>
+        <div class="scroll-panel flex min-h-0 flex-col gap-3">
+            <section th:replace="~{inbox/inbox :: mailbox}"></section>
+        </div>
+    </div>
+</main>
+
+<!--/* The emails waiting, the newest first: each with the job it matched (or none, to pick), and what it says; Claude's
+       sorting of them; and what JobWarden and Claude applied or dismissed on their own lately. */-->
+<section id="email-updates" th:fragment="updates" class="flex flex-col gap-3" aria-labelledby="updates-title">
+    <h2 id="updates-title" class="section-title" th:text="#{inbox.updates}">What your emails say</h2>
+    <p class="text-[13px] text-danger" role="alert" th:if="${mailError != null and mailAccount != null}" th:text="${mailError}">Pick a job.</p>
+    <th:block th:replace="~{inbox/inbox :: sorting}"></th:block>
+    <div class="card flex flex-col items-center gap-2 p-8 text-center" th:if="${emailUpdates.isEmpty()}">
+        <span class="brand-mark size-10"><i class="ph ph-envelope-simple-open text-xl"></i></span>
+        <p class="font-medium" th:text="#{inbox.empty}">Nothing new</p>
+        <p class="max-w-md text-[13px] text-pretty text-ink/60"
+           th:text="${mailAccount != null} ? #{inbox.empty.connected} : #{inbox.empty.notConnected}">JobWarden reads your mailbox every ten minutes…</p>
+    </div>
+    <article class="card flex flex-col gap-2.5 p-4" th:each="update : ${emailUpdates}"
+             th:classappend="|st-${#strings.toLowerCase(update.status.name())}|">
+        <div class="flex items-start gap-2">
+            <span class="tag flex-none" th:text="#{${'status.' + update.status}}">Rejected</span>
+            <div class="min-w-0 flex-1">
+                <div class="truncate text-[13px] font-semibold" th:text="${update.subject} ?: #{inbox.noSubject}">Your application to Acme</div>
+                <div class="truncate text-xs text-ink/60"
+                     th:text="${update.sender != null} ? |${update.sender} · ${@dates.dateTime(update.receivedAt)}| : ${@dates.dateTime(update.receivedAt)}">Ana Pop · 30 Oct 2026, 14:05</div>
+            </div>
+        </div>
+        <blockquote class="border-l-2 border-[var(--st)] pl-3 text-[13px] text-pretty text-ink/80" th:if="${update.excerpt}"
+                    th:text="${update.excerpt}">After careful consideration, we have decided to move forward with other candidates.</blockquote>
+        <p class="text-xs text-ink/60" th:if="${update.applicationId == null}" th:text="#{inbox.noJob}">It names none of your jobs: pick the one it’s about.</p>
+        <form class="flex flex-wrap items-center gap-2" th:hx-post="@{/inbox/updates/{id}/apply(id=${update.id})}"
+              hx-target="#email-updates" hx-swap="outerHTML">
+            <select class="input w-auto min-w-0 flex-[1_1_220px]" name="job" required th:aria-label="#{inbox.job}">
+                <option value="" th:selected="${update.applicationId == null}" disabled th:text="#{inbox.pickJob}">Which job?</option>
+                <option th:each="job : ${inboxJobs}" th:value="${job.id}" th:selected="${job.id == update.applicationId}"
+                        th:text="${job.company != null} ? #{calendar.entryTitle(${job.title}, ${job.company})} : ${job.title}">Backend engineer at Acme</option>
+            </select>
+            <select class="input w-auto" name="status" th:aria-label="#{inbox.status}">
+                <option th:each="status : ${emailStatuses}" th:value="${status}" th:selected="${status == update.status}"
+                        th:text="#{${'status.' + status}}">Rejected</option>
+            </select>
+            <button class="btn btn-primary" type="submit"><i class="ph ph-check"></i><span th:text="#{inbox.apply}">Apply</span></button>
+            <button class="btn btn-ghost" type="button" th:hx-post="@{/inbox/updates/{id}/dismiss(id=${update.id})}"
+                    hx-target="#email-updates" hx-swap="outerHTML" th:text="#{inbox.dismiss}">Dismiss</button>
+        </form>
+    </article>
+
+    <!--/* Done on their own lately, the latest first: JobWarden's for the updates it matched, Claude's as it sorted them.
+           An update applied went onto its job's timeline, where its event can be removed; one Claude dismissed can be
+           brought back. */-->
+    <th:block th:unless="${decidedForYou.isEmpty()}">
+        <h2 class="section-title mt-2" th:text="#{inbox.decided}">Done for you lately</h2>
+        <ul class="card flex flex-col divide-y divide-line px-4 py-1">
+            <li class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5" th:each="update : ${decidedForYou}"
+                th:with="applied=${update.decision.name() == 'APPLIED'}, claude=${update.decidedBy.name() == 'CLAUDE'}">
+                <i class="ph flex-none text-base" th:classappend="${claude} ? 'ph-sparkle text-accent' : 'ph-lightning text-ink/55'"
+                   th:title="${claude} ? #{inbox.decided.byClaude} : #{inbox.decided.byJobWarden}" role="img"
+                   th:aria-label="${claude} ? #{inbox.decided.byClaude} : #{inbox.decided.byJobWarden}"></i>
+                <div class="min-w-0 flex-[1_1_220px]">
+                    <div class="truncate text-[13px] font-medium" th:text="${update.subject} ?: #{inbox.noSubject}">Your application to Acme</div>
+                    <div class="truncate text-xs text-ink/60" th:text="${update.sender}">Ana Pop &lt;ana@acme.com&gt;</div>
+                </div>
+                <th:block th:if="${applied}">
+                    <span class="tag" th:classappend="|st-${#strings.toLowerCase(update.status.name())}|"
+                          th:text="#{${'status.' + update.status}}">Rejected</span>
+                    <a class="link max-w-[16rem] truncate text-xs" th:if="${update.applicationId}"
+                       th:href="@{/applications/{id}(id=${update.applicationId})}"
+                       th:text="${update.company != null} ? #{calendar.entryTitle(${update.jobTitle}, ${update.company})} : ${update.jobTitle}">Backend engineer at Acme</a>
+                </th:block>
+                <th:block th:unless="${applied}">
+                    <span class="text-xs text-ink/55" th:text="#{inbox.decided.dismissed}">Dismissed</span>
+                    <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button" th:hx-post="@{/inbox/updates/{id}/reopen(id=${update.id})}"
+                            hx-target="#email-updates" hx-swap="outerHTML">
+                        <i class="ph ph-arrow-u-up-left"></i><span th:text="#{inbox.decided.reopen}">Bring back</span>
+                    </button>
+                </th:block>
+                <span class="text-xs text-ink/50" th:text="${@dates.relativeDay(update.decidedAt)}">Today</span>
+            </li>
+        </ul>
+    </th:block>
+</section>
+
+<!--/* Claude sorting the updates waiting (InboxController): a button to ask it while there are some and it isn't on it;
+       while asked, the prompt to paste into Claude Code, and the card asks again every few seconds (GET /inbox/sort).
+       Once Claude is done, that answer loads the updates anew (sortFinished), and the card says what Claude did. */-->
+<th:block th:fragment="sorting"
+          th:with="status=${sortRequest != null} ? ${sortRequest.status.name()}, open=${sortRequest != null and sortRequest.status.isOpen()}">
+<div id="inbox-sorting" class="flex flex-col gap-2" th:if="${open or !emailUpdates.isEmpty() or status == 'DONE' or status == 'FAILED'}"
+     th:hx-get="${open} ? @{/inbox/sort}" th:hx-trigger="${open} ? 'every 5s'" hx-target="this" hx-swap="outerHTML">
+    <div th:hx-get="@{/inbox/updates}" hx-trigger="load" hx-target="#email-updates" hx-swap="outerHTML" th:if="${sortFinished}"></div>
+    <div class="card flex flex-col gap-2 p-3">
+        <div class="flex flex-wrap items-center gap-2">
+            <i class="ph ph-sparkle text-lg text-accent"></i>
+            <p class="min-w-[200px] flex-1 text-[13px] text-pretty text-ink/75" th:unless="${open}" th:text="#{inbox.sort.hint}">
+                Claude can sort these: find the job each is about…</p>
+            <th:block th:if="${open}">
+                <span class="tag st-interviewing">
+                    <i class="ph ph-arrow-clockwise animate-spin" th:if="${status == 'WORKING'}"></i>
+                    <span th:text="#{|ai.status.${status}|}">Waiting for Claude</span>
+                </span>
+                <span class="flex-1"></span>
+                <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button" th:hx-post="@{/inbox/sort/cancel}"
+                        hx-target="#email-updates" hx-swap="outerHTML" th:text="#{ai.cancel}">Cancel</button>
+            </th:block>
+            <button class="btn btn-secondary" type="button" th:if="${!open and !emailUpdates.isEmpty()}" th:hx-post="@{/inbox/sort}"
+                    hx-target="#email-updates" hx-swap="outerHTML">
+                <i class="ph ph-sparkle"></i><span th:text="#{inbox.sort}">Ask Claude to sort them</span>
+            </button>
+        </div>
+        <th:block th:if="${status == 'WAITING'}">
+            <div class="text-xs text-ink/60" th:text="#{ai.prompt}">Paste this into Claude Code:</div>
+            <div class="flex items-start gap-2">
+                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${sortPrompt.text}">Do JobWarden request 12…</code>
+                <button th:replace="~{discover/discover :: copy-button(${sortPrompt.text})}"></button>
+            </div>
+            <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
+            <div class="flex items-start gap-2">
+                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${sortPrompt.command}">claude "Do JobWarden request 12…"</code>
+                <button th:replace="~{discover/discover :: copy-button(${sortPrompt.command})}"></button>
+            </div>
+        </th:block>
+        <p class="text-xs text-pretty text-ink/65" th:if="${status == 'DONE' and sortRequest.summary != null}"
+           th:text="#{inbox.sort.done(${sortRequest.summary})}">Claude sorted them: applied 5, dismissed 2.</p>
+        <p class="text-xs text-pretty text-danger" role="alert" th:if="${status == 'FAILED'}"
+           th:text="#{inbox.sort.failed(${sortRequest.summary} ?: '')}">Claude couldn’t sort them: …</p>
+    </div>
+</div>
+</th:block>
+
+<!--/* The mailbox: connected, with when it was read last and why it couldn't be, if so; else the form to connect one,
+       which the provider fills in (app.js: data-mail-provider). mailForm is the form as typed, when it came back;
+       mailProvider the provider it starts on. */-->
+<section id="mailbox" th:fragment="mailbox" class="card flex flex-col gap-3 p-4" aria-labelledby="mailbox-title">
+    <h2 id="mailbox-title" class="section-title flex items-center gap-1.5">
+        <i class="ph ph-envelope-simple"></i><span th:text="#{inbox.mailbox}">Your mailbox</span>
+    </h2>
+
+    <th:block th:if="${mailAccount}">
+        <div class="flex flex-col gap-0.5 text-[13px]">
+            <span class="font-medium" th:text="${mailAccount.username}">robert@gmail.com</span>
+            <span class="text-xs text-ink/60" th:text="|${mailAccount.host} · ${mailAccount.folder}|">imap.gmail.com · INBOX</span>
+            <span class="text-xs text-ink/60" th:if="${mailAccount.lastCheckedAt}"
+                  th:text="#{inbox.checked(${@dates.dateTime(mailAccount.lastCheckedAt)})}">Read last: 2 Nov 2026, 19:40</span>
+        </div>
+        <!--/* How often it's read, and what becomes of the updates: changed in Settings */-->
+        <p class="flex items-start gap-1.5 text-xs text-pretty text-ink/60" th:with="every=#{|inbox.every.${readingInterval}|}">
+            <i class="ph ph-clock-clockwise mt-0.5"></i>
+            <span>
+                <span th:text="#{inbox.readsEvery(${every})}">Read every 10 minutes.</span>
+                <span th:text="#{|inbox.automation.${mailAccount.automation}|}">You apply or dismiss each update.</span>
+                <a class="link" th:href="@{/settings#inbox}" th:text="#{inbox.change}">Change</a>
+            </span>
+        </p>
+        <!--/* What went wrong, in the profile's language when JobWarden can say it (lastProblem), else as the server did */-->
+        <p class="text-[13px] text-pretty text-danger" role="alert" th:if="${mailAccount.lastError}"
+           th:text="${mailAccount.lastProblem != null} ? #{|inbox.problem.${mailAccount.lastProblem}|} : #{inbox.failed(${mailAccount.lastError})}">Couldn’t read it the last time: authentication failed.</p>
+        <p class="flex items-start gap-1.5 text-xs text-pretty text-ink/60" th:if="${mailAccount.certificate}"
+           th:title="|SHA-256 ${mailAccount.certificate}|">
+            <i class="ph ph-shield-check mt-0.5"></i><span th:text="#{inbox.certificate}">This server is on your computer…</span>
+        </p>
+        <div class="flex flex-wrap gap-2">
+            <button class="btn btn-secondary" type="button" th:hx-post="@{/inbox/check}" hx-target="#mailbox" hx-swap="outerHTML">
+                <i class="ph ph-arrows-clockwise"></i><span th:text="#{inbox.checkNow}">Check now</span>
+            </button>
+            <button class="btn btn-ghost" type="button" th:hx-post="@{/inbox/account/delete}" th:hx-confirm="#{inbox.disconnectConfirm}"
+                    hx-target="#mailbox" hx-swap="outerHTML" th:text="#{inbox.disconnect}">Disconnect</button>
+        </div>
+    </th:block>
+
+    <form class="flex flex-col gap-3" th:unless="${mailAccount}" th:hx-post="@{/inbox/account}" hx-target="#mailbox" hx-swap="outerHTML"
+          th:with="form=${mailForm}">
+        <p class="text-[13px] text-pretty text-ink/65" th:text="#{inbox.connect.hint}">JobWarden reads the emails…</p>
+        <label class="flex flex-col">
+            <span class="field-label" th:text="#{inbox.provider}">Provider</span>
+            <select class="input" data-mail-provider>
+                <option th:each="provider : ${mailProviders}" th:value="${provider}" th:selected="${provider == mailProvider}"
+                        th:data-host="${provider.host}" th:data-port="${provider.port}" th:data-local="${provider.local} ? 'true'"
+                        th:text="#{|inbox.provider.${provider}|}">Gmail</option>
+            </select>
+        </label>
+        <div class="grid grid-cols-[minmax(0,1fr)_88px] gap-2">
+            <label class="flex flex-col">
+                <span class="field-label" th:text="#{inbox.host}">IMAP server</span>
+                <input class="input" type="text" name="host" required data-mail-host
+                       th:value="${form != null} ? ${form.host} : ${mailProvider.host}" autocomplete="off">
+            </label>
+            <label class="flex flex-col">
+                <span class="field-label" th:text="#{inbox.port}">Port</span>
+                <input class="input" type="number" name="port" min="1" max="65535" required data-mail-port
+                       th:value="${form != null and form.port != null} ? ${form.port} : ${mailProvider.port}">
+            </label>
+        </div>
+        <label class="flex flex-col">
+            <span class="field-label" th:text="#{inbox.username}">Email address</span>
+            <input class="input" type="text" name="username" required autocomplete="username"
+                   th:value="${form != null} ? ${form.username}">
+        </label>
+        <!--/* data-mail-local: shown only for a server on this computer (Proton Mail Bridge), or only for the others */-->
+        <label class="flex flex-col">
+            <span class="field-label">
+                <span data-mail-local="false" th:hidden="${mailProvider.local}" th:text="#{inbox.password}">App password</span>
+                <span data-mail-local="true" th:hidden="${!mailProvider.local}" th:text="#{inbox.bridgePassword}">Bridge password</span>
+            </span>
+            <input class="input" type="password" name="password" required autocomplete="off">
+        </label>
+        <label class="flex flex-col">
+            <span class="field-label" th:text="#{inbox.folder}">Folder</span>
+            <input class="input" type="text" name="folder" th:value="${form != null and form.folder != null} ? ${form.folder} : 'INBOX'">
+        </label>
+        <p class="text-xs text-pretty text-ink/55" data-mail-local="false" th:hidden="${mailProvider.local}"
+           th:text="#{inbox.appPassword}">Use an app password…</p>
+        <p class="text-xs text-pretty text-ink/55" data-mail-local="true" th:hidden="${!mailProvider.local}"
+           th:text="#{inbox.bridge}">Proton Mail Bridge has to be open on this computer…</p>
+        <p class="text-[13px] text-danger" role="alert" th:if="${mailError}" th:text="${mailError}">Couldn’t read the mailbox: authentication failed.</p>
+        <button class="btn btn-primary self-start" type="submit">
+            <i class="ph ph-plug"></i><span th:text="#{inbox.connect}">Connect</span>
+        </button>
+    </form>
+
+    <p class="flex items-start gap-1.5 border-t border-line pt-3 text-xs text-pretty text-ink/55">
+        <i class="ph ph-lock-simple mt-0.5"></i><span th:text="#{inbox.privacy}">JobWarden only reads…</span>
+    </p>
+</section>
+</body>
+</html>

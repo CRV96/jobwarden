@@ -7,6 +7,8 @@ import com.jobwarden.cv.dto.Cv;
 import com.jobwarden.cv.dto.CvDetails;
 import com.jobwarden.cv.dto.CvFile;
 import com.jobwarden.cv.dto.CvFileContent;
+import com.jobwarden.cv.dto.CvFilePreview;
+import com.jobwarden.cv.dto.CvProject;
 import com.jobwarden.cv.dto.TailoredCv;
 import org.jspecify.annotations.Nullable;
 
@@ -41,9 +43,23 @@ public interface CvService {
 	CvFileContent downloadFile(long userId);
 
 	/**
+	 * @return the file as the CV page shows it: a PDF as it is, a Word document as HTML, a text file as its text
+	 * @throws com.jobwarden.cv.exception.CvFileNotFoundException if there's none
+	 */
+	CvFilePreview previewFile(long userId);
+
+	/**
 	 * Deletes the file, if there's one.
 	 */
 	void deleteFile(long userId);
+
+	/**
+	 * Puts the projects on the CV in place of those it had, keeping the other fields: Claude writes them from the
+	 * profile's GitHub repositories.
+	 *
+	 * @return the CV's fields, as saved
+	 */
+	CvDetails saveProjects(long userId, List<CvProject> projects);
 
 	/**
 	 * @return the text read out of the uploaded file; empty without a file, or when none could be read

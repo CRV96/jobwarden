@@ -5,14 +5,21 @@ import lombok.NoArgsConstructor;
 
 /**
  * What the AI Assistant page gives the profile to paste into Claude Code, which then does a request through JobWarden's
- * MCP server. Short: the request's step-by-step instructions come from the server (get_request). In English, like
- * the MCP server's tools. Without quotes or dollar signs, so it fits in a shell's double quotes as it is.
+ * MCP server, and the terminal loop that does every request on its own. Short: the request's step-by-step
+ * instructions come from the server (get_request). In English, like the MCP server's tools. The prompts have no
+ * quotes or dollar signs, so they fit in a shell's double quotes as they are.
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class ClaudePrompts {
 
-	/** How often Claude Code looks for waiting requests, when left running the loop. */
-	static final String LOOP_EVERY = "15m";
+	/** How often the loop asks JobWarden whether a request waits: asking costs nothing, only doing one does. */
+	static final int LOOP_EVERY_SECONDS = 300;
+
+	/**
+	 * What Claude Code may do in the loop without asking, as it runs unattended: JobWarden's tools (the MCP server named
+	 * jobwarden, as the README adds it), and reading the web.
+	 */
+	static final String LOOP_TOOLS = "mcp__jobwarden WebSearch WebFetch";
 
 	/**
 	 * @param text to paste into Claude Code
@@ -28,11 +35,18 @@ public final class ClaudePrompts {
 	}
 
 	/**
-	 * Claude Code's /loop runs the prompt again and again, so it picks up every request made on the page.
+	 * A terminal loop that picks up every request made on the page: it asks JobWarden every few minutes whether one
+	 * waits, and only then starts Claude Code, afresh each time. Waiting costs no tokens, and no request reads through
+	 * the ones before it, as it would in one long Claude Code session. Auto-apply isn't among them: it needs the
+	 * profile at the browser.
+	 *
+	 * @param waitingUrl where JobWarden says how many requests wait, e.g. http://localhost:8080/claude/requests
 	 */
-	public static String loop(long profileId) {
-		return "/loop " + LOOP_EVERY + " Do the waiting JobWarden requests: call list_requests with profile_id " + profileId
-				+ ", then do each one with get_request and finish_request.";
+	public static String loop(long profileId, String waitingUrl) {
+		String prompt = "Do the waiting JobWarden requests but the AUTO_APPLY ones: call list_requests with profile_id "
+				+ profileId + ", then do each one with get_request and finish_request.";
+		return "while true; do n=$(curl -sf '" + waitingUrl + "?profile=" + profileId + "'); [ \"${n:-0}\" -gt 0 ] && claude -p \""
+				+ prompt + "\" --allowedTools '" + LOOP_TOOLS + "'; sleep " + LOOP_EVERY_SECONDS + "; done";
 	}
 
 }

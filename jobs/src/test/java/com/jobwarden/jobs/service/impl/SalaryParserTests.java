@@ -3,9 +3,9 @@ package com.jobwarden.jobs.service.impl;
 import java.math.BigDecimal;
 import java.util.Set;
 
+import com.jobwarden.jobs.dto.SalaryRange;
 import com.jobwarden.jobs.enums.PayBasis;
 import com.jobwarden.jobs.enums.SalaryPeriod;
-import com.jobwarden.jobs.service.impl.SalaryParser.ParsedSalary;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -37,10 +37,13 @@ class SalaryParserTests {
 			Up to $150,000                          | 150000 | 150000 | USD |
 			6000 - 8k RON net                       | 6000   | 8000   | RON |
 			8000 lei pe lună                        | 8000   | 8000   | RON | MONTH
+			80,000–1,20,000 INR प्रति माह           | 80000  | 120000 | INR | MONTH
+			₹15,00,000 प्रति वर्ष                   | 1500000 | 1500000 | INR | YEAR
+			50000 रुपये मासिक                       | 50000  | 50000  | INR | MONTH
 			""")
 	void readsTheAmountsCurrencyAndPeriod(String text, BigDecimal low, BigDecimal high, String currency,
 			SalaryPeriod period) {
-		ParsedSalary salary = this.parser.parse(text).orElseThrow();
+		SalaryRange salary = this.parser.parse(text).orElseThrow();
 
 		assertThat(salary.low()).isEqualByComparingTo(low);
 		assertThat(salary.high()).isEqualByComparingTo(high);
@@ -52,12 +55,15 @@ class SalaryParserTests {
 	void readsWhetherItIsBeforeOrAfterTax() {
 		assertThat(this.parser.parse("8000 RON net pe lună").orElseThrow().basis()).isEqualTo(PayBasis.NET);
 		assertThat(this.parser.parse("10 000 zł brutto").orElseThrow().basis()).isEqualTo(PayBasis.GROSS);
+		assertThat(this.parser.parse("9.000 BRL líquido por mês").orElseThrow().basis()).isEqualTo(PayBasis.NET);
+		assertThat(this.parser.parse("90,000 INR नेट प्रति माह").orElseThrow().basis()).isEqualTo(PayBasis.NET);
+		assertThat(this.parser.parse("25,00,000 INR ग्रॉस प्रति वर्ष").orElseThrow().basis()).isEqualTo(PayBasis.GROSS);
 		assertThat(this.parser.parse("5000 EUR").orElseThrow().basis()).isNull();
 	}
 
 	@Test
 	void leavesOutPercentagesAndOrdinals() {
-		ParsedSalary salary = this.parser.parse("5000 EUR + 10% bonus, 13th salary").orElseThrow();
+		SalaryRange salary = this.parser.parse("5000 EUR + 10% bonus, 13th salary").orElseThrow();
 
 		assertThat(salary.low()).isEqualByComparingTo("5000");
 		assertThat(salary.high()).isEqualByComparingTo("5000");
@@ -65,7 +71,7 @@ class SalaryParserTests {
 
 	@Test
 	void ordersAReversedRange() {
-		ParsedSalary salary = this.parser.parse("7000 - 5000 EUR").orElseThrow();
+		SalaryRange salary = this.parser.parse("7000 - 5000 EUR").orElseThrow();
 
 		assertThat(salary.low()).isEqualByComparingTo("5000");
 		assertThat(salary.high()).isEqualByComparingTo("7000");

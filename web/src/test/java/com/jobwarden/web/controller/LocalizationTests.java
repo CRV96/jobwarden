@@ -11,6 +11,7 @@ import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.enums.IdentityErrorCode;
 import com.jobwarden.identity.service.UserService;
+import com.jobwarden.inbox.service.InboxService;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.market.dto.AdzunaKey;
 import com.jobwarden.market.service.AdzunaKeyService;
@@ -56,6 +57,9 @@ class LocalizationTests {
 	@MockitoBean
 	private AdzunaKeyService adzunaKeys;
 
+	@MockitoBean
+	private InboxService inbox;
+
 	@BeforeEach
 	void oneProfile() {
 		given(this.users.findAll()).willReturn(List.of(ROBERT));
@@ -69,6 +73,14 @@ class LocalizationTests {
 			.hasStatusOk()
 			.bodyText()
 			.contains("<html lang=\"ro\"", "Cine folosește JobWarden?", "Alege un profil ca să continui");
+	}
+
+	@Test
+	void showsThePageInHindi() {
+		assertThat(this.mvc.get().uri("/profiles").header(HttpHeaders.ACCEPT_LANGUAGE, "hi-IN,hi;q=0.9,en;q=0.8"))
+			.hasStatusOk()
+			.bodyText()
+			.contains("<html lang=\"hi\"", "JobWarden कौन इस्तेमाल कर रहा है?", "आगे बढ़ने के लिए कोई प्रोफ़ाइल चुनें");
 	}
 
 	@Test

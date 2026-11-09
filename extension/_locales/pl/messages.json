@@ -206,6 +206,18 @@
   "showOnIconHint": {
     "message": "★ zapisana, ✓ wysłana. Chrome poprosi o zgodę, by JobWarden widział adresy kart; każda otwarta strona jest wtedy sprawdzana na Twoim serwerze."
   },
+  "showReminders": {
+    "message": "Pokazuj moje przypomnienia jako powiadomienia"
+  },
+  "showRemindersHint": {
+    "message": "Przypomnienia ustawione w kalendarzu JobWarden przychodzą jako powiadomienia systemu, gdy przeglądarka działa, nawet bez otwartej strony JobWarden. Przeglądarka poprosi o zgodę na powiadomienia od JobWarden."
+  },
+  "reloadExtension": {
+    "message": "Najpierw trzeba przeładować rozszerzenie: zostało załadowane, zanim ta opcja istniała. Otwórz chrome://extensions (w Firefoksie about:debugging), kliknij przycisk przeładowania przy JobWarden i spróbuj ponownie."
+  },
+  "permissionError": {
+    "message": "Nie udało się zmienić: $1"
+  },
   "updateAvailable": {
     "message": "Jest JobWarden $1: pobierz najnowszy kod"
   },

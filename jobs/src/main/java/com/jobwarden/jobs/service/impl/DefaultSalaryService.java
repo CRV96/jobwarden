@@ -3,12 +3,15 @@ package com.jobwarden.jobs.service.impl;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.StringJoiner;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.function.Function;
@@ -17,15 +20,17 @@ import java.util.stream.Collectors;
 import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.dto.SalaryEntry;
 import com.jobwarden.jobs.dto.SalaryOverview;
+import com.jobwarden.jobs.dto.SalaryRange;
 import com.jobwarden.jobs.dto.StatusSalary;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.enums.SalaryPeriod;
+import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.jobs.service.SalaryService;
-import com.jobwarden.jobs.service.impl.SalaryParser.ParsedSalary;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
+import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 
 /**
@@ -52,6 +57,8 @@ class DefaultSalaryService implements SalaryService {
 
 	private final ExchangeRates exchangeRates;
 
+	private final MessageSource messages;
+
 	@Override
 	public SalaryOverview overview(long userId, @Nullable String currency, SalaryPeriod period) {
 		RateTable rates = this.exchangeRates.current();
@@ -65,7 +72,7 @@ class DefaultSalaryService implements SalaryService {
 				withoutSalary++;
 				continue;
 			}
-			Optional<ParsedSalary> salary = parser.parse(application.salary());
+			Optional<SalaryRange> salary = parser.parse(application.salary());
 			if (salary.isPresent()) {
 				read.add(new ReadSalary(application, salary.get()));
 			} else {
@@ -73,7 +80,7 @@ class DefaultSalaryService implements SalaryService {
 			}
 		}
 
-		List<ParsedSalary> parsed = read.stream().map(ReadSalary::salary).toList();
+		List<SalaryRange> parsed = read.stream().map(ReadSalary::salary).toList();
 		String shownIn = (currency != null && rates.currencies().contains(currency)) ? currency : DEFAULT_CURRENCY;
 		List<SalaryEntry> salaries = read.stream()
 			.map(salary -> entry(salary.application(), salary.salary(), rates, shownIn, period))
@@ -96,11 +103,56 @@ class DefaultSalaryService implements SalaryService {
 			.build();
 	}
 
+	@Override
+	public Optional<SalaryRange> read(@Nullable String salary) {
+		return new SalaryParser(this.exchangeRates.current().currencies()).parse(salary);
+	}
+
+	@Override
+	public List<String> currencies() {
+		return this.exchangeRates.current().currencies().stream().sorted().toList();
+	}
+
+	/**
+	 * @throws ApplicationNotFoundException if the user has no such application
+	 */
+	@Override
+	public void change(long userId, long applicationId, @Nullable SalaryRange range, Locale locale) {
+		Optional<SalaryRange> current = read(this.applications.findById(userId, applicationId)
+			.orElseThrow(() -> new ApplicationNotFoundException(applicationId))
+			.salary());
+		boolean same = (range == null) ? current.isEmpty() : range.sameAs(current.orElse(null));
+		if (!same) {
+			this.applications.updateSalary(userId, applicationId, (range != null) ? text(range, locale) : null);
+		}
+	}
+
+	/**
+	 * The range as postings write it, with the language's digits and words: "60,000–80,000 EUR gross per year",
+	 * "6.000 RON net pe lună". {@link SalaryParser} reads the words for the period and the tax in every language
+	 * there are messages in (i18n/jobs-salaries).
+	 */
+	String text(SalaryRange range, Locale locale) {
+		NumberFormat amounts = NumberFormat.getNumberInstance(locale);
+		amounts.setMaximumFractionDigits(2);
+		StringJoiner text = new StringJoiner(" ");
+		text.add(range.isSingleAmount() ? amounts.format(range.low())
+				: amounts.format(range.low()) + "–" + amounts.format(range.high()));
+		text.add(range.currency());
+		if (range.basis() != null) {
+			text.add(this.messages.getMessage("salaryText.basis." + range.basis(), null, locale));
+		}
+		if (range.period() != null) {
+			text.add(this.messages.getMessage("salaryText.period." + range.period(), null, locale));
+		}
+		return text.toString();
+	}
+
 	/**
 	 * The salary in the currency and per the period shown. A salary that doesn't say its period gets the one its
 	 * amount suggests: 15,000 RON is a month, not a year.
 	 */
-	private static SalaryEntry entry(ApplicationSummary application, ParsedSalary salary, RateTable rates,
+	private static SalaryEntry entry(ApplicationSummary application, SalaryRange salary, RateTable rates,
 			String currency, SalaryPeriod shownPer) {
 		SalaryPeriod period = (salary.period() != null) ? salary.period() : guessedPeriod(salary, rates);
 		Function<BigDecimal, BigDecimal> converted = amount -> rates.convert(amount, salary.currency(), currency)
@@ -111,7 +163,7 @@ class DefaultSalaryService implements SalaryService {
 				salary.currency(), salary.period() == null, salary.basis());
 	}
 
-	private static SalaryPeriod guessedPeriod(ParsedSalary salary, RateTable rates) {
+	private static SalaryPeriod guessedPeriod(SalaryRange salary, RateTable rates) {
 		BigDecimal inEuros = rates.convert(salary.low().add(salary.high()).divide(BigDecimal.TWO), salary.currency(), "EUR");
 		if (inEuros.compareTo(HOURLY_BELOW) < 0) {
 			return SalaryPeriod.HOUR;
@@ -122,7 +174,7 @@ class DefaultSalaryService implements SalaryService {
 		return (inEuros.compareTo(MONTHLY_BELOW) < 0) ? SalaryPeriod.MONTH : SalaryPeriod.YEAR;
 	}
 
-	private static List<String> currencies(Iterable<ParsedSalary> salaries, RateTable rates) {
+	private static List<String> currencies(Iterable<SalaryRange> salaries, RateTable rates) {
 		TreeSet<String> currencies = new TreeSet<>(COMMON_CURRENCIES);
 		salaries.forEach(salary -> currencies.add(salary.currency()));
 		currencies.retainAll(rates.currencies());
@@ -158,7 +210,7 @@ class DefaultSalaryService implements SalaryService {
 		return low.add(sorted.get(above).subtract(low).multiply(share)).setScale(2, RoundingMode.HALF_UP);
 	}
 
-	private record ReadSalary(ApplicationSummary application, ParsedSalary salary) {
+	private record ReadSalary(ApplicationSummary application, SalaryRange salary) {
 	}
 
 }

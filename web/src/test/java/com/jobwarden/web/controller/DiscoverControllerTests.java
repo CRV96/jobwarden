@@ -19,6 +19,7 @@ import com.jobwarden.discover.enums.Decision;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.service.UserService;
+import com.jobwarden.jobs.dto.TidyResult;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.search.Recency;
 import com.jobwarden.search.SearchCriteria;
@@ -96,7 +97,9 @@ class DiscoverControllerTests {
 			.contains("AI Assistant", "value=\"FIND_JOBS_FOR_CV\"", "value=\"FOLLOW_UP\"", "Find jobs matching my CV",
 					"Waiting for Claude", "Checked 9 postings, closed 2.",
 					"Do JobWarden request 12: call get_request with request_id 12 and profile_id 1",
-					"claude &quot;Do JobWarden request 12", "/loop 15m Do the waiting JobWarden requests",
+					"claude &quot;Do JobWarden request 12",
+					// The loop starts Claude Code only when a request waits
+					"curl -sf &#39;http://localhost/claude/requests?profile=1&#39;", "claude -p &quot;Do the waiting JobWarden requests",
 					// Open: the list asks again, with how many jobs the card had
 					"hx-trigger=\"every 5s\"", "seen")
 			.doesNotContain("You have no CV yet");
@@ -112,7 +115,24 @@ class DiscoverControllerTests {
 	}
 
 	@Test
+	void tidiesUpTheApplicationsWithNoAnswerItselfWithoutClaude() {
+		given(this.discovery.createRequest(eq(1L), eq(AiRequestKind.FOLLOW_UP), any(AiRequirements.class)))
+			.willReturn(request(14, AiRequestKind.FOLLOW_UP, AiRequestStatus.WAITING, 0, null));
+		given(this.applications.tidyUnanswered(eq(1L), eq(30), eq(7), any())).willReturn(new TidyResult(List.of(4L, 5L),
+				List.of(6L), 9));
+
+		// As the page sends it without a CV: no useCv at all
+		assertThat(this.mvc.post().uri("/discover/requests").param("kind", "FOLLOW_UP").header("HX-Request", "true"))
+			.hasStatusOk();
+		then(this.applications).should().tidyUnanswered(1, 30, 7, "No answer in 30 days: moved by JobWarden.");
+		then(this.discovery).should().finishRequest(1, 14, true,
+				"Moved to No response: 2. Days to follow up set: 1. Waiting at Applied before: 9.");
+	}
+
+	@Test
 	void asksClaudeWithWhatToLookFor() {
+		given(this.discovery.createRequest(eq(1L), eq(AiRequestKind.FIND_JOBS), any(AiRequirements.class)))
+			.willReturn(request(15, AiRequestKind.FIND_JOBS, AiRequestStatus.WAITING, 0, null));
 		assertThat(this.mvc.post()
 			.uri("/discover/requests")
 			.param("kind", "FIND_JOBS")
@@ -227,7 +247,9 @@ class DiscoverControllerTests {
 			.header("HX-Request", "true"))
 			.hasStatusOk()
 			.bodyText()
-			.contains("Saved as “Remote Java”", "href=\"/discover?search=3\"");
+			.contains("Saved as “Remote Java”", "href=\"/discover?search=3\"",
+					// The saved filters' menu, swapped in out of band
+					"id=\"saved-filters\" class=\"contents\" hx-swap-oob=\"true\"");
 		ArgumentCaptor<SearchCriteria> criteria = ArgumentCaptor.forClass(SearchCriteria.class);
 		then(this.discovery).should().saveSearch(eq(1L), eq("Remote Java"), criteria.capture());
 		assertThat(criteria.getValue().locations()).containsExactly("Cluj-Napoca, Romania");

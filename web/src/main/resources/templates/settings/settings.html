@@ -124,6 +124,55 @@
             </div>
         </section>
 
+        <!--/* The profile's inbox (the inbox module): how often JobWarden reads its mailbox on its own, and what becomes of
+               the updates found. Saved with the button; SettingsController comes back here and says so, once. Without a
+               mailbox, where to connect one. */-->
+        <section id="inbox" class="flex flex-col gap-2" th:if="${currentProfile}">
+            <h2 class="section-title" th:text="#{nav.inbox}">Inbox</h2>
+            <p class="card flex items-center gap-2 p-3 text-success" role="status" th:if="${inboxSaved}">
+                <i class="ph ph-check-circle text-lg"></i><span th:text="#{settings.inbox.saved}">Saved.</span>
+            </p>
+            <div class="card flex items-start gap-3 p-3" th:unless="${mailAccount}">
+                <i class="ph ph-envelope-simple text-[22px] text-accent"></i>
+                <div class="flex min-w-0 flex-1 flex-col gap-1">
+                    <div class="font-medium" th:text="#{settings.inbox.none}">No mailbox connected</div>
+                    <div class="text-xs text-pretty text-ink/60" th:text="#{settings.inbox.none.body}">Connect one on the Inbox page…</div>
+                    <a class="link text-xs" th:href="@{/inbox}" th:text="#{nav.inbox}">Inbox</a>
+                </div>
+            </div>
+            <form class="card flex flex-col gap-3 p-3" method="post" th:action="@{/settings/inbox}" th:if="${mailAccount}">
+                <div class="flex flex-wrap items-center gap-3">
+                    <i class="ph ph-clock-clockwise text-[22px] text-accent"></i>
+                    <div class="min-w-[200px] flex-1">
+                        <label class="font-medium" for="inbox-read-every" th:text="#{settings.inbox.readEvery}">Read my emails</label>
+                        <div class="truncate text-xs text-ink/60" th:text="${mailAccount.username}">robert@proton.me</div>
+                    </div>
+                    <select id="inbox-read-every" class="input w-[220px] max-w-full" name="readEvery">
+                        <option th:each="interval : ${readingIntervals}" th:value="${interval}" th:selected="${interval == readingInterval}"
+                                th:text="#{|inbox.every.${interval}|}">every 10 minutes</option>
+                    </select>
+                </div>
+                <div class="border-t border-line"></div>
+                <fieldset class="flex flex-col gap-2">
+                    <legend class="mb-1.5 font-medium" th:text="#{settings.inbox.automation}">What the emails say about your jobs</legend>
+                    <label class="flex cursor-pointer items-start gap-2.5 rounded-lg border border-line p-2.5 has-checked:border-accent has-checked:bg-accent/6"
+                           th:each="automation : ${inboxAutomations}">
+                        <input class="mt-0.5 accent-[var(--jw-accent)]" type="radio" name="automation" th:value="${automation}"
+                               th:checked="${automation == mailAccount.automation}">
+                        <span class="flex min-w-0 flex-col gap-0.5">
+                            <span class="text-[13px] font-medium" th:text="#{|settings.inbox.automation.${automation}|}">I review each one</span>
+                            <span class="text-xs text-pretty text-ink/60" th:text="#{|settings.inbox.automation.${automation}.hint|}">Nothing changes a job until you apply it.</span>
+                        </span>
+                    </label>
+                </fieldset>
+                <div>
+                    <button class="btn btn-primary" type="submit">
+                        <i class="ph ph-floppy-disk"></i><span th:text="#{settings.inbox.save}">Save</span>
+                    </button>
+                </div>
+            </form>
+        </section>
+
         <!--/* What to enter in the extension's own settings. */-->
         <section class="flex flex-col gap-2">
             <h2 class="section-title" th:text="#{settings.extension}">Browser extension</h2>

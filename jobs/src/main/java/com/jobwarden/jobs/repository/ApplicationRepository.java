@@ -10,6 +10,7 @@ import com.jobwarden.jobs.dto.JobContact;
 import com.jobwarden.jobs.entity.ApplicationEntity;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -45,15 +46,80 @@ public interface ApplicationRepository extends JpaRepository<ApplicationEntity, 
 	long countByUserId(long userId);
 
 	/**
+	 * When the posting went up, as its job data (a schema.org JobPosting, the raw payload) says, e.g. 2026-08-01 or
+	 * 2026-08-01T10:00:00Z; empty when it doesn't say.
+	 */
+	@Query(value = "select raw_payload ->> 'datePosted' from applications where id = :id and user_id = :userId",
+			nativeQuery = true)
+	Optional<String> findDatePosted(long userId, long id);
+
+	/**
+	 * The profile's other applications with this title at this company, ignoring case, the oldest first: the same job,
+	 * posted again.
+	 */
+	@Query("""
+			select a.id from ApplicationEntity a
+			where a.userId = :userId and a.id <> :id and lower(a.title) = lower(:title)
+			    and lower(a.company) = lower(:company)
+			order by a.capturedAt asc""")
+	List<Long> findSameJob(long userId, long id, String title, String company);
+
+	/**
+	 * The profile's applications with these statuses and no fit yet, the newest first: those Claude scores next.
+	 */
+	@Query("""
+			select new com.jobwarden.jobs.dto.ApplicationSummary(
+			    a.id, a.title, a.company, a.location, a.salary, a.link, a.source, a.currentStatus, a.capturedAt,
+			    a.updatedAt, a.appliedBy)
+			from ApplicationEntity a
+			where a.userId = :userId and a.currentStatus in :statuses
+			    and not exists (select f.id from JobFitEntity f where f.applicationId = a.id)
+			order by a.capturedAt desc, a.id desc""")
+	List<ApplicationSummary> findUnscored(long userId, Collection<ApplicationStatus> statuses, Pageable page);
+
+	/**
+	 * The profile's applications with this status, each with the day of its latest event, for tidying up those that
+	 * got no answer.
+	 */
+	@Query("""
+			select new com.jobwarden.jobs.repository.WaitingApplication(a.id, max(e.eventDate), a.followUpOn)
+			from TimelineEventEntity e join e.application a
+			where a.userId = :userId and a.currentStatus = :status
+			group by a.id, a.followUpOn""")
+	List<WaitingApplication> findWaiting(long userId, ApplicationStatus status);
+
+	/**
 	 * The timeline events of the profile's applications between the two days, both included, for the calendar.
 	 */
 	@Query("""
 			select new com.jobwarden.jobs.repository.CalendarEvent(
-			    e.eventDate, e.eventTime, a.id, a.title, a.company, e.stageCategory, e.stageLabel, e.interviewFormat,
-			    e.interviewLocation, e.durationMinutes)
+			    e.id, e.eventDate, e.eventTime, a.id, a.title, a.company, e.stageCategory, e.stageLabel,
+			    e.interviewFormat, e.interviewLocation, e.durationMinutes)
 			from TimelineEventEntity e join e.application a
 			where a.userId = :userId and e.eventDate between :from and :to""")
 	List<CalendarEvent> findCalendarEvents(long userId, LocalDate from, LocalDate to);
+
+	/**
+	 * One application's timeline events from that day on, for its reminders.
+	 */
+	@Query("""
+			select new com.jobwarden.jobs.repository.CalendarEvent(
+			    e.id, e.eventDate, e.eventTime, a.id, a.title, a.company, e.stageCategory, e.stageLabel,
+			    e.interviewFormat, e.interviewLocation, e.durationMinutes)
+			from TimelineEventEntity e join e.application a
+			where a.userId = :userId and a.id = :applicationId and e.eventDate >= :from""")
+	List<CalendarEvent> findCalendarEventsFrom(long userId, long applicationId, LocalDate from);
+
+	/**
+	 * These timeline events of the profile's applications, for the reminders set on them.
+	 */
+	@Query("""
+			select new com.jobwarden.jobs.repository.CalendarEvent(
+			    e.id, e.eventDate, e.eventTime, a.id, a.title, a.company, e.stageCategory, e.stageLabel,
+			    e.interviewFormat, e.interviewLocation, e.durationMinutes)
+			from TimelineEventEntity e join e.application a
+			where a.userId = :userId and e.id in :eventIds""")
+	List<CalendarEvent> findCalendarEventsById(long userId, Collection<Long> eventIds);
 
 	/**
 	 * The profile's applications with a deadline or a day to follow up between the two days, both included.
@@ -65,6 +131,16 @@ public interface ApplicationRepository extends JpaRepository<ApplicationEntity, 
 			where a.userId = :userId
 			    and (a.deadline between :from and :to or a.followUpOn between :from and :to)""")
 	List<FollowUpDates> findFollowUpDates(long userId, LocalDate from, LocalDate to);
+
+	/**
+	 * The follow-up dates of these applications of the profile, whether they have any or not, for their reminders.
+	 */
+	@Query("""
+			select new com.jobwarden.jobs.repository.FollowUpDates(
+			    a.id, a.title, a.company, a.currentStatus, a.deadline, a.followUpOn)
+			from ApplicationEntity a
+			where a.userId = :userId and a.id in :applicationIds""")
+	List<FollowUpDates> findFollowUpDatesById(long userId, Collection<Long> applicationIds);
 
 	/**
 	 * Loads the timeline in the same query: every caller (the detail page, adding an event, deleting) needs it.

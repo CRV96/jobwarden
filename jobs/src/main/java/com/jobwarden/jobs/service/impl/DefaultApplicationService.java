@@ -5,7 +5,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +21,8 @@ import com.jobwarden.jobs.dto.JobContact;
 import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
 import com.jobwarden.jobs.dto.PngImage;
+import com.jobwarden.jobs.dto.ReminderTarget;
+import com.jobwarden.jobs.dto.TidyResult;
 import com.jobwarden.jobs.dto.TrackedApplication;
 import com.jobwarden.jobs.entity.ApplicationEntity;
 import com.jobwarden.jobs.entity.CompanyLogoEntity;
@@ -29,6 +30,7 @@ import com.jobwarden.jobs.entity.SourceIconEntity;
 import com.jobwarden.jobs.entity.SourceIconKey;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.enums.CalendarEntryKind;
+import com.jobwarden.jobs.enums.ReminderLead;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.exception.JobsErrorCode;
 import com.jobwarden.jobs.exception.TimelineEventNotFoundException;
@@ -37,7 +39,9 @@ import com.jobwarden.jobs.repository.ApplicationRepository;
 import com.jobwarden.jobs.repository.CalendarEvent;
 import com.jobwarden.jobs.repository.CompanyLogoRepository;
 import com.jobwarden.jobs.repository.FollowUpDates;
+import com.jobwarden.jobs.repository.ReminderRepository;
 import com.jobwarden.jobs.repository.SourceIconRepository;
+import com.jobwarden.jobs.repository.WaitingApplication;
 import com.jobwarden.jobs.service.ApplicationService;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -60,6 +64,8 @@ class DefaultApplicationService implements ApplicationService {
 	private final SourceIconRepository sourceIcons;
 
 	private final CompanyLogoRepository companyLogos;
+
+	private final ReminderRepository reminders;
 
 	/**
 	 * @throws BusinessRuleException if it has a rejection reason but its initial status isn't a rejection
@@ -246,32 +252,29 @@ class DefaultApplicationService implements ApplicationService {
 		log.info("Updated the salary of application {}", applicationId);
 	}
 
+	/**
+	 * @throws ApplicationNotFoundException if the user has no such application
+	 */
+	@Override
+	@Transactional
+	public void updateLocation(long userId, long applicationId, @Nullable String location) {
+		getOwnedApplication(userId, applicationId).changeLocation(location);
+		log.info("Updated the location of application {}", applicationId);
+	}
+
 	@Override
 	@Transactional(readOnly = true)
 	public List<CalendarEntry> findCalendar(long userId, LocalDate from, LocalDate to) {
+		Map<ReminderTarget, Set<ReminderLead>> reminders = CalendarEntries.byTarget(this.reminders.findByUserId(userId));
 		List<CalendarEntry> entries = new ArrayList<>();
 		for (CalendarEvent event : this.applications.findCalendarEvents(userId, from, to)) {
-			entries.add(CalendarEntry.builder()
-				.date(event.date())
-				.time(event.time())
-				.kind(CalendarEntryKind.EVENT)
-				.applicationId(event.applicationId())
-				.title(event.title())
-				.company(event.company())
-				.status(event.status())
-				.stageLabel(event.stageLabel())
-				.interviewFormat(event.interviewFormat())
-				.interviewLocation(event.interviewLocation())
-				.durationMinutes(event.durationMinutes())
-				.build());
+			entries.add(CalendarEntries.of(event, reminders));
 		}
 		for (FollowUpDates dates : this.applications.findFollowUpDates(userId, from, to)) {
-			addFollowUpDate(entries, dates, dates.deadline(), CalendarEntryKind.DEADLINE, from, to);
-			addFollowUpDate(entries, dates, dates.followUpOn(), CalendarEntryKind.FOLLOW_UP, from, to);
+			addFollowUpDate(entries, dates, dates.deadline(), CalendarEntryKind.DEADLINE, from, to, reminders);
+			addFollowUpDate(entries, dates, dates.followUpOn(), CalendarEntryKind.FOLLOW_UP, from, to, reminders);
 		}
-		entries.sort(Comparator.comparing(CalendarEntry::date)
-			.thenComparing(CalendarEntry::time, Comparator.nullsFirst(Comparator.naturalOrder()))
-			.thenComparing(CalendarEntry::title));
+		entries.sort(CalendarEntries.ORDER);
 		log.debug("Read {} calendar entries of profile {} from {} to {}", entries.size(), userId, from, to);
 		return entries;
 	}
@@ -284,6 +287,36 @@ class DefaultApplicationService implements ApplicationService {
 	public void updateFollowUp(long userId, long applicationId, FollowUp followUp) {
 		getOwnedApplication(userId, applicationId).changeFollowUp(followUp);
 		log.info("Updated the follow-up of application {}", applicationId);
+	}
+
+	@Override
+	@Transactional
+	public TidyResult tidyUnanswered(long userId, int noResponseAfterDays, int followUpAfterDays, @Nullable String note) {
+		LocalDate today = LocalDate.now();
+		List<WaitingApplication> waiting = this.applications.findWaiting(userId, ApplicationStatus.APPLIED);
+		List<Long> moved = new ArrayList<>();
+		List<Long> followUps = new ArrayList<>();
+		for (WaitingApplication application : waiting) {
+			if (!application.lastEvent().isAfter(today.minusDays(noResponseAfterDays))) {
+				getOwnedApplication(userId, application.applicationId()).addEvent(NewTimelineEvent.builder()
+					.eventDate(today)
+					.stageCategory(ApplicationStatus.NO_RESPONSE)
+					.note(note)
+					.build());
+				moved.add(application.applicationId());
+			} else if (application.followUpOn() == null) {
+				LocalDate followUpOn = application.lastEvent().plusDays(followUpAfterDays);
+				ApplicationEntity entity = getOwnedApplication(userId, application.applicationId());
+				FollowUp followUp = entity.getFollowUp();
+				entity.changeFollowUp(new FollowUp(followUp.contactName(), followUp.contactRole(), followUp.contactEmail(),
+						followUp.contactPhone(), followUp.contactLink(), followUp.referredBy(), followUp.deadline(),
+						followUpOn.isAfter(today) ? followUpOn : today.plusDays(1)));
+				followUps.add(application.applicationId());
+			}
+		}
+		log.info("Tidied up profile {}: {} of {} applications at Applied moved to NO_RESPONSE, {} got a day to follow up",
+				userId, moved.size(), waiting.size(), followUps.size());
+		return new TidyResult(moved, followUps, waiting.size());
 	}
 
 	@Override
@@ -386,16 +419,9 @@ class DefaultApplicationService implements ApplicationService {
 	}
 
 	private static void addFollowUpDate(List<CalendarEntry> entries, FollowUpDates dates, @Nullable LocalDate date,
-			CalendarEntryKind kind, LocalDate from, LocalDate to) {
+			CalendarEntryKind kind, LocalDate from, LocalDate to, Map<ReminderTarget, Set<ReminderLead>> reminders) {
 		if (date != null && !date.isBefore(from) && !date.isAfter(to)) {
-			entries.add(CalendarEntry.builder()
-				.date(date)
-				.kind(kind)
-				.applicationId(dates.applicationId())
-				.title(dates.title())
-				.company(dates.company())
-				.status(dates.status())
-				.build());
+			CalendarEntries.add(entries, dates, date, kind, reminders);
 		}
 	}
 

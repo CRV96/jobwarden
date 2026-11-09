@@ -1,8 +1,9 @@
 package com.jobwarden.discover.enums;
 
 /**
- * What the profile can ask Claude to do: the AI Assistant page's presets, a CV for one job from the job's page,
- * hiring posts and recruiters from the Who's hiring page, and applying to jobs from the Auto-apply page.
+ * What the profile can ask Claude to do: the AI Assistant page's presets, a CV for one job and a brief for its
+ * interview from the job's page, hiring posts and recruiters from the Who's hiring page, applying to jobs from the
+ * Auto-apply page, sorting the emails on the Inbox page, and the CV's projects from GitHub on the CV page.
  */
 public enum AiRequestKind {
 
@@ -34,7 +35,28 @@ public enum AiRequestKind {
 	FIND_RECRUITERS,
 
 	/** Apply to the jobs queued on the Auto-apply page, in the profile's browser. */
-	AUTO_APPLY;
+	AUTO_APPLY,
+
+	/**
+	 * Prepare the profile for an interview for one job: a brief about the company and the role, the questions likely
+	 * asked, the profile's own stories to tell, and questions to ask them. The request names the job.
+	 */
+	PREPARE_INTERVIEW,
+
+	/** Score how well the profile fits one job, from the posting's requirements against the CV. The request names the job. */
+	SCORE_JOB,
+
+	/** Score the jobs still to apply to, or waiting on an answer, that have no score yet. */
+	SCORE_JOBS,
+
+	/**
+	 * Sort the updates waiting on the Inbox page, found in the profile's emails: find the job each is about, apply it
+	 * to that job's timeline, or dismiss it when it isn't news. What Claude isn't sure of stays for the profile.
+	 */
+	SORT_INBOX,
+
+	/** Write the CV's personal projects from the GitHub repositories the profile chose on the CV page. */
+	WRITE_PROJECTS;
 
 	/**
 	 * @return whether it says what to look for: titles, locations, skills...
@@ -47,7 +69,7 @@ public enum AiRequestKind {
 	 * @return whether it's about one job, which the request then names
 	 */
 	public boolean isAboutAJob() {
-		return this == TAILOR_CV;
+		return this == TAILOR_CV || this == PREPARE_INTERVIEW || this == SCORE_JOB;
 	}
 
 	/**

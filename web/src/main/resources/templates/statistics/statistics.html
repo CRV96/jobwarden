@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: page(~{::title}, ~{::main}, 'statistics')}">
+<head>
+    <title th:text="|#{nav.statistics} · JobWarden|">Statistics · JobWarden</title>
+</head>
+<body>
+<!--/* How the profile's applications went (StatisticsController): statistics is a JobStatistics, worked out from the
+       timelines without AI; calibration whether the strong fits led to interviews more often (WORKS, FLAT, BACKWARDS,
+       or FEW to tell); missingKeywords what the tailored CVs couldn't claim, with how often. Each chart is one series in
+       the accent colour, its numbers written beside it, and the exact counts in its row's title. */-->
+<main class="flex flex-col gap-5" th:with="stats=${statistics}">
+    <header>
+        <h1 class="page-title mb-1" th:text="#{nav.statistics}">Statistics</h1>
+        <p class="text-[13px] text-pretty text-ink/60" th:text="#{stats.subtitle}">How your applications went…</p>
+    </header>
+
+    <div class="card flex flex-col items-center gap-2 p-8 text-center" th:if="${stats.sent == 0}">
+        <span class="brand-mark size-10"><i class="ph ph-chart-bar text-xl"></i></span>
+        <p class="font-medium" th:text="#{stats.empty}">Nothing to count yet</p>
+        <p class="max-w-md text-[13px] text-pretty text-ink/60" th:text="#{stats.empty.body}">Once you’ve applied to some jobs…</p>
+        <a class="link text-[13px]" th:href="@{/applications}" th:text="#{nav.jobs}">Jobs</a>
+    </div>
+
+    <th:block th:unless="${stats.sent == 0}">
+        <p class="flex items-center gap-2 text-[13px] text-ink/65" th:if="${stats.sent < 10}">
+            <i class="ph ph-info"></i><span th:text="#{stats.few(${stats.sent})}">Only 6 applications so far: read these as hints.</span>
+        </p>
+
+        <!--/* The headline figures */-->
+        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <div class="card flex flex-col gap-1 p-4">
+                <span class="text-xs text-ink/60" th:text="#{stats.applied}">Applied</span>
+                <span class="text-[26px] leading-none font-bold tabular-nums" th:text="${stats.sent}">42</span>
+                <span class="text-xs text-ink/55" th:text="#{stats.applied.of(${stats.jobs})}">of 57 jobs saved</span>
+            </div>
+            <div class="card flex flex-col gap-1 p-4">
+                <span class="text-xs text-ink/60" th:text="#{stats.answered}">Got an answer</span>
+                <span class="text-[26px] leading-none font-bold tabular-nums" th:text="|${stats.replyPercent()}%|">38%</span>
+                <span class="text-xs text-ink/55" th:text="#{stats.answered.count(${stats.replied})}">16 answers</span>
+            </div>
+            <div class="card flex flex-col gap-1 p-4">
+                <span class="text-xs text-ink/60" th:text="#{stats.interviews}">Got to an interview</span>
+                <span class="text-[26px] leading-none font-bold tabular-nums" th:text="|${stats.interviewPercent()}%|">12%</span>
+                <span class="text-xs text-ink/55" th:text="#{stats.interviews.count(${stats.interviewed})}">5 jobs</span>
+            </div>
+            <div class="card flex flex-col gap-1 p-4">
+                <span class="text-xs text-ink/60" th:text="#{stats.offers}">Offers</span>
+                <span class="text-[26px] leading-none font-bold tabular-nums" th:text="${stats.offered}">1</span>
+            </div>
+            <div class="card flex flex-col gap-1 p-4">
+                <span class="text-xs text-ink/60" th:text="#{stats.wait}">Wait for an answer</span>
+                <span class="text-[26px] leading-none font-bold tabular-nums"
+                      th:text="${stats.medianDaysToReply != null} ? #{stats.wait.days(${stats.medianDaysToReply})} : '—'">9 days</span>
+                <span class="text-xs text-ink/55" th:text="#{stats.wait.hint}">the median, from applying</span>
+            </div>
+        </div>
+
+        <div class="grid items-start gap-4 xl:grid-cols-2">
+            <!--/* From the jobs saved to the offers: each bar against the jobs saved */-->
+            <section class="card flex flex-col gap-3 p-4" aria-labelledby="funnel-title">
+                <h2 id="funnel-title" class="section-title" th:text="#{stats.funnel}">From saved to offer</h2>
+                <dl class="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_3rem] items-center gap-x-3 gap-y-2 text-[13px]"
+                    th:with="whole=${stats.jobs}">
+                    <th:block th:each="step : ${ {'jobs', 'sent', 'replied', 'interviewed', 'offered'} }"
+                              th:with="count=${step == 'jobs'} ? ${stats.jobs} : (${step == 'sent'} ? ${stats.sent} : (${step == 'replied'} ? ${stats.replied} : (${step == 'interviewed'} ? ${stats.interviewed} : ${stats.offered})))">
+                        <dt class="truncate text-ink/70" th:text="#{|stats.funnel.${step}|}">Applied</dt>
+                        <dd><span th:replace="~{statistics/statistics :: bar(${whole > 0} ? ${count * 100 / whole} : 0)}"></span></dd>
+                        <dd class="text-right tabular-nums" th:text="${count}">42</dd>
+                    </th:block>
+                </dl>
+            </section>
+
+            <!--/* By site: where answers come from */-->
+            <section class="card flex flex-col gap-3 p-4" aria-labelledby="sites-title">
+                <div>
+                    <h2 id="sites-title" class="section-title" th:text="#{stats.bySite}">Answers by site</h2>
+                    <p class="text-xs text-pretty text-ink/55" th:text="#{stats.bySite.hint}">Where the jobs you applied to came from.</p>
+                </div>
+                <table th:replace="~{statistics/statistics :: rates(${stats.bySite}, 'site')}"></table>
+            </section>
+
+            <!--/* By who applied: the profile, Claude, the extension's Easy Apply run */-->
+            <section class="card flex flex-col gap-3 p-4" aria-labelledby="methods-title">
+                <div>
+                    <h2 id="methods-title" class="section-title" th:text="#{stats.byMethod}">Answers by how you applied</h2>
+                    <p class="text-xs text-pretty text-ink/55" th:text="#{stats.byMethod.hint}">You, Claude from Auto-apply, or the extension.</p>
+                </div>
+                <table th:replace="~{statistics/statistics :: rates(${stats.byMethod}, 'method')}"></table>
+            </section>
+
+            <!--/* The calibration: do the jobs Claude scored high get interviews more often? */-->
+            <section class="card flex flex-col gap-3 p-4" aria-labelledby="calibration-title">
+                <div>
+                    <h2 id="calibration-title" class="section-title" th:text="#{stats.byFit}">Do high scores lead to interviews?</h2>
+                    <p class="text-xs text-pretty text-ink/55" th:text="#{stats.byFit.hint}">The jobs you applied to, by the fit Claude scored.</p>
+                </div>
+                <table th:replace="~{statistics/statistics :: rates(${stats.byFit}, 'fit')}"></table>
+                <p class="flex items-start gap-2 rounded-lg bg-ink/4 p-2.5 text-[13px] text-pretty"
+                   th:with="good=${calibration == 'WORKS'}, bad=${calibration == 'BACKWARDS'}">
+                    <i class="ph mt-0.5" th:classappend="${good} ? 'ph-check-circle text-success' : (${bad} ? 'ph-warning text-[var(--jw-orange)]' : 'ph-info text-ink/55')"></i>
+                    <span th:text="#{|stats.calibration.${calibration}|}">Jobs scored 4 or more led to an interview more often.</span>
+                </p>
+            </section>
+
+            <!--/* Upskill: what the fits found missing, and what the tailored CVs couldn't claim */-->
+            <section class="card flex flex-col gap-3 p-4" aria-labelledby="gaps-title">
+                <div>
+                    <h2 id="gaps-title" class="section-title" th:text="#{stats.gaps}">Skills to work on</h2>
+                    <p class="text-xs text-pretty text-ink/55" th:text="#{stats.gaps.hint}">What the postings Claude scored asked for…</p>
+                </div>
+                <p class="text-[13px] text-pretty text-ink/60" th:if="${stats.skillGaps.isEmpty()}">
+                    <span th:text="#{stats.gaps.none}">No job scored yet.</span>
+                    <a class="link" th:href="@{/discover}" th:text="#{ai.kind.SCORE_JOBS}">Score my jobs</a>
+                </p>
+                <ul class="flex flex-col gap-2" th:unless="${stats.skillGaps.isEmpty()}"
+                    th:with="most=${stats.skillGaps[0].missing + stats.skillGaps[0].partly}">
+                    <li class="grid grid-cols-[minmax(0,1fr)_minmax(4rem,30%)] items-center gap-x-3 gap-y-0.5 text-[13px]"
+                        th:each="gap : ${stats.skillGaps}"
+                        th:title="#{stats.gaps.counts(${gap.missing}, ${gap.partly})}">
+                        <span class="min-w-0">
+                            <span th:text="${gap.requirement}">Kubernetes</span>
+                            <span class="ml-1 text-[11px] text-ink/50 uppercase" th:if="${gap.mustHave}" th:text="#{fit.must}">must</span>
+                        </span>
+                        <span th:replace="~{statistics/statistics :: bar(${most > 0} ? ${(gap.missing + gap.partly) * 100 / most} : 0)}"></span>
+                        <span class="text-xs text-ink/55" th:text="#{stats.gaps.counts(${gap.missing}, ${gap.partly})}">Missing in 4, partly in 1</span>
+                    </li>
+                </ul>
+                <th:block th:unless="${missingKeywords.isEmpty()}">
+                    <h3 class="mt-1 text-xs text-ink/60" th:text="#{stats.keywords}">Missing from your tailored CVs</h3>
+                    <div class="flex flex-wrap gap-1.5">
+                        <span class="tag" th:each="keyword : ${missingKeywords}"
+                              th:title="#{stats.keywords.count(${keyword.value})}">
+                            <span th:text="${keyword.key}">Kubernetes</span>
+                            <span class="tabular-nums text-ink/55" th:text="|×${keyword.value}|">×3</span>
+                        </span>
+                    </div>
+                </th:block>
+            </section>
+
+            <!--/* Why the profile was turned down, a job's last reason each */-->
+            <section class="card flex flex-col gap-3 p-4" aria-labelledby="reasons-title" th:unless="${stats.rejectionReasons.isEmpty()}">
+                <h2 id="reasons-title" class="section-title" th:text="#{stats.reasons}">Why you were turned down</h2>
+                <dl class="grid grid-cols-[minmax(0,11rem)_minmax(0,1fr)_3rem] items-center gap-x-3 gap-y-2 text-[13px]"
+                    th:with="most=${stats.rejectionReasons[0].count}">
+                    <th:block th:each="reason : ${stats.rejectionReasons}">
+                        <dt class="truncate text-ink/70" th:text="#{|rejectionReason.${reason.reason}|}">Position filled</dt>
+                        <dd><span th:replace="~{statistics/statistics :: bar(${reason.count * 100 / most})}"></span></dd>
+                        <dd class="text-right tabular-nums" th:text="${reason.count}">4</dd>
+                    </th:block>
+                </dl>
+            </section>
+        </div>
+    </th:block>
+</main>
+
+<!--/* A bar for a share, from 0 to 100: the accent on a faint track, its end rounded */-->
+<span th:fragment="bar(percent)" class="block h-2 w-full overflow-hidden rounded-[4px] bg-ink/8" aria-hidden="true">
+    <span class="block h-full rounded-[4px] bg-accent" th:style="|width: ${percent}%|"></span>
+</span>
+
+<!--/* The applications of one kind each, as a table: how many were sent, the share answered as a bar, and the share
+       that got to an interview. kind says what the keys are: a site, who applied, or a fit's verdict. */-->
+<table th:fragment="rates(rates, kind)" class="w-full text-[13px]">
+    <thead>
+    <tr class="text-xs text-ink/55">
+        <th class="pb-1 text-left font-normal" scope="col" th:text="#{|stats.column.${kind}|}">Site</th>
+        <th class="pb-1 text-right font-normal" scope="col" th:text="#{stats.column.applied}">Applied</th>
+        <th class="pb-1 pl-4 text-left font-normal" scope="col" th:text="#{stats.column.answered}">Answered</th>
+        <th class="pb-1 pl-3 text-right font-normal" scope="col" th:text="#{stats.column.interviews}">Interview</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="rate : ${rates}" th:title="#{stats.rate.title(${rate.replied}, ${rate.sent}, ${rate.interviewed})}">
+        <td class="max-w-0 py-1.5 pr-2">
+            <span class="flex min-w-0 items-center gap-1.5" th:if="${kind == 'site'}">
+                <th:block th:replace="~{applications/fragments :: source-icon(${rate.key})}"></th:block>
+                <span class="min-w-0 truncate" th:text="${rate.key} ?: #{source.addedByHand}">linkedin.com</span>
+            </span>
+            <span class="block truncate" th:if="${kind == 'method'}" th:text="#{|stats.method.${rate.key}|}">You</span>
+            <th:block th:if="${kind == 'fit'}">
+                <span class="tag" th:if="${rate.key}" th:text="#{|fit.verdict.${rate.key}|}"
+                      th:classappend="${rate.key == 'STRONG'} ? 'st-offer' : (${rate.key == 'PARTIAL'} ? 'st-interviewing' : 'st-rejected')">Strong fit</span>
+                <span class="text-ink/60" th:unless="${rate.key}" th:text="#{stats.fit.none}">Not scored</span>
+            </th:block>
+        </td>
+        <td class="text-right tabular-nums" th:text="${rate.sent}">12</td>
+        <td class="w-[40%] pl-4">
+            <span class="flex items-center gap-2">
+                <span class="flex-1" th:insert="~{statistics/statistics :: bar(${rate.replyPercent()})}"></span>
+                <span class="w-9 text-right text-xs tabular-nums" th:text="|${rate.replyPercent()}%|">33%</span>
+            </span>
+        </td>
+        <td class="pl-3 text-right tabular-nums" th:text="|${rate.interviewPercent()}%|">8%</td>
+    </tr>
+    </tbody>
+</table>
+</body>
+</html>

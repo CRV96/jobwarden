@@ -22,6 +22,7 @@ import com.jobwarden.jobs.dto.ApplicationQuery;
 import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.dto.FollowUp;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
+import com.jobwarden.jobs.dto.TidyResult;
 import com.jobwarden.jobs.dto.TimelineEvent;
 import com.jobwarden.jobs.enums.ApplicationSort;
 import com.jobwarden.jobs.enums.AppliedBy;
@@ -48,6 +49,7 @@ import static com.jobwarden.mcp.controller.Schemas.list;
 import static com.jobwarden.mcp.controller.Schemas.object;
 import static com.jobwarden.mcp.controller.Schemas.oneOf;
 import static com.jobwarden.mcp.controller.Schemas.string;
+import static com.jobwarden.mcp.controller.Schemas.strings;
 
 /**
  * The jobs a profile tracks: listing and reading them, checking whether their postings are still up, and moving them
@@ -72,6 +74,9 @@ class JobTools implements McpToolSet {
 
 	private static final int NOTE_MAX_LENGTH = 2000;
 
+	/** The most of a posting's description get_job returns: the rest is boilerplate, mostly, and costs Claude tokens. */
+	static final int DESCRIPTION_MAX_LENGTH = 12_000;
+
 	private final Profiles profiles;
 
 	private final ApplicationService applications;
@@ -80,7 +85,8 @@ class JobTools implements McpToolSet {
 
 	@Override
 	public List<McpTool> tools() {
-		return List.of(listProfiles(), listJobs(), getJob(), checkPostings(), updateJobStatus(), updateFollowUp());
+		return List.of(listProfiles(), listJobs(), getJob(), checkPostings(), updateJobStatus(), updateFollowUp(),
+				tidyApplications());
 	}
 
 	private McpTool listProfiles() {
@@ -124,7 +130,7 @@ class JobTools implements McpToolSet {
 						.orElseThrow(() -> new ApplicationNotFoundException(jobId));
 					return new JobDetails(job.id(), job.title(), job.company(), job.location(), job.salary(),
 							job.employmentType(), job.status(), job.link(), job.source(), job.notes(),
-							followUp(job.followUp()), job.description(), job.capturedAt(),
+							followUp(job.followUp()), shortened(job.description(), DESCRIPTION_MAX_LENGTH), job.capturedAt(),
 							job.timeline().stream().map(JobTools::step).toList());
 				});
 	}
@@ -134,13 +140,15 @@ class JobTools implements McpToolSet {
 				"Fetches the postings' pages to tell whether they're still up: OPEN, CLOSED (the page is gone, it redirects "
 						+ "away, its job data has expired, or it says so) or UNKNOWN (the site blocks automated visits: open "
 						+ "it yourself if you can). Checks the given jobs, or else up to " + MAX_CHECKS + " of the jobs still "
-						+ "Saved, Applied or Interviewing, or one url. With close_when_gone, jobs that are Saved or Applied and "
-						+ "whose posting is certainly CLOSED move to Position closed, with a note saying why.",
+						+ "Saved, Applied or Interviewing, or the urls given, e.g. search results before adding them as found "
+						+ "jobs: cheaper than opening them. With close_when_gone, jobs that are Saved or Applied and whose "
+						+ "posting is certainly CLOSED move to Position closed, with a note saying why.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
 						"job_ids", list(integer("A job"), "The jobs to check, from list_jobs"),
 						"statuses", list(oneOf(ApplicationStatus.values(), "A status"),
 								"Without job_ids, check the jobs with these statuses; Saved, Applied and Interviewing if left out"),
-						"url", string("A posting's address to check instead, e.g. before adding it as a found job"),
+						"urls", strings("Postings' addresses to check instead, up to " + MAX_CHECKS),
+						"url", string("One posting's address to check instead"),
 						"close_when_gone", bool("Move the Saved and Applied jobs whose posting is certainly closed to Position closed"))),
 				false, true, this::check);
 	}
@@ -149,6 +157,10 @@ class JobTools implements McpToolSet {
 		String url = call.string("url");
 		if (url != null) {
 			return this.checker.check(url);
+		}
+		List<String> urls = call.strings("urls");
+		if (!urls.isEmpty()) {
+			return checkUrls(urls);
 		}
 		long userId = this.profiles.of(call);
 		List<Long> ids = numbers(call);
@@ -202,6 +214,56 @@ class JobTools implements McpToolSet {
 			skipped.add(Map.of("reason", (jobs.size() - MAX_CHECKS) + " more jobs: check them in another call, by job_ids"));
 		}
 		return Map.of("summary", counts, "checked", checked, "skipped", skipped);
+	}
+
+	/**
+	 * Each address's verdict, in a line: what Claude needs to keep or leave a search result.
+	 */
+	private Map<String, Object> checkUrls(List<String> urls) {
+		List<String> asked = urls.stream().distinct().toList();
+		if (asked.size() > MAX_CHECKS) {
+			throw new ToolException("At most " + MAX_CHECKS + " urls at once: check the rest in another call");
+		}
+		List<UrlCheck> checked = new ArrayList<>();
+		Map<String, Future<PostingCheck>> running = new LinkedHashMap<>();
+		Semaphore slots = new Semaphore(PARALLEL_CHECKS);
+		try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+			for (String address : asked) {
+				running.put(address, executor.submit(() -> {
+					slots.acquire();
+					try {
+						return this.checker.check(address);
+					} finally {
+						slots.release();
+					}
+				}));
+			}
+			for (Map.Entry<String, Future<PostingCheck>> entry : running.entrySet()) {
+				PostingCheck result = entry.getValue().get();
+				checked.add(new UrlCheck(entry.getKey(), result.verdict(), result.certain(), result.reason()));
+			}
+		} catch (InterruptedException interrupted) {
+			Thread.currentThread().interrupt();
+			throw new ToolException("The checks were interrupted");
+		} catch (ExecutionException failed) {
+			throw new IllegalStateException("A check failed", failed.getCause());
+		}
+		return Map.of("checked", checked);
+	}
+
+	private McpTool tidyApplications() {
+		return new McpTool("tidy_applications", "Tidy up the applications with no answer",
+				"In one call, no need to read the jobs first: moves the jobs applied to "
+						+ RequestTools.NO_RESPONSE_AFTER_DAYS + " days ago or more, with nothing on their timeline since, to "
+						+ "No response, and gives the newer ones without a day to follow up one, "
+						+ RequestTools.FOLLOW_UP_AFTER_DAYS + " days after they were applied to, or tomorrow when that's past.",
+				object(properties(Profiles.ARGUMENT, Profiles.schema())), false, false, call -> {
+					long userId = this.profiles.of(call);
+					TidyResult result = this.applications.tidyUnanswered(userId, RequestTools.NO_RESPONSE_AFTER_DAYS,
+							RequestTools.FOLLOW_UP_AFTER_DAYS, "The company never answered. Moved by Claude.");
+					return Map.of("waiting_at_applied", result.waiting(), "moved_to_no_response",
+							result.movedToNoResponse().size(), "follow_ups_set", result.followUpsSet().size());
+				});
 	}
 
 	private List<Long> numbers(ToolCall call) {
@@ -329,7 +391,11 @@ class JobTools implements McpToolSet {
 	}
 
 	private static @Nullable String shortened(@Nullable String note) {
-		return (note == null || note.length() <= NOTE_MAX_LENGTH) ? note : note.substring(0, NOTE_MAX_LENGTH - 1) + "…";
+		return shortened(note, NOTE_MAX_LENGTH);
+	}
+
+	private static @Nullable String shortened(@Nullable String text, int maxLength) {
+		return (text == null || text.length() <= maxLength) ? text : text.substring(0, maxLength - 1) + "…";
 	}
 
 	/** Argument names and their schemas, in this order. */
@@ -390,6 +456,9 @@ class JobTools implements McpToolSet {
 	record FollowUpView(@Nullable String contactName, @Nullable String contactRole, @Nullable String contactEmail,
 			@Nullable String contactPhone, @Nullable String contactLink, @Nullable String referredBy,
 			@Nullable LocalDate deadline, @Nullable LocalDate followUpOn) {
+	}
+
+	record UrlCheck(String url, Verdict verdict, boolean certain, String reason) {
 	}
 
 	/**

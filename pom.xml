@@ -17,8 +17,8 @@
 	<url/>
 	<licenses>
 		<license>
-			<name>PolyForm Shield License 1.0.0</name>
-			<url>https://polyformproject.org/licenses/shield/1.0.0</url>
+			<name>MIT License</name>
+			<url>https://opensource.org/license/mit</url>
 		</license>
 	</licenses>
 	<developers>
@@ -42,6 +42,7 @@
 		<module>updates</module>
 		<module>hiring</module>
 		<module>apply</module>
+		<module>inbox</module>
 		<module>capture</module>
 		<module>mcp</module>
 		<module>web</module>
@@ -54,6 +55,7 @@
 		<pdfbox.version>3.0.7</pdfbox.version>
 		<openhtmltopdf.version>1.1.97</openhtmltopdf.version>
 		<jsoup.version>1.23.2</jsoup.version>
+		<greenmail.version>2.1.5</greenmail.version>
 		<!-- Only the app module is runnable; lets `./mvnw -pl app -am spring-boot:run` work from the root. -->
 		<spring-boot.run.skip>true</spring-boot.run.skip>
 	</properties>
@@ -108,6 +110,11 @@
 			<dependency>
 				<groupId>com.jobwarden</groupId>
 				<artifactId>jobwarden-cv</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.jobwarden</groupId>
+				<artifactId>jobwarden-inbox</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 			<!-- The CV: reading an uploaded PDF's text, and making a PDF from the CV page's fields -->

@@ -1,0 +1,391 @@
+/*
+ * The look of the extension's pages (the popup and the settings), the same as JobWarden's own: the tokens of
+ * web/src/main/frontend/app.css, in a light and a dark version that follow the system's, and its buttons, fields,
+ * cards and status colours. Plain CSS: the extension has no build step.
+ */
+:root {
+	color-scheme: light;
+	--jw-canvas: #ffffff;
+	--jw-surface: #ffffff;
+	--jw-sidebar: #f3f3f5;
+	--jw-ink: #1d1d1f;
+	--jw-line: rgb(0 0 0 / 0.1);
+	--jw-accent: #007aff;
+	--jw-accent-strong: #0062cc;
+	--jw-control: #ffffff;
+	--jw-field: #ffffff;
+	--jw-shadow-sm: 0 0 0 0.5px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.04);
+	--jw-gray: #8e8e93;
+	--jw-blue: #007aff;
+	--jw-orange: #c56a00;
+	--jw-green: #1f9e45;
+	--jw-red: #e0302a;
+	--jw-purple: #9a3fd0;
+	--jw-brown: #8f7150;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		color-scheme: dark;
+		--jw-canvas: #1e1e1e;
+		--jw-surface: #2a2a2c;
+		--jw-sidebar: #28282a;
+		--jw-ink: #f5f5f7;
+		--jw-line: rgb(255 255 255 / 0.1);
+		--jw-accent: #0a84ff;
+		--jw-accent-strong: #64b0ff;
+		--jw-control: #48484a;
+		--jw-field: rgb(255 255 255 / 0.06);
+		--jw-shadow-sm: 0 0 0 0.5px rgb(255 255 255 / 0.12);
+		--jw-gray: #98989d;
+		--jw-blue: #0a84ff;
+		--jw-orange: #ff9f0a;
+		--jw-green: #30d158;
+		--jw-red: #ff453a;
+		--jw-purple: #bf5af2;
+		--jw-brown: #ac8e68;
+	}
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html {
+	background: var(--jw-canvas);
+	color: var(--jw-ink);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+body {
+	margin: 0;
+	font: 13px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
+	letter-spacing: -0.005em;
+}
+
+p {
+	margin: 0;
+}
+
+:focus-visible {
+	outline: 3px solid color-mix(in srgb, var(--jw-accent) 45%, transparent);
+	outline-offset: 1px;
+}
+
+[hidden] {
+	display: none !important;
+}
+
+/* — Icons: Phosphor's, from icons/phosphor.svg, as the app's — */
+.icon {
+	flex: none;
+	width: 1em;
+	height: 1em;
+	fill: currentColor;
+}
+
+/* — The brand: the app's mark, a tile in the accent with the shield — */
+.brand {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin: 0;
+	font-size: 15px;
+	font-weight: 700;
+	letter-spacing: -0.01em;
+}
+
+.brand-mark {
+	display: grid;
+	flex: none;
+	place-items: center;
+	width: 28px;
+	height: 28px;
+	border-radius: 7px;
+	background: linear-gradient(180deg, color-mix(in srgb, var(--jw-accent) 80%, #fff), var(--jw-accent));
+	box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+	color: #fff;
+	font-size: 16px;
+}
+
+/* — Text — */
+.section-title {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+	color: color-mix(in srgb, var(--jw-ink) 60%, transparent);
+}
+
+.hint {
+	color: color-mix(in srgb, var(--jw-ink) 60%, transparent);
+	font-size: 12px;
+}
+
+a,
+.link {
+	color: var(--jw-accent);
+	text-underline-offset: 3px;
+	text-decoration: none;
+}
+
+a:hover,
+.link:hover {
+	color: var(--jw-accent-strong);
+	text-decoration: underline;
+}
+
+/* — Buttons: primary is a filled accent, secondary a raised control, ghost only accent text — */
+.btn {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	padding: 6px 12px;
+	border: 1px solid transparent;
+	border-radius: 6px;
+	background: transparent;
+	color: var(--jw-ink);
+	font: inherit;
+	font-size: 13px;
+	font-weight: 500;
+	line-height: 1.2;
+	white-space: nowrap;
+	text-decoration: none;
+	cursor: pointer;
+}
+
+.btn:hover {
+	text-decoration: none;
+}
+
+.btn:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+.btn-primary,
+.btn-danger {
+	--btn: var(--jw-accent);
+	background: var(--btn);
+	color: #fff;
+	box-shadow: 0 0.5px 1px rgb(0 0 0 / 0.15);
+}
+
+.btn-danger {
+	--btn: var(--jw-red);
+}
+
+.btn-primary:hover:not(:disabled),
+.btn-danger:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--btn) 88%, #fff);
+	color: #fff;
+}
+
+.btn-secondary {
+	background: var(--jw-control);
+	box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.18), 0 0.5px 1.5px rgb(0 0 0 / 0.12);
+}
+
+.btn-secondary:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--jw-control) 92%, var(--jw-ink));
+}
+
+.btn-ghost {
+	padding-inline: 6px;
+	color: var(--jw-accent);
+}
+
+.btn-ghost:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--jw-accent) 10%, transparent);
+}
+
+/* Taking something away: the red, quietly, until the second click asks for it in full (btn-danger) */
+.btn-ghost-danger {
+	color: var(--jw-red);
+}
+
+.btn-ghost-danger:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--jw-red) 10%, transparent);
+}
+
+.btn-icon {
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	color: color-mix(in srgb, var(--jw-ink) 60%, transparent);
+	font-size: 17px;
+}
+
+.btn-icon:hover {
+	background: color-mix(in srgb, var(--jw-ink) 8%, transparent);
+	color: var(--jw-ink);
+}
+
+/* — Form fields — */
+.field {
+	display: block;
+}
+
+.field-label {
+	display: block;
+	margin-bottom: 5px;
+	font-size: 12px;
+	color: color-mix(in srgb, var(--jw-ink) 70%, transparent);
+}
+
+.input {
+	display: block;
+	width: 100%;
+	min-height: 30px;
+	padding: 5px 9px;
+	border: 0.5px solid color-mix(in srgb, var(--jw-ink) 22%, transparent);
+	border-radius: 6px;
+	background: var(--jw-field);
+	color: var(--jw-ink);
+	caret-color: var(--jw-accent);
+	font: inherit;
+	font-size: 13px;
+}
+
+.input::placeholder {
+	color: color-mix(in srgb, var(--jw-ink) 45%, transparent);
+}
+
+.input:hover {
+	border-color: color-mix(in srgb, var(--jw-ink) 45%, transparent);
+}
+
+.input:focus {
+	outline: none;
+	border-color: var(--jw-accent);
+	box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--jw-accent) 40%, transparent);
+}
+
+textarea.input {
+	min-height: 76px;
+	resize: vertical;
+}
+
+.check {
+	flex: none;
+	width: 15px;
+	height: 15px;
+	margin: 0;
+	accent-color: var(--jw-accent);
+	cursor: pointer;
+}
+
+.checkbox {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	font-size: 13px;
+	cursor: pointer;
+}
+
+.checkbox .check {
+	margin-top: 2px;
+}
+
+/* — Surfaces — */
+.card {
+	border-radius: 10px;
+	background: var(--jw-surface);
+	box-shadow: var(--jw-shadow-sm);
+}
+
+/* A tinted note: the accent for news, the orange for a warning, the red for a question that can't be undone */
+.note {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 8px 10px;
+	border-radius: 8px;
+	background: color-mix(in srgb, var(--tone, var(--jw-accent)) 12%, transparent);
+	color: var(--jw-ink);
+	font-size: 12px;
+}
+
+.note > .icon {
+	margin-top: 2px;
+	color: var(--tone, var(--jw-accent));
+	font-size: 15px;
+}
+
+.note-warning {
+	--tone: var(--jw-orange);
+}
+
+.note-danger {
+	--tone: var(--jw-red);
+}
+
+/* A rule that fades out over 48px at each end instead of stopping: the app's signature */
+.rule-fade {
+	height: 1px;
+	border: 0;
+	background: linear-gradient(to right, transparent, var(--jw-line) 48px, var(--jw-line) calc(100% - 48px), transparent);
+}
+
+/* — Tags, and the colour of each status, as the app shows them — */
+.tag {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 2px 9px;
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--st, var(--jw-gray)) 15%, transparent);
+	color: var(--st, var(--jw-gray));
+	font-size: 11px;
+	font-weight: 500;
+	line-height: 1.45;
+	white-space: nowrap;
+}
+
+.st-saved,
+.st-withdrawn {
+	--st: var(--jw-gray);
+}
+
+.st-applied {
+	--st: var(--jw-blue);
+}
+
+.st-interviewing {
+	--st: var(--jw-orange);
+}
+
+.st-offer {
+	--st: var(--jw-green);
+}
+
+.st-rejected {
+	--st: var(--jw-red);
+}
+
+.st-no_response {
+	--st: var(--jw-purple);
+}
+
+.st-position_closed {
+	--st: var(--jw-brown);
+}
+
+/* — What a click did: in green when it worked, red when it didn't — */
+.status:empty {
+	display: none;
+}
+
+.status.info {
+	color: color-mix(in srgb, var(--jw-ink) 60%, transparent);
+}
+
+.status.success {
+	color: var(--jw-green);
+}
+
+.status.error {
+	color: var(--jw-red);
+}

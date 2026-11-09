@@ -8,9 +8,11 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.math.BigDecimal;
 import java.time.LocalTime;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -27,16 +29,21 @@ import com.jobwarden.jobs.dto.CsvImportProblem;
 import com.jobwarden.jobs.dto.FollowUp;
 import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
+import com.jobwarden.jobs.dto.SalaryRange;
 import com.jobwarden.jobs.dto.TimelineEvent;
 import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.ApplicationSort;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.enums.CsvProblem;
 import com.jobwarden.jobs.enums.InterviewFormat;
+import com.jobwarden.jobs.enums.PayBasis;
 import com.jobwarden.jobs.enums.RejectionReason;
+import com.jobwarden.jobs.enums.SalaryPeriod;
 import com.jobwarden.jobs.exception.JobsErrorCode;
 import com.jobwarden.jobs.service.ApplicationCsvService;
 import com.jobwarden.jobs.service.ApplicationService;
+import com.jobwarden.jobs.service.JobFitService;
+import com.jobwarden.jobs.service.SalaryService;
 import com.jobwarden.web.user.CurrentUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,6 +64,7 @@ import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willAnswer;
@@ -114,7 +122,13 @@ class ApplicationControllerTests {
 	private ApplicationService applications;
 
 	@MockitoBean
+	private JobFitService fits;
+
+	@MockitoBean
 	private ApplicationCsvService csv;
+
+	@MockitoBean
+	private SalaryService salaries;
 
 	@MockitoBean
 	private DiscoveryService discovery;
@@ -130,6 +144,7 @@ class ApplicationControllerTests {
 	void selectRobert() {
 		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
 		given(this.applications.findById(1, 7)).willReturn(Optional.of(APPLICATION));
+		given(this.salaries.currencies()).willReturn(List.of("EUR", "RON", "USD"));
 	}
 
 	@Test
@@ -644,6 +659,80 @@ class ApplicationControllerTests {
 	}
 
 	@Test
+	void savesTheLocationAndTheSalaryTypedIn() {
+		assertThat(this.mvc.post()
+			.uri("/applications/7/details")
+			.param("location", " Bucharest, hybrid ")
+			.param("salaryFrom", "8000")
+			.param("salaryTo", "6000")
+			.param("currency", "RON")
+			.param("period", "MONTH")
+			.param("basis", "NET")).hasStatusOk()
+			.satisfies(result -> assertThat(result).headers().hasValue("HX-Trigger", "applications-changed"))
+			.bodyText()
+			.contains("id=\"application\"")
+			.doesNotContain("<html");
+		then(this.applications).should().updateLocation(1, 7, "Bucharest, hybrid");
+		ArgumentCaptor<SalaryRange> range = ArgumentCaptor.forClass(SalaryRange.class);
+		then(this.salaries).should().change(eq(1L), eq(7L), range.capture(), any(Locale.class));
+		assertThat(range.getValue().sameAs(new SalaryRange(new BigDecimal("6000"), new BigDecimal("8000"), "RON",
+				SalaryPeriod.MONTH, PayBasis.NET))).isTrue();
+	}
+
+	@Test
+	void savesNoSalaryWithoutAmounts() {
+		assertThat(this.mvc.post()
+			.uri("/applications/7/details")
+			.param("location", "")
+			.param("salaryFrom", "")
+			.param("salaryTo", "")
+			.param("currency", "EUR")
+			.param("period", "")
+			.param("basis", "")
+			.param("view", "DRAWER")).hasStatusOk().bodyText().contains("id=\"drawer-application\"");
+		then(this.applications).should().updateLocation(1, 7, null);
+		then(this.salaries).should().change(eq(1L), eq(7L), isNull(), any(Locale.class));
+	}
+
+	@Test
+	void keepsTheDetailsFormOpenWithWhatIsWrong() {
+		assertThat(this.mvc.post()
+			.uri("/applications/7/details")
+			.param("location", "Cluj")
+			.param("salaryFrom", "-5")
+			.param("currency", "")).hasStatusOk()
+			.bodyText()
+			.contains("Type the amounts as numbers above zero", "Pick the salary’s currency.", "value=\"Cluj\"")
+			.doesNotContain("hx-post=\"/applications/7/details\" hidden");
+		then(this.applications).should(never()).updateLocation(anyLong(), anyLong(), any());
+		then(this.salaries).should(never()).change(anyLong(), anyLong(), any(), any());
+	}
+
+	@Test
+	void startsTheSalaryFormWithWhatTheSalaryReadsAs() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(withSalary("6.000–8.000 RON net pe lună")));
+		given(this.salaries.read("6.000–8.000 RON net pe lună")).willReturn(Optional.of(new SalaryRange(
+				new BigDecimal("6000"), new BigDecimal("8000"), "RON", SalaryPeriod.MONTH, PayBasis.NET)));
+
+		assertThat(this.mvc.get().uri("/applications/7")).hasStatusOk()
+			.bodyText()
+			.contains("hx-post=\"/applications/7/details\" hidden=\"hidden\"", "value=\"6000\"", "value=\"8000\"", "<option value=\"RON\" selected=\"selected\">RON</option>",
+					"<option value=\"MONTH\" selected=\"selected\">Month</option>",
+					"<option value=\"NET\" selected=\"selected\">After tax</option>", "Empty the amounts to remove the salary.");
+	}
+
+	@Test
+	void saysWhatASalaryItCannotReadSays() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(withSalary("Competitive")));
+
+		assertThat(this.mvc.get().uri("/applications/7/drawer")).hasStatusOk()
+			.bodyText()
+			.contains("The posting says “Competitive”, which has no amounts JobWarden can compare.",
+					"<option value=\"EUR\" selected=\"selected\">EUR</option>", "ph-address-book", "ph-note-pencil")
+			.doesNotContain("Empty the amounts");
+	}
+
+	@Test
 	void correctsASalaryAndReloadsThePage() {
 		assertThat(this.mvc.post().uri("/applications/7/salary").param("salary", " 5,000 EUR a month "))
 			.hasStatus(HttpStatus.NO_CONTENT)
@@ -738,6 +827,20 @@ class ApplicationControllerTests {
 			.param("stageCategory", status)
 			.param("stageLabel", stageLabel)
 			.param("rejectionReason", rejectionReason)).hasStatusOk();
+	}
+
+	/** The job, with that salary. */
+	private static ApplicationDetails withSalary(String salary) {
+		return ApplicationDetails.builder()
+			.id(APPLICATION.id())
+			.title(APPLICATION.title())
+			.company(APPLICATION.company())
+			.location(APPLICATION.location())
+			.salary(salary)
+			.status(APPLICATION.status())
+			.capturedAt(APPLICATION.capturedAt())
+			.timeline(APPLICATION.timeline())
+			.build();
 	}
 
 }

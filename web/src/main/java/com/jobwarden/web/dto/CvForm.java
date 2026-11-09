@@ -9,6 +9,7 @@ import com.jobwarden.cv.dto.CvDetails;
 import com.jobwarden.cv.dto.CvEducation;
 import com.jobwarden.cv.dto.CvExperience;
 import com.jobwarden.cv.dto.CvLanguage;
+import com.jobwarden.cv.dto.CvProject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;
@@ -33,6 +34,7 @@ public record CvForm(
 		@Size(max = CvForm.LONG_TEXT_MAX_LENGTH, message = "{validation.cv.size}") @Nullable String summary,
 		@Size(max = CvForm.LONG_TEXT_MAX_LENGTH, message = "{validation.cv.size}") @Nullable String skills,
 		@Valid @Nullable List<@Nullable ExperienceRow> experience,
+		@Valid @Nullable List<@Nullable ProjectRow> projects,
 		@Valid @Nullable List<@Nullable EducationRow> education,
 		@Valid @Nullable List<@Nullable LanguageRow> languages,
 		@Valid @Nullable List<@Nullable CertificationRow> certifications) {
@@ -49,6 +51,13 @@ public record CvForm(
 			@Size(max = TEXT_MAX_LENGTH, message = "{validation.cv.size}") @Nullable String location,
 			@Size(max = TEXT_MAX_LENGTH, message = "{validation.cv.size}") @Nullable String start,
 			@Size(max = TEXT_MAX_LENGTH, message = "{validation.cv.size}") @Nullable String end,
+			@Size(max = LONG_TEXT_MAX_LENGTH, message = "{validation.cv.size}") @Nullable String description) {
+	}
+
+	public record ProjectRow(
+			@Size(max = TEXT_MAX_LENGTH, message = "{validation.cv.size}") @Nullable String name,
+			@Size(max = TEXT_MAX_LENGTH, message = "{validation.cv.size}") @Nullable String link,
+			@Size(max = TEXT_MAX_LENGTH, message = "{validation.cv.size}") @Nullable String technologies,
 			@Size(max = LONG_TEXT_MAX_LENGTH, message = "{validation.cv.size}") @Nullable String description) {
 	}
 
@@ -90,6 +99,9 @@ public record CvForm(
 			.experience(rows(this.experience).stream()
 				.map(row -> new CvExperience(row.role(), row.company(), row.location(), row.start(), row.end(),
 						row.description()))
+				.toList())
+			.projects(rows(this.projects).stream()
+				.map(row -> new CvProject(row.name(), row.link(), row.technologies(), row.description()))
 				.toList())
 			.education(rows(this.education).stream()
 				.map(row -> new CvEducation(row.degree(), row.school(), row.location(), row.start(), row.end(),

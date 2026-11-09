@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
@@ -13,13 +14,16 @@ import com.jobwarden.jobs.dto.CalendarEntry;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.enums.CalendarEntryKind;
 import com.jobwarden.jobs.enums.InterviewFormat;
+import com.jobwarden.jobs.enums.ReminderLead;
 import com.jobwarden.jobs.service.ApplicationService;
+import com.jobwarden.jobs.service.CalendarFeedService;
 import com.jobwarden.web.user.CurrentUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
@@ -44,6 +48,9 @@ class CalendarControllerTests {
 	private DiscoveryService discovery;
 
 	@MockitoBean
+	private CalendarFeedService feeds;
+
+	@MockitoBean
 	private CurrentUser currentUser;
 
 	@MockitoBean
@@ -52,6 +59,7 @@ class CalendarControllerTests {
 	@BeforeEach
 	void selectRobert() {
 		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+		given(this.feeds.token(1)).willReturn("s3cret");
 	}
 
 	@Test
@@ -168,6 +176,89 @@ class CalendarControllerTests {
 			.contains("Nothing in the next 30 days");
 		LocalDate today = LocalDate.now();
 		then(this.applications).should().findCalendar(1, today, today.plusDays(30));
+	}
+
+	@Test
+	void showsOnlyTheTypesTheLegendPicksAndRemembersThem() {
+		LocalDate today = LocalDate.now();
+		given(this.applications.findCalendar(eq(1L), any(), any())).willReturn(List.of(
+				CalendarEntry.builder()
+					.date(today.plusDays(1))
+					.time(LocalTime.of(14, 0))
+					.kind(CalendarEntryKind.EVENT)
+					.eventId(3L)
+					.applicationId(7)
+					.title("Backend engineer")
+					.status(ApplicationStatus.INTERVIEWING)
+					.build(),
+				CalendarEntry.builder()
+					.date(today.plusDays(2))
+					.kind(CalendarEntryKind.FOLLOW_UP)
+					.applicationId(8)
+					.title("Platform engineer")
+					.status(ApplicationStatus.APPLIED)
+					.build()));
+		MockHttpSession session = new MockHttpSession();
+
+		assertThat(this.mvc.get().uri("/calendar").param("show", "", "interview").session(session)).hasStatusOk()
+			.bodyText()
+			.contains("Backend engineer", "name=\"show\" value=\"interview\" checked=\"checked\"")
+			.doesNotContain("Platform engineer", "name=\"show\" value=\"follow-up\" checked");
+		// The session keeps the choice, e.g. for the next month, or the reload after a change in the side panel
+		assertThat(this.mvc.get().uri("/calendar").param("view", "week").session(session)).bodyText()
+			.contains("Backend engineer")
+			.doesNotContain("Platform engineer");
+		// Every type unticked: nothing at all
+		assertThat(this.mvc.get().uri("/calendar").param("show", "").session(session)).bodyText()
+			.doesNotContain("Backend engineer", "Platform engineer");
+	}
+
+	@Test
+	void offersTheRemindersOfWhatsComingUp() {
+		LocalDate today = LocalDate.now();
+		given(this.applications.findCalendar(eq(1L), any(), any())).willReturn(List.of(
+				CalendarEntry.builder()
+					.date(today.plusDays(1))
+					.time(LocalTime.of(14, 0))
+					.kind(CalendarEntryKind.EVENT)
+					.eventId(3L)
+					.applicationId(7)
+					.title("Backend engineer")
+					.status(ApplicationStatus.INTERVIEWING)
+					.reminders(Set.of(ReminderLead.HOUR_1))
+					.build(),
+				CalendarEntry.builder()
+					.date(today.plusDays(2))
+					.kind(CalendarEntryKind.DEADLINE)
+					.applicationId(8)
+					.title("Platform engineer")
+					.status(ApplicationStatus.SAVED)
+					.build()));
+
+		assertThat(this.mvc.get().uri("/calendar")).hasStatusOk()
+			.bodyText()
+			.contains("data-reminder-picker", "hx-post=\"/reminders\"", "name=\"event\" value=\"3\"",
+					"value=\"HOUR_1\" checked=\"checked\"", "1 hour before", "ph-alarm",
+					// Without a time of day: that morning, a day or a week before, never minutes
+					"That morning, 9:00")
+			.containsSubsequence("Platform engineer", "value=\"AT_TIME\"", "value=\"DAY_1\"", "value=\"WEEK_1\"")
+			.doesNotContainPattern("name=\"kind\" value=\"DEADLINE\"[\\s\\S]*value=\"MINUTES_15\"");
+	}
+
+	@Test
+	void offersTheCalendarToSubscribeToAndANewAddress() {
+		given(this.applications.findCalendar(eq(1L), any(), any())).willReturn(List.of());
+		given(this.feeds.renewToken(1)).willReturn("n3w");
+
+		assertThat(this.mvc.get().uri("/calendar")).hasStatusOk()
+			.bodyText()
+			.contains("Subscribe", "value=\"http://localhost/calendar/feed.ics?token=s3cret\"",
+					"href=\"webcal://localhost/calendar/feed.ics?token=s3cret\"",
+					"href=\"http://localhost/calendar/feed.ics?token=s3cret&amp;download=true\"");
+		assertThat(this.mvc.post().uri("/calendar/feed/renew").header("HX-Request", "true")).hasStatusOk()
+			.bodyText()
+			.contains("token=n3w")
+			.doesNotContain("token=s3cret");
 	}
 
 	@Test

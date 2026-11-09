@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<!--/* The CV page's GitHub card (CvController): the profile's account, its repositories to choose for the CV's projects,
+       and Claude writing them. The page loads it after the rest (loader), as it asks GitHub. githubAccount is the
+       account, or null; githubRepositories what GitHub lists for it; githubError why something couldn't be done;
+       projectsRequest Claude's latest writing of the projects, with projectsPrompt to paste while it waits. */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<section th:fragment="loader" class="card flex flex-col gap-2 p-4" th:hx-get="@{/cv/github}" hx-trigger="load"
+         hx-target="this" hx-swap="outerHTML">
+    <h2 class="flex items-center gap-1.5 font-semibold"><i class="ph ph-github-logo"></i><span>GitHub</span></h2>
+    <p class="text-xs text-ink/55" th:text="#{cv.github.loading}">Asking GitHub…</p>
+</section>
+
+<section id="github" th:fragment="card" class="card flex flex-col gap-3 p-4" aria-labelledby="github-title"
+         th:with="account=${githubAccount}, status=${projectsRequest != null} ? ${projectsRequest.status.name()},
+                  open=${projectsRequest != null and projectsRequest.status.isOpen()}"
+         th:hx-get="${open} ? @{/cv/github}" th:hx-trigger="${open} ? 'every 5s'" hx-target="this" hx-swap="outerHTML">
+    <div class="flex flex-wrap items-center gap-2">
+        <div class="min-w-0 flex-1">
+            <h2 id="github-title" class="flex items-center gap-1.5 font-semibold"><i class="ph ph-github-logo"></i><span>GitHub</span></h2>
+            <p class="text-xs text-pretty text-ink/60" th:text="#{cv.github.hint}">Choose the repositories Claude may read…</p>
+        </div>
+        <th:block th:if="${account}">
+            <a class="link text-[13px] font-medium" th:href="|https://github.com/${account.username}|" target="_blank"
+               rel="noopener noreferrer" th:text="|@${account.username}|">@CRV96</a>
+            <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button" th:hx-post="@{/cv/github/delete}"
+                    th:hx-confirm="#{cv.github.disconnectConfirm}" hx-target="#github" hx-swap="outerHTML"
+                    th:text="#{inbox.disconnect}">Disconnect</button>
+        </th:block>
+    </div>
+    <p class="text-[13px] text-pretty text-danger" role="alert" th:if="${githubError}" th:text="${githubError}">GitHub has no user CRV9.</p>
+
+    <!--/* Not connected: a user name for the public repositories, a token for private ones too */-->
+    <form class="flex flex-col gap-2" th:unless="${account}" th:hx-post="@{/cv/github}" hx-target="#github" hx-swap="outerHTML">
+        <div class="grid gap-2 sm:grid-cols-2">
+            <label class="flex flex-col gap-1">
+                <span class="text-xs text-ink/60" th:text="#{cv.github.username}">GitHub user name</span>
+                <input class="input" type="text" name="username" maxlength="39" autocomplete="off" spellcheck="false"
+                       th:value="${githubUsername}" placeholder="CRV96">
+            </label>
+            <label class="flex flex-col gap-1">
+                <span class="text-xs text-ink/60" th:text="#{cv.github.token}">Token, for private repositories</span>
+                <input class="input font-mono" type="password" name="token" maxlength="300" autocomplete="off" spellcheck="false"
+                       placeholder="github_pat_…">
+            </label>
+        </div>
+        <p class="text-xs text-pretty text-ink/55" th:text="#{cv.github.token.hint}">Optional: a fine-grained token…</p>
+        <button class="btn btn-secondary self-start" type="submit">
+            <i class="ph ph-plug"></i><span th:text="#{inbox.connect}">Connect</span>
+        </button>
+    </form>
+
+    <th:block th:if="${account}">
+        <p class="flex items-center gap-1.5 text-xs text-ink/60">
+            <i class="ph" th:classappend="${account.hasToken} ? 'ph-lock-key' : 'ph-globe-simple'"></i>
+            <span th:text="${account.hasToken} ? #{cv.github.withToken} : #{cv.github.public}">Public repositories only.</span>
+        </p>
+        <!--/* The repositories, the chosen ones ticked: Claude reads only those */-->
+        <form class="flex flex-col gap-2" th:hx-post="@{/cv/github/repositories}" hx-target="#github" hx-swap="outerHTML"
+              th:unless="${githubRepositories.isEmpty()}">
+            <p class="text-xs text-ink/60" th:text="#{cv.github.choose(${maxRepositories})}">Tick up to 12 for your CV:</p>
+            <ul class="flex max-h-80 flex-col divide-y divide-line overflow-y-auto rounded-lg border border-line">
+                <li th:each="repository : ${githubRepositories}">
+                    <label class="flex cursor-pointer items-start gap-2.5 px-3 py-2 hover:bg-ink/4">
+                        <input class="mt-1 accent-[var(--jw-accent)]" type="checkbox" name="repository" th:value="${repository.fullName}"
+                               th:checked="${account.repositories.contains(repository.fullName)}">
+                        <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+                            <span class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[13px]">
+                                <span class="truncate font-medium" th:text="${repository.name}">jobwarden</span>
+                                <i class="ph ph-lock-simple text-ink/50" th:if="${repository.isPrivate}" th:title="#{cv.github.private}"></i>
+                                <span class="tag" th:if="${repository.fork}" th:text="#{cv.github.fork}">Fork</span>
+                                <span class="text-xs text-ink/55" th:if="${repository.language}" th:text="${repository.language}">Java</span>
+                                <span class="text-xs text-ink/55 tabular-nums" th:if="${repository.stars > 0}" th:text="|★ ${repository.stars}|">★ 3</span>
+                            </span>
+                            <span class="line-clamp-2 text-xs text-pretty text-ink/60" th:if="${repository.description}"
+                                  th:text="${repository.description}">A self-hosted job tracker.</span>
+                        </span>
+                    </label>
+                </li>
+            </ul>
+            <button class="btn btn-secondary self-start" type="submit">
+                <i class="ph ph-check"></i><span th:text="#{cv.github.save}">Save the choice</span>
+            </button>
+        </form>
+        <p class="text-[13px] text-ink/60" th:if="${githubRepositories.isEmpty() and githubError == null}"
+           th:text="#{cv.github.none}">GitHub lists no repositories for this account.</p>
+
+        <!--/* Claude writing the CV's projects from the chosen ones */-->
+        <div class="flex flex-col gap-2 rounded-lg bg-ink/4 p-3">
+            <div class="flex flex-wrap items-center gap-2">
+                <i class="ph ph-sparkle text-lg text-accent"></i>
+                <p class="min-w-[200px] flex-1 text-[13px] text-pretty text-ink/75" th:unless="${open}"
+                   th:text="${account.repositories.isEmpty()} ? #{cv.github.write.first} : #{cv.github.write.hint(${#lists.size(account.repositories)})}">
+                    Claude writes your CV’s projects from the 3 repositories you chose…</p>
+                <th:block th:if="${open}">
+                    <span class="tag st-interviewing">
+                        <i class="ph ph-arrow-clockwise animate-spin" th:if="${status == 'WORKING'}"></i>
+                        <span th:text="#{|ai.status.${status}|}">Waiting for Claude</span>
+                    </span>
+                    <span class="flex-1"></span>
+                    <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button" th:hx-post="@{/cv/github/write/cancel}"
+                            hx-target="#github" hx-swap="outerHTML" th:text="#{ai.cancel}">Cancel</button>
+                </th:block>
+                <button class="btn btn-secondary" type="button" th:if="${!open and !account.repositories.isEmpty()}"
+                        th:hx-post="@{/cv/github/write}" hx-target="#github" hx-swap="outerHTML">
+                    <i class="ph ph-sparkle"></i><span th:text="#{ai.kind.WRITE_PROJECTS}">Write my CV’s projects from GitHub</span>
+                </button>
+            </div>
+            <th:block th:if="${status == 'WAITING'}">
+                <div class="text-xs text-ink/60" th:text="#{ai.prompt}">Paste this into Claude Code:</div>
+                <div class="flex items-start gap-2">
+                    <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${projectsPrompt.text}">Do JobWarden request 12…</code>
+                    <button th:replace="~{discover/discover :: copy-button(${projectsPrompt.text})}"></button>
+                </div>
+                <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
+                <div class="flex items-start gap-2">
+                    <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${projectsPrompt.command}">claude "Do JobWarden request 12…"</code>
+                    <button th:replace="~{discover/discover :: copy-button(${projectsPrompt.command})}"></button>
+                </div>
+            </th:block>
+            <p class="text-xs text-pretty text-ink/65" th:if="${status == 'DONE'}">
+                <span th:text="#{cv.github.write.done(${projectsRequest.summary} ?: '')}">Claude wrote 3 projects.</span>
+                <a class="link" th:href="@{/cv}" th:text="#{cv.github.write.show}">Show them</a>
+            </p>
+            <p class="text-xs text-pretty text-danger" role="alert" th:if="${status == 'FAILED'}"
+               th:text="#{cv.github.write.failed(${projectsRequest.summary} ?: '')}">Claude couldn’t write them: …</p>
+        </div>
+    </th:block>
+
+    <p class="flex items-start gap-1.5 border-t border-line pt-3 text-xs text-pretty text-ink/55">
+        <i class="ph ph-lock-simple mt-0.5"></i><span th:text="#{cv.github.privacy}">JobWarden only reads…</span>
+    </p>
+</section>
+
+</body>
+</html>

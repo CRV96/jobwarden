@@ -55,24 +55,18 @@ class McpController {
 
 	private static final Set<String> LOCAL_HOSTS = Set.of("localhost", "127.0.0.1", "[::1]", "::1");
 
+	/**
+	 * Sent once, as the session starts, so short: each request's own steps come with it (get_request). The second
+	 * paragraph saves the most tokens, in every request.
+	 */
 	private static final String INSTRUCTIONS = """
-			JobWarden keeps a job hunt: the jobs saved or applied to, each with a status and a timeline.
-			Checking postings: call check_postings, which fetches each posting's page. Move a job to POSITION_CLOSED \
-			only when the check is certainly CLOSED, or when you saw the posting gone yourself; open the UNKNOWN ones \
-			yourself if you can. close_when_gone does it for the Saved and Applied jobs in one call.
-			Finding jobs: list_saved_searches gives the profile's searches with queries ready to run; run them with \
-			your web search, open the results, and add the real, open postings with add_found_jobs, each with a note \
-			on why it fits. They wait on the AI Assistant page, where the profile saves, applies to or discards them; \
-			list_found_jobs shows what was decided, to learn what the profile likes. get_cv gives the profile's CV, and \
-			save_tailored_cv keeps it rewritten for one job.
-			Who's hiring: recruiters' posts saying they're hiring, and the recruiters. list_recruiters gives the people \
-			the profile knows, those it follows first; add_recruiters adds those you find, add_hiring_posts their posts, \
-			list_hiring_posts the posts it has.
-			Auto-apply: list_apply_queue gives the jobs to apply to in the profile's browser, get_application_answers \
-			what to fill forms in with; start_apply and report_apply_result follow each job.
-			Requests: the profile asks for these from the AI Assistant page, a job's page, the Who's hiring page and the \
-			Auto-apply page, and the prompt names one. list_requests gives those waiting; get_request gives one's step-by-step \
-			instructions, and finish_request ends it with a summary the page shows.""";
+			JobWarden keeps a job hunt: the jobs saved or applied to, each with a status and a timeline. The profile asks \
+			for work from its pages, as requests: list_requests gives those waiting, get_request one's steps with what \
+			it needs, and finish_request ends it with a summary the page shows.
+			Spare the context: links the profile already has are skipped when you add jobs, posts or recruiters, so \
+			never list them first. Pass search results' links to filter_links and open only the new ones that look \
+			right from their title and snippet. Read a page with WebFetch and a short question rather than whole; \
+			check_postings with urls tells open postings from closed ones, many at once, without opening them.""";
 
 	private final Map<String, McpTool> tools;
 
@@ -86,10 +80,10 @@ class McpController {
 			.collect(Collectors.toMap(McpTool::name, Function.identity(), (a, b) -> {
 				throw new IllegalStateException("Two tools named " + a.name());
 			}, LinkedHashMap::new));
-		// Results in snake_case like the arguments, without the empty fields
+		// Results in snake_case like the arguments, without the empty fields: Claude reads every character
 		this.json = json.rebuild()
 			.propertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
-			.changeDefaultPropertyInclusion(inclusion -> inclusion.withValueInclusion(JsonInclude.Include.NON_NULL))
+			.changeDefaultPropertyInclusion(inclusion -> inclusion.withValueInclusion(JsonInclude.Include.NON_EMPTY))
 			.build();
 		this.version = version;
 	}
@@ -177,20 +171,20 @@ class McpController {
 		JsonNode arguments = params.path("arguments");
 		ToolCall call = new ToolCall(arguments.isObject() ? arguments : JsonNodeFactory.instance.objectNode(), profile);
 		try {
-			JsonNode structured = this.json.valueToTree(tool.handler().call(call));
-			return result(id, toolResult(this.json.writeValueAsString(structured), structured, false));
+			return result(id, toolResult(this.json.writeValueAsString(tool.handler().call(call)), false));
 		} catch (ToolException | JobWardenException | IllegalArgumentException refused) {
 			log.debug("MCP tool {} refused: {}", name, refused.getMessage());
-			return result(id, toolResult(refused.getMessage(), null, true));
+			return result(id, toolResult(refused.getMessage(), true));
 		}
 	}
 
-	private static ObjectNode toolResult(String text, @Nullable JsonNode structured, boolean isError) {
+	/**
+	 * The result as JSON text, once: the tools declare no output schema, and the same result again as
+	 * structuredContent would only take up Claude's context a second time.
+	 */
+	private static ObjectNode toolResult(String text, boolean isError) {
 		ObjectNode result = JsonNodeFactory.instance.objectNode();
 		result.putArray("content").addObject().put("type", "text").put("text", text);
-		if (structured != null && structured.isObject()) {
-			result.set("structuredContent", structured);
-		}
 		return result.put("isError", isError);
 	}
 

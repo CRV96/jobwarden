@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<!--/* The uploaded CV file, as the CV page shows it beside the form (CvController.previewFile): a Word document as the
+       HTML the cv module made of it (cvFilePreview.html: its paragraphs, headings, lists, tables and links, every text
+       escaped, so th:utext shows it as it is), or a text file's text. A PDF never comes here: the browser shows it. On
+       a page like the built CV's, without its layout: the file's own fonts and images aren't in it. */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}" th:with="file=${cvFilePreview}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${file.fileName}">CV.docx</title>
+    <style>
+        @font-face { font-family: 'Noto Sans'; src: url('/fonts/NotoSans-Regular.ttf'); font-weight: 400; font-style: normal; }
+        @font-face { font-family: 'Noto Sans'; src: url('/fonts/NotoSans-Bold.ttf'); font-weight: 700; font-style: normal; }
+        @font-face { font-family: 'Noto Sans'; src: url('/fonts/NotoSans-Italic.ttf'); font-weight: 400; font-style: italic; }
+        html { background: #e9e9ec; }
+        body { box-sizing: border-box; width: 210mm; min-height: 297mm; margin: 24px auto; padding: 16mm; background: #fff;
+               box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08);
+               color: #1d1d1f; font-family: 'Noto Sans', sans-serif; font-size: 10pt; line-height: 1.45; }
+        @media (max-width: 860px) { body { width: auto; min-height: 0; margin: 0; padding: 24px; box-shadow: none; } }
+        h1 { margin: 0 0 6pt; font-size: 20pt; line-height: 1.15; }
+        h2 { margin: 14pt 0 5pt; padding-bottom: 2pt; border-bottom: 0.75pt solid #d0d0d6; color: #0058b8; font-size: 11pt; }
+        h3 { margin: 10pt 0 3pt; font-size: 10.5pt; }
+        h4 { margin: 8pt 0 2pt; font-size: 10pt; }
+        p { margin: 0 0 5pt; }
+        ul { margin: 0 0 6pt; padding-left: 16pt; }
+        li { margin-bottom: 2pt; }
+        table { width: 100%; margin: 0 0 6pt; border-collapse: collapse; }
+        td { padding: 2pt 8pt 2pt 0; vertical-align: top; }
+        a { color: #0058b8; }
+        .center { text-align: center; }
+        .right { text-align: right; }
+        .text { margin: 0; font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
+        .note { margin: 0 0 12pt; padding: 6pt 9pt; border-radius: 4pt; background: #f1f1f4; color: #666; font-size: 8.5pt; }
+    </style>
+</head>
+<body>
+<p class="note" th:if="${file.html}" th:text="#{cv.file.preview.word}">A preview of the text: the document’s own fonts, layout and images aren’t in it.</p>
+<th:block th:if="${file.html}" th:utext="${file.html}"></th:block>
+<pre class="text" th:if="${file.text}" th:text="${file.text}">The CV’s text.</pre>
+<p class="note" th:if="${file.html == null and file.text == null}" th:text="#{cv.file.preview.none}">This file can’t be shown here: download it to see it.</p>
+</body>
+</html>

@@ -206,6 +206,18 @@
   "showOnIconHint": {
     "message": "★ guardada, ✓ enviada. O Chrome pede autorização para o JobWarden ver os endereços dos separadores; cada página aberta é então consultada no seu servidor."
   },
+  "showReminders": {
+    "message": "Mostrar os meus lembretes como notificações"
+  },
+  "showRemindersHint": {
+    "message": "Os lembretes que define no calendário do JobWarden chegam como notificações do sistema enquanto o navegador está aberto, mesmo sem nenhuma página do JobWarden aberta. O navegador pede autorização para o JobWarden mostrar notificações."
+  },
+  "reloadExtension": {
+    "message": "Primeiro é preciso recarregar a extensão: foi carregada antes de esta opção existir. Abra chrome://extensions (no Firefox, about:debugging), clique no botão de recarregar do JobWarden e tente de novo."
+  },
+  "permissionError": {
+    "message": "Não foi possível alterar: $1"
+  },
   "updateAvailable": {
     "message": "Já saiu o JobWarden $1: obtenha o código mais recente"
   },

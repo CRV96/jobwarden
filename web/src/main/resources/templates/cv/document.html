@@ -81,6 +81,19 @@
         </div>
     </th:block>
 
+    <!--/* Personal projects: only an http(s) link becomes a link */-->
+    <th:block th:unless="${cv.projects.isEmpty()}">
+        <h2 th:text="#{cv.doc.projects}">Projects</h2>
+        <div class="entry" th:each="project : ${cv.projects}"
+             th:with="isLink=${project.link != null and (#strings.startsWith(project.link, 'https://') or #strings.startsWith(project.link, 'http://'))}">
+            <span class="what" th:text="${project.name}">JobWarden</span><span class="where" th:if="${project.technologies}"
+                  th:text="| · ${project.technologies}|"> · Java, Spring Boot, PostgreSQL</span>
+            <div class="muted" th:if="${isLink}"><a th:href="${project.link}"
+                 th:text="${#strings.replace(#strings.replace(project.link, 'https://', ''), 'http://', '')}">github.com/CRV96/jobwarden</a></div>
+            <div class="description" th:if="${project.description}" th:text="${project.description}">A self-hosted job tracker…</div>
+        </div>
+    </th:block>
+
     <th:block th:unless="${cv.education.isEmpty()}">
         <h2 th:text="#{cv.doc.education}">Education</h2>
         <div class="entry" th:each="school : ${cv.education}">

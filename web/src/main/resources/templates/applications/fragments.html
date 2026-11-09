@@ -51,23 +51,107 @@
     <span class="min-w-0 truncate" th:text="${source} ?: #{source.manual}">linkedin.com</span>
 </th:block>
 
-<dl th:fragment="facts" class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[13px]">
-    <dt class="text-ink/55" th:text="#{jobs.column.location}">Location</dt>
-    <dd th:text="${jobApplication.location} ?: '—'">Remote</dd>
-    <dt class="text-ink/55" th:text="#{jobs.column.salary}">Salary</dt>
-    <dd th:text="${jobApplication.salary} ?: '—'">€5,000 a month</dd>
-    <th:block th:if="${jobApplication.employmentType}">
-        <dt class="text-ink/55" th:text="#{newApplication.employmentType}">Employment type</dt>
-        <dd th:text="${jobApplication.employmentType}">Full-time</dd>
-    </th:block>
-    <dt class="text-ink/55" th:text="#{jobs.column.source}">Source</dt>
-    <dd class="flex min-w-0 items-center gap-1.5">
-        <th:block th:replace="~{applications/fragments :: source-icon(${jobApplication.source})}"></th:block>
-        <span class="min-w-0 truncate" th:text="${jobApplication.source} ?: #{source.addedByHand}">linkedin.com</span>
-    </dd>
-    <dt class="text-ink/55" th:text="#{jobs.column.added}">Added</dt>
-    <dd th:text="${@dates.relativeDay(jobApplication.capturedAt)}" th:title="${@dates.date(jobApplication.capturedAt)}">Today</dd>
-</dl>
+<!--/* The job's facts. The location and the salary change from here (POST /applications/{id}/details): a pencil next
+       to either opens the form under them, which has the salary as amounts. salaryRange is what the salary's text reads
+       as, or null; text that reads as none stays until amounts replace it. When what was typed is wrong, the form comes
+       back open, with it and why (detailsForm, detailsError). */-->
+<div th:fragment="facts" class="flex flex-col gap-3"
+     th:with="formId=|details-${jobApplication.id}|, open=${detailsError != null}">
+    <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[13px]">
+        <dt class="text-ink/55" th:text="#{jobs.column.location}">Location</dt>
+        <dd class="flex min-w-0 items-start gap-1">
+            <span class="min-w-0 flex-1" th:text="${jobApplication.location} ?: '—'">Remote</span>
+            <button th:replace="~{applications/fragments :: details-button(${formId}, 'location', #{details.location.change})}"></button>
+        </dd>
+        <dt class="text-ink/55" th:text="#{jobs.column.salary}">Salary</dt>
+        <dd class="flex min-w-0 items-start gap-1">
+            <span class="min-w-0 flex-1" th:text="${jobApplication.salary} ?: '—'">€5,000 a month</span>
+            <button th:replace="~{applications/fragments :: details-button(${formId}, 'salaryFrom', #{details.salary.change})}"></button>
+        </dd>
+        <th:block th:if="${jobApplication.employmentType}">
+            <dt class="text-ink/55" th:text="#{newApplication.employmentType}">Employment type</dt>
+            <dd th:text="${jobApplication.employmentType}">Full-time</dd>
+        </th:block>
+        <dt class="text-ink/55" th:text="#{jobs.column.source}">Source</dt>
+        <dd class="flex min-w-0 items-center gap-1.5">
+            <th:block th:replace="~{applications/fragments :: source-icon(${jobApplication.source})}"></th:block>
+            <span class="min-w-0 truncate" th:text="${jobApplication.source} ?: #{source.addedByHand}">linkedin.com</span>
+        </dd>
+        <dt class="text-ink/55" th:text="#{jobs.column.added}">Added</dt>
+        <dd th:text="${@dates.relativeDay(jobApplication.capturedAt)}" th:title="${@dates.date(jobApplication.capturedAt)}">Today</dd>
+    </dl>
+
+    <form class="flex flex-col gap-3 rounded-md p-3 shadow-sm" th:id="${formId}" th:hidden="${!open}"
+          th:hx-post="@{/applications/{id}/details(id=${jobApplication.id})}"
+          th:with="form=${detailsForm}, range=${salaryRange},
+                   currency=${form != null} ? ${form.currency} : (${range != null} ? ${range.currency} : 'EUR'),
+                   period=${form != null} ? ${form.period} : (${range != null} ? ${range.period} : null),
+                   basis=${form != null} ? ${form.basis} : (${range != null} ? ${range.basis} : null)">
+        <label class="flex flex-col">
+            <span class="field-label" th:text="#{jobs.column.location}">Location</span>
+            <input class="input" type="text" name="location" maxlength="200" autocomplete="off"
+                   th:value="${form != null} ? ${form.location} : ${jobApplication.location}"
+                   th:placeholder="#{newApplication.location.placeholder}">
+        </label>
+        <fieldset class="flex min-w-0 flex-col gap-2">
+            <legend class="field-label" th:text="#{jobs.column.salary}">Salary</legend>
+            <div class="grid grid-cols-2 gap-2">
+                <label class="flex min-w-0 flex-col gap-1">
+                    <span class="text-xs text-ink/60" th:text="#{details.salary.from}">From</span>
+                    <input class="input" type="number" name="salaryFrom" min="0.01" step="any" inputmode="decimal"
+                           th:value="${form != null} ? ${form.salaryFrom} : (${range != null} ? ${range.low.toPlainString()} : '')">
+                </label>
+                <label class="flex min-w-0 flex-col gap-1">
+                    <span class="text-xs text-ink/60" th:text="#{details.salary.to}">To</span>
+                    <input class="input" type="number" name="salaryTo" min="0.01" step="any" inputmode="decimal"
+                           th:placeholder="#{details.salary.to.placeholder}"
+                           th:value="${form != null} ? ${form.salaryTo} : (${range != null and !range.isSingleAmount()} ? ${range.high.toPlainString()} : '')">
+                </label>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <label class="flex min-w-[96px] flex-[1_1_96px] flex-col gap-1">
+                    <span class="text-xs text-ink/60" th:text="#{details.salary.currency}">Currency</span>
+                    <select class="input" name="currency">
+                        <option th:each="code : ${salaryCurrencies}" th:value="${code}" th:selected="${code == currency}"
+                                th:text="${code}">EUR</option>
+                    </select>
+                </label>
+                <label class="flex min-w-[120px] flex-[1_1_120px] flex-col gap-1">
+                    <span class="text-xs text-ink/60" th:text="#{details.salary.period}">Paid per</span>
+                    <select class="input" name="period">
+                        <option value="" th:selected="${period == null}" th:text="#{details.salary.period.none}">Not said</option>
+                        <option th:each="choice : ${payPeriods}" th:value="${choice}" th:selected="${choice == period}"
+                                th:text="#{|details.salary.period.${choice}|}">Month</option>
+                    </select>
+                </label>
+                <label class="flex min-w-[120px] flex-[1_1_120px] flex-col gap-1">
+                    <span class="text-xs text-ink/60" th:text="#{details.salary.basis}">Tax</span>
+                    <select class="input" name="basis">
+                        <option value="" th:selected="${basis == null}" th:text="#{details.salary.basis.none}">Not said</option>
+                        <option th:each="choice : ${payBases}" th:value="${choice}" th:selected="${choice == basis}"
+                                th:text="#{|details.salary.basis.${choice}|}">Before tax</option>
+                    </select>
+                </label>
+            </div>
+            <p class="text-xs text-pretty text-ink/55" th:if="${jobApplication.salary != null and range == null}"
+               th:text="#{details.salary.unreadable(${jobApplication.salary})}">The posting says “Competitive”…</p>
+            <p class="text-xs text-pretty text-ink/55" th:if="${range != null}" th:text="#{details.salary.clear}">
+                Empty the amounts to remove the salary.</p>
+        </fieldset>
+        <p class="text-[13px] text-danger" role="alert" th:if="${detailsError}" th:text="${detailsError}">Pick the salary’s currency.</p>
+        <div class="flex gap-2">
+            <button class="btn btn-primary" type="submit"><i class="ph ph-check"></i><span th:text="#{details.save}">Save</span></button>
+            <button class="btn btn-ghost" type="reset" th:data-toggle-hidden="${formId}" th:text="#{action.cancel}">Cancel</button>
+        </div>
+    </form>
+</div>
+
+<!--/* Opens the facts' form and puts the cursor in one of its fields (app.js: data-toggle-hidden with data-focus). */-->
+<button th:fragment="details-button(formId, field, label)" class="btn btn-ghost -my-0.5 flex-none px-1 py-0.5 text-ink/45"
+        type="button" th:data-toggle-hidden="${formId}" th:data-focus="|[name=${field}]|" th:aria-controls="${formId}"
+        th:title="${label}" th:aria-label="${label}">
+    <i class="ph ph-pencil-simple text-xs"></i>
+</button>
 
 <!--/* Shares the posting (see Sharing): the browser's own share sheet where it has one (app.js shows it), the link, a
        summary to paste, or an email or a post. where tells the page's menu from the side panel's, which can both be on
@@ -139,9 +223,9 @@
 </div>
 
 <!--/* A long description starts folded to 12 lines, with a button to show the rest. */-->
-<section th:fragment="description" class="flex flex-col gap-2"
+<section th:fragment="description" class="flex flex-col gap-2" data-collapse="description"
          th:with="long=${#strings.length(jobApplication.description) > 500}">
-    <h2 class="text-xs text-ink/60" th:text="#{application.description}">Description</h2>
+    <h2 class="flex items-center gap-2 text-xs text-ink/60"><span th:text="#{application.description}">Description</span></h2>
     <p class="text-[13px] leading-relaxed whitespace-pre-line text-pretty text-ink/85" th:classappend="${long} ? 'line-clamp-12'"
        th:text="${jobApplication.description}">The posting’s text.</p>
     <button th:if="${long}" class="btn btn-ghost self-start" type="button" data-expand
@@ -152,9 +236,9 @@
 <!--/* The events, oldest first, and the form that adds one. Dates and times use the language's format.date and
        format.dateTime patterns; an event without a time shows only its date. The timeline keeps at least one event,
        so the only one has no remove button. */-->
-<section th:fragment="timeline" class="flex flex-col gap-3"
+<section th:fragment="timeline" class="flex flex-col gap-3" data-collapse="timeline"
          th:with="removable=${#lists.size(jobApplication.timeline) > 1}">
-    <h2 class="text-base font-bold tracking-[-0.02em]" th:text="#{application.timeline}">Timeline</h2>
+    <h2 class="flex items-center gap-2 text-base font-bold tracking-[-0.02em]"><span th:text="#{application.timeline}">Timeline</span></h2>
     <p class="text-[13px] text-danger" role="alert" th:if="${eventError}" th:text="${eventError}">Pick a date.</p>
 
     <ol class="timeline">
@@ -241,9 +325,11 @@
 </section>
 
 <!--/* Saved as it's typed, a moment after the last key; notes-saved below then says so. */-->
-<div th:fragment="notes" class="flex flex-col">
-    <div class="flex items-baseline justify-between gap-2">
-        <label class="field-label" th:for="|notes-${jobApplication.id}|" th:text="#{application.notes}">Notes</label>
+<div th:fragment="notes" class="flex flex-col gap-2" data-collapse="notes">
+    <div class="flex items-center gap-2">
+        <label class="section-title flex flex-1 items-center gap-1.5" th:for="|notes-${jobApplication.id}|">
+            <i class="ph ph-note-pencil"></i><span th:text="#{application.notes}">Notes</span>
+        </label>
         <span class="notes-status text-[11px] text-ink/50" aria-live="polite"></span>
     </div>
     <textarea class="input" th:id="|notes-${jobApplication.id}|" name="notes" th:placeholder="#{application.notes.placeholder}"
@@ -280,11 +366,13 @@
 
 <!--/* Who to follow up with about the application, and when: saved as it's changed, like the notes. Its quick links
        are what was saved when the card was shown; only an http(s) profile link shows as a link. */-->
-<form th:fragment="follow-up" class="flex flex-col gap-2" th:with="followUp=${jobApplication.followUp}"
+<form th:fragment="follow-up" class="flex flex-col gap-2" data-collapse="follow-up" th:with="followUp=${jobApplication.followUp}"
       th:hx-put="@{/applications/{id}/follow-up(id=${jobApplication.id})}" hx-trigger="change"
       hx-target="find .follow-up-status" hx-swap="innerHTML">
-    <div class="flex items-baseline justify-between gap-2">
-        <h3 class="field-label mb-0" th:text="#{application.followUp}">Contact &amp; follow-up</h3>
+    <div class="flex items-center gap-2">
+        <h2 class="section-title flex flex-1 items-center gap-1.5">
+            <i class="ph ph-address-book"></i><span th:text="#{application.followUp}">Contact &amp; follow-up</span>
+        </h2>
         <span class="follow-up-status text-[11px] text-ink/50" aria-live="polite"></span>
     </div>
     <div class="grid grid-cols-2 gap-1.5">

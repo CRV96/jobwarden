@@ -16,6 +16,7 @@ import com.jobwarden.jobs.dto.JobContact;
 import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
 import com.jobwarden.jobs.dto.PngImage;
+import com.jobwarden.jobs.dto.TidyResult;
 import com.jobwarden.jobs.dto.TrackedApplication;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import org.jspecify.annotations.Nullable;
@@ -128,6 +129,11 @@ public interface ApplicationService {
 	void updateSalary(long userId, long applicationId, @Nullable String salary);
 
 	/**
+	 * @param location where the job is, e.g. "Bucharest, hybrid"; {@code null} to clear it
+	 */
+	void updateLocation(long userId, long applicationId, @Nullable String location);
+
+	/**
 	 * @param followUp who to follow up with and when, replacing what was known; {@link FollowUp#NONE} to clear it
 	 */
 	void updateFollowUp(long userId, long applicationId, FollowUp followUp);
@@ -137,6 +143,16 @@ public interface ApplicationService {
 	 * first
 	 */
 	List<JobContact> findContacts(long userId);
+
+	/**
+	 * Tidies up the applications that got no answer: one at Applied whose timeline has had nothing for that many days
+	 * moves to No response; a newer one without a day to follow up gets one, that many days after its latest event, or
+	 * tomorrow when that's past.
+	 *
+	 * @param note for the timeline of those moved to No response, e.g. that the company never answered; none if
+	 * {@code null}
+	 */
+	TidyResult tidyUnanswered(long userId, int noResponseAfterDays, int followUpAfterDays, @Nullable String note);
 
 	/**
 	 * Takes back "I applied", for an application that got no further: it goes back to

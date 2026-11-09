@@ -3,9 +3,11 @@ package com.jobwarden.discover.service.impl;
 import java.net.URI;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -138,6 +140,20 @@ class DefaultDiscoveryService implements DiscoveryService {
 
 	@Override
 	@Transactional(readOnly = true)
+	public Set<String> findKnownLinks(long userId, Collection<String> links) {
+		Set<String> known = new LinkedHashSet<>();
+		for (String link : links) {
+			String tidy = tidyLink(link);
+			if (tidy != null && (this.foundJobs.existsByUserIdAndLink(userId, tidy)
+					|| this.applications.findByLink(userId, tidy).isPresent())) {
+				known.add(link);
+			}
+		}
+		return known;
+	}
+
+	@Override
+	@Transactional(readOnly = true)
 	public Optional<FoundJob> nextToReview(long userId, @Nullable Long searchId) {
 		Optional<FoundJobEntity> next = (searchId == null)
 				? this.foundJobs.findFirstByUserIdAndDecisionOrderByFoundAtAscIdAsc(userId, Decision.PENDING)
@@ -229,6 +245,13 @@ class DefaultDiscoveryService implements DiscoveryService {
 	@Transactional(readOnly = true)
 	public Optional<AiRequest> findLatestRequest(long userId, AiRequestKind kind, long applicationId) {
 		return this.requests.findFirstByUserIdAndKindAndApplicationIdOrderByCreatedAtDescIdDesc(userId, kind, applicationId)
+			.map(request -> toAiRequests(userId, List.of(request)).getFirst());
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<AiRequest> findLatestRequest(long userId, AiRequestKind kind) {
+		return this.requests.findFirstByUserIdAndKindOrderByCreatedAtDescIdDesc(userId, kind)
 			.map(request -> toAiRequests(userId, List.of(request)).getFirst());
 	}
 

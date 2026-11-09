@@ -80,6 +80,9 @@
                 </ul>
             </section>
 
+            <!--/* The GitHub account, whose chosen repositories Claude writes the CV's projects from: loaded after the rest */-->
+            <section th:replace="~{cv/github :: loader}"></section>
+
             <!--/* The fields the CV is built from */-->
             <form class="card flex flex-col gap-5 p-4" method="post" th:action="@{/cv}" aria-labelledby="build-title">
                 <div>
@@ -118,6 +121,18 @@
                     <template data-row-template="experience"><div th:replace="~{cv/cv :: experience-row('i', null)}"></div></template>
                     <button class="btn btn-secondary self-start" type="button" data-add-row="experience">
                         <i class="ph ph-plus"></i><span th:text="#{cv.experience.add}">Add a job</span>
+                    </button>
+                </fieldset>
+
+                <!--/* Projects: typed here, or written by Claude from the GitHub repositories chosen below */-->
+                <fieldset class="flex flex-col gap-2">
+                    <legend class="section-title mb-2" th:text="#{cv.projects}">Projects</legend>
+                    <div class="flex flex-col gap-2" data-rows="projects">
+                        <th:block th:each="project, iter : ${details.projects}"><div th:replace="~{cv/cv :: project-row(${iter.index}, ${project})}"></div></th:block>
+                    </div>
+                    <template data-row-template="projects"><div th:replace="~{cv/cv :: project-row('i', null)}"></div></template>
+                    <button class="btn btn-secondary self-start" type="button" data-add-row="projects">
+                        <i class="ph ph-plus"></i><span th:text="#{cv.projects.add}">Add a project</span>
                     </button>
                 </fieldset>
 
@@ -169,18 +184,46 @@
             </form>
         </div>
 
-        <!--/* The CV as saved, and its PDF */-->
-        <aside class="card flex min-h-0 min-w-0 flex-col gap-3 p-4" aria-labelledby="preview-title">
+        <!--/* The CV built from the saved fields, with its PDF; and the uploaded file, as the browser shows a PDF, or as
+               HTML (CvController.previewFile). One at a time: app.js switches the frame and the buttons
+               (data-preview-tab, data-preview-for). The file first when the fields are empty. */-->
+        <aside class="card flex min-h-0 min-w-0 flex-col gap-3 p-4" aria-labelledby="preview-title"
+               th:with="fileFirst=${cv.file != null and !cv.details.isFilledIn()}">
             <div class="flex flex-wrap items-center gap-2">
-                <h2 id="preview-title" class="flex-1 font-semibold" th:text="#{cv.preview}">Preview</h2>
-                <a class="btn btn-secondary" th:href="@{/cv/preview}" target="_blank" rel="noopener">
-                    <i class="ph ph-arrow-square-out"></i><span th:text="#{cv.preview.open}">Open</span>
-                </a>
-                <a class="btn btn-primary" th:href="@{/cv/pdf}">
-                    <i class="ph ph-file-pdf"></i><span th:text="#{cv.pdf}">Download PDF</span>
-                </a>
+                <h2 id="preview-title" class="font-semibold" th:text="#{cv.preview}">Preview</h2>
+                <div class="seg" role="radiogroup" th:aria-label="#{cv.preview}" th:if="${cv.file}">
+                    <label class="seg-opt">
+                        <input type="radio" name="cv-preview" value="built" data-preview-tab th:checked="${!fileFirst}">
+                        <i class="ph ph-magic-wand"></i><span th:text="#{cv.preview.built}">Built from the fields</span>
+                    </label>
+                    <label class="seg-opt">
+                        <input type="radio" name="cv-preview" value="file" data-preview-tab th:checked="${fileFirst}">
+                        <i class="ph ph-file"></i><span th:text="#{cv.preview.file}">Your file</span>
+                    </label>
+                </div>
+                <span class="flex-1"></span>
+                <span class="flex gap-2" data-preview-for="built" th:hidden="${fileFirst}">
+                    <a class="btn btn-secondary" th:href="@{/cv/preview}" target="_blank" rel="noopener">
+                        <i class="ph ph-arrow-square-out"></i><span th:text="#{cv.preview.open}">Open</span>
+                    </a>
+                    <a class="btn btn-primary" th:href="@{/cv/pdf}">
+                        <i class="ph ph-file-pdf"></i><span th:text="#{cv.pdf}">Download PDF</span>
+                    </a>
+                </span>
+                <span class="flex gap-2" data-preview-for="file" th:if="${cv.file}" th:hidden="${!fileFirst}">
+                    <a class="btn btn-secondary" th:href="@{/cv/file/preview}" target="_blank" rel="noopener">
+                        <i class="ph ph-arrow-square-out"></i><span th:text="#{cv.preview.open}">Open</span>
+                    </a>
+                    <a class="btn btn-primary" th:href="@{/cv/file}">
+                        <i class="ph ph-download-simple"></i><span th:text="#{cv.file.download}">Download</span>
+                    </a>
+                </span>
             </div>
-            <iframe class="h-[78vh] w-full rounded-md border border-line bg-white xl:h-auto xl:min-h-0 xl:flex-1" th:src="@{/cv/preview}" th:title="#{cv.preview}"></iframe>
+            <iframe class="h-[78vh] w-full rounded-md border border-line bg-white xl:h-auto xl:min-h-0 xl:flex-1" data-preview-for="built"
+                    th:src="@{/cv/preview}" th:title="#{cv.preview.built}" th:hidden="${fileFirst}"></iframe>
+            <iframe class="h-[78vh] w-full rounded-md border border-line bg-white xl:h-auto xl:min-h-0 xl:flex-1" data-preview-for="file"
+                    th:if="${cv.file}" th:src="@{/cv/file/preview}" th:title="${cv.file.fileName}" th:hidden="${!fileFirst}"
+                    loading="lazy"></iframe>
         </aside>
     </div>
 </main>
@@ -208,6 +251,20 @@
     </div>
     <textarea class="input sm:col-span-2" rows="3" maxlength="5000" th:name="|experience[${index}].description|"
               th:placeholder="#{cv.experience.description}" th:aria-label="#{cv.experience.description}" th:text="${job?.description}"></textarea>
+    <button class="btn btn-ghost justify-self-start px-1.5 py-1 text-xs" type="button" data-remove-row>
+        <i class="ph ph-trash"></i><span th:text="#{cv.remove}">Remove</span>
+    </button>
+</div>
+
+<div th:fragment="project-row(index, project)" class="grid gap-2 rounded-lg border border-line p-3 sm:grid-cols-2" data-row>
+    <input class="input" type="text" th:name="|projects[${index}].name|" th:value="${project?.name}" maxlength="200"
+           th:placeholder="#{cv.projects.name}" th:aria-label="#{cv.projects.name}">
+    <input class="input" type="url" th:name="|projects[${index}].link|" th:value="${project?.link}" maxlength="200"
+           placeholder="https://github.com/…" th:aria-label="#{cv.projects.link}">
+    <input class="input sm:col-span-2" type="text" th:name="|projects[${index}].technologies|" th:value="${project?.technologies}"
+           maxlength="200" th:placeholder="#{cv.projects.technologies}" th:aria-label="#{cv.projects.technologies}">
+    <textarea class="input sm:col-span-2" rows="3" maxlength="5000" th:name="|projects[${index}].description|"
+              th:placeholder="#{cv.projects.description}" th:aria-label="#{cv.projects.description}" th:text="${project?.description}"></textarea>
     <button class="btn btn-ghost justify-self-start px-1.5 py-1 text-xs" type="button" data-remove-row>
         <i class="ph ph-trash"></i><span th:text="#{cv.remove}">Remove</span>
     </button>

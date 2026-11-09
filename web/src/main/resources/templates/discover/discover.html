@@ -29,11 +29,11 @@
                 </div>
                 <form class="flex flex-col gap-3" th:hx-post="@{/discover/requests}" hx-target="#ai-requests" hx-swap="outerHTML">
                     <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2">
-                        <button class="ai-preset" type="submit" name="kind" th:each="preset : ${ {'FIND_JOBS_FOR_CV', 'FIND_JOBS', 'RUN_SAVED_SEARCHES', 'CHECK_POSTINGS', 'FOLLOW_UP'} }"
-                                th:value="${preset}" th:disabled="${preset == 'FIND_JOBS_FOR_CV' and !hasCv} ? 'disabled'"
-                                th:title="${preset == 'FIND_JOBS_FOR_CV' and !hasCv} ? #{ai.noCv}">
+                        <button class="ai-preset" type="submit" name="kind" th:each="preset : ${ {'FIND_JOBS_FOR_CV', 'FIND_JOBS', 'RUN_SAVED_SEARCHES', 'SCORE_JOBS', 'CHECK_POSTINGS', 'FOLLOW_UP'} }"
+                                th:value="${preset}" th:disabled="${(preset == 'FIND_JOBS_FOR_CV' or preset == 'SCORE_JOBS') and !hasCv} ? 'disabled'"
+                                th:title="${(preset == 'FIND_JOBS_FOR_CV' or preset == 'SCORE_JOBS') and !hasCv} ? #{ai.noCv}">
                             <i class="ph text-[20px] text-accent"
-                               th:classappend="${preset == 'FIND_JOBS_FOR_CV'} ? 'ph-identification-card' : (${preset == 'FIND_JOBS'} ? 'ph-magnifying-glass' : (${preset == 'RUN_SAVED_SEARCHES'} ? 'ph-list-magnifying-glass' : (${preset == 'CHECK_POSTINGS'} ? 'ph-check-square-offset' : 'ph-broom')))"></i>
+                               th:classappend="${preset == 'FIND_JOBS_FOR_CV'} ? 'ph-identification-card' : (${preset == 'FIND_JOBS'} ? 'ph-magnifying-glass' : (${preset == 'RUN_SAVED_SEARCHES'} ? 'ph-list-magnifying-glass' : (${preset == 'SCORE_JOBS'} ? 'ph-gauge' : (${preset == 'CHECK_POSTINGS'} ? 'ph-check-square-offset' : 'ph-broom'))))"></i>
                             <span class="min-w-0">
                                 <span class="block font-medium" th:text="#{|ai.kind.${preset}|}">Find jobs matching my CV</span>
                                 <span class="block text-xs text-ink/60" th:text="#{|ai.kind.${preset}.hint|}">Claude reads your CV…</span>

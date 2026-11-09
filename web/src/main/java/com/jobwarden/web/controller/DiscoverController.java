@@ -1,6 +1,7 @@
 package com.jobwarden.web.controller;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -9,9 +10,12 @@ import com.jobwarden.cv.service.CvService;
 import com.jobwarden.discover.dto.AiRequest;
 import com.jobwarden.discover.dto.SavedSearch;
 import com.jobwarden.discover.dto.SearchCount;
+import com.jobwarden.discover.enums.AiRequestKind;
 import com.jobwarden.discover.enums.AiRequestStatus;
 import com.jobwarden.discover.enums.Decision;
 import com.jobwarden.discover.service.DiscoveryService;
+import com.jobwarden.jobs.dto.TidyResult;
+import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.web.constants.AppConstants.ControllerConstants;
 import com.jobwarden.web.constants.AppConstants.HtmxEvents;
 import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
@@ -28,6 +32,9 @@ import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -38,6 +45,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /**
  * The AI Assistant page: what the profile asks Claude to do (its presets, as requests Claude picks up through the MCP
@@ -58,9 +66,29 @@ class DiscoverController extends BaseController {
 
 	private static final int REQUESTS_WITH_JOBS = 3;
 
+	/**
+	 * Tidying up: after how many days with no news an application at Applied moves to No response, and how long after
+	 * applying to follow up on a newer one. The same as the MCP server's tidy_applications.
+	 */
+	static final int NO_RESPONSE_AFTER_DAYS = 30;
+
+	static final int FOLLOW_UP_AFTER_DAYS = 7;
+
 	private final DiscoveryService discovery;
 
 	private final CvService cvs;
+
+	private final ApplicationService applications;
+
+	private final MessageSource messages;
+
+	/** Where Claude's loop asks whether requests wait (ClaudeFilesController). */
+	private String requestsPath = "/claude/requests";
+
+	@Autowired
+	void setRequestsPath(@Value("${jobwarden.claude.requests-path:/claude/requests}") String requestsPath) {
+		this.requestsPath = requestsPath;
+	}
 
 	/**
 	 * @param search only the jobs found for this saved search
@@ -84,16 +112,30 @@ class DiscoverController extends BaseController {
 	 * the list of requests with its prompt.
 	 */
 	@PostMapping("/requests")
-	String ask(@Valid AiRequestForm form, BindingResult result, Model model) {
+	String ask(@Valid AiRequestForm form, BindingResult result, Model model, Locale locale) {
 		long userId = requireProfile(model).id();
 		if (result.hasErrors()) {
 			log.debug("Request to Claude not made, fields with errors: {}", fieldErrors(result).keySet());
 			model.addAttribute(ModelAttributes.AI_ERROR, errorMessage(result));
 		} else {
-			this.discovery.createRequest(userId, form.kind(), form.toRequirements());
+			AiRequest request = this.discovery.createRequest(userId, form.kind(), form.toRequirements());
+			if (request.kind() == AiRequestKind.FOLLOW_UP) {
+				tidyUp(userId, request, locale);
+			}
 		}
 		addRequests(model, userId);
 		return Views.DISCOVER_REQUESTS_FRAGMENT;
+	}
+
+	/**
+	 * Tidying up the applications with no answer needs no AI, so JobWarden does it at once, and Claude spends no tokens
+	 * on it: the request is done as it's made, with what it did as its summary.
+	 */
+	private void tidyUp(long userId, AiRequest request, Locale locale) {
+		TidyResult tidied = this.applications.tidyUnanswered(userId, NO_RESPONSE_AFTER_DAYS, FOLLOW_UP_AFTER_DAYS,
+				this.messages.getMessage("ai.followUp.note", null, locale));
+		this.discovery.finishRequest(userId, request.id(), true, this.messages.getMessage("ai.followUp.done",
+				new Object[] { tidied.movedToNoResponse().size(), tidied.followUpsSet().size(), tidied.waiting() }, locale));
 	}
 
 	/**
@@ -136,13 +178,16 @@ class DiscoverController extends BaseController {
 	}
 
 	/**
-	 * Called by HTMX from the search page, with its filters: keeps them under the name.
+	 * Called by HTMX from the search page, with its filters: keeps them under the name, in place of those it had. The
+	 * answer says so, and brings the page's menu of saved filters along.
 	 */
 	@PostMapping("/searches")
 	String saveSearch(@RequestParam MultiValueMap<String, String> parameters, @RequestParam String name, Model model) {
 		long userId = requireProfile(model).id();
 		SavedSearch saved = this.discovery.saveSearch(userId, name, SearchFilters.from(parameters).criteria());
 		model.addAttribute(ModelAttributes.SAVED_SEARCH, saved);
+		// The saved filters' menu shows it at once
+		SearchController.addSavedFilters(model, this.discovery, userId);
 		return Views.SEARCH_SAVED_FRAGMENT;
 	}
 
@@ -165,7 +210,8 @@ class DiscoverController extends BaseController {
 		model.addAttribute(ModelAttributes.AI_PROMPTS, requests.stream()
 			.filter(request -> request.status() == AiRequestStatus.WAITING)
 			.collect(Collectors.toMap(AiRequest::id, request -> ClaudePrompts.forRequest(request.id(), userId))));
-		model.addAttribute(ModelAttributes.AI_LOOP_PROMPT, ClaudePrompts.loop(userId));
+		model.addAttribute(ModelAttributes.AI_LOOP_PROMPT, ClaudePrompts.loop(userId,
+				ServletUriComponentsBuilder.fromCurrentContextPath().path(this.requestsPath).toUriString()));
 		model.addAttribute(ModelAttributes.AI_OPEN, requests.stream().anyMatch(request -> request.status().isOpen()));
 		model.addAttribute(ModelAttributes.TO_REVIEW_ALL, this.discovery.countToReview(userId, null));
 	}

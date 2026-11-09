@@ -8,6 +8,7 @@ import com.jobwarden.common.exception.JobWardenException;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.service.UserService;
+import com.jobwarden.inbox.service.InboxService;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.updates.service.UpdateService;
 import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
@@ -40,6 +41,8 @@ abstract class BaseController {
 	private MessageSource messages;
 
 	private @Nullable UpdateService updates;
+
+	private @Nullable InboxService inbox;
 
 	/**
 	 * Setters rather than a constructor, so subclasses keep their Lombok constructors: those can't pass arguments up
@@ -79,11 +82,19 @@ abstract class BaseController {
 	}
 
 	/**
+	 * Optional, like the updates: without it, the sidebar counts no emails waiting.
+	 */
+	@Autowired(required = false)
+	final void setInbox(InboxService inbox) {
+		this.inbox = inbox;
+	}
+
+	/**
 	 * Spring calls this before every handler method of a subclass, so every page has the selected profile (or
 	 * {@code null}) for the sidebar in layout.html. It's the only place a request looks the profile up.
 	 * <p>
-	 * The sidebar also lists the profiles to switch to, counts the profile's applications and the found jobs waiting
-	 * on the AI Assistant page, and says when a newer JobWarden is out. HTMX requests skip those: they only swap a part
+	 * The sidebar also lists the profiles to switch to, counts the profile's applications, the found jobs waiting on
+	 * the AI Assistant page and the emails waiting in the inbox, and says when a newer JobWarden is out. HTMX requests skip those: they only swap a part
 	 * of the page, without the sidebar.
 	 */
 	@ModelAttribute
@@ -100,6 +111,9 @@ abstract class BaseController {
 		if (profile != null) {
 			model.addAttribute(ModelAttributes.APPLICATION_COUNT, this.applications.count(profile.id()));
 			model.addAttribute(ModelAttributes.DISCOVER_COUNT, this.discovery.countToReview(profile.id(), null));
+			if (this.inbox != null) {
+				model.addAttribute(ModelAttributes.INBOX_COUNT, this.inbox.countPending(profile.id()));
+			}
 		}
 	}
 

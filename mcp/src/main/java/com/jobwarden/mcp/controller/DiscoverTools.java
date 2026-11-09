@@ -2,6 +2,7 @@ package com.jobwarden.mcp.controller;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,7 @@ import com.jobwarden.discover.dto.SavedSearch;
 import com.jobwarden.discover.dto.SearchCount;
 import com.jobwarden.discover.enums.Decision;
 import com.jobwarden.discover.service.DiscoveryService;
+import com.jobwarden.hiring.service.HiringService;
 import com.jobwarden.search.EmploymentType;
 import com.jobwarden.search.GeneratedQueries;
 import com.jobwarden.search.GeneratedQuery;
@@ -51,15 +53,19 @@ class DiscoverTools implements McpToolSet {
 
 	private static final int MAX_JOBS_AT_ONCE = 50;
 
+	private static final int MAX_LINKS_AT_ONCE = 100;
+
 	private final Profiles profiles;
 
 	private final DiscoveryService discovery;
 
 	private final QueryGenerator queries;
 
+	private final HiringService hiring;
+
 	@Override
 	public List<McpTool> tools() {
-		return List.of(listSavedSearches(), saveSearch(), addFoundJobs(), listFoundJobs());
+		return List.of(listSavedSearches(), saveSearch(), addFoundJobs(), listFoundJobs(), filterLinks());
 	}
 
 	private McpTool listSavedSearches() {
@@ -177,6 +183,31 @@ class DiscoverTools implements McpToolSet {
 						.stream()
 						.map(DiscoverTools::row)
 						.toList());
+				});
+	}
+
+	/**
+	 * Which search results to open: the profile's jobs, found jobs, hiring posts and recruiters are left out, so Claude
+	 * opens only what may be new. Opening a page costs far more than asking.
+	 */
+	private McpTool filterLinks() {
+		return new McpTool("filter_links", "Filter links",
+				"Which of these links are new to the profile: not one of its jobs, its found jobs (discarded ones too), "
+						+ "its hiring posts (hidden ones too) or its recruiters' profiles (removed ones too). Call it with a "
+						+ "search's results before opening any, and open only the new ones. Up to " + MAX_LINKS_AT_ONCE
+						+ " at once.",
+				object(properties(Profiles.ARGUMENT, Profiles.schema(), "links", strings("The links, e.g. a search's results")),
+						"links"),
+				true, false, call -> {
+					long userId = this.profiles.of(call);
+					List<String> links = call.strings("links").stream().distinct().toList();
+					if (links.size() > MAX_LINKS_AT_ONCE) {
+						throw new ToolException("At most " + MAX_LINKS_AT_ONCE + " links at once: filter the rest in another call");
+					}
+					Set<String> known = new HashSet<>(this.discovery.findKnownLinks(userId, links));
+					known.addAll(this.hiring.findKnownLinks(userId, links));
+					List<String> fresh = links.stream().filter(link -> !known.contains(link)).toList();
+					return Map.of("new_links", fresh, "known", links.size() - fresh.size());
 				});
 	}
 
