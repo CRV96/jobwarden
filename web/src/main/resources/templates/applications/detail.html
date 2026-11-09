@@ -55,14 +55,23 @@
             </div>
             <div class="scroll-panel flex min-h-0 min-w-0 flex-col gap-4">
                 <div class="card flex flex-col gap-4 p-4">
-                    <dl th:replace="~{applications/fragments :: facts}"></dl>
+                    <div th:replace="~{applications/fragments :: facts}"></div>
                     <div th:replace="~{applications/fragments :: status-picker}"></div>
+                </div>
+                <div class="card p-4">
+                    <section th:replace="~{applications/job-fit :: loader(${jobApplication.id})}"></section>
                 </div>
                 <div class="card p-4">
                     <section th:replace="~{applications/tailored-cv :: loader(${jobApplication.id})}"></section>
                 </div>
                 <div class="card p-4">
+                    <section th:replace="~{applications/interview-brief :: loader(${jobApplication.id})}"></section>
+                </div>
+                <div class="card p-4">
                     <form th:replace="~{applications/fragments :: follow-up}"></form>
+                </div>
+                <div class="card p-4">
+                    <section th:replace="~{calendar/reminders :: loader(${jobApplication.id})}"></section>
                 </div>
                 <div class="card p-4">
                     <div th:replace="~{applications/fragments :: notes}"></div>

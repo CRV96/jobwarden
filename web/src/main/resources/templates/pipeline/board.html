@@ -5,41 +5,47 @@
     <title th:text="|#{pipeline.title} · JobWarden|">Pipeline · JobWarden</title>
 </head>
 <body>
-<!--/* pipelineColumns maps each status, in their order, to its applications, newest first. */-->
+<!--/* pipelineColumns maps each status, in their order, to the first page of its applications, newest first; a column
+       loads its next pages as it's scrolled to its end (PipelineController). pipelineSearch narrows them all, or is
+       null. */-->
 <main class="page-full flex flex-col gap-4">
-    <header th:replace="~{applications/fragments :: page-header(#{pipeline.title}, #{pipeline.subtitle})}"></header>
+    <header class="flex flex-wrap items-end gap-3">
+        <div class="min-w-[240px] flex-1">
+            <h1 class="page-title mb-1" th:text="#{pipeline.title}">Pipeline</h1>
+            <p class="text-[13px] text-ink/60" th:text="#{pipeline.subtitle}">Where each application stands</p>
+        </div>
+        <!--/* As it's typed, HTMX swaps the board; Enter without HTMX loads the whole page, the same */-->
+        <form class="relative min-w-[200px] flex-[0_1_300px]" method="get" th:action="@{/pipeline}" role="search">
+            <i class="ph ph-magnifying-glass pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-[15px] text-ink/50"></i>
+            <label class="contents">
+                <span class="sr-only" th:text="#{jobs.search}">Search</span>
+                <input class="input pl-8" type="search" name="q" th:value="${pipelineSearch}" th:placeholder="#{jobs.search}"
+                       autocomplete="off"
+                       th:hx-get="@{/pipeline}" hx-trigger="input changed delay:300ms, search" hx-include="closest form"
+                       hx-target="#pipeline" hx-select="#pipeline" hx-swap="outerHTML" hx-push-url="true">
+            </label>
+        </form>
+        <button class="btn btn-primary" type="button" data-open-dialog="add-job">
+            <i class="ph ph-plus text-[15px]"></i><span th:text="#{jobs.add}">Add job</span>
+        </button>
+    </header>
 
     <!--/* When an application changes in the side panel, HTMX reloads the board; hx-disinherit keeps the cards' own
            requests from inheriting that. */-->
     <!--/* As many columns as there are statuses, as tall as the window on a wide screen, each scrolling on its own */-->
     <div id="pipeline" class="grid min-h-0 flex-1 auto-cols-[minmax(180px,1fr)] grid-flow-col gap-3 overflow-x-auto pb-3 lg:grid-rows-[minmax(0,1fr)]"
          hx-disinherit="*"
-         th:hx-get="@{/pipeline}" hx-trigger="applications-changed from:body" hx-select="#pipeline" hx-target="this" hx-swap="outerHTML">
+         th:hx-get="@{/pipeline(q=${pipelineSearch})}" hx-trigger="applications-changed from:body" hx-select="#pipeline" hx-target="this" hx-swap="outerHTML">
         <section class="flex min-h-0 min-w-0 flex-col gap-2" th:each="column : ${pipelineColumns}"
                  th:classappend="|st-${#strings.toLowerCase(column.key.name())}|">
             <h2 class="column-rule flex items-center gap-2 px-0.5 pb-1.5 text-xs tracking-[0.06em] text-ink/65 uppercase">
                 <span class="flex-1" th:text="#{${'status.' + column.key}}">Applied</span>
-                <span th:text="${#lists.size(column.value)}">3</span>
+                <span class="tabular-nums" th:text="${column.value.totalElements}">3</span>
             </h2>
-            <div class="flex min-h-0 flex-1 flex-col gap-2 overflow-x-hidden overflow-y-auto rounded-lg bg-ink/3 p-1.5">
-                <!--/* A click opens the application in the side panel */-->
-                <button class="card flex flex-col gap-1.5 p-2.5 text-left hover:shadow-md" type="button" data-drawer-row
-                        th:each="summary : ${column.value}"
-                        th:hx-get="@{/applications/{id}/drawer(id=${summary.id})}" hx-target="#drawer-content" hx-swap="innerHTML">
-                    <span class="flex items-center gap-2">
-                        <span th:replace="~{applications/fragments :: company-logo(${summary.id}, ${summary.company}, 28)}"></span>
-                        <span class="min-w-0 text-sm leading-tight font-medium wrap-anywhere" th:text="${summary.title}">Backend engineer</span>
-                    </span>
-                    <span class="text-xs text-ink/65" th:if="${summary.company != null or summary.location != null}"
-                          th:text="${summary.company != null and summary.location != null} ? |${summary.company} · ${summary.location}| : (${summary.company} ?: ${summary.location})">Acme · Remote</span>
-                    <span class="flex items-center gap-1.5 text-[11px] text-ink/50">
-                        <span class="flex" th:title="${summary.source} ?: #{source.addedByHand}">
-                            <th:block th:replace="~{applications/fragments :: source-icon(${summary.source})}"></th:block>
-                        </span>
-                        <span th:text="${@dates.relativeDay(summary.capturedAt)}">Today</span>
-                        <i th:replace="~{applications/fragments :: applied-by-icon(${summary.appliedBy})}"></i>
-                    </span>
-                </button>
+            <!--/* Where a card dragged from another column drops (app.js): it moves to this column's status */-->
+            <div class="pipeline-column flex min-h-0 flex-1 flex-col gap-2 overflow-x-hidden overflow-y-auto rounded-lg bg-ink/3 p-1.5"
+                 th:with="pipelineCards=${column.value}, pipelineStatus=${column.key}" th:data-drop-status="${column.key}">
+                <th:block th:replace="~{pipeline/board :: cards}"></th:block>
             </div>
         </section>
     </div>
@@ -47,5 +53,38 @@
     <dialog th:replace="~{applications/fragments :: add-job-dialog}"></dialog>
     <dialog th:replace="~{applications/fragments :: drawer-dialog}"></dialog>
 </main>
+
+<!--/* A page of a column's cards (pipelineCards, of pipelineStatus), then, while there are more, the button that loads the
+       next page in its place: on a click, or on its own once the column is scrolled to it. */-->
+<th:block th:fragment="cards">
+    <!--/* A click on the card opens the application in the side panel; dragging it to another column gives it that status
+           (app.js: data-drag-card). The card isn't a <button>, as Firefox can't drag one: its title is, the one keyboards
+           and screen readers reach. Its click, from Enter or Space as well, is the card's. */-->
+    <div class="card flex cursor-grab flex-col gap-1.5 p-2.5 text-left hover:shadow-md" draggable="true"
+         data-drawer-row th:each="summary : ${pipelineCards.content}" th:data-drag-card="${summary.id}"
+         th:data-status="${summary.status}" th:data-events-url="@{/applications/{id}/events(id=${summary.id})}"
+         th:hx-get="@{/applications/{id}/drawer(id=${summary.id})}" hx-trigger="click"
+         hx-target="#drawer-content" hx-swap="innerHTML">
+        <span class="flex items-center gap-2">
+            <span th:replace="~{applications/fragments :: company-logo(${summary.id}, ${summary.company}, 28)}"></span>
+            <button class="min-w-0 cursor-[inherit] rounded-sm text-left text-sm leading-tight font-medium wrap-anywhere" type="button"
+                    th:text="${summary.title}">Backend engineer</button>
+        </span>
+        <span class="text-xs text-ink/65" th:if="${summary.company != null or summary.location != null}"
+              th:text="${summary.company != null and summary.location != null} ? |${summary.company} · ${summary.location}| : (${summary.company} ?: ${summary.location})">Acme · Remote</span>
+        <span class="flex items-center gap-1.5 text-[11px] text-ink/50">
+            <span class="flex" th:title="${summary.source} ?: #{source.addedByHand}">
+                <th:block th:replace="~{applications/fragments :: source-icon(${summary.source})}"></th:block>
+            </span>
+            <span th:text="${@dates.relativeDay(summary.capturedAt)}">Today</span>
+            <i th:replace="~{applications/fragments :: applied-by-icon(${summary.appliedBy})}"></i>
+            <span class="ml-auto" th:replace="~{applications/job-fit :: score(${fitScores.get(summary.id)})}"></span>
+        </span>
+    </div>
+    <button class="btn btn-ghost w-full flex-none justify-center" type="button" th:if="${pipelineCards.hasNext()}"
+            th:hx-get="@{/pipeline/column(status=${pipelineStatus}, page=${pipelineCards.number + 1}, q=${pipelineSearch})}"
+            hx-trigger="click, intersect once" hx-target="this" hx-swap="outerHTML"
+            th:text="#{pipeline.more(${pipelineCards.totalElements - (pipelineCards.number + 1) * pipelineCards.size})}">Show 360 more</button>
+</th:block>
 </body>
 </html>

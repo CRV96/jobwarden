@@ -1,5 +1,6 @@
 package com.jobwarden.hiring.service;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -33,6 +34,14 @@ public interface HiringService {
 	 * @return every post link the profile has, hidden ones included: what not to add again
 	 */
 	Set<String> findPostLinks(long userId);
+
+	/**
+	 * Which of the links the profile already has, as posts (hidden ones too) or as recruiters' profiles (removed ones
+	 * too): those adding would leave out. Claude asks before opening search results, to open only the new ones.
+	 *
+	 * @return the links known, as they were given
+	 */
+	Set<String> findKnownLinks(long userId, Collection<String> links);
 
 	/**
 	 * @throws com.jobwarden.hiring.exception.HiringPostNotFoundException if the profile has no such post

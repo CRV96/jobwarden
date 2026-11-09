@@ -4,21 +4,36 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
+import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.dto.SalaryEntry;
 import com.jobwarden.jobs.dto.SalaryOverview;
+import com.jobwarden.jobs.dto.SalaryRange;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.PayBasis;
 import com.jobwarden.jobs.enums.SalaryPeriod;
+import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.service.ApplicationService;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+
+import org.springframework.context.support.ResourceBundleMessageSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 
 class DefaultSalaryServiceTests {
 
@@ -28,7 +43,7 @@ class DefaultSalaryServiceTests {
 
 	private final ApplicationService applications = mock(ApplicationService.class);
 
-	private final DefaultSalaryService salaries = new DefaultSalaryService(this.applications, () -> RATES);
+	private final DefaultSalaryService salaries = new DefaultSalaryService(this.applications, () -> RATES, messages());
 
 	@BeforeEach
 	void jobs() {
@@ -116,6 +131,105 @@ class DefaultSalaryServiceTests {
 		assertThat(overview.currency()).isEqualTo("EUR");
 		assertThat(overview.median()).isNull();
 		assertThat(overview.highest()).isEmpty();
+	}
+
+	/** Every language the messages are in, with every period and tax: the salaries page reads what's written. */
+	@ParameterizedTest
+	@ValueSource(strings = { "en", "de", "es", "fr", "pl", "pt", "ro" })
+	void writesATypedInSalarySoItIsReadBack(String language) {
+		Locale locale = Locale.forLanguageTag(language);
+		for (SalaryPeriod period : SalaryPeriod.values()) {
+			for (PayBasis basis : PayBasis.values()) {
+				SalaryRange range = range("60000", "80500.5", "RON", period, basis);
+				String text = this.salaries.text(range, locale);
+				assertThat(this.salaries.read(text)).as(text).get().matches(range::sameAs, "the same as " + range);
+			}
+		}
+		SalaryRange single = range("37.5", "37.5", "USD", null, null);
+		assertThat(this.salaries.read(this.salaries.text(single, locale))).get().matches(single::sameAs);
+	}
+
+	@Test
+	void writesASalaryAsPostingsDo() {
+		assertThat(this.salaries.text(range("60000", "80000", "EUR", SalaryPeriod.YEAR, PayBasis.GROSS), Locale.ENGLISH))
+			.isEqualTo("60,000–80,000 EUR gross per year");
+		assertThat(this.salaries.text(range("6000", "6000", "RON", SalaryPeriod.MONTH, PayBasis.NET),
+				Locale.forLanguageTag("ro")))
+			.isEqualTo("6.000 RON net pe lună");
+		assertThat(this.salaries.text(range("45.5", "45.5", "USD", null, null), Locale.GERMAN)).isEqualTo("45,5 USD");
+	}
+
+	@Test
+	void changesTheSalaryToTheOneTypedIn() {
+		job(9, "Competitive");
+
+		this.salaries.change(1, 9, range("80000", "60000", "EUR", SalaryPeriod.YEAR, PayBasis.GROSS), Locale.ENGLISH);
+
+		then(this.applications).should().updateSalary(1, 9, "60,000–80,000 EUR gross per year");
+	}
+
+	@Test
+	void keepsThePostingsTextWhenItSaysTheSame() {
+		job(9, "$120K - $150K a year");
+
+		this.salaries.change(1, 9, range("120000", "150000.00", "USD", SalaryPeriod.YEAR, null), Locale.ENGLISH);
+
+		then(this.applications).should(never()).updateSalary(anyLong(), anyLong(), any());
+	}
+
+	@Test
+	void keepsATextItCannotReadWithoutARangeToReplaceIt() {
+		job(9, "Competitive");
+
+		this.salaries.change(1, 9, null, Locale.ENGLISH);
+
+		then(this.applications).should(never()).updateSalary(anyLong(), anyLong(), any());
+	}
+
+	@Test
+	void clearsASalaryItCouldRead() {
+		job(9, "5000 RON");
+
+		this.salaries.change(1, 9, null, Locale.ENGLISH);
+
+		then(this.applications).should().updateSalary(1, 9, null);
+	}
+
+	@Test
+	void changesNothingOfAJobTheProfileDoesNotHave() {
+		given(this.applications.findById(1, 10)).willReturn(Optional.empty());
+
+		assertThatExceptionOfType(ApplicationNotFoundException.class)
+			.isThrownBy(() -> this.salaries.change(1, 10, null, Locale.ENGLISH));
+	}
+
+	@Test
+	void offersTheCurrenciesThereAreRatesFor() {
+		assertThat(this.salaries.currencies()).containsExactly("EUR", "RON", "USD");
+	}
+
+	private void job(long id, @Nullable String salary) {
+		given(this.applications.findById(1, id)).willReturn(Optional.of(ApplicationDetails.builder()
+			.id(id)
+			.title("Backend engineer")
+			.salary(salary)
+			.status(ApplicationStatus.SAVED)
+			.capturedAt(Instant.parse("2026-10-20T10:00:00Z"))
+			.timeline(List.of())
+			.build()));
+	}
+
+	private static SalaryRange range(String low, String high, String currency, @Nullable SalaryPeriod period,
+			@Nullable PayBasis basis) {
+		return new SalaryRange(new BigDecimal(low), new BigDecimal(high), currency, period, basis);
+	}
+
+	private static ResourceBundleMessageSource messages() {
+		ResourceBundleMessageSource messages = new ResourceBundleMessageSource();
+		messages.setBasename("i18n/jobs-salaries");
+		messages.setDefaultEncoding("UTF-8");
+		messages.setFallbackToSystemLocale(false);
+		return messages;
 	}
 
 	private static ApplicationSummary application(long id, String title, ApplicationStatus status,

@@ -11,6 +11,9 @@ import java.util.stream.IntStream;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.service.UserService;
+import com.jobwarden.inbox.dto.MailAccount;
+import com.jobwarden.inbox.enums.InboxAutomation;
+import com.jobwarden.inbox.service.InboxService;
 import com.jobwarden.jobs.dto.CsvImport;
 import com.jobwarden.jobs.dto.CsvImportProblem;
 import com.jobwarden.jobs.enums.CsvProblem;
@@ -67,6 +70,9 @@ class SettingsControllerTests {
 
 	@MockitoBean
 	private AdzunaKeyService adzunaKeys;
+
+	@MockitoBean
+	private InboxService inbox;
 
 	@BeforeEach
 	void noAdzunaKey() {
@@ -209,6 +215,40 @@ class SettingsControllerTests {
 			.flash()
 			.containsEntry("adzunaRemoved", true);
 		then(this.adzunaKeys).should().remove();
+	}
+
+	@Test
+	void choosesHowOftenTheInboxReadsAndWhatBecomesOfTheUpdates() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+		given(this.inbox.findAccount(ROBERT.id())).willReturn(Optional.of(new MailAccount("127.0.0.1", 1143, "robert@proton.me",
+				"INBOX", null, null, null, null, 30, InboxAutomation.MATCHED)));
+
+		assertThat(this.mvc.get().uri("/settings")).hasStatusOk()
+			.bodyText()
+			.contains("id=\"inbox\"", "robert@proton.me", "<option value=\"MINUTES_30\" selected=\"selected\">every 30 minutes",
+					"only when I click Check now", "value=\"MATCHED\" checked=\"checked\"", "And let Claude sort the rest");
+	}
+
+	@Test
+	void savesTheInboxSettings() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+
+		assertThat(this.mvc.post().uri("/settings/inbox").param("readEvery", "ON_REQUEST").param("automation", "CLAUDE"))
+			.hasStatus3xxRedirection()
+			.hasRedirectedUrl("/settings#inbox")
+			.flash()
+			.containsEntry("inboxSaved", true);
+		then(this.inbox).should().changeSettings(ROBERT.id(), 0, InboxAutomation.CLAUDE);
+	}
+
+	@Test
+	void saysWhereToConnectAMailboxFirst() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+
+		assertThat(this.mvc.get().uri("/settings")).hasStatusOk()
+			.bodyText()
+			.contains("No mailbox connected", "href=\"/inbox\"")
+			.doesNotContain("/settings/inbox");
 	}
 
 	@Test

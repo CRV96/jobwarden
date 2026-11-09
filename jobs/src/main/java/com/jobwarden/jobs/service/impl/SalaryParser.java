@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.jobwarden.jobs.dto.SalaryRange;
 import com.jobwarden.jobs.enums.PayBasis;
 import com.jobwarden.jobs.enums.SalaryPeriod;
 import org.jspecify.annotations.Nullable;
@@ -23,10 +24,11 @@ import org.jspecify.annotations.Nullable;
 final class SalaryParser {
 
 	/**
-	 * An amount: digits grouped by thousands (80,000 80.000 80 000 80'000) or not, decimals of one or two digits, and
-	 * k or M for thousands or millions. Not one followed by a percent sign or an ordinal (13th salary).
+	 * An amount: digits grouped by thousands (80,000 80.000 80 000 80'000), by lakhs as in India (1,20,000), or not,
+	 * decimals of one or two digits, and k or M for thousands or millions. Not one followed by a percent sign or an
+	 * ordinal (13th salary).
 	 */
-	private static final Pattern AMOUNT = Pattern.compile("(?<![\\d.,])(\\d{1,3}(?:[ \\u00a0\\u202f.,'’]\\d{3})+|\\d+)"
+	private static final Pattern AMOUNT = Pattern.compile("(?<![\\d.,])(\\d{1,3}(?:[ \\u00a0\\u202f.,'’]\\d{3})+|\\d{1,2}(?:,\\d{2})+,\\d{3}|\\d+)"
 			+ "(?:[.,](\\d{1,2}))?(?!\\d)(?:\\s?([kKmM])(?!\\p{L}))?(?!\\s?%|st\\b|nd\\b|rd\\b|th\\b)");
 
 	private static final Pattern WORD_CODE = Pattern.compile("(?<!\\p{L})(\\p{L}{3})(?!\\p{L})");
@@ -45,29 +47,32 @@ final class SalaryParser {
 	/** Names of currencies, as words of their own. */
 	private static final Map<String, String> CURRENCY_WORDS = Map.ofEntries(Map.entry("lei", "RON"),
 			Map.entry("zł", "PLN"), Map.entry("zl", "PLN"), Map.entry("kč", "CZK"), Map.entry("ft", "HUF"),
-			Map.entry("euro", "EUR"), Map.entry("euros", "EUR"), Map.entry("dollars", "USD"), Map.entry("pounds", "GBP"));
+			Map.entry("euro", "EUR"), Map.entry("euros", "EUR"), Map.entry("dollars", "USD"), Map.entry("pounds", "GBP"),
+			Map.entry("रुपये", "INR"), Map.entry("रुपए", "INR"));
 
 	/** The words for each period, in the order they're looked for: "$50 an hour" is per hour, not per year. */
 	private static final Map<SalaryPeriod, Pattern> PERIODS = Map.of(
 			SalaryPeriod.HOUR, words("hours?", "hourly", "hrs?", "stunden?", "std", "stündlich", "heures?", "horas?",
-					"godz\\.?", "godzin[ęay]?", "godzinowo", "oră", "ora", "/\\s*h"),
+					"godz\\.?", "godzin[ęay]?", "godzinowo", "oră", "ora", "घंटा", "घंटे", "/\\s*h"),
 			SalaryPeriod.DAY, words("days?", "daily", "tag", "täglich", "tagessatz", "jours?", "journée", "día", "dia",
-					"diarios?", "dzień", "dziennie", "zi", "/\\s*d"),
+					"diarios?", "dzień", "dziennie", "zi", "दिन", "/\\s*d"),
 			SalaryPeriod.WEEK, words("weeks?", "weekly", "woche", "wöchentlich", "semaines?", "semana", "semanal",
-					"tydzień", "tygodniowo", "săptămână", "saptamana"),
+					"tydzień", "tygodniowo", "săptămână", "saptamana", "सप्ताह", "हफ़्ता", "हफ्ता"),
 			SalaryPeriod.MONTH, words("months?", "monthly", "monat", "monatlich", "mois", "mensuel", "mes", "mês",
 					"mensual", "mensal", "mies\\.?", "miesiąc", "miesięcznie", "miesiecznie", "lună", "luna", "lunar",
-					"/\\s*mo", "/\\s*m"),
+					"माह", "महीना", "महीने", "मासिक", "/\\s*mo", "/\\s*m"),
 			SalaryPeriod.YEAR, words("years?", "yearly", "yr", "annum", "annual", "annually", "p\\.\\s?a\\.", "jahr",
-					"jährlich", "année", "annuel", "año", "anual", "ano", "rok", "rocznie", "(?:par|pe|per|/)\\s*an",
+					"jährlich", "année", "annuel", "año", "anual", "ano", "rok", "rocznie", "(?:par|pe|per|/)\\s*an", "वर्ष", "साल",
+					"सालाना", "वार्षिक",
 					"/\\s*y"));
 
 	private static final List<SalaryPeriod> PERIOD_ORDER = List.of(SalaryPeriod.HOUR, SalaryPeriod.DAY,
 			SalaryPeriod.WEEK, SalaryPeriod.MONTH, SalaryPeriod.YEAR);
 
-	private static final Pattern NET = words("net", "netto", "neto", "na rękę", "na reke");
+	private static final Pattern NET = words("net", "netto", "neto", "líquido", "liquido", "na rękę", "na reke", "नेट",
+			"शुद्ध");
 
-	private static final Pattern GROSS = words("gross", "brutto", "brut", "bruto");
+	private static final Pattern GROSS = words("gross", "brutto", "brut", "bruto", "ग्रॉस", "सकल");
 
 	private final Set<String> currencies;
 
@@ -81,7 +86,7 @@ final class SalaryParser {
 	/**
 	 * @return the salary, or nothing without an amount or a currency that's known
 	 */
-	Optional<ParsedSalary> parse(@Nullable String text) {
+	Optional<SalaryRange> parse(@Nullable String text) {
 		if (text == null || text.isBlank()) {
 			return Optional.empty();
 		}
@@ -93,8 +98,7 @@ final class SalaryParser {
 		BigDecimal first = amounts.getFirst();
 		BigDecimal second = (amounts.size() > 1) ? amounts.get(1) : first;
 		String lowerCase = text.toLowerCase(Locale.ROOT);
-		return Optional.of(new ParsedSalary(first.min(second), first.max(second), currency.get(), period(lowerCase),
-				basis(lowerCase)));
+		return Optional.of(new SalaryRange(first, second, currency.get(), period(lowerCase), basis(lowerCase)));
 	}
 
 	/**
@@ -168,14 +172,6 @@ final class SalaryParser {
 	/** Any of the words (regular expressions), as words of their own in lower-case text. */
 	private static Pattern words(String... words) {
 		return Pattern.compile("(?<!\\p{L})(?:" + String.join("|", words) + ")(?!\\p{L})");
-	}
-
-	/**
-	 * @param period {@code null} when the text doesn't say
-	 * @param basis {@code null} when the text doesn't say
-	 */
-	record ParsedSalary(BigDecimal low, BigDecimal high, String currency, @Nullable SalaryPeriod period,
-			@Nullable PayBasis basis) {
 	}
 
 }

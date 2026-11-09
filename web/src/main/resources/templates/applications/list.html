@@ -63,9 +63,10 @@
                 <div class="min-h-0 flex-1 overflow-auto">
                     <table class="jobs-table">
                         <colgroup>
-                            <col class="w-[31%]">
-                            <col class="w-[17%]">
-                            <col class="w-[14%]">
+                            <col class="w-[29%]">
+                            <col class="w-[15%]">
+                            <col class="w-[12%]">
+                            <col class="w-[72px]">
                             <col class="w-[128px]">
                             <col class="w-[112px]">
                             <col class="w-[96px]">
@@ -83,6 +84,9 @@
                                 <a th:replace="~{applications/fragments :: sort-link('LOCATION', #{jobs.column.location})}"></a>
                             </th>
                             <th scope="col" th:text="#{jobs.column.salary}">Salary</th>
+                            <th scope="col" th:aria-sort="${listParams.isSortedBy('FIT')} ? (${listParams.dir.isAscending()} ? 'ascending' : 'descending')">
+                                <th:block th:replace="~{applications/fragments :: sort-link('FIT', #{jobs.column.fit})}"></th:block>
+                            </th>
                             <th scope="col" th:aria-sort="${listParams.isSortedBy('SOURCE')} ? (${listParams.dir.isAscending()} ? 'ascending' : 'descending')">
                                 <a th:replace="~{applications/fragments :: sort-link('SOURCE', #{jobs.column.source})}"></a>
                             </th>
@@ -116,6 +120,10 @@
                             </td>
                             <td class="truncate text-ink/80" th:text="${summary.location} ?: '—'">Remote</td>
                             <td class="truncate text-ink/80 tabular-nums" th:text="${summary.salary} ?: '—'">€5,000</td>
+                            <td>
+                                <span th:replace="~{applications/job-fit :: score(${fitScores.get(summary.id)})}"></span>
+                                <span class="text-ink/40" th:unless="${fitScores.containsKey(summary.id)}">—</span>
+                            </td>
                             <td>
                                 <span class="flex min-w-0 items-center gap-1.5 text-xs text-ink/65">
                                     <th:block th:replace="~{applications/fragments :: source(${summary.source})}"></th:block>

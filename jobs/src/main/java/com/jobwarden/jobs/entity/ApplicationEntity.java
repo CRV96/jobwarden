@@ -176,6 +176,10 @@ public class ApplicationEntity {
 		this.salary = salary;
 	}
 
+	public void changeLocation(@Nullable String location) {
+		this.location = location;
+	}
+
 	public void changeFollowUp(FollowUp followUp) {
 		this.contactName = followUp.contactName();
 		this.contactRole = followUp.contactRole();

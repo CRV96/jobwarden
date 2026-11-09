@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<!--/* Reminders of what the calendar shows (ReminderController): the chips that set an entry's reminders, in the
+       calendar's Coming up list and in a job's side panel and page. app.js asks for the ones that are due and shows them
+       as notifications. Inside other HTMX elements (the job's own, in the side panel), so every request here names its
+       own target. */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <!--/* Only fragments are taken from this file: the title is never shown */-->
+    <title>Reminders · JobWarden</title>
+</head>
+<body>
+
+<!--/* An entry's reminders, one chip each, ticked when set. Every change sends the ones ticked. An entry without a time
+       of day has only those that fit it: that morning, a day or a week before. */-->
+<form th:fragment="picker(entry)" class="flex flex-wrap gap-1.5" th:hx-post="@{/reminders}" hx-trigger="change"
+      hx-target="this" hx-swap="none" data-reminder-picker>
+    <input type="hidden" name="job" th:value="${entry.applicationId}">
+    <input type="hidden" name="kind" th:value="${entry.kind}">
+    <input type="hidden" name="event" th:value="${entry.eventId}" th:if="${entry.eventId != null}">
+    <label class="chip chip-small" th:each="lead : ${entry.reminderChoices()}">
+        <input type="checkbox" name="leads" th:value="${lead}" th:checked="${entry.reminders.contains(lead)}">
+        <span th:text="${entry.time == null and lead.name() == 'AT_TIME'} ? #{reminder.lead.MORNING} : #{|reminder.lead.${lead}|}">15 min before</span>
+    </label>
+</form>
+
+<!--/* A bell next to an entry of the Coming up list, with its reminders in a menu. Accent while it has any: the chips
+       change it as they're ticked (app.css: .reminders). key tells the entries of the list apart. */-->
+<div th:fragment="menu(entry, key)" class="reminders flex-none pt-1.5">
+    <button class="reminder-button btn btn-ghost size-7 p-0" type="button" th:id="|reminders-${key}|"
+            th:popovertarget="|reminder-menu-${key}|" th:title="#{reminder.button}" th:aria-label="#{reminder.button}">
+        <i class="ph ph-alarm text-[15px]"></i>
+    </button>
+    <div class="menu w-64 gap-2 p-3" popover th:id="|reminder-menu-${key}|" th:data-anchor="|reminders-${key}|">
+        <div class="text-xs font-medium text-ink/60" th:text="#{reminder.remindMe}">Remind me</div>
+        <form th:replace="~{calendar/reminders :: picker(${entry})}"></form>
+    </div>
+</div>
+
+<!--/* A job's reminders, in its side panel and on its page: HTMX loads them after the rest */-->
+<section th:fragment="loader(jobId)" class="flex flex-col gap-2" data-collapse="reminders" th:hx-get="@{/applications/{id}/reminders(id=${jobId})}"
+         hx-trigger="load" hx-target="this" hx-swap="outerHTML">
+    <h2 class="section-title flex items-center gap-1.5">
+        <i class="ph ph-alarm"></i><span th:text="#{reminder.title}">Reminders</span>
+    </h2>
+</section>
+
+<!--/* reminderEntries are the job's entries from today on: its interviews and other events, its deadline, its day to
+       follow up. Again when the follow-up form saves, which can change the last two. */-->
+<section th:fragment="job-reminders" class="flex flex-col gap-2" data-collapse="reminders" th:hx-get="@{/applications/{id}/reminders(id=${reminderJobId})}"
+         hx-trigger="follow-up-changed from:body" hx-target="this" hx-swap="outerHTML" th:with="dateFormat=#{format.date}">
+    <h2 class="section-title flex items-center gap-1.5">
+        <i class="ph ph-alarm"></i><span th:text="#{reminder.title}">Reminders</span>
+    </h2>
+    <p class="text-[13px] text-pretty text-ink/60" th:if="${reminderEntries.isEmpty()}" th:text="#{reminder.nothing}">
+        Nothing coming up for this job yet. An interview, a deadline or a day to follow up can remind you.</p>
+    <ul class="flex flex-col gap-3" th:unless="${reminderEntries.isEmpty()}">
+        <li class="flex flex-col gap-1.5" th:each="entry : ${reminderEntries}" th:classappend="|st-${#strings.toLowerCase(entry.status.name())}|">
+            <span class="flex items-center gap-1.5 text-[13px]">
+                <i th:replace="~{calendar/calendar :: entry-icon(${entry})}"></i>
+                <span class="font-medium" th:text="${entry.kind.name() == 'EVENT'} ? (${entry.stageLabel} ?: #{${'status.' + entry.status}}) : #{${'calendar.kind.' + entry.kind}}">Technical interview</span>
+                <span class="text-ink/60 tabular-nums"
+                      th:text="${entry.time != null} ? |${#temporals.format(entry.date, dateFormat)}, ${#temporals.format(entry.time, 'HH:mm')}| : ${#temporals.format(entry.date, dateFormat)}">30 Oct 2026, 14:00</span>
+            </span>
+            <form th:replace="~{calendar/reminders :: picker(${entry})}"></form>
+        </li>
+    </ul>
+    <p class="text-xs text-pretty text-ink/55" data-notifications-off hidden th:text="#{reminder.notificationsOff}">
+        Your browser blocks JobWarden’s notifications…</p>
+</section>
+
+</body>
+</html>

@@ -206,6 +206,18 @@
   "showOnIconHint": {
     "message": "★ guardada, ✓ enviada. Chrome te pedirá permiso para que JobWarden vea las direcciones de tus pestañas; cada página que abras se consultará en tu servidor."
   },
+  "showReminders": {
+    "message": "Mostrar mis recordatorios como notificaciones"
+  },
+  "showRemindersHint": {
+    "message": "Los recordatorios que pones en el calendario de JobWarden llegan como notificaciones del sistema mientras el navegador está abierto, aunque no tengas ninguna página de JobWarden abierta. El navegador te pedirá permiso para que JobWarden muestre notificaciones."
+  },
+  "reloadExtension": {
+    "message": "Primero hay que recargar la extensión: se cargó antes de que existiera esta opción. Abre chrome://extensions (en Firefox, about:debugging), pulsa el botón de recargar de JobWarden y vuelve a intentarlo."
+  },
+  "permissionError": {
+    "message": "No se pudo cambiar: $1"
+  },
   "updateAvailable": {
     "message": "Ya está JobWarden $1: consigue el código más reciente"
   },

@@ -3,18 +3,18 @@
 import { message } from './i18n.js';
 
 /**
- * The mark and colour of each status. The tone is the popup card's style: bookmarked, applied and on its way, or
- * closed.
+ * The mark and colour of each status on the toolbar icon, the app's colour of the status (web/src/main/frontend/app.css,
+ * --jw-*), and the icon the popup's card shows next to it: bookmarked, or applied and further.
  */
 const LOOKS = {
-  SAVED: { mark: '★', color: '#d97706', tone: 'saved' },
-  APPLIED: { mark: '✓', color: '#16a34a', tone: 'applied' },
-  INTERVIEWING: { mark: '✓', color: '#16a34a', tone: 'applied' },
-  OFFER: { mark: '✓', color: '#16a34a', tone: 'applied' },
-  REJECTED: { mark: '✓', color: '#6b7280', tone: 'closed' },
-  NO_RESPONSE: { mark: '✓', color: '#6b7280', tone: 'closed' },
-  POSITION_CLOSED: { mark: '✓', color: '#6b7280', tone: 'closed' },
-  WITHDRAWN: { mark: '✓', color: '#6b7280', tone: 'closed' },
+  SAVED: { mark: '★', color: '#8e8e93', icon: 'bookmark-simple' },
+  APPLIED: { mark: '✓', color: '#007aff', icon: 'check' },
+  INTERVIEWING: { mark: '✓', color: '#c56a00', icon: 'check' },
+  OFFER: { mark: '✓', color: '#1f9e45', icon: 'check' },
+  REJECTED: { mark: '✓', color: '#e0302a', icon: 'check' },
+  NO_RESPONSE: { mark: '✓', color: '#9a3fd0', icon: 'check' },
+  POSITION_CLOSED: { mark: '✓', color: '#8f7150', icon: 'check' },
+  WITHDRAWN: { mark: '✓', color: '#8e8e93', icon: 'check' },
 };
 
 /** @param {import('./api.js').ApplicationStatus} status */

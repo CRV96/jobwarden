@@ -11,6 +11,11 @@ import com.jobwarden.cv.dto.CvFile;
 import com.jobwarden.cv.dto.CvFileContent;
 import com.jobwarden.cv.dto.TailoredCv;
 import com.jobwarden.cv.service.CvService;
+import com.jobwarden.discover.dto.AiRequest;
+import com.jobwarden.discover.dto.AiRequirements;
+import com.jobwarden.discover.enums.AiRequestKind;
+import com.jobwarden.discover.enums.AiRequestStatus;
+import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.service.ApplicationService;
@@ -50,6 +55,9 @@ class ClaudeFilesControllerTests {
 	@MockitoBean
 	private CvService cvs;
 
+	@MockitoBean
+	private DiscoveryService discovery;
+
 	@BeforeEach
 	void aJob() {
 		given(this.applications.findById(1, 7)).willReturn(Optional.of(ApplicationDetails.builder()
@@ -61,6 +69,20 @@ class ClaudeFilesControllerTests {
 			.timeline(List.of())
 			.build()));
 		given(this.cvs.find(1)).willReturn(new Cv(null, DETAILS));
+	}
+
+	@Test
+	void countsTheRequestsWaitingThatClaudeCanDoOnItsOwn() {
+		given(this.discovery.findOpenRequests(1)).willReturn(List.of(
+				request(12, AiRequestKind.FIND_JOBS, AiRequestStatus.WAITING),
+				request(13, AiRequestKind.FIND_HIRING_POSTS, AiRequestStatus.WAITING),
+				// Being done already, and one that needs the profile at its browser
+				request(14, AiRequestKind.CHECK_POSTINGS, AiRequestStatus.WORKING),
+				request(15, AiRequestKind.AUTO_APPLY, AiRequestStatus.WAITING)));
+
+		assertThat(this.mvc.get().uri("/claude/requests?profile=1")).hasStatusOk()
+			.hasContentTypeCompatibleWith("text/plain")
+			.hasBodyTextEqualTo("2");
 	}
 
 	@Test
@@ -98,6 +120,16 @@ class ClaudeFilesControllerTests {
 
 		given(this.cvs.find(1)).willReturn(new Cv(null, CvDetails.NONE));
 		assertThat(this.mvc.get().uri("/claude/cv?profile=1&job=7")).hasStatus(HttpStatus.NOT_FOUND);
+	}
+
+	private static AiRequest request(long id, AiRequestKind kind, AiRequestStatus status) {
+		return AiRequest.builder()
+			.id(id)
+			.kind(kind)
+			.requirements(AiRequirements.NONE)
+			.status(status)
+			.createdAt(Instant.now())
+			.build();
 	}
 
 }

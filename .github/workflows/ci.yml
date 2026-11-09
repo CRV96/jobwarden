@@ -1,0 +1,70 @@
+name: CI
+
+# Every pull request, and main after a merge: the build with all the tests, SonarCloud's analysis of it, and on pull
+# requests, the dependencies they add, checked for known vulnerabilities. CodeQL and the Docker image have workflows
+# of their own (codeql.yml, docker.yml). The actions are pinned to a commit; Dependabot keeps them up to date.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch or PR cancels the run that is still going.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The name the "Protect Main" ruleset requires
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # SonarCloud reads the history to tell new code from old
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: maven
+      # Compiles every module, builds the CSS and runs all tests, the module boundary check among them, with JaCoCo
+      # measuring what they cover. Testcontainers uses the Docker that GitHub's Ubuntu runners come with.
+      - name: Build and test
+        run: ./mvnw -B verify -Pcoverage
+      - name: Keep the test reports
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-reports
+          path: '*/target/surefire-reports/'
+          retention-days: 7
+      # Of the build above, with its coverage. Only with the SONAR_TOKEN secret (pull requests from forks don't get it),
+      # and with Automatic Analysis turned off in SonarCloud, as the two can't both analyze the project.
+      - name: SonarCloud analysis
+        if: env.SONAR_TOKEN != ''
+        run: ./mvnw -B org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # Says on the pull request what it found, when it fails
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure

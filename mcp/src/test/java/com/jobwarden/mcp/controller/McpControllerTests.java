@@ -5,7 +5,9 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
+import com.jayway.jsonpath.JsonPath;
 import com.jobwarden.apply.dto.ApplicationAnswers;
 import com.jobwarden.apply.dto.ApplyItem;
 import com.jobwarden.apply.dto.CustomAnswer;
@@ -18,8 +20,11 @@ import com.jobwarden.cv.dto.CvDetails;
 import com.jobwarden.cv.dto.CvExperience;
 import com.jobwarden.cv.dto.CvFile;
 import com.jobwarden.cv.dto.CvLanguage;
+import com.jobwarden.cv.dto.CvProject;
+import com.jobwarden.cv.dto.GitHubProject;
 import com.jobwarden.cv.dto.TailoredCv;
 import com.jobwarden.cv.service.CvService;
+import com.jobwarden.cv.service.GitHubService;
 import com.jobwarden.discover.dto.AddedFoundJobs;
 import com.jobwarden.discover.dto.AiRequest;
 import com.jobwarden.discover.dto.AiRequirements;
@@ -39,13 +44,25 @@ import com.jobwarden.hiring.enums.RecruiterOrigin;
 import com.jobwarden.hiring.service.HiringService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.service.UserService;
+import com.jobwarden.inbox.dto.EmailUpdate;
+import com.jobwarden.inbox.enums.UpdateDecider;
+import com.jobwarden.inbox.enums.UpdateDecision;
+import com.jobwarden.inbox.service.InboxService;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.ApplicationSummary;
+import com.jobwarden.jobs.dto.FitRequirement;
 import com.jobwarden.jobs.dto.FollowUp;
+import com.jobwarden.jobs.dto.InterviewBrief;
+import com.jobwarden.jobs.dto.JobFit;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
+import com.jobwarden.jobs.dto.TidyResult;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.enums.InterviewFormat;
+import com.jobwarden.jobs.enums.RequirementImportance;
+import com.jobwarden.jobs.enums.RequirementMatch;
 import com.jobwarden.jobs.service.ApplicationService;
+import com.jobwarden.jobs.service.InterviewBriefService;
+import com.jobwarden.jobs.service.JobFitService;
 import com.jobwarden.mcp.dto.PostingCheck;
 import com.jobwarden.mcp.enums.Verdict;
 import com.jobwarden.search.SearchCriteria;
@@ -61,6 +78,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.json.JsonContent;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
@@ -77,7 +95,7 @@ import static org.mockito.Mockito.never;
  */
 @WebMvcTest(McpController.class)
 @Import({ JobTools.class, DiscoverTools.class, CvTools.class, RequestTools.class, HiringTools.class, ApplyTools.class,
-		Profiles.class })
+		PrepTools.class, FitTools.class, InboxTools.class, ProjectTools.class, Profiles.class })
 class McpControllerTests {
 
 	private static final User ROBERT = new User(1, "Robert", Instant.parse("2026-09-28T10:00:00Z"));
@@ -107,6 +125,18 @@ class McpControllerTests {
 
 	@MockitoBean
 	private AutoApplyService autoApply;
+
+	@MockitoBean
+	private InterviewBriefService briefs;
+
+	@MockitoBean
+	private JobFitService fits;
+
+	@MockitoBean
+	private InboxService inbox;
+
+	@MockitoBean
+	private GitHubService github;
 
 	@BeforeEach
 	void oneProfile() {
@@ -170,10 +200,10 @@ class McpControllerTests {
 
 		assertThat(callTool("list_jobs", "{\"status\": \"applied\"}")).bodyJson().satisfies(body -> {
 			assertThat(body).extractingPath("$.result.isError").isEqualTo(false);
-			assertThat(body).extractingPath("$.result.structuredContent.jobs[0].link").isEqualTo("https://jobs.lever.co/acme/7");
-			assertThat(body).extractingPath("$.result.structuredContent.jobs[0].last_modified").isEqualTo("2026-10-20T10:00:00Z");
+			assertThat(result(body)).extractingPath("$.jobs[0].link").isEqualTo("https://jobs.lever.co/acme/7");
+			assertThat(result(body)).extractingPath("$.jobs[0].last_modified").isEqualTo("2026-10-20T10:00:00Z");
 			// Fields without a value are left out
-			assertThat(body).extractingPath("$.result.structuredContent.jobs[0]").asMap().doesNotContainKey("salary");
+			assertThat(result(body)).extractingPath("$.jobs[0]").asMap().doesNotContainKey("salary");
 			assertThat(body).extractingPath("$.result.content[0].type").isEqualTo("text");
 		});
 	}
@@ -200,8 +230,8 @@ class McpControllerTests {
 			.contentType(MediaType.APPLICATION_JSON)
 			.content(request("tools/call", "{\"name\": \"list_jobs\", \"arguments\": {}}")))
 			.bodyJson()
-			.extractingPath("$.result.structuredContent.total")
-			.isEqualTo(0);
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.total")
+			.isEqualTo(0));
 	}
 
 	@Test
@@ -213,8 +243,8 @@ class McpControllerTests {
 				"{\"job_id\": 7, \"status\": \"POSITION_CLOSED\", \"note\": \"The posting is gone\"}"))
 			.bodyJson()
 			.satisfies(body -> {
-				assertThat(body).extractingPath("$.result.structuredContent.previous_status").isEqualTo("APPLIED");
-				assertThat(body).extractingPath("$.result.structuredContent.status").isEqualTo("POSITION_CLOSED");
+				assertThat(result(body)).extractingPath("$.previous_status").isEqualTo("APPLIED");
+				assertThat(result(body)).extractingPath("$.status").isEqualTo("POSITION_CLOSED");
 			});
 		ArgumentCaptor<NewTimelineEvent> event = ArgumentCaptor.forClass(NewTimelineEvent.class);
 		then(this.applications).should().addEvent(eq(1L), eq(7L), event.capture());
@@ -259,8 +289,8 @@ class McpControllerTests {
 		assertThat(callTool("update_follow_up",
 				"{\"job_id\": 7, \"contact_email\": \"ana@acme.example\", \"contact_phone\": \"\", \"follow_up_on\": \"2026-11-10\"}"))
 			.bodyJson()
-			.extractingPath("$.result.structuredContent.follow_up.contact_email")
-			.isEqualTo("ana@acme.example");
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.follow_up.contact_email")
+			.isEqualTo("ana@acme.example"));
 		then(this.applications).should().updateFollowUp(1, 7, FollowUp.builder()
 			.contactName("Ana")
 			.contactEmail("ana@acme.example")
@@ -281,12 +311,266 @@ class McpControllerTests {
 		given(this.cvs.fileText(1)).willReturn(Optional.of("Java, Spring"));
 
 		assertThat(callTool("get_cv", "{}")).bodyJson().satisfies(body -> {
-			assertThat(body).extractingPath("$.result.structuredContent.has_cv").isEqualTo(true);
-			assertThat(body).extractingPath("$.result.structuredContent.fields.headline").isEqualTo("Senior Java Developer");
-			assertThat(body).extractingPath("$.result.structuredContent.fields.experience[0].company").isEqualTo("Acme");
-			assertThat(body).extractingPath("$.result.structuredContent.fields").asMap().doesNotContainKey("email");
-			assertThat(body).extractingPath("$.result.structuredContent.file.text").isEqualTo("Java, Spring");
+			assertThat(result(body)).extractingPath("$.has_cv").isEqualTo(true);
+			assertThat(result(body)).extractingPath("$.fields.headline").isEqualTo("Senior Java Developer");
+			assertThat(result(body)).extractingPath("$.fields.experience[0].company").isEqualTo("Acme");
+			assertThat(result(body)).extractingPath("$.fields").asMap().doesNotContainKey("email");
+			// Brief: the fields say it, so not the file's text again
+			assertThat(result(body)).extractingPath("$.file").asMap().containsEntry("name", "cv.pdf").doesNotContainKey("text");
 		});
+		assertThat(callTool("get_cv", "{\"full\": true}")).bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.file.text").isEqualTo("Java, Spring"));
+	}
+
+	@Test
+	void leavesTheJobsPointsOutOfABriefCv() {
+		given(this.cvs.find(1)).willReturn(new Cv(null, CvDetails.builder()
+			.headline("Senior Java Developer")
+			.experience(List.of(new CvExperience("Java Developer", "Acme", null, "2021", "Present", "Built the payments API")))
+			.build()));
+
+		assertThat(callTool("get_cv", "{}")).bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.fields.experience[0]").asMap()
+				.containsEntry("role", "Java Developer")
+				.doesNotContainKey("description"));
+		assertThat(callTool("get_cv", "{\"full\": true}")).bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.fields.experience[0].description")
+				.isEqualTo("Built the payments API"));
+	}
+
+	@Test
+	void handsOutARequestToPrepareForAnInterview() {
+		given(this.discovery.startRequest(1, 31)).willReturn(AiRequest.builder()
+			.id(31)
+			.kind(AiRequestKind.PREPARE_INTERVIEW)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+
+		assertThat(callTool("get_request", "{\"request_id\": 31}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.job_id").isEqualTo(7);
+			assertThat(result(body)).extractingPath("$.instructions").asString()
+				.contains("get_job with job_id 7", "get_cv with full true", "WebFetch", "save_interview_brief and job_id 7",
+						"finish_request with request_id 31");
+		});
+	}
+
+	@Test
+	void savesTheInterviewBrief() {
+		given(this.briefs.save(eq(1L), eq(7L), any())).willAnswer(answer -> answer.getArgument(2));
+
+		assertThat(callTool("save_interview_brief", """
+				{"job_id": 7, "company": "Acme makes payment terminals for shops, 400 people in Cluj and Berlin.",
+				 "role": "The payments API team; they look for Kafka and on-call experience.",
+				 "questions": ["How would you make a payment idempotent?", "Tell us about an outage you handled."],
+				 "stories": ["The Kafka migration at Globex: 3x the throughput, no data lost."],
+				 "ask_them": ["What does on-call look like?"],
+				 "sources": ["https://acme.example.com/about"]}
+				""")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.questions").isEqualTo(2);
+			assertThat(result(body)).extractingPath("$.page").isEqualTo("/applications/7");
+		});
+		then(this.briefs).should().save(1, 7, InterviewBrief.builder()
+			.company("Acme makes payment terminals for shops, 400 people in Cluj and Berlin.")
+			.role("The payments API team; they look for Kafka and on-call experience.")
+			.questions(List.of("How would you make a payment idempotent?", "Tell us about an outage you handled."))
+			.stories(List.of("The Kafka migration at Globex: 3x the throughput, no data lost."))
+			.askThem(List.of("What does on-call look like?"))
+			.sources(List.of("https://acme.example.com/about"))
+			.build());
+	}
+
+	@Test
+	void savesTheRequirementsAndGivesBackTheScoreJobWardenWorkedOut() {
+		given(this.fits.save(eq(1L), eq(7L), any(), any())).willAnswer(answer -> new JobFit(
+				JobFit.score(answer.getArgument(3)), answer.getArgument(2), answer.getArgument(3), Instant.now()));
+
+		assertThat(callTool("save_job_fit", """
+				{"job_id": 7, "summary": "Strong on Java and Kafka; no Kubernetes.",
+				 "requirements": [
+				   {"text": "5+ years of Java", "importance": "MUST", "match": "MET", "note": "8 years"},
+				   {"text": "Kafka", "importance": "MUST", "match": "MET"},
+				   {"text": "Kubernetes", "importance": "NICE", "match": "MISSING"}]}
+				""")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.score").isEqualTo(4.4);
+			assertThat(result(body)).extractingPath("$.verdict").isEqualTo("STRONG");
+		});
+		then(this.fits).should().save(1, 7, "Strong on Java and Kafka; no Kubernetes.", List.of(
+				new FitRequirement("5+ years of Java", RequirementImportance.MUST, RequirementMatch.MET, "8 years"),
+				new FitRequirement("Kafka", RequirementImportance.MUST, RequirementMatch.MET, null),
+				new FitRequirement("Kubernetes", RequirementImportance.NICE, RequirementMatch.MISSING, null)));
+	}
+
+	@Test
+	void refusesAFitWithTooFewRequirementsOrWithoutHowTheyreMet() {
+		assertThat(callTool("save_job_fit", """
+				{"job_id": 7, "requirements": [{"text": "Java", "importance": "MUST", "match": "MET"}]}
+				""")).bodyJson().satisfies(body -> assertThat(body).extractingPath("$.result.isError").isEqualTo(true));
+		assertThat(callTool("save_job_fit", """
+				{"job_id": 7, "requirements": [{"text": "Java", "importance": "MUST"}, {"text": "Kafka", "importance": "MUST",
+				 "match": "MET"}, {"text": "SQL", "importance": "NICE", "match": "MET"}]}
+				""")).bodyJson().satisfies(body -> assertThat(body).extractingPath("$.result.content[0].text").asString()
+			.contains("match"));
+		then(this.fits).should(never()).save(anyLong(), anyLong(), any(), any());
+	}
+
+	@Test
+	void handsOutARequestToScoreTheJobsWithNoScore() {
+		given(this.discovery.startRequest(1, 33)).willReturn(AiRequest.builder()
+			.id(33)
+			.kind(AiRequestKind.SCORE_JOBS)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+
+		assertThat(callTool("get_request", "{\"request_id\": 33}")).bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.instructions").asString()
+				.contains("get_cv with full true", "list_jobs_to_score with limit 15", "MUST", "PARTIAL", "save_job_fit",
+						"finish_request with request_id 33"));
+	}
+
+	@Test
+	void listsTheEmailUpdatesWaitingWithTheJobTheyMatched() {
+		given(this.inbox.findPending(1)).willReturn(List.of(EmailUpdate.builder()
+			.id(5)
+			.receivedAt(Instant.parse("2026-11-03T09:00:00Z"))
+			.sender("Ana Pop <ana@acme.com>")
+			.subject("Your application")
+			.excerpt("We decided to move forward with other candidates.")
+			.text("Dear Robert, " + "x".repeat(3000))
+			.applicationId(7L)
+			.jobTitle("Backend engineer")
+			.company("Acme")
+			.status(ApplicationStatus.REJECTED)
+			.decision(UpdateDecision.PENDING)
+			.build()));
+
+		assertThat(callTool("list_email_updates", "{}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.updates[0].id").isEqualTo(5);
+			assertThat(result(body)).extractingPath("$.updates[0].status").isEqualTo("REJECTED");
+			assertThat(result(body)).extractingPath("$.updates[0].job.company").isEqualTo("Acme");
+			assertThat(result(body)).extractingPath("$.updates[0].text").asString().hasSize(1500).endsWith("…");
+		});
+	}
+
+	@Test
+	void appliesOrDismissesAnEmailUpdateAsClaude() {
+		assertThat(callTool("apply_email_update", "{\"update_id\": 5, \"job_id\": 8, \"status\": \"INTERVIEWING\"}"))
+			.bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.job_id").isEqualTo(8));
+		then(this.inbox).should().apply(1, 5, 8, ApplicationStatus.INTERVIEWING, null, UpdateDecider.CLAUDE);
+
+		assertThat(callTool("apply_email_update", "{\"update_id\": 5, \"job_id\": 8, \"status\": \"SAVED\"}"))
+			.bodyJson()
+			.satisfies(body -> assertThat(body).extractingPath("$.result.isError").isEqualTo(true));
+
+		callTool("dismiss_email_update", "{\"update_id\": 6}");
+		then(this.inbox).should().dismiss(1, 6, UpdateDecider.CLAUDE);
+	}
+
+	@Test
+	void handsOutARequestToSortTheInbox() {
+		given(this.discovery.startRequest(1, 40)).willReturn(AiRequest.builder()
+			.id(40)
+			.kind(AiRequestKind.SORT_INBOX)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+
+		assertThat(callTool("get_request", "{\"request_id\": 40}")).bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.instructions").asString()
+				.contains("list_email_updates with limit 50", "list_jobs with search", "apply_email_update",
+						"dismiss_email_update", "Leave the ones you aren't sure of", "finish_request with request_id 40"));
+	}
+
+	@Test
+	void listsTheGitHubProjectsChosenAndSavesTheCvsProjects() {
+		given(this.github.findProjects(1)).willReturn(List.of(new GitHubProject("CRV96/jobwarden", "jobwarden",
+				"https://github.com/CRV96/jobwarden", null, "A job tracker", List.of("Java", "HTML"), List.of("spring-boot"), 3,
+				false, null, null, "# JobWarden")));
+		given(this.cvs.saveProjects(eq(1L), any())).willAnswer(
+				answer -> CvDetails.builder().projects(answer.getArgument(1)).build());
+
+		assertThat(callTool("list_github_projects", "{}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.projects[0].full_name").isEqualTo("CRV96/jobwarden");
+			assertThat(result(body)).extractingPath("$.projects[0].languages").asArray().containsExactly("Java", "HTML");
+		});
+		assertThat(callTool("save_cv_projects", """
+				{"projects": [{"name": "JobWarden", "link": "https://github.com/CRV96/jobwarden",
+				  "technologies": "Java, Spring Boot", "description": "A self-hosted job tracker."}]}
+				""")).bodyJson().satisfies(body -> assertThat(result(body)).extractingPath("$.projects").isEqualTo(1));
+		then(this.cvs).should().saveProjects(1, List.of(new CvProject("JobWarden", "https://github.com/CRV96/jobwarden",
+				"Java, Spring Boot", "A self-hosted job tracker.")));
+	}
+
+	@Test
+	void handsOutARequestToWriteTheCvsProjects() {
+		given(this.discovery.startRequest(1, 41)).willReturn(AiRequest.builder()
+			.id(41)
+			.kind(AiRequestKind.WRITE_PROJECTS)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+
+		assertThat(callTool("get_request", "{\"request_id\": 41}")).bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.instructions").asString()
+				.contains("get_cv", "list_github_projects", "at most 6", "Never claim", "save_cv_projects"));
+	}
+
+	@Test
+	void sendsTheResultOnceAsText() {
+		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of()));
+
+		assertThat(callTool("list_jobs", "{}")).bodyJson().satisfies(body -> {
+			assertThat(body).doesNotHavePath("$.result.structuredContent");
+			assertThat(result(body)).extractingPath("$.total").isEqualTo(0);
+		});
+	}
+
+	@Test
+	void tellsWhichLinksAreNew() {
+		given(this.discovery.findKnownLinks(eq(1L), any())).willReturn(Set.of("https://jobs.lever.co/acme/1"));
+		given(this.hiring.findKnownLinks(eq(1L), any())).willReturn(Set.of("https://www.linkedin.com/in/ana"));
+
+		assertThat(callTool("filter_links", """
+				{"links": ["https://jobs.lever.co/acme/1", "https://www.linkedin.com/in/ana", "https://jobs.lever.co/acme/2"]}
+				""")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.new_links").asArray().containsExactly("https://jobs.lever.co/acme/2");
+			assertThat(result(body)).extractingPath("$.known").isEqualTo(2);
+		});
+	}
+
+	@Test
+	void tidiesUpTheApplicationsWithNoAnswerInOneCall() {
+		given(this.applications.tidyUnanswered(eq(1L), eq(RequestTools.NO_RESPONSE_AFTER_DAYS),
+				eq(RequestTools.FOLLOW_UP_AFTER_DAYS), any())).willReturn(new TidyResult(List.of(4L, 5L), List.of(6L), 9));
+
+		assertThat(callTool("tidy_applications", "{}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.moved_to_no_response").isEqualTo(2);
+			assertThat(result(body)).extractingPath("$.follow_ups_set").isEqualTo(1);
+			assertThat(result(body)).extractingPath("$.waiting_at_applied").isEqualTo(9);
+		});
+	}
+
+	@Test
+	void checksManyAddressesAtOnce() {
+		given(this.checker.check("https://jobs.lever.co/acme/1")).willReturn(new PostingCheck("https://jobs.lever.co/acme/1",
+				Verdict.OPEN, true, "The page has the posting's job data, still valid", 200, null, null));
+		given(this.checker.check("https://jobs.lever.co/acme/2")).willReturn(new PostingCheck("https://jobs.lever.co/acme/2",
+				Verdict.CLOSED, true, "The page is gone", 404, null, null));
+
+		assertThat(callTool("check_postings", """
+				{"urls": ["https://jobs.lever.co/acme/1", "https://jobs.lever.co/acme/2"]}
+				""")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.checked[*].verdict").asArray().containsExactly("OPEN", "CLOSED");
+			assertThat(result(body)).extractingPath("$.checked[1]").asMap().doesNotContainKey("http_status");
+		});
+		then(this.applications).should(never()).addEvent(anyLong(), anyLong(), any());
 	}
 
 	@Test
@@ -294,10 +578,10 @@ class McpControllerTests {
 		given(this.cvs.find(1)).willReturn(new Cv(null, CvDetails.NONE));
 
 		assertThat(callTool("get_cv", "{}")).bodyJson()
-			.extractingPath("$.result.structuredContent")
+			.satisfies(body -> assertThat(result(body)).extractingPath("$")
 			.asMap()
 			.containsEntry("has_cv", false)
-			.doesNotContainKeys("fields", "file");
+			.doesNotContainKeys("fields", "file"));
 	}
 
 	@Test
@@ -313,12 +597,12 @@ class McpControllerTests {
 		given(this.discovery.startRequest(1, 12)).willReturn(waiting);
 
 		assertThat(callTool("list_requests", "{}")).bodyJson()
-			.extractingPath("$.result.structuredContent.requests[0].kind")
-			.isEqualTo("FIND_JOBS_FOR_CV");
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.requests[0].kind")
+			.isEqualTo("FIND_JOBS_FOR_CV"));
 		assertThat(callTool("get_request", "{\"request_id\": 12}")).bodyJson().satisfies(body -> {
-			assertThat(body).extractingPath("$.result.structuredContent.requirements.locations[0]").isEqualTo("Romania");
-			assertThat(body).extractingPath("$.result.structuredContent.requirements.use_cv").isEqualTo(true);
-			assertThat(body).extractingPath("$.result.structuredContent.instructions").asString()
+			assertThat(result(body)).extractingPath("$.requirements.locations[0]").isEqualTo("Romania");
+			assertThat(result(body)).extractingPath("$.requirements.use_cv").isEqualTo(true);
+			assertThat(result(body)).extractingPath("$.instructions").asString()
 				.contains("Call get_cv", "add_found_jobs and request_id 12, at most 10 jobs", "finish_request with request_id 12");
 		});
 		then(this.discovery).should().startRequest(1, 12);
@@ -337,9 +621,9 @@ class McpControllerTests {
 		given(this.discovery.startRequest(1, 14)).willReturn(waiting);
 
 		assertThat(callTool("get_request", "{\"request_id\": 14}")).bodyJson().satisfies(body -> {
-			assertThat(body).extractingPath("$.result.structuredContent.job_id").isEqualTo(7);
-			assertThat(body).doesNotHavePath("$.result.structuredContent.requirements");
-			assertThat(body).extractingPath("$.result.structuredContent.instructions").asString()
+			assertThat(result(body)).extractingPath("$.job_id").isEqualTo(7);
+			assertThat(result(body)).doesNotHavePath("$.requirements");
+			assertThat(result(body)).extractingPath("$.instructions").asString()
 				.contains("Call get_cv", "get_job with job_id 7", "never add a skill", "save_tailored_cv and job_id 7",
 						"finish_request with request_id 14");
 		});
@@ -376,9 +660,9 @@ class McpControllerTests {
 				 "languages": [{"language": "English", "level": "C1"}]},
 				 "matched_keywords": ["Spring Boot"], "missing_keywords": ["Kubernetes"], "notes": "Put Kafka first."}
 				""")).bodyJson().satisfies(body -> {
-			assertThat(body).extractingPath("$.result.structuredContent.title").isEqualTo("Backend engineer");
-			assertThat(body).extractingPath("$.result.structuredContent.jobs").isEqualTo(1);
-			assertThat(body).extractingPath("$.result.structuredContent.page").isEqualTo("/applications/7");
+			assertThat(result(body)).extractingPath("$.title").isEqualTo("Backend engineer");
+			assertThat(result(body)).extractingPath("$.jobs").isEqualTo(1);
+			assertThat(result(body)).extractingPath("$.page").isEqualTo("/applications/7");
 		});
 		ArgumentCaptor<CvDetails> saved = ArgumentCaptor.forClass(CvDetails.class);
 		then(this.cvs).should().saveTailored(eq(1L), eq(7L), saved.capture(), eq(List.of("Spring Boot")),
@@ -415,8 +699,8 @@ class McpControllerTests {
 				            "posted_on": "2026-10-20", "role": "Java Developer", "company": "Acme", "country": "RO",
 				            "author": {"name": "Ana Pop", "headline": "IT Recruiter", "profile_url": "https://www.linkedin.com/in/ana"}}]}
 				""")).bodyJson()
-			.extractingPath("$.result.structuredContent.skipped[0]")
-			.isEqualTo("https://example.com/2");
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.skipped[0]")
+			.isEqualTo("https://example.com/2"));
 		then(this.hiring).should().addPosts(1, List.of(NewHiringPost.builder()
 			.link("https://www.linkedin.com/posts/ana-1")
 			.text("We're hiring #java")
@@ -449,8 +733,8 @@ class McpControllerTests {
 				                 "profile_url": "https://www.linkedin.com/in/bob", "company": "Acme", "country": "RO",
 				                 "note": "Hires Java developers for the payments team."}]}
 				""")).bodyJson()
-			.extractingPath("$.result.structuredContent.added[0].origin")
-			.isEqualTo("FOUND");
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.added[0].origin")
+			.isEqualTo("FOUND"));
 		then(this.hiring).should().addFoundRecruiters(1, List.of(NewRecruiter.builder()
 			.name("Bob Ionescu")
 			.headline("Technical Recruiter at Acme")
@@ -471,12 +755,21 @@ class McpControllerTests {
 			.createdAt(Instant.now())
 			.build();
 		given(this.discovery.startRequest(1, 22)).willReturn(waiting);
+		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of(ApplicationSummary.builder()
+			.id(7)
+			.title("Java Developer")
+			.company("Acme")
+			.status(ApplicationStatus.APPLIED)
+			.capturedAt(Instant.parse("2026-10-20T10:00:00Z"))
+			.build())));
 
 		assertThat(callTool("get_request", "{\"request_id\": 22}")).bodyJson().satisfies(body -> {
-			assertThat(body).extractingPath("$.result.structuredContent.requirements.titles[0]").isEqualTo("Java Developer");
-			assertThat(body).extractingPath("$.result.structuredContent.instructions").asString()
-				.contains("list_recruiters", "list_jobs with status SAVED", "add_recruiters, at most 20",
-						"finish_request with request_id 22");
+			assertThat(result(body)).extractingPath("$.requirements.titles[0]").isEqualTo("Java Developer");
+			// The companies come with the request: no listing the jobs for them
+			assertThat(result(body)).extractingPath("$.companies").asArray().containsExactly("Acme");
+			assertThat(result(body)).extractingPath("$.instructions").asString()
+				.contains("companies lists", "filter_links", "add_recruiters, at most 20", "finish_request with request_id 22")
+				.doesNotContain("list_jobs");
 		});
 	}
 
@@ -491,9 +784,9 @@ class McpControllerTests {
 			.build()));
 
 		assertThat(callTool("list_recruiters", "{}")).bodyJson().satisfies(body -> {
-			assertThat(body).extractingPath("$.result.structuredContent.recruiters[0].profile_url")
+			assertThat(result(body)).extractingPath("$.recruiters[0].profile_url")
 				.isEqualTo("https://www.linkedin.com/in/ana");
-			assertThat(body).extractingPath("$.result.structuredContent.recruiters[0].followed").isEqualTo(true);
+			assertThat(result(body)).extractingPath("$.recruiters[0].followed").isEqualTo(true);
 		});
 	}
 
@@ -514,11 +807,11 @@ class McpControllerTests {
 			.build());
 
 		assertThat(callTool("get_application_answers", "{}")).bodyJson().satisfies(body -> {
-			assertThat(body).extractingPath("$.result.structuredContent.contact.email").isEqualTo("robert@example.com");
-			assertThat(body).extractingPath("$.result.structuredContent.work_authorization").isEqualTo("EU citizen");
-			assertThat(body).extractingPath("$.result.structuredContent.needs_sponsorship").isEqualTo(false);
-			assertThat(body).extractingPath("$.result.structuredContent.cover_letter").isEqualTo("WRITE");
-			assertThat(body).extractingPath("$.result.structuredContent.custom[0].answer").isEqualTo("Yes, B");
+			assertThat(result(body)).extractingPath("$.contact.email").isEqualTo("robert@example.com");
+			assertThat(result(body)).extractingPath("$.work_authorization").isEqualTo("EU citizen");
+			assertThat(result(body)).extractingPath("$.needs_sponsorship").isEqualTo(false);
+			assertThat(result(body)).extractingPath("$.cover_letter").isEqualTo("WRITE");
+			assertThat(result(body)).extractingPath("$.custom[0].answer").isEqualTo("Yes, B");
 		});
 	}
 
@@ -536,10 +829,10 @@ class McpControllerTests {
 			.build()));
 
 		assertThat(callTool("list_apply_queue", "{}")).bodyJson().satisfies(body -> {
-			assertThat(body).extractingPath("$.result.structuredContent.jobs[0].item_id").isEqualTo(3);
-			assertThat(body).extractingPath("$.result.structuredContent.jobs[0].mode").isEqualTo("SUBMIT");
-			assertThat(body).extractingPath("$.result.structuredContent.jobs[0].has_tailored_cv").isEqualTo(false);
-			assertThat(body).extractingPath("$.result.structuredContent.jobs[0].cv_url")
+			assertThat(result(body)).extractingPath("$.jobs[0].item_id").isEqualTo(3);
+			assertThat(result(body)).extractingPath("$.jobs[0].mode").isEqualTo("SUBMIT");
+			assertThat(result(body)).extractingPath("$.jobs[0].has_tailored_cv").isEqualTo(false);
+			assertThat(result(body)).extractingPath("$.jobs[0].cv_url")
 				.isEqualTo("http://localhost/claude/cv?profile=1&job=7");
 		});
 	}
@@ -560,8 +853,8 @@ class McpControllerTests {
 		assertThat(callTool("report_apply_result", """
 				{"item_id": 3, "result": "NEEDS_ANSWER", "site": "Workday", "question": "Willing to work weekends?"}
 				""")).bodyJson()
-			.extractingPath("$.result.structuredContent.status")
-			.isEqualTo("NEEDS_ANSWER");
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.status")
+			.isEqualTo("NEEDS_ANSWER"));
 		then(this.autoApply).should().report(1, 3, ApplyStatus.NEEDS_ANSWER, "Workday", null, "Willing to work weekends?");
 	}
 
@@ -576,10 +869,10 @@ class McpControllerTests {
 			.build());
 
 		assertThat(callTool("get_request", "{\"request_id\": 30}")).bodyJson()
-			.extractingPath("$.result.structuredContent.instructions")
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.instructions")
 			.asString()
 			.contains("Claude in Chrome", "get_application_answers", "list_apply_queue", "start_apply", "LinkedIn Easy Apply",
-					"Never solve or get around a CAPTCHA", "NEEDS_ANSWER", "Mode REVIEW", "finish_request with request_id 30");
+					"Never solve or get around a CAPTCHA", "NEEDS_ANSWER", "Mode REVIEW", "finish_request with request_id 30"));
 	}
 
 	@Test
@@ -595,8 +888,8 @@ class McpControllerTests {
 
 		assertThat(callTool("finish_request", "{\"request_id\": 12, \"summary\": \"LinkedIn blocked every search\", \"done\": false}"))
 			.bodyJson()
-			.extractingPath("$.result.structuredContent.status")
-			.isEqualTo("FAILED");
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.status")
+			.isEqualTo("FAILED"));
 	}
 
 	@Test
@@ -620,9 +913,9 @@ class McpControllerTests {
 				"The page is gone (404)", 404, null, null));
 
 		assertThat(callTool("check_postings", "{\"close_when_gone\": true}")).bodyJson().satisfies(body -> {
-			assertThat(body).extractingPath("$.result.structuredContent.summary.CLOSED").isEqualTo(2);
-			assertThat(body).extractingPath("$.result.structuredContent.checked[*].job_id").asArray().containsExactly(7, 8);
-			assertThat(body).extractingPath("$.result.structuredContent.checked[*].closed").asArray()
+			assertThat(result(body)).extractingPath("$.summary.CLOSED").isEqualTo(2);
+			assertThat(result(body)).extractingPath("$.checked[*].job_id").asArray().containsExactly(7, 8);
+			assertThat(result(body)).extractingPath("$.checked[*].closed").asArray()
 				.containsExactly(true, false);
 		});
 		// The interview may have filled the position itself: only the Applied job is closed
@@ -636,8 +929,8 @@ class McpControllerTests {
 				Verdict.OPEN, true, "The page has the posting's job data, still valid", 200, null, null));
 
 		assertThat(callTool("check_postings", "{\"url\": \"https://jobs.lever.co/acme/1\"}")).bodyJson()
-			.extractingPath("$.result.structuredContent.verdict")
-			.isEqualTo("OPEN");
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.verdict")
+			.isEqualTo("OPEN"));
 		then(this.applications).should(never()).addEvent(anyLong(), anyLong(), any());
 	}
 
@@ -648,11 +941,11 @@ class McpControllerTests {
 				Instant.now())));
 
 		assertThat(callTool("list_saved_searches", "{}")).bodyJson().satisfies(body -> {
-			assertThat(body).extractingPath("$.result.structuredContent.searches[0].queries.GOOGLE.query")
+			assertThat(result(body)).extractingPath("$.searches[0].queries.GOOGLE.query")
 				.isEqualTo("site:jobs.lever.co \"Java Developer\"");
-			assertThat(body).extractingPath("$.result.structuredContent.searches[0].queries.LINKEDIN.url").asString()
+			assertThat(result(body)).extractingPath("$.searches[0].queries.LINKEDIN.url").asString()
 				.startsWith("https://www.linkedin.com/jobs/search/?keywords=");
-			assertThat(body).extractingPath("$.result.structuredContent.searches[0].criteria.titles[0]")
+			assertThat(result(body)).extractingPath("$.searches[0].criteria.titles[0]")
 				.isEqualTo("Java Developer");
 		});
 	}
@@ -674,9 +967,9 @@ class McpControllerTests {
 				  {"title": "Java Developer", "link": "https://jobs.lever.co/acme/2"}]}"""))
 			.bodyJson()
 			.satisfies(body -> {
-				assertThat(body).extractingPath("$.result.structuredContent.added[0].id").isEqualTo(11);
-				assertThat(body).extractingPath("$.result.structuredContent.skipped[0].reason").isEqualTo("already found");
-				assertThat(body).extractingPath("$.result.structuredContent.waiting_for_a_decision").isEqualTo(4);
+				assertThat(result(body)).extractingPath("$.added[0].id").isEqualTo(11);
+				assertThat(result(body)).extractingPath("$.skipped[0].reason").isEqualTo("already found");
+				assertThat(result(body)).extractingPath("$.waiting_for_a_decision").isEqualTo(4);
 			});
 		@SuppressWarnings("unchecked")
 		ArgumentCaptor<List<NewFoundJob>> jobs = ArgumentCaptor.forClass(List.class);
@@ -712,6 +1005,11 @@ class McpControllerTests {
 	@Test
 	void neverStreams() {
 		assertThat(this.mvc.get().uri("/mcp")).hasStatus(HttpStatus.METHOD_NOT_ALLOWED);
+	}
+
+	/** A tool's result: the JSON its text holds, the only copy of it the server sends. */
+	private static JsonContent result(JsonContent body) {
+		return new JsonContent(JsonPath.<String>read(body.getJson(), "$.result.content[0].text"));
 	}
 
 	private MvcTestResult callTool(String name, String arguments) {

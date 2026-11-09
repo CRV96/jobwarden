@@ -206,6 +206,18 @@
   "showOnIconHint": {
     "message": "★ salvată, ✓ trimisă. Chrome îți cere să-i permiți lui JobWarden să vadă adresele filelor; fiecare pagină deschisă e apoi căutată pe serverul tău."
   },
+  "showReminders": {
+    "message": "Arată-mi mementourile ca notificări"
+  },
+  "showRemindersHint": {
+    "message": "Mementourile puse în calendarul JobWarden vin ca notificări ale sistemului cât timp browserul rulează, chiar fără nicio pagină JobWarden deschisă. Browserul îți cere să-i permiți lui JobWarden să afișeze notificări."
+  },
+  "reloadExtension": {
+    "message": "Mai întâi extensia trebuie reîncărcată: a fost încărcată înainte să existe această opțiune. Deschide chrome://extensions (în Firefox, about:debugging), apasă butonul de reîncărcare al JobWarden, apoi încearcă din nou."
+  },
+  "permissionError": {
+    "message": "Nu s-a putut schimba: $1"
+  },
   "updateAvailable": {
     "message": "A apărut JobWarden $1: ia cel mai nou cod"
   },

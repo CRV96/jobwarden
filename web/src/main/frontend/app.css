@@ -404,6 +404,34 @@
 		opacity: 0.6;
 	}
 
+	/* A job's card folded to its header (app.js: data-collapse, and the rule after the layers), its arrow turned to say so */
+	.collapse-toggle i {
+		transition: transform 0.15s;
+	}
+
+	[data-collapsed] > :first-child .collapse-toggle i {
+		transform: rotate(-90deg);
+	}
+
+	/* A pipeline card being dragged, and the column it would drop into */
+	.is-dragged {
+		opacity: 0.45;
+	}
+
+	.pipeline-column.is-drop-target {
+		background: color-mix(in srgb, var(--jw-accent) 10%, transparent);
+		box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--jw-accent) 60%, transparent);
+	}
+
+	/* An entry's reminder button, in the accent while one of its chips is ticked: it follows them as they change */
+	.reminder-button {
+		color: color-mix(in srgb, var(--jw-ink) 45%, transparent);
+	}
+
+	.reminders:has(input:checked) .reminder-button {
+		color: var(--jw-accent);
+	}
+
 	/* — Tags, and the colour of each status — */
 	.tag {
 		display: inline-flex;
@@ -1502,6 +1530,12 @@
 		background: var(--jw-red);
 		content: "";
 	}
+}
+
+/* A job's card folded to its header (app.js: data-collapse). Outside the layers, so it wins over the utilities its
+   children have, such as flex, without !important. */
+[data-collapse][data-collapsed] > :not(:first-child) {
+	display: none;
 }
 
 @keyframes drawer-in {

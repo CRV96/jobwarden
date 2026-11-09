@@ -1,5 +1,6 @@
 package com.jobwarden.jobs.repository;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -8,6 +9,7 @@ import java.util.Map;
 import com.jobwarden.jobs.dto.ApplicationQuery;
 import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.entity.ApplicationEntity;
+import com.jobwarden.jobs.entity.JobFitEntity;
 import com.jobwarden.jobs.enums.ApplicationSort;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import jakarta.persistence.EntityManager;
@@ -21,6 +23,7 @@ import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.data.domain.Page;
@@ -50,7 +53,7 @@ class ApplicationQueriesImpl implements ApplicationQueries {
 				application.get("link"), application.get("source"), application.get("currentStatus"),
 				application.get("capturedAt"), application.get("updatedAt"), application.get("appliedBy")))
 			.where(matching(builder, application, userId, query.search(), query.status()))
-			.orderBy(order(builder, application, query));
+			.orderBy(order(builder, rows, application, query));
 
 		Pageable pageable = PageRequest.of(query.page(), query.size());
 		List<ApplicationSummary> content = this.entityManager.createQuery(rows)
@@ -103,7 +106,7 @@ class ApplicationQueriesImpl implements ApplicationQueries {
 		return conditions.toArray(Predicate[]::new);
 	}
 
-	private static List<Order> order(CriteriaBuilder builder, Root<ApplicationEntity> application,
+	private static List<Order> order(CriteriaBuilder builder, CriteriaQuery<?> rows, Root<ApplicationEntity> application,
 			ApplicationQuery query) {
 		Expression<?> value = switch (query.sort()) {
 			case ADDED -> application.get("capturedAt");
@@ -112,6 +115,7 @@ class ApplicationQueriesImpl implements ApplicationQueries {
 			case LOCATION -> builder.lower(application.get("location"));
 			case SOURCE -> builder.lower(application.get("source"));
 			case STATUS -> statusOrder(builder, application.get("currentStatus"));
+			case FIT -> fitScore(builder, rows, application);
 		};
 		Order byValue = query.direction().isAscending() ? builder.asc(value, Nulls.LAST)
 				: builder.desc(value, Nulls.LAST);
@@ -129,6 +133,16 @@ class ApplicationQueriesImpl implements ApplicationQueries {
 			position = position.when(value, value.ordinal());
 		}
 		return position.otherwise(ApplicationStatus.values().length);
+	}
+
+	/**
+	 * The application's fit score, for {@link ApplicationSort#FIT}: none for one not scored, which comes last.
+	 */
+	private static Expression<BigDecimal> fitScore(CriteriaBuilder builder, CriteriaQuery<?> rows,
+			Root<ApplicationEntity> application) {
+		Subquery<BigDecimal> score = rows.subquery(BigDecimal.class);
+		Root<JobFitEntity> fit = score.from(JobFitEntity.class);
+		return score.select(fit.get("score")).where(builder.equal(fit.get("applicationId"), application.get("id")));
 	}
 
 	/**

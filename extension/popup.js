@@ -168,8 +168,9 @@ function render() {
 /** @param {import('./api.js').CapturedApplication} application */
 function fillCard(application) {
   const look = statusLook(application.status);
-  card.className = `card ${look.tone}`;
-  document.getElementById('card-mark').textContent = look.mark;
+  // The status's colour, as the app shows it (ui.css: st-*), and its icon
+  card.className = `card st-${application.status.toLowerCase()}`;
+  document.querySelector('#card-mark use').setAttribute('href', `icons/phosphor.svg#${look.icon}`);
   document.getElementById('card-status').textContent = statusName(application.status);
   document.getElementById('card-job').textContent = [application.title, application.company].filter(Boolean)
     .join(' · ');
@@ -385,7 +386,7 @@ function showFailure(error) {
 /** @param {'info' | 'success' | 'error'} kind */
 function showStatus(text, kind = 'info') {
   statusLine.textContent = text;
-  statusLine.className = kind;
+  statusLine.className = `status ${kind}`;
   openSettings.hidden = true;
 }
 

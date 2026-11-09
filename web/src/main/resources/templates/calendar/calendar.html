@@ -19,6 +19,13 @@
             <h1 class="page-title mb-1" th:text="#{calendar.title}">Calendar</h1>
             <p class="text-[13px] text-ink/60" th:text="#{calendar.subtitle}">Interviews, status changes, deadlines and follow-ups.</p>
         </div>
+        <!--/* The calendar in the profile's calendar app: the feed's address, to subscribe to (calendarFeedUrl) */-->
+        <button id="feed-button" class="btn btn-secondary" type="button" popovertarget="feed-menu">
+            <i class="ph ph-calendar-plus text-[15px]"></i><span th:text="#{calendar.feed.button}">Subscribe</span>
+        </button>
+        <div id="feed-menu" class="menu w-[380px] max-w-[calc(100vw-1rem)] p-4" popover data-anchor="feed-button">
+            <div th:replace="~{calendar/calendar :: feed}"></div>
+        </div>
         <nav class="seg" th:aria-label="#{calendar.view}">
             <a class="seg-opt" th:each="option : ${calendarViews}" th:href="@{/calendar(view=${option.parameter()}, date=${calendarDate})}"
                th:aria-current="${option == view} ? 'page'" th:text="#{|calendar.view.${option}|}">Month</a>
@@ -106,7 +113,8 @@
                                     th:hx-get="@{/applications/{id}/drawer(id=${entry.applicationId})}" hx-target="#drawer-content" hx-swap="innerHTML"
                                     th:title="|${timed.hasLength() ? #temporals.format(entry.time, 'HH:mm') + '–' + #temporals.format(timed.endTime(), 'HH:mm') : #temporals.format(entry.time, 'HH:mm')} ${entry.company != null ? #messages.msg('calendar.entryTitle', entry.title, entry.company) : entry.title}|">
                                 <span class="time-event-when"><i th:replace="~{calendar/calendar :: entry-icon(${entry})}"></i>
-                                    <th:block th:text="${timed.hasLength()} ? |${#temporals.format(entry.time, 'HH:mm')}–${#temporals.format(timed.endTime(), 'HH:mm')}| : ${#temporals.format(entry.time, 'HH:mm')}">14:00–15:00</th:block></span>
+                                    <th:block th:text="${timed.hasLength()} ? |${#temporals.format(entry.time, 'HH:mm')}–${#temporals.format(timed.endTime(), 'HH:mm')}| : ${#temporals.format(entry.time, 'HH:mm')}">14:00–15:00</th:block>
+                                    <i th:replace="~{calendar/calendar :: reminder-mark(${entry})}"></i></span>
                                 <span class="font-medium"><th:block th:replace="~{calendar/calendar :: entry-name(${entry})}"></th:block></span>
                                 <span class="block text-ink/65" th:if="${entry.stageLabel != null or entry.interviewFormat != null}"
                                       th:text="${entry.stageLabel != null and entry.interviewFormat != null} ? |${entry.stageLabel} · #{${'interviewFormat.' + entry.interviewFormat}}| : (${entry.stageLabel} ?: #{${'interviewFormat.' + entry.interviewFormat}})">Technical interview · Video call</span>
@@ -125,12 +133,24 @@
                 </div>
             </div>
 
-            <ul class="flex flex-wrap gap-x-4 gap-y-1 border-t border-line px-3 py-2 text-xs text-ink/60" th:aria-label="#{calendar.legend}">
-                <li class="inline-flex items-center gap-1.5"><i class="ph ph-chat-circle-text"></i><span th:text="#{calendar.legend.interview}">Interview</span></li>
-                <li class="inline-flex items-center gap-1.5"><i class="ph ph-flag"></i><span th:text="#{calendar.legend.status}">Status change</span></li>
-                <li class="inline-flex items-center gap-1.5"><i class="ph ph-hourglass-medium"></i><span th:text="#{calendar.kind.DEADLINE}">Applications close</span></li>
-                <li class="inline-flex items-center gap-1.5"><i class="ph ph-bell-ringing"></i><span th:text="#{calendar.kind.FOLLOW_UP}">Follow up</span></li>
-            </ul>
+            <!--/* The legend, which also picks what the calendar shows: unticking a type leaves it out of the calendar and
+                   the Coming up list. The empty show says that the form was sent, even with every type unticked. */-->
+            <form class="flex flex-wrap items-center gap-1.5 border-t border-line px-3 py-2" th:aria-label="#{calendar.legend}"
+                  th:hx-get="@{/calendar}" hx-trigger="change" hx-target="#calendar" hx-select="#calendar" hx-swap="outerHTML">
+                <input type="hidden" name="view" th:value="${view.parameter()}">
+                <input type="hidden" name="date" th:value="${calendarDate}">
+                <input type="hidden" name="show" value="">
+                <span class="mr-1 text-xs text-ink/55" th:text="#{calendar.show}">Show</span>
+                <label class="chip chip-small" th:each="type : ${calendarTypes}">
+                    <input type="checkbox" name="show" th:value="${type.parameter()}" th:checked="${calendarShownTypes.contains(type)}">
+                    <i class="ph" aria-hidden="true"
+                       th:classappend="${type.name() == 'INTERVIEW'} ? 'ph-chat-circle-text' : (${type.name() == 'STATUS'} ? 'ph-flag' : (${type.name() == 'DEADLINE'} ? 'ph-hourglass-medium' : 'ph-bell-ringing'))"></i>
+                    <span th:text="#{|calendar.type.${type}|}">Interview</span>
+                </label>
+                <span class="ml-auto inline-flex items-center gap-1.5 text-xs text-ink/55">
+                    <i class="ph ph-alarm" aria-hidden="true"></i><span th:text="#{reminder.legend}">Has a reminder</span>
+                </span>
+            </form>
         </section>
 
         <!--/* As tall as the calendar; the list scrolls inside it */-->
@@ -138,8 +158,8 @@
             <h2 id="upcoming-title" class="section-title" th:text="#{calendar.upcoming}">Coming up</h2>
             <p class="text-xs text-ink/55" th:if="${upcoming.isEmpty()}" th:text="#{calendar.upcoming.empty}">Nothing in the next 30 days.</p>
             <ul class="-mx-1 flex min-h-0 flex-1 flex-col divide-y divide-line overflow-y-auto px-1">
-                <li th:each="entry : ${upcoming}">
-                    <button class="flex w-full items-start gap-2.5 py-2 text-left hover:bg-ink/3" type="button" data-drawer-row
+                <li class="flex items-start gap-1" th:each="entry, entryStat : ${upcoming}">
+                    <button class="flex min-w-0 flex-1 items-start gap-2.5 py-2 text-left hover:bg-ink/3" type="button" data-drawer-row
                             th:hx-get="@{/applications/{id}/drawer(id=${entry.applicationId})}" hx-target="#drawer-content" hx-swap="innerHTML">
                         <span class="flex w-11 flex-none flex-col items-center rounded-md bg-ink/5 py-1 leading-tight">
                             <span class="text-[10px] text-ink/60 uppercase" th:text="${#temporals.format(entry.date, 'MMM')}">Oct</span>
@@ -159,6 +179,7 @@
                             </span>
                         </span>
                     </button>
+                    <div th:replace="~{calendar/reminders :: menu(${entry}, ${entryStat.index})}"></div>
                 </li>
             </ul>
         </aside>
@@ -166,6 +187,36 @@
 
     <dialog th:replace="~{applications/fragments :: drawer-dialog}"></dialog>
 </main>
+
+<!--/* What the Subscribe menu holds: the feed's address to copy, to open in the system's calendar app (webcal:) or to
+       download once, and a new address when the old one got where it shouldn't. */-->
+<div th:fragment="feed" id="calendar-feed" class="flex flex-col gap-3">
+    <div>
+        <div class="text-[13px] font-semibold" th:text="#{calendar.feed.title}">Add to your calendar app</div>
+        <p class="text-xs text-pretty text-ink/60" th:text="#{calendar.feed.hint}">Interviews, deadlines and days to follow up…</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <label class="contents">
+            <span class="sr-only" th:text="#{calendar.feed.address}">The feed’s address</span>
+            <input class="input min-w-0 flex-1 text-xs" type="text" readonly th:value="${calendarFeedUrl}">
+        </label>
+        <button th:replace="~{discover/discover :: copy-button(${calendarFeedUrl})}"></button>
+    </div>
+    <div class="flex flex-wrap gap-2">
+        <a class="btn btn-primary" th:href="${calendarWebcalUrl}">
+            <i class="ph ph-calendar-plus"></i><span th:text="#{calendar.feed.open}">Open in my calendar app</span>
+        </a>
+        <a class="btn btn-secondary" th:href="${calendarFeedUrl + '&download=true'}">
+            <i class="ph ph-download-simple"></i><span th:text="#{calendar.feed.download}">Download (.ics)</span>
+        </a>
+    </div>
+    <p class="text-xs text-pretty text-ink/55" th:text="#{calendar.feed.google}">Google Calendar fetches it from Google’s servers…</p>
+    <div class="flex items-center gap-2 border-t border-line pt-3">
+        <p class="flex-1 text-xs text-pretty text-ink/55" th:text="#{calendar.feed.secret}">Whoever has the address can read your calendar.</p>
+        <button class="btn btn-ghost" type="button" th:hx-post="@{/calendar/feed/renew}" hx-target="#calendar-feed" hx-swap="outerHTML"
+                th:text="#{calendar.feed.renew}">New address</button>
+    </div>
+</div>
 
 <!--/* An entry in a day of the month, or above the hours: its icon, its time if it has one, and its job. A day of the
        month on a phone (compact) has room for only the icon and the time. */-->
@@ -175,8 +226,13 @@
         th:title="${entry.company != null} ? #{calendar.entryTitle(${entry.title}, ${entry.company})} : ${entry.title}">
     <i th:replace="~{calendar/calendar :: entry-icon(${entry})}"></i>
     <span class="tabular-nums text-ink/60" th:if="${entry.time}" th:text="${#temporals.format(entry.time, 'HH:mm')}">14:00</span>
+    <i th:replace="~{calendar/calendar :: reminder-mark(${entry})}"></i>
     <span class="min-w-0 truncate" th:classappend="${compact} ? 'max-sm:hidden'"><th:block th:replace="~{calendar/calendar :: entry-name(${entry})}"></th:block></span>
 </button>
+
+<!--/* That the entry has a reminder: a small alarm clock, after its time */-->
+<i th:fragment="reminder-mark(entry)" class="ph ph-alarm flex-none text-[11px] text-ink/50" th:unless="${entry.reminders.isEmpty()}"
+   th:title="#{reminder.legend}" th:aria-label="#{reminder.legend}"></i>
 
 <!--/* An entry's job: its title, and the company's name when there's one, e.g. Software Engineer at Microsoft */-->
 <th:block th:fragment="entry-name(entry)"

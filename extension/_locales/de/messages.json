@@ -206,6 +206,18 @@
   "showOnIconHint": {
     "message": "★ gemerkt, ✓ beworben. Chrome fragt, ob JobWarden die Adressen deiner Tabs sehen darf; jede geöffnete Seite wird dann auf deinem Server nachgeschlagen."
   },
+  "showReminders": {
+    "message": "Meine Erinnerungen als Benachrichtigungen zeigen"
+  },
+  "showRemindersHint": {
+    "message": "Die Erinnerungen, die du im Kalender von JobWarden setzt, kommen als Benachrichtigungen deines Systems, solange der Browser läuft, auch ohne offene JobWarden-Seite. Der Browser fragt, ob JobWarden Benachrichtigungen zeigen darf."
+  },
+  "reloadExtension": {
+    "message": "Die Erweiterung muss zuerst neu geladen werden: Sie wurde geladen, bevor es diese Option gab. Öffne chrome://extensions (in Firefox about:debugging), klicke bei JobWarden auf Neu laden und versuche es noch einmal."
+  },
+  "permissionError": {
+    "message": "Konnte nicht geändert werden: $1"
+  },
   "updateAvailable": {
     "message": "JobWarden $1 ist da: hol dir den neuesten Code"
   },

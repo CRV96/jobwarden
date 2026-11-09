@@ -1069,19 +1069,35 @@
     host.id = 'jobwarden-easy-apply';
     const root = host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
+    // JobWarden's own look (ui.css, from the app's tokens), light or dark as the system is
     style.textContent = `
+      :host { --ink: #1d1d1f; --surface: #ffffff; --accent: #007aff; --orange: #c56a00; --red: #e0302a;
+        --control: #ffffff; --shadow: 0 0 0 0.5px rgb(0 0 0 / 0.12), 0 20px 50px rgb(0 0 0 / 0.18); }
+      @media (prefers-color-scheme: dark) {
+        :host { --ink: #f5f5f7; --surface: #2a2a2c; --accent: #0a84ff; --orange: #ff9f0a; --red: #ff453a;
+          --control: #48484a; --shadow: 0 0 0 0.5px rgb(255 255 255 / 0.16), 0 20px 50px rgb(0 0 0 / 0.55); }
+      }
       section { position: fixed; left: 16px; bottom: 16px; z-index: 2147483647; width: 340px; box-sizing: border-box;
-        padding: 12px 14px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; color: #111827;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); font: 14px/1.4 system-ui, sans-serif; }
+        padding: 12px 14px; border-radius: 12px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow);
+        font: 13px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
+        letter-spacing: -0.005em; -webkit-font-smoothing: antialiased; }
       header { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 600; }
+      header span { display: flex; align-items: center; gap: 8px; }
+      header span::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--accent);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
       p { margin: 6px 0 0; }
-      .counts { color: #6b7280; font-size: 12px; }
-      .question { padding: 8px 10px; border: 1px solid #fcd34d; border-radius: 6px; background: #fffbeb; }
+      .counts { color: color-mix(in srgb, var(--ink) 60%, transparent); font-size: 12px; }
+      .question { padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--orange) 12%, transparent); }
       .choices { display: flex; gap: 8px; margin-top: 10px; }
-      button { flex: 1; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; background: #fff;
-        color: #111827; font: inherit; cursor: pointer; }
-      button.primary { border-color: #111827; background: #111827; color: #fff; }
-      header button { flex: none; padding: 2px 10px; border-color: #fca5a5; color: #b91c1c; font-weight: 400; }
+      button { flex: 1; padding: 6px 12px; border: 0; border-radius: 6px; background: var(--control); color: var(--ink);
+        box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.18), 0 0.5px 1.5px rgb(0 0 0 / 0.12); font: inherit; font-weight: 500;
+        cursor: pointer; }
+      button:hover { background: color-mix(in srgb, var(--control) 92%, var(--ink)); }
+      button.primary { background: var(--accent); color: #fff; box-shadow: 0 0.5px 1px rgb(0 0 0 / 0.15); }
+      button.primary:hover { background: color-mix(in srgb, var(--accent) 88%, #fff); }
+      button:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 1px; }
+      header button { flex: none; padding: 3px 10px; background: transparent; box-shadow: none; color: var(--red); }
+      header button:hover { background: color-mix(in srgb, var(--red) 10%, transparent); }
       [hidden] { display: none !important; }`;
     const section = element('section', { role: 'status', 'aria-live': 'polite' });
     const header = element('header');

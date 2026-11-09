@@ -1,10 +1,19 @@
 package com.jobwarden.web.controller;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
+import com.jobwarden.discover.dto.SavedSearch;
 import com.jobwarden.discover.service.DiscoveryService;
+import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.service.UserService;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.search.DescriptionParser;
 import com.jobwarden.search.QueryGenerator;
+import com.jobwarden.search.SearchCriteria;
+import com.jobwarden.search.WorkType;
 import com.jobwarden.web.user.CurrentUser;
 import org.junit.jupiter.api.Test;
 
@@ -16,6 +25,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 /**
  * The query rules are covered in the search module; these check what the page does with them.
@@ -38,6 +49,36 @@ class SearchControllerTests {
 
 	@MockitoBean
 	private DiscoveryService discovery;
+
+	private static final User ROBERT = new User(1, "Robert", Instant.parse("2026-09-28T10:00:00Z"));
+
+	@Test
+	void opensTheSavedFiltersWithTheirFilters() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+		given(this.discovery.findSearches(1)).willReturn(List.of(new SavedSearch(3, "Remote Java", SearchCriteria.builder()
+			.titles(List.of("Java Developer"))
+			.workTypes(Set.of(WorkType.REMOTE))
+			.build(), Instant.now())));
+
+		assertThat(this.mvc.get().uri("/search")).bodyText()
+			.contains("Saved filters", "Remote Java", "href=\"/search?titles=Java%20Developer&amp;workTypes=REMOTE",
+					"hx-post=\"/search/saved/3/delete\"", "Save these filters");
+	}
+
+	@Test
+	void forgetsSavedFilters() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+
+		assertThat(this.mvc.post().uri("/search/saved/3/delete").header("HX-Request", "true")).hasStatusOk()
+			.bodyText()
+			.contains("Nothing saved yet");
+		then(this.discovery).should().deleteSearch(1, 3);
+	}
+
+	@Test
+	void savesNothingWithoutAProfile() {
+		assertThat(this.mvc.get().uri("/search")).bodyText().doesNotContain("saved-filters-menu");
+	}
 
 	@Test
 	void startsWithTheDefaultSites() {

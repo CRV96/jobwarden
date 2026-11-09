@@ -1,0 +1,335 @@
+{
+  "extensionDescription": {
+    "message": "एक क्लिक में जॉब पोस्टिंग अपने ख़ुद होस्ट किए JobWarden में सहेजें।"
+  },
+  "jobTitle": {
+    "message": "पद का नाम"
+  },
+  "company": {
+    "message": "कंपनी"
+  },
+  "location": {
+    "message": "स्थान"
+  },
+  "description": {
+    "message": "नौकरी का विवरण"
+  },
+  "descriptionPlaceholder": {
+    "message": "पेज पर नहीं मिला। इसे यहाँ पेस्ट करें, या पेज पर चुनकर JobWarden फिर से खोलें।"
+  },
+  "link": {
+    "message": "लिंक"
+  },
+  "profileId": {
+    "message": "प्रोफ़ाइल id"
+  },
+  "includeTime": {
+    "message": "समय भी जोड़ें"
+  },
+  "apply": {
+    "message": "मैंने आवेदन किया"
+  },
+  "bookmark": {
+    "message": "बुकमार्क करें"
+  },
+  "openApplication": {
+    "message": "JobWarden में खोलें"
+  },
+  "openSettings": {
+    "message": "सेटिंग्स खोलें"
+  },
+  "settings": {
+    "message": "सेटिंग्स"
+  },
+  "setupNeeded": {
+    "message": "पहले सेटिंग्स में सर्वर और अपनी प्रोफ़ाइल id डालें।"
+  },
+  "pageUnreadable": {
+    "message": "JobWarden यह पेज नहीं पढ़ सकता। कोई जॉब पोस्टिंग खोलें और फिर कोशिश करें।"
+  },
+  "saving": {
+    "message": "सहेजा जा रहा है…"
+  },
+  "savedApplied": {
+    "message": "आवेदन किया के रूप में सहेजा गया।"
+  },
+  "savedBookmarked": {
+    "message": "बुकमार्क किया गया।"
+  },
+  "alreadySaved": {
+    "message": "पहले से JobWarden में है।"
+  },
+  "markedApplied": {
+    "message": "आवेदन किया चिह्नित किया गया।"
+  },
+  "serverUnreachable": {
+    "message": "$1 पर JobWarden तक नहीं पहुँच सकते। क्या यह चल रहा है?"
+  },
+  "permissionMissing": {
+    "message": "JobWarden को अभी $1 तक पहुँचने की अनुमति नहीं है। अनुमति देने के लिए सेटिंग्स फिर से सहेजें।"
+  },
+  "unexpectedResponse": {
+    "message": "सर्वर ने एक त्रुटि के साथ जवाब दिया ($1)।"
+  },
+  "settingsTitle": {
+    "message": "JobWarden सेटिंग्स"
+  },
+  "serverUrl": {
+    "message": "सर्वर URL"
+  },
+  "serverUrlHint": {
+    "message": "जहाँ JobWarden चलता है। इसी कंप्यूटर पर, आमतौर पर http://localhost:8080।"
+  },
+  "profileIdHint": {
+    "message": "JobWarden इसे अपने प्रोफ़ाइल पेज पर दिखाता है।"
+  },
+  "openProfiles": {
+    "message": "प्रोफ़ाइल पेज खोलें"
+  },
+  "save": {
+    "message": "सहेजें"
+  },
+  "saved": {
+    "message": "सहेजा गया।"
+  },
+  "notSaved": {
+    "message": "सेटिंग्स सहेजी नहीं जा सकीं।"
+  },
+  "serverUrlInvalid": {
+    "message": "ऐसा पता डालें जो http:// या https:// से शुरू हो।"
+  },
+  "permissionDenied": {
+    "message": "सहेजा नहीं गया: JobWarden को $1 तक पहुँचने के लिए आपकी अनुमति चाहिए।"
+  },
+  "remote": {
+    "message": "रिमोट"
+  },
+  "salaryPer_HOUR": {
+    "message": "प्रति घंटा"
+  },
+  "salaryPer_DAY": {
+    "message": "प्रति दिन"
+  },
+  "salaryPer_WEEK": {
+    "message": "प्रति सप्ताह"
+  },
+  "salaryPer_MONTH": {
+    "message": "प्रति माह"
+  },
+  "salaryPer_YEAR": {
+    "message": "प्रति वर्ष"
+  },
+  "employmentType_FULL_TIME": {
+    "message": "फ़ुल-टाइम"
+  },
+  "employmentType_PART_TIME": {
+    "message": "पार्ट-टाइम"
+  },
+  "employmentType_CONTRACTOR": {
+    "message": "कॉन्ट्रैक्टर"
+  },
+  "employmentType_TEMPORARY": {
+    "message": "अस्थायी"
+  },
+  "employmentType_INTERN": {
+    "message": "इंटर्नशिप"
+  },
+  "employmentType_VOLUNTEER": {
+    "message": "स्वयंसेवा"
+  },
+  "employmentType_PER_DIEM": {
+    "message": "दैनिक भुगतान"
+  },
+  "employmentType_OTHER": {
+    "message": "अन्य"
+  },
+  "checking": {
+    "message": "JobWarden जाँचा जा रहा है…"
+  },
+  "reading": {
+    "message": "पेज पढ़ा जा रहा है…"
+  },
+  "status_SAVED": {
+    "message": "बुकमार्क की गई"
+  },
+  "status_APPLIED": {
+    "message": "आवेदन किया"
+  },
+  "status_INTERVIEWING": {
+    "message": "इंटरव्यू जारी"
+  },
+  "status_OFFER": {
+    "message": "ऑफ़र"
+  },
+  "status_REJECTED": {
+    "message": "अस्वीकृत"
+  },
+  "status_NO_RESPONSE": {
+    "message": "कोई जवाब नहीं"
+  },
+  "status_POSITION_CLOSED": {
+    "message": "पद बंद"
+  },
+  "status_WITHDRAWN": {
+    "message": "वापस लिया"
+  },
+  "moveBackToBookmarks": {
+    "message": "वापस बुकमार्क में ले जाएँ"
+  },
+  "removeBookmark": {
+    "message": "बुकमार्क हटाएँ"
+  },
+  "removeApplication": {
+    "message": "आवेदन हटाएँ"
+  },
+  "remove": {
+    "message": "हटाएँ"
+  },
+  "cancel": {
+    "message": "रद्द करें"
+  },
+  "confirmRemoveBookmark": {
+    "message": "यह बुकमार्क JobWarden से हटाएँ?"
+  },
+  "confirmRemoveApplication": {
+    "message": "यह आवेदन और इसकी टाइमलाइन JobWarden से हटाएँ? इसे वापस नहीं लाया जा सकता।"
+  },
+  "removed": {
+    "message": "JobWarden से हटाया गया।"
+  },
+  "movedBack": {
+    "message": "वापस बुकमार्क में ले जाया गया।"
+  },
+  "showOnIcon": {
+    "message": "टूलबार आइकन पर दिखाएँ कि कोई पेज पहले से JobWarden में है या नहीं"
+  },
+  "showOnIconHint": {
+    "message": "★ बुकमार्क, ✓ आवेदन किया। Chrome आपसे JobWarden को आपके टैब के पते देखने देने को कहता है; फिर आपका खोला हर पेज आपके सर्वर पर देखा जाता है।"
+  },
+  "showReminders": {
+    "message": "मेरे रिमाइंडर सूचनाओं के रूप में दिखाएँ"
+  },
+  "showRemindersHint": {
+    "message": "JobWarden के कैलेंडर में लगाए गए रिमाइंडर ब्राउज़र चलते रहने तक आपके सिस्टम की सूचनाओं के रूप में आते हैं, भले कोई JobWarden पेज खुला न हो। ब्राउज़र आपसे JobWarden को सूचनाएँ दिखाने देने को कहता है।"
+  },
+  "reloadExtension": {
+    "message": "पहले एक्सटेंशन फिर से लोड करना होगा: यह इस विकल्प के आने से पहले लोड हुआ था। chrome://extensions खोलें (Firefox में about:debugging), JobWarden का reload बटन दबाएँ, फिर कोशिश करें।"
+  },
+  "permissionError": {
+    "message": "इसे बदला नहीं जा सका: $1"
+  },
+  "updateAvailable": {
+    "message": "JobWarden $1 आ गया है: नवीनतम कोड लें"
+  },
+  "updateReload": {
+    "message": "आपका JobWarden सर्वर $1 चला रहा है: उससे मेल के लिए एक्सटेंशन फिर से लोड करें"
+  },
+  "extensionVersion": {
+    "message": "JobWarden एक्सटेंशन $1"
+  },
+  "runTitle": {
+    "message": "Easy Apply रन"
+  },
+  "runHint": {
+    "message": "इस खोज से गुज़रता है और हर Easy Apply नौकरी पर आपके CV और JobWarden के स्वतः आवेदन पेज के जवाबों से आवेदन भेजता है। यह ऐसे सवाल पर रुकता है जिसका जवाब आपके जवाबों में नहीं है, और LinkedIn की सुरक्षा जाँचों पर।"
+  },
+  "runLimit": {
+    "message": "इसके बाद रुकें"
+  },
+  "runLimitUnit": {
+    "message": "आवेदन"
+  },
+  "runSaveOthers": {
+    "message": "बाक़ी नौकरियाँ स्वतः आवेदन के लिए सहेजें"
+  },
+  "runWarning": {
+    "message": "LinkedIn की शर्तें स्वचालित आवेदन की अनुमति नहीं देतीं, और LinkedIn ऐसा करने वाले खातों पर रोक लगा सकता है।"
+  },
+  "runStart": {
+    "message": "रन शुरू करें"
+  },
+  "runStopButton": {
+    "message": "रन रोकें"
+  },
+  "runGoing": {
+    "message": "इस टैब में एक रन चल रहा है: अब तक $1 भेजे गए।"
+  },
+  "runCouldNotStart": {
+    "message": "रन शुरू नहीं हो सका: $1। अगर आपने अभी JobWarden अपडेट किया है, तो एक्सटेंशन फिर से लोड करें (chrome://extensions), फिर LinkedIn पेज, और फिर कोशिश करें।"
+  },
+  "runBarTitle": {
+    "message": "JobWarden · Easy Apply रन"
+  },
+  "runStarting": {
+    "message": "शुरू हो रहा है…"
+  },
+  "runOpening": {
+    "message": "$1 खोला जा रहा है…"
+  },
+  "runFilling": {
+    "message": "$1 पर आवेदन हो रहा है…"
+  },
+  "runThisJob": {
+    "message": "अगली नौकरी"
+  },
+  "runCounts": {
+    "message": "ज़्यादा से ज़्यादा $2 में से $1 भेजे · $3 सहेजे · $4 छोड़े"
+  },
+  "runNeedsAnswer": {
+    "message": "फ़ॉर्म “$1” पूछता है, जिसका जवाब आपके जवाबों में नहीं है। इसका जवाब फ़ॉर्म पर दें, या JobWarden के स्वतः आवेदन पेज पर आपके अपने सवाल में, फिर जारी रखें। दोनों तरह, JobWarden इसे अगले फ़ॉर्म के लिए रखता है।"
+  },
+  "runAQuestion": {
+    "message": "एक सवाल"
+  },
+  "runFormError": {
+    "message": "LinkedIn कहता है: “$1” इसे फ़ॉर्म पर ठीक करें, फिर जारी रखें।"
+  },
+  "runSecurityCheck": {
+    "message": "LinkedIn जाँचना चाहता है कि यह आप ही हैं। यह ख़ुद करें, फिर जारी रखें।"
+  },
+  "runFormDidntOpen": {
+    "message": "Easy Apply फ़ॉर्म नहीं खुला। पेज देखें, फिर दोबारा कोशिश के लिए जारी रखें।"
+  },
+  "runStuck": {
+    "message": "फ़ॉर्म उम्मीद के मुताबिक़ आगे नहीं बढ़ा। इसे देखें, फिर जारी रखें, या यह नौकरी छोड़ दें।"
+  },
+  "runUnsure": {
+    "message": "LinkedIn ने नहीं दिखाया कि उसने आवेदन भेजा। क्या यह भेजा गया?"
+  },
+  "runLimitReached": {
+    "message": "हो गया: $1 भेजे गए, जितने आपने इस रन के लिए तय किए थे।"
+  },
+  "runDone": {
+    "message": "हो गया: इस खोज में और नौकरियाँ नहीं।"
+  },
+  "runStopped": {
+    "message": "रोका गया।"
+  },
+  "runFailed": {
+    "message": "रन रुक गया: $1"
+  },
+  "runSignedOut": {
+    "message": "LinkedIn ने आपको साइन आउट कर दिया। साइन इन करें, फिर रन दोबारा शुरू करें।"
+  },
+  "runServerError": {
+    "message": "JobWarden ने अनुरोध नहीं लिया ($1)। जाँचें कि यह चल रहा है, फिर जारी रखें।"
+  },
+  "runContinue": {
+    "message": "जारी रखें"
+  },
+  "runSkip": {
+    "message": "यह नौकरी छोड़ें"
+  },
+  "runSent": {
+    "message": "हाँ, भेजा गया"
+  },
+  "runNotSent": {
+    "message": "नहीं"
+  },
+  "runStop": {
+    "message": "रोकें"
+  },
+  "runClose": {
+    "message": "बंद करें"
+  }
+}

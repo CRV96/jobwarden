@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<!--/* A job's interview brief: what Claude found out to prepare the profile for its interview (InterviewBriefController).
+       On the job's page and in the side panel, the loader asks for the card after the rest. Inside the job's own HTMX
+       element, so every request here names its own target. */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <!--/* Only fragments are taken from this file: the title is never shown */-->
+    <title>Interview brief · JobWarden</title>
+</head>
+<body>
+
+<section th:fragment="loader(jobId)" class="flex flex-col gap-2" data-collapse="prep" th:hx-get="@{/applications/{id}/prep(id=${jobId})}"
+         hx-trigger="load" hx-target="this" hx-swap="outerHTML">
+    <h2 class="section-title flex items-center gap-1.5">
+        <i class="ph ph-student text-accent"></i><span th:text="#{prep.title}">Interview prep</span>
+    </h2>
+</section>
+
+<!--/* interviewBrief is the brief, or null; prepRequest the latest request for one, or null; prepPrompt what to paste
+       into Claude Code while it waits. While it's open, the card asks again every few seconds, and shows the brief once
+       Claude saves it. */-->
+<section id="interview-brief" th:fragment="card" class="flex flex-col gap-3" data-collapse="prep"
+         th:with="status=${prepRequest != null} ? ${prepRequest.status.name()}, open=${prepRequest != null and prepRequest.status.isOpen()},
+                  cardUrl=@{/applications/{id}/prep(id=${prepJobId})}, brief=${interviewBrief}"
+         th:hx-get="${open} ? ${cardUrl}" th:hx-trigger="${open} ? 'every 5s'" hx-target="this" hx-swap="outerHTML">
+    <div class="flex items-center gap-2">
+        <h2 class="section-title flex flex-1 items-center gap-1.5">
+            <i class="ph ph-student text-accent"></i><span th:text="#{prep.title}">Interview prep</span>
+        </h2>
+        <span class="text-xs text-ink/55" th:if="${brief != null and brief.updatedAt != null}"
+              th:text="#{prep.updated(${@dates.relativeDay(brief.updatedAt)})}">Prepared: Today</span>
+    </div>
+
+    <p class="text-[13px] text-pretty text-ink/65" th:if="${brief == null and !open}" th:text="#{prep.hint}">
+        Claude finds out about the company and the role…</p>
+
+    <!--/* Asked, not done yet: what to paste into Claude Code while it waits */-->
+    <th:block th:if="${open}">
+        <div class="flex items-center gap-2">
+            <span class="tag st-interviewing">
+                <i class="ph ph-arrow-clockwise animate-spin" th:if="${status == 'WORKING'}"></i>
+                <span th:text="#{|ai.status.${status}|}">Waiting for Claude</span>
+            </span>
+            <span class="flex-1"></span>
+            <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button" th:hx-post="@{/applications/{id}/prep/cancel(id=${prepJobId})}"
+                    hx-target="#interview-brief" hx-swap="outerHTML" th:text="#{ai.cancel}">Cancel</button>
+        </div>
+        <th:block th:if="${status == 'WAITING'}">
+            <div class="text-xs text-ink/60" th:text="#{ai.prompt}">Paste this into Claude Code:</div>
+            <div class="flex items-start gap-2">
+                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${prepPrompt.text}">Do JobWarden request 12…</code>
+                <button th:replace="~{discover/discover :: copy-button(${prepPrompt.text})}"></button>
+            </div>
+            <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
+            <div class="flex items-start gap-2">
+                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${prepPrompt.command}">claude "Do JobWarden request 12…"</code>
+                <button th:replace="~{discover/discover :: copy-button(${prepPrompt.command})}"></button>
+            </div>
+        </th:block>
+    </th:block>
+    <p class="text-[13px] text-danger" role="alert" th:if="${status == 'FAILED'}"
+       th:text="#{prep.failed(${prepRequest.summary} ?: '')}">Claude couldn’t prepare it: …</p>
+
+    <!--/* The brief: each part only when Claude wrote it */-->
+    <th:block th:if="${brief}">
+        <div class="flex flex-col gap-1">
+            <h3 class="text-xs text-ink/60" th:text="#{prep.company}">The company</h3>
+            <p class="text-[13px] whitespace-pre-line text-pretty text-ink/85" th:text="${brief.company}">Acme makes payment terminals…</p>
+        </div>
+        <div class="flex flex-col gap-1" th:if="${brief.role}">
+            <h3 class="text-xs text-ink/60" th:text="#{prep.role}">The role, and what they’ll look for</h3>
+            <p class="text-[13px] whitespace-pre-line text-pretty text-ink/85" th:text="${brief.role}">The payments API team…</p>
+        </div>
+        <div class="flex flex-col gap-1" th:unless="${brief.questions.isEmpty()}">
+            <h3 class="text-xs text-ink/60" th:text="#{prep.questions}">Questions they’re likely to ask</h3>
+            <ol class="list-decimal space-y-1 pl-5 text-[13px] text-ink/85">
+                <li th:each="question : ${brief.questions}" th:text="${question}">How would you make a payment idempotent?</li>
+            </ol>
+        </div>
+        <div class="flex flex-col gap-1" th:unless="${brief.stories.isEmpty()}">
+            <h3 class="text-xs text-ink/60" th:text="#{prep.stories}">Your stories to tell</h3>
+            <ul class="list-disc space-y-1 pl-5 text-[13px] text-ink/85">
+                <li th:each="story : ${brief.stories}" th:text="${story}">The Kafka migration at Globex…</li>
+            </ul>
+        </div>
+        <div class="flex flex-col gap-1" th:unless="${brief.askThem.isEmpty()}">
+            <h3 class="text-xs text-ink/60" th:text="#{prep.askThem}">Questions to ask them</h3>
+            <ul class="list-disc space-y-1 pl-5 text-[13px] text-ink/85">
+                <li th:each="question : ${brief.askThem}" th:text="${question}">What does on-call look like?</li>
+            </ul>
+        </div>
+        <div class="flex items-start gap-2 rounded-lg bg-[color-mix(in_srgb,var(--jw-orange)_12%,transparent)] p-2.5" th:if="${brief.watchOut}">
+            <i class="ph ph-warning mt-0.5 text-[15px] text-[var(--jw-orange)]"></i>
+            <div class="flex flex-col gap-0.5">
+                <h3 class="text-xs font-medium" th:text="#{prep.watchOut}">Look into before saying yes</h3>
+                <p class="text-[13px] whitespace-pre-line text-pretty text-ink/85" th:text="${brief.watchOut}">Layoffs in March…</p>
+            </div>
+        </div>
+        <div class="flex flex-col gap-1" th:unless="${brief.sources.isEmpty()}">
+            <h3 class="text-xs text-ink/60" th:text="#{prep.sources}">Where Claude read it</h3>
+            <ul class="flex flex-col gap-0.5 text-xs">
+                <!--/* Only http(s) links: Claude wrote them, from pages it read */-->
+                <li class="truncate" th:each="source : ${brief.sources}">
+                    <a class="link" th:if="${#strings.startsWith(source, 'http')}" th:href="${source}" target="_blank"
+                       rel="noopener noreferrer" th:text="${source}">https://acme.example.com/about</a>
+                    <span class="text-ink/60" th:unless="${#strings.startsWith(source, 'http')}" th:text="${source}">Acme’s blog</span>
+                </li>
+            </ul>
+        </div>
+        <button class="btn btn-ghost self-start" type="button" th:hx-post="@{/applications/{id}/prep/delete(id=${prepJobId})}"
+                th:hx-confirm="#{prep.deleteConfirm}" hx-target="#interview-brief" hx-swap="outerHTML">
+            <i class="ph ph-trash"></i><span th:text="#{action.delete}">Delete</span>
+        </button>
+    </th:block>
+
+    <button class="btn btn-secondary self-start" type="button" th:unless="${open}"
+            th:hx-post="@{/applications/{id}/prep/request(id=${prepJobId})}" hx-target="#interview-brief" hx-swap="outerHTML">
+        <i class="ph ph-sparkle"></i><span th:text="${brief} ? #{prep.again} : #{prep.ask}">Ask Claude to prepare me</span>
+    </button>
+</section>
+
+</body>
+</html>

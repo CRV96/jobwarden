@@ -20,6 +20,9 @@ public enum ApplicationSort {
 	SOURCE,
 
 	/** In the order of {@link ApplicationStatus}: saved first, withdrawn last. */
-	STATUS
+	STATUS,
+
+	/** By how well the profile fits it, from Claude's evaluation: those not scored yet come last. */
+	FIT
 
 }

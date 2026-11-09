@@ -53,6 +53,9 @@ public class CvDetailsEntity {
 	private String experience = "[]";
 
 	@JdbcTypeCode(SqlTypes.JSON)
+	private String projects = "[]";
+
+	@JdbcTypeCode(SqlTypes.JSON)
 	private String education = "[]";
 
 	@JdbcTypeCode(SqlTypes.JSON)
@@ -85,10 +88,11 @@ public class CvDetailsEntity {
 	/**
 	 * @param experience the entries as a JSON array, like the others
 	 */
-	public void changeLists(List<String> skills, String experience, String education, String languages,
+	public void changeLists(List<String> skills, String experience, String projects, String education, String languages,
 			String certifications) {
 		this.skills = new ArrayList<>(skills);
 		this.experience = experience;
+		this.projects = projects;
 		this.education = education;
 		this.languages = languages;
 		this.certifications = certifications;

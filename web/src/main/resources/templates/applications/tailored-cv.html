@@ -5,7 +5,7 @@
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <body>
 
-<section th:fragment="loader(jobId)" class="flex flex-col gap-2" th:hx-get="@{/applications/{id}/cv/card(id=${jobId})}"
+<section th:fragment="loader(jobId)" class="flex flex-col gap-2" data-collapse="cv" th:hx-get="@{/applications/{id}/cv/card(id=${jobId})}"
          hx-trigger="load" hx-target="this" hx-swap="outerHTML">
     <h2 class="section-title flex items-center gap-1.5">
         <i class="ph ph-sparkle text-accent"></i><span th:text="#{tailoredCv.title}">AI-proof CV</span>
@@ -15,7 +15,7 @@
 <!--/* tailoredCv is the CV for the job, or null; cvRequest the latest request to tailor it, or null; hasCv whether there's
        a CV to tailor; cvPrompt what to paste into Claude Code while the request waits. While it's open, the card asks
        again every few seconds, and shows the CV once Claude saves it. */-->
-<section id="tailored-cv" th:fragment="card" class="flex flex-col gap-3"
+<section id="tailored-cv" th:fragment="card" class="flex flex-col gap-3" data-collapse="cv"
          th:with="status=${cvRequest != null} ? ${cvRequest.status.name()}, open=${cvRequest != null and cvRequest.status.isOpen()},
                   cardUrl=@{/applications/{id}/cv/card(id=${cvJobId})}"
          th:hx-get="${open} ? ${cardUrl}" th:hx-trigger="${open} ? 'every 5s'" hx-target="this" hx-swap="outerHTML">

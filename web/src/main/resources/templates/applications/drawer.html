@@ -28,14 +28,17 @@
         </button>
     </div>
 
-    <dl th:replace="~{applications/fragments :: facts}"></dl>
+    <div th:replace="~{applications/fragments :: facts}"></div>
     <div th:replace="~{applications/fragments :: status-picker}"></div>
+    <section th:replace="~{applications/job-fit :: loader(${jobApplication.id})}"></section>
     <th:block th:if="${jobApplication.description}">
         <section th:replace="~{applications/fragments :: description}"></section>
     </th:block>
     <section th:replace="~{applications/fragments :: timeline}"></section>
     <section th:replace="~{applications/tailored-cv :: loader(${jobApplication.id})}"></section>
+    <section th:replace="~{applications/interview-brief :: loader(${jobApplication.id})}"></section>
     <form th:replace="~{applications/fragments :: follow-up}"></form>
+    <section th:replace="~{calendar/reminders :: loader(${jobApplication.id})}"></section>
     <div th:replace="~{applications/fragments :: notes}"></div>
 
     <div class="mt-auto flex items-center gap-1.5">

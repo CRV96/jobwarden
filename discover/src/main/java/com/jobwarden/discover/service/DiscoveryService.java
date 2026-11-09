@@ -1,7 +1,9 @@
 package com.jobwarden.discover.service;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import com.jobwarden.discover.dto.AddedFoundJobs;
 import com.jobwarden.discover.dto.AiRequest;
@@ -50,6 +52,14 @@ public interface DiscoveryService {
 	AddedFoundJobs addFoundJobs(long userId, List<NewFoundJob> jobs);
 
 	/**
+	 * Which of the links the profile already has, as found jobs (discarded ones too) or as applications: those
+	 * {@link #addFoundJobs} would leave out. Claude asks before opening search results, to open only the new ones.
+	 *
+	 * @return the links known, as they were given
+	 */
+	Set<String> findKnownLinks(long userId, Collection<String> links);
+
+	/**
 	 * @param searchId only the jobs found for this saved search; all of them when {@code null}
 	 * @return the job to review next: the one found first
 	 */
@@ -93,6 +103,11 @@ public interface DiscoveryService {
 	 * @return the latest request of that kind about the job, finished or not
 	 */
 	Optional<AiRequest> findLatestRequest(long userId, AiRequestKind kind, long applicationId);
+
+	/**
+	 * @return the latest request of that kind, finished or not, e.g. the inbox's sorting for the Inbox page
+	 */
+	Optional<AiRequest> findLatestRequest(long userId, AiRequestKind kind);
 
 	/**
 	 * @return the profile's requests, the latest first

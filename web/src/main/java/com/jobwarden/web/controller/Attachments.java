@@ -12,7 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 /**
- * Files to download.
+ * Files to download, or to show in the browser.
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 final class Attachments {
@@ -26,6 +26,19 @@ final class Attachments {
 			.contentType(type)
 			.header(HttpHeaders.CONTENT_DISPOSITION,
 					ContentDisposition.attachment().filename(fileName, StandardCharsets.UTF_8).build().toString())
+			.body(content);
+	}
+
+	/**
+	 * A file to show in the browser, e.g. a PDF in a frame of the page, under its name if it's saved. The browser takes
+	 * it as its type says, never sniffs another.
+	 */
+	static ResponseEntity<byte[]> inline(byte[] content, MediaType type, String fileName) {
+		return ResponseEntity.ok()
+			.contentType(type)
+			.header(HttpHeaders.CONTENT_DISPOSITION,
+					ContentDisposition.inline().filename(fileName, StandardCharsets.UTF_8).build().toString())
+			.header("X-Content-Type-Options", "nosniff")
 			.body(content);
 	}
 

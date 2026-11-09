@@ -206,6 +206,18 @@
   "showOnIconHint": {
     "message": "★ enregistrée, ✓ envoyée. Chrome vous demande d’autoriser JobWarden à voir l’adresse de vos onglets ; chaque page ouverte est alors recherchée sur votre serveur."
   },
+  "showReminders": {
+    "message": "Afficher mes rappels en notifications"
+  },
+  "showRemindersHint": {
+    "message": "Les rappels que vous définissez dans le calendrier de JobWarden arrivent en notifications du système tant que le navigateur est ouvert, même sans page JobWarden ouverte. Le navigateur vous demande d’autoriser JobWarden à afficher des notifications."
+  },
+  "reloadExtension": {
+    "message": "L’extension doit d’abord être rechargée : elle a été chargée avant que cette option existe. Ouvrez chrome://extensions (dans Firefox, about:debugging), cliquez sur le bouton de rechargement de JobWarden, puis réessayez."
+  },
+  "permissionError": {
+    "message": "Impossible de le changer : $1"
+  },
   "updateAvailable": {
     "message": "JobWarden $1 est sorti : récupérez le dernier code"
   },

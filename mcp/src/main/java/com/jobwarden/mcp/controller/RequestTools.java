@@ -3,16 +3,28 @@ package com.jobwarden.mcp.controller;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Stream;
 
 import com.jobwarden.discover.dto.AiRequest;
 import com.jobwarden.discover.dto.AiRequirements;
+import com.jobwarden.discover.dto.FoundJob;
 import com.jobwarden.discover.enums.AiRequestKind;
 import com.jobwarden.discover.enums.AiRequestStatus;
+import com.jobwarden.discover.enums.Decision;
 import com.jobwarden.discover.service.DiscoveryService;
+import com.jobwarden.hiring.dto.Recruiter;
+import com.jobwarden.hiring.service.HiringService;
+import com.jobwarden.jobs.dto.ApplicationQuery;
+import com.jobwarden.jobs.dto.ApplicationSummary;
+import com.jobwarden.jobs.enums.ApplicationSort;
+import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.search.WorkType;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 
 import static com.jobwarden.mcp.controller.JobTools.properties;
@@ -24,6 +36,11 @@ import static com.jobwarden.mcp.controller.Schemas.string;
 /**
  * What the profile asked Claude to do from the AI Assistant page: the requests waiting, each with step-by-step
  * instructions, and finishing them. The page shows each request's status and summary, and the jobs found for it.
+ * <p>
+ * A request comes with what its steps need to know, in a few lines (what the profile kept and discarded, the
+ * recruiters it follows, the companies of its jobs), so Claude needn't list it all; and the steps lean on what costs
+ * Claude the least: the server leaving out what the profile has, filter_links before opening search results, WebFetch
+ * with a question rather than whole pages, check_postings for many postings at once.
  */
 @Component
 @RequiredArgsConstructor
@@ -36,9 +53,20 @@ class RequestTools implements McpToolSet {
 
 	static final int FOLLOW_UP_AFTER_DAYS = 7;
 
+	/** How much of each the request brings along: enough to go by, little enough to read at a glance. */
+	private static final int TASTE = 10;
+
+	private static final int FOLLOWED = 25;
+
+	private static final int COMPANIES = 20;
+
 	private final Profiles profiles;
 
 	private final DiscoveryService discovery;
+
+	private final HiringService hiring;
+
+	private final ApplicationService applications;
 
 	@Override
 	public List<McpTool> tools() {
@@ -49,8 +77,8 @@ class RequestTools implements McpToolSet {
 		return new McpTool("list_requests", "List requests",
 				"What the profile asked Claude to do from JobWarden and is still waiting for, the oldest first: find jobs for "
 						+ "the CV or for requirements, run the saved searches, check the postings, tidy up applications with no "
-						+ "answer, tailor the CV to a job, find hiring posts or recruiters, apply to jobs. Do each with "
-						+ "get_request, which says how.",
+						+ "answer, tailor the CV to a job, find hiring posts or recruiters, apply to jobs, sort the inbox, write "
+						+ "the CV's projects. Do each with get_request, which says how.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
 						"all", bool("Also the finished ones, the latest first; only those waiting or being done if left out"))),
 				true, false, call -> {
@@ -71,8 +99,7 @@ class RequestTools implements McpToolSet {
 				false, false, call -> {
 					long userId = this.profiles.of(call);
 					AiRequest request = this.discovery.startRequest(userId, call.requiredNumber("request_id"));
-					return new RequestDetails(request.id(), request.kind(), request.status(), request.applicationId(),
-							requirements(request), instructions(request), request.createdAt());
+					return details(userId, request);
 				});
 	}
 
@@ -104,14 +131,14 @@ class RequestTools implements McpToolSet {
 		String finish = "Finally, call finish_request with request_id " + id + " and a short summary; with done false and "
 				+ "the reason if you couldn't do it.";
 		String findAndAdd = """
-				Call list_found_jobs and list_jobs to see what the profile already found, saved, applied to or discarded: \
-				skip those, and learn what they like and don't.
 				Search the web for open postings: companies' career pages (Lever, Greenhouse, Ashby, Workable, \
 				SmartRecruiters...), LinkedIn, and the job boards of the countries asked for. Prefer recent postings.
-				Open each promising posting. Keep only real postings that are still open and fit; check_postings with a \
-				url helps when you're unsure.
-				Add them with add_found_jobs and request_id %d, at most %d jobs, each with its own link and a note on why \
-				it fits, in a sentence: the profile reads it when deciding.
+				Pass the results' links to filter_links, and keep only the new ones whose title and snippet fit. taste \
+				lists jobs the profile kept and discarded: lean towards the first, away from the second.
+				Read each promising posting with WebFetch and a short question (is it open; title, company, location, \
+				salary, the must-haves), not the whole page; check_postings with urls tells open from closed for many.
+				Add the real, open ones that fit with add_found_jobs and request_id %d, at most %d jobs, each with its \
+				own link and a note on why it fits, in a sentence: the profile reads it when deciding.
 				""".formatted(id, max);
 		String steps = switch (request.kind()) {
 			case FIND_JOBS_FOR_CV -> """
@@ -122,59 +149,114 @@ class RequestTools implements McpToolSet {
 			case FIND_JOBS -> (request.requirements().useCv() ? "Call get_cv: match the jobs against the CV too.\n" : "")
 					+ "Look for jobs that fit the requirements.\n" + findAndAdd;
 			case RUN_SAVED_SEARCHES -> """
-					Call list_saved_searches. Run each search's queries with your web search, and open the results.
-					Call list_found_jobs to skip what the profile already has.
+					Call list_saved_searches. Run each search's queries with your web search.
+					Pass the results' links to filter_links, and open only the new ones that look right, with WebFetch \
+					and a short question.
 					Add the real, open postings with add_found_jobs, with the search's search_id and request_id %d, at \
 					most %d jobs in all, each with a note on why it fits.
 					""".formatted(id, max);
 			case CHECK_POSTINGS -> """
 					Call check_postings with close_when_gone true: it checks the Saved, Applied and Interviewing jobs, and \
 					closes the Saved and Applied ones whose posting is certainly gone.
-					Open the UNKNOWN ones yourself if you can, and move those whose posting you saw gone to \
-					POSITION_CLOSED with update_job_status, saying why in the note.
+					Open the UNKNOWN ones with WebFetch if you can, asking only whether the posting is still open, and \
+					move those you saw gone to POSITION_CLOSED with update_job_status, saying why in the note.
 					In the summary: how many you checked, closed, found still open, and couldn't tell.
 					""";
 			case FOLLOW_UP -> """
-					Call list_jobs with status APPLIED and limit 200, then get_job for each to read its timeline and its \
-					follow-up.
-					A job applied to %d days ago or more, with nothing on its timeline since: move it to NO_RESPONSE with \
-					update_job_status, with a note that the company never answered.
-					A newer one without a follow_up_on day: set it with update_follow_up, %d days after the application, \
-					or tomorrow when that's past.
-					In the summary: how many you moved and how many follow-ups you set.
-					""".formatted(NO_RESPONSE_AFTER_DAYS, FOLLOW_UP_AFTER_DAYS);
+					Call tidy_applications: it moves the jobs applied to %d days ago or more, with nothing on their \
+					timeline since, to NO_RESPONSE, and gives the newer ones without a day to follow up one.
+					In the summary: what it did.
+					""".formatted(NO_RESPONSE_AFTER_DAYS);
 			case TAILOR_CV -> tailorCv(request.applicationId());
 			case FIND_HIRING_POSTS -> """
-					Call list_recruiters: the people the profile follows come first. Look at their recent posts too, on \
-					their profile's activity page (the profile link with /recent-activity/all/ after it).
-					Call list_hiring_posts to skip the posts the profile already has.
+					followed lists the people the profile follows: look at their recent posts first, on their profile's \
+					activity page (the profile link with /recent-activity/all/ after it).
 					Search the web for posts by recruiters and hiring managers saying they're hiring for the requirements: \
 					e.g. site:linkedin.com/posts ("hiring" OR "we're hiring" OR "join our team") with the titles, skills \
 					and places; X and Reddit hiring threads too. Only posts from the time the requirements give, else \
 					from the last month.
-					Open each. Keep only real posts about open roles: not job seekers, courses or ads for a service.
+					Pass the results' links to filter_links and keep the new ones. Judge each from its snippet; open it, \
+					with WebFetch, only when the snippet doesn't say enough. Keep only real posts about open roles: not \
+					job seekers, courses or ads for a service.
 					Add them with add_hiring_posts, at most %d: each with its link, the day it was posted, its text as \
 					posted (shortened when long, never rewritten), the role and company it's for, the country, and its \
 					author: name, headline and profile link.
 					In the summary: how many posts you added, from how many people.
 					""".formatted(max);
 			case FIND_RECRUITERS -> """
-					Call list_recruiters to skip the people the profile already has.
-					Call list_jobs with status SAVED, then APPLIED and INTERVIEWING: the companies there come first. Find \
-					the recruiters and talent acquisition people who hire for those teams.
+					companies lists the companies of the profile's Saved, Applied and Interviewing jobs: they come first. \
+					Find the recruiters and talent acquisition people who hire for those teams.
 					Search the web for recruiters, talent partners and hiring managers who hire for the requirements' \
 					roles and skills in their places, at companies and at agencies: e.g. site:linkedin.com/in \
 					("IT Recruiter" OR "Technical Recruiter" OR "Talent Acquisition") Java Romania; the companies' \
 					career and team pages too.
-					Open each profile. Keep real people who recruit for these roles now; not job seekers, not people who \
-					left recruiting.
+					Pass the profiles' links to filter_links and keep the new ones. Judge each from its result's title \
+					and snippet (name, headline, company); open one only when they don't say enough. Keep real people \
+					who recruit for these roles now; not job seekers, not people who left recruiting.
 					Add them with add_recruiters, at most %d: each with name, headline, profile link, company, country, \
 					and a note on why they're worth following, in a sentence.
 					In the summary: how many you added, and at which companies.
 					""".formatted(max);
 			case AUTO_APPLY -> AUTO_APPLY_STEPS;
+			case PREPARE_INTERVIEW -> prepareInterview(request.applicationId());
+			case SCORE_JOB -> "Call get_cv with full true, then score job " + request.applicationId() + ".\n" + SCORING_STEPS;
+			case SCORE_JOBS -> """
+					Call get_cv with full true, then list_jobs_to_score with limit %d, and score each job.
+					""".formatted(SCORE_AT_ONCE) + SCORING_STEPS + "In the summary: how many you scored, and the best fits.\n";
+			case SORT_INBOX -> SORT_INBOX_STEPS;
+			case WRITE_PROJECTS -> WRITE_PROJECTS_STEPS;
 		};
 		return "Request " + id + " from JobWarden: " + describe(request.kind()) + ".\n" + steps + finish;
+	}
+
+	/**
+	 * The request, with its steps and what they need to know, so they needn't list it: what the profile kept and
+	 * discarded when finding jobs, the recruiters it follows for hiring posts, its jobs' companies for recruiters.
+	 */
+	private RequestDetails details(long userId, AiRequest request) {
+		Taste taste = switch (request.kind()) {
+			case FIND_JOBS_FOR_CV, FIND_JOBS, RUN_SAVED_SEARCHES -> taste(userId);
+			default -> null;
+		};
+		List<RecruiterRef> followed = (request.kind() == AiRequestKind.FIND_HIRING_POSTS) ? this.hiring
+			.findRecruiters(userId)
+			.stream()
+			.filter(Recruiter::followed)
+			.limit(FOLLOWED)
+			.map(recruiter -> new RecruiterRef(recruiter.name(), recruiter.profileUrl()))
+			.toList() : List.of();
+		List<String> companies = (request.kind() == AiRequestKind.FIND_RECRUITERS) ? companies(userId) : List.of();
+		return new RequestDetails(request.id(), request.kind(), request.status(), request.applicationId(),
+				requirements(request), instructions(request), taste, followed, companies, request.createdAt());
+	}
+
+	/** The jobs found for the profile that it decided on last: those it saved or applied to, and those it discarded. */
+	private Taste taste(long userId) {
+		List<FoundJob> decided = this.discovery.findDecided(userId, 3 * TASTE);
+		return new Taste(
+				decided.stream().filter(job -> job.decision() != Decision.DISCARDED).limit(TASTE).map(RequestTools::name).toList(),
+				decided.stream().filter(job -> job.decision() == Decision.DISCARDED).limit(TASTE).map(RequestTools::name).toList());
+	}
+
+	private static String name(FoundJob job) {
+		return (job.company() != null) ? job.title() + " at " + job.company() : job.title();
+	}
+
+	/** The companies of the jobs still in play, those changed last first. */
+	private List<String> companies(long userId) {
+		return Stream.of(ApplicationStatus.SAVED, ApplicationStatus.APPLIED, ApplicationStatus.INTERVIEWING)
+			.flatMap(status -> this.applications.find(userId, ApplicationQuery.builder()
+				.status(status)
+				.sort(ApplicationSort.MODIFIED)
+				.direction(Sort.Direction.DESC)
+				.page(0)
+				.size(COMPANIES)
+				.build()).getContent().stream())
+			.map(ApplicationSummary::company)
+			.filter(Objects::nonNull)
+			.distinct()
+			.limit(COMPANIES)
+			.toList();
 	}
 
 	private static String describe(AiRequestKind kind) {
@@ -188,8 +270,72 @@ class RequestTools implements McpToolSet {
 			case FIND_HIRING_POSTS -> "find recruiters' posts saying they're hiring, for the Who's hiring page";
 			case FIND_RECRUITERS -> "find recruiters to follow, for the Who's hiring page";
 			case AUTO_APPLY -> "apply to the jobs queued on the Auto-apply page, in the profile's browser";
+			case PREPARE_INTERVIEW -> "prepare the profile for one job's interview, with a brief about the company and the role";
+			case SCORE_JOB -> "score how well the profile fits one job";
+			case SCORE_JOBS -> "score how well the profile fits the jobs with no score yet";
+			case SORT_INBOX -> "sort the updates found in the profile's emails, waiting on the Inbox page";
+			case WRITE_PROJECTS -> "write the CV's personal projects from the profile's GitHub repositories";
 		};
 	}
+
+	/**
+	 * Claude finds the job each email is about where JobWarden couldn't, and checks what JobWarden thought it says;
+	 * what it isn't sure of stays for the profile.
+	 */
+	private static final String SORT_INBOX_STEPS = """
+			Call list_email_updates with limit 50: the emails waiting, each with what JobWarden thinks it says, the words \
+			that said it, the start of the email, and the job it matched, if any.
+			For each, find the job it's about: the matched one when the email names its company or its role; else \
+			list_jobs with search set to the company (from the sender's domain, the signature or the text), and the job \
+			whose title the email names, or the only one at that company.
+			Apply it with apply_email_update when you're sure of the job and of what the email says: an invitation to \
+			an interview or a call is INTERVIEWING, a confirmation that the application arrived APPLIED, a no REJECTED, \
+			an offer OFFER. What JobWarden thought may be wrong.
+			Dismiss with dismiss_email_update what isn't news about an application: job alerts, newsletters, ads, \
+			messages about other roles.
+			Leave the ones you aren't sure of: the profile decides them on the Inbox page. Never apply an email to a job \
+			it isn't about.
+			In the summary: how many you applied (and as what), dismissed and left, and why you left them, e.g. no job \
+			at that company.
+			""";
+
+	/** How many projects a CV shows at most: the ones worth it. */
+	static final int PROJECTS_MAX = 6;
+
+	/** Claude writes from what the repositories show, never more. */
+	private static final String WRITE_PROJECTS_STEPS = """
+			Call get_cv for the headline, the skills, and the projects the CV has now.
+			Call list_github_projects: the repositories the profile chose on the CV page, each with its description, \
+			languages, topics, stars, dates and the start of its README.
+			Write the CV's personal projects from them, the ones most worth showing first, at most %d: each with its \
+			name, its link, the technologies in a few words, and in one to three sentences what it does and what the \
+			person built in it, from the README and the languages, with numbers when the README gives them. Never claim \
+			what the repository doesn't show. Leave out forks with nothing of the person's own, and empty ones.
+			Save them with save_cv_projects: they take the place of the CV's projects, which the profile then reviews on \
+			the CV page.
+			In the summary: the projects you wrote, and those you left out and why.
+			""".formatted(PROJECTS_MAX);
+
+	/** How many jobs one request scores: the CV is read once for them all. */
+	static final int SCORE_AT_ONCE = 15;
+
+	/**
+	 * Claude reads the requirements; JobWarden works the score out from them, so scores compare across jobs and with
+	 * how the applications went.
+	 */
+	private static final String SCORING_STEPS = """
+			For a job: get_job, for the posting; when it has no description, read its link with WebFetch, asking for the \
+			requirements alone.
+			List what the posting asks for, from %d to %d requirements, in its own words, short: the skills, tools, \
+			years, languages and duties that matter, and the place, the level and the work type when it sets them. Each \
+			is MUST when the posting requires it (required, must, you have, you are) and NICE when it's a plus (nice to \
+			have, bonus, preferred, ideally).
+			For each, judge the CV honestly: MET when the CV shows it, PARTIAL when it has something near it (a related \
+			tool, fewer years, a smaller scale), MISSING when nothing supports it; a note of a few words on why. Never \
+			count what the CV doesn't say.
+			Save it with save_job_fit, with a summary in a sentence or two: JobWarden works out the score from the \
+			requirements, from 1 to 5.
+			""".formatted(FitTools.REQUIREMENTS_MIN, FitTools.REQUIREMENTS_MAX);
 
 	/**
 	 * Applying in the profile's own browser, with its sign-ins: never around a CAPTCHA, never on a site whose terms
@@ -206,6 +352,8 @@ class RequestTools implements McpToolSet {
 			Open the job's link and its application form. Report SKIPPED, with why, for LinkedIn Easy Apply and any site \
 			whose terms forbid applying automatically, a form behind a sign-in the profile doesn't have, or a posting \
 			that's closed.
+			Spare the context in the browser: find the form's fields with find and read_page (interactive elements \
+			only), fill them with form_input, and take a screenshot only to see a step that went wrong.
 			Fill the form in: the contact details and the CV from JobWarden; every question from the answers, as they \
 			are; a cover letter only when cover_letter is WRITE or the form needs one, short, for this job, from the CV; \
 			the voluntary questions (gender, ethnicity, disability, veteran) declined when decline_voluntary is true. \
@@ -225,8 +373,8 @@ class RequestTools implements McpToolSet {
 	 */
 	private static String tailorCv(@Nullable Long jobId) {
 		return """
-				Call get_cv for the CV: the fields filled in, and the text of the file uploaded. Call get_job with \
-				job_id %1$d for the posting; when it has no description, open its link to read it.
+				Call get_cv with full true for the CV: the fields filled in, and the text of the file uploaded. Call \
+				get_job with job_id %1$d for the posting; when it has no description, read its link with WebFetch.
 				List what the posting asks for: skills, tools, certifications and duties, must-haves first, in its own \
 				words, e.g. Spring Boot rather than Spring, and Amazon Web Services (AWS) spelled out once.
 				Rewrite the CV for this job, truthfully: never add a skill, an employer, a title, a date, a degree or a \
@@ -245,6 +393,31 @@ class RequestTools implements McpToolSet {
 				Save it with save_tailored_cv and job_id %1$d, with matched_keywords (the posting's keywords the CV now \
 				names), missing_keywords (those the posting asks for that the person can't honestly claim) and notes: \
 				what you changed and what to check before sending it, in a few lines.
+				""".formatted(jobId);
+	}
+
+	/**
+	 * A brief read the evening before an interview: who the company is, what they'll ask, what to tell them, what to
+	 * ask them. Found cheaply, from a few pages read with a question each.
+	 */
+	private static String prepareInterview(@Nullable Long jobId) {
+		return """
+				Call get_job with job_id %1$d for the posting, and get_cv with full true for what the person did.
+				Find out about the company: search the web for its name with about, news, engineering blog and interview \
+				questions (Glassdoor, Reddit, Blind). Read the three to six most useful results with WebFetch and a short \
+				question each, not whole pages.
+				Write the brief for someone reading it the evening before, short and to the point:
+				- company: what they make and for whom, how big, where, how they're doing, and what's new this year;
+				- role: what the job is really about, and what they'll look for, from the posting;
+				- questions: eight to twelve questions likely asked, about the posting's tools and about the person, \
+				those candidates report first;
+				- stories: for what they'll look for, a story each from the CV, in a line or two, with the result; never \
+				one the CV doesn't support;
+				- ask_them: four to six good questions to ask them;
+				- watch_out: what to look into before saying yes, e.g. layoffs, reviews, a vague salary; left out when \
+				there's nothing;
+				- sources: the addresses you read.
+				Save it with save_interview_brief and job_id %1$d.
 				""".formatted(jobId);
 	}
 
@@ -270,9 +443,24 @@ class RequestTools implements McpToolSet {
 
 	/**
 	 * @param jobId the job it's about, for a request about one
+	 * @param taste for finding jobs: what the profile kept and discarded of those found for it
+	 * @param followed for hiring posts: the recruiters the profile follows
+	 * @param companies for recruiters: the companies of the profile's jobs still in play
 	 */
 	record RequestDetails(long requestId, AiRequestKind kind, AiRequestStatus status, @Nullable Long jobId,
-			@Nullable RequirementsView requirements, String instructions, Instant createdAt) {
+			@Nullable RequirementsView requirements, String instructions, @Nullable Taste taste,
+			List<RecruiterRef> followed, List<String> companies, Instant createdAt) {
+	}
+
+	/**
+	 * @param kept the jobs found for it that the profile saved or applied to, the latest first, e.g. Java Developer at
+	 * Acme
+	 * @param discarded those it discarded
+	 */
+	record Taste(List<String> kept, List<String> discarded) {
+	}
+
+	record RecruiterRef(String name, String profileUrl) {
 	}
 
 	/**

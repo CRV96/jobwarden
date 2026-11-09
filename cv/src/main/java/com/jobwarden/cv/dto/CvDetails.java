@@ -16,12 +16,12 @@ import org.jspecify.annotations.Nullable;
  * @param skills one skill or keyword each, e.g. Java, Spring Boot, Kafka
  * @param updatedAt when they were last saved; {@code null} before they ever were
  */
-@Builder
+@Builder(toBuilder = true)
 public record CvDetails(@Nullable String fullName, @Nullable String headline, @Nullable String email,
 		@Nullable String phone, @Nullable String location, @Nullable String website, @Nullable String linkedin,
 		@Nullable String github, @Nullable String summary, List<String> skills, List<CvExperience> experience,
-		List<CvEducation> education, List<CvLanguage> languages, List<CvCertification> certifications,
-		@Nullable Instant updatedAt) {
+		List<CvProject> projects, List<CvEducation> education, List<CvLanguage> languages,
+		List<CvCertification> certifications, @Nullable Instant updatedAt) {
 
 	/** No field filled in. */
 	public static final CvDetails NONE = CvDetails.builder().build();
@@ -29,6 +29,7 @@ public record CvDetails(@Nullable String fullName, @Nullable String headline, @N
 	public CvDetails {
 		skills = (skills != null) ? List.copyOf(skills) : List.of();
 		experience = (experience != null) ? List.copyOf(experience) : List.of();
+		projects = (projects != null) ? List.copyOf(projects) : List.of();
 		education = (education != null) ? List.copyOf(education) : List.of();
 		languages = (languages != null) ? List.copyOf(languages) : List.of();
 		certifications = (certifications != null) ? List.copyOf(certifications) : List.of();

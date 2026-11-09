@@ -1,4 +1,4 @@
-// The server's capture API, for the popup and the icon (background.js). Every answer about an application is a
+// The server's capture API, for the popup, the icon (background.js) and the reminders (reminders.js). Every answer about an application is a
 // CapturedApplication, so what the extension shows always follows what the server has.
 //
 // A call throws a ServerError when the server answers with an error, and fetch's TypeError when it can't be
@@ -95,6 +95,18 @@ export async function formAnswers({ serverUrl, userId }) {
  */
 export async function learnAnswer({ serverUrl, userId }, question, answer) {
   const response = await send(serverUrl, '/answers', { method: 'POST', query: { userId }, body: { question, answer } });
+  return response.json();
+}
+
+/**
+ * The reminders set on the calendar that are due, for the background to show as notifications. Each comes once: the
+ * server takes it, so a JobWarden page asking next doesn't show it again.
+ *
+ * @param {Settings} settings
+ * @returns {Promise<Array<{id: number, applicationId: number, title: string, body: string}>>}
+ */
+export async function dueReminders({ serverUrl, userId }) {
+  const response = await send(serverUrl, '/reminders/due', { method: 'POST', query: { userId } });
   return response.json();
 }
 

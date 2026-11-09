@@ -10,7 +10,11 @@ public enum IdentityErrorCode implements ErrorCode {
 
 	USER_NOT_FOUND("IDENTITY-001"),
 
-	USER_NAME_TAKEN("IDENTITY-002");
+	USER_NAME_TAKEN("IDENTITY-002"),
+
+	IMAGE_UNREADABLE("IDENTITY-003"),
+
+	IMAGE_TOO_LARGE("IDENTITY-004");
 
 	private final String code;
 

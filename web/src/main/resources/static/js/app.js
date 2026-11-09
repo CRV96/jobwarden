@@ -91,13 +91,17 @@ document.addEventListener('click', (event) => {
 		return;
 	}
 
-	// data-toggle-hidden="<id>": shows or hides that element, e.g. the rejection reason form
+	// data-toggle-hidden="<id>": shows or hides that element, e.g. the rejection reason form. With data-focus="<selector>"
+	// it only shows it, and puts the cursor in that field of it, e.g. the job's location
 	const toggler = target.closest('[data-toggle-hidden]');
 	if (toggler) {
 		const element = document.getElementById(toggler.dataset.toggleHidden);
 		if (element) {
-			element.hidden = !element.hidden;
+			element.hidden = toggler.dataset.focus ? false : !element.hidden;
 			toggler.setAttribute('aria-expanded', String(!element.hidden));
+			if (toggler.dataset.focus) {
+				element.querySelector(toggler.dataset.focus)?.focus();
+			}
 		}
 		return;
 	}
@@ -740,4 +744,240 @@ document.addEventListener('htmx:afterRequest', (event) => {
 		form.closest('dialog')?.close();
 		form.reset();
 	}
+});
+
+/*
+ * Reminders (calendar/reminders.html). While a profile is selected, every page asks for the reminders that are due
+ * (body's data-reminders) about once a minute, and as it comes back in front. The server gives each one once, to
+ * whichever tab, or the browser extension, asks first. A page in front shows it as a card in its corner; a page
+ * behind others as the system's notification, when the browser allows them. A page behind others that may not show
+ * notifications doesn't ask: it leaves the reminder to the extension, or to the page once it's in front again.
+ */
+const REMINDERS_EVERY = 60_000;
+
+const mayNotify = () => 'Notification' in window && Notification.permission === 'granted';
+
+async function showDueReminders() {
+	const url = document.body.dataset.reminders;
+	if (!url || (document.hidden && !mayNotify())) {
+		return;
+	}
+	let due;
+	try {
+		const response = await fetch(url, { method: 'POST', headers: { Accept: 'application/json' } });
+		if (!response.ok) {
+			return;
+		}
+		due = await response.json();
+	} catch {
+		// The server is away, e.g. restarting: the reminders wait for the next time
+		return;
+	}
+	for (const reminder of due) {
+		if (document.hidden && mayNotify()) {
+			const icon = document.querySelector('link[rel="icon"][type="image/png"]')?.href;
+			const notification = new Notification(reminder.title, { body: reminder.body, icon, tag: `jobwarden-reminder-${reminder.id}` });
+			notification.addEventListener('click', () => {
+				window.focus();
+				location.href = reminder.url;
+				notification.close();
+			});
+		} else {
+			showReminderCard(reminder);
+		}
+	}
+}
+
+function showReminderCard(reminder) {
+	const template = document.getElementById('reminder-card');
+	const card = template.content.firstElementChild.cloneNode(true);
+	card.querySelector('[data-title]').textContent = reminder.title;
+	card.querySelector('[data-body]').textContent = reminder.body;
+	card.querySelector('[data-open]').href = reminder.url;
+	document.getElementById('reminder-cards').append(card);
+}
+
+/** The reminders' sections say so when the browser blocks the notifications: then only the cards show them. */
+function showNotificationsOff() {
+	const off = 'Notification' in window && Notification.permission === 'denied';
+	for (const hint of document.querySelectorAll('[data-notifications-off]')) {
+		hint.hidden = !off;
+	}
+}
+
+// showDueReminders keeps its own errors: the calls only start it (void)
+document.addEventListener('DOMContentLoaded', () => {
+	void showDueReminders();
+	setInterval(showDueReminders, REMINDERS_EVERY);
+	showNotificationsOff();
+});
+document.addEventListener('htmx:afterSettle', showNotificationsOff);
+document.addEventListener('visibilitychange', () => {
+	if (!document.hidden) {
+		void showDueReminders();
+	}
+});
+
+// Setting a reminder is when the browser asks whether JobWarden may show notifications: on the click, as it wants
+document.addEventListener('change', (event) => {
+	const box = event.target;
+	if (box instanceof HTMLInputElement && box.checked && box.closest('[data-reminder-picker]')
+			&& 'Notification' in window && Notification.permission === 'default') {
+		Notification.requestPermission().then(showNotificationsOff, showNotificationsOff);
+	}
+});
+
+// data-close-card: closes the reminder's card it's in
+document.addEventListener('click', (event) => {
+	event.target.closest('[data-close-card]')?.closest('[data-reminder-card]')?.remove();
+});
+
+/*
+ * The pipeline's cards (pipeline/board.html) move to another column by dragging: dropped there, the card goes to the
+ * top of that column at once, and its timeline gets that status, as the status buttons of its side panel give it. The
+ * answer's applications-changed then reloads the board, with the counts. A click still opens the card.
+ */
+let draggedCard = null;
+
+const dropColumn = (event) => event.target instanceof Element ? event.target.closest('[data-drop-status]') : null;
+
+const clearDropTargets = () => {
+	for (const column of document.querySelectorAll('.is-drop-target')) {
+		column.classList.remove('is-drop-target');
+	}
+};
+
+document.addEventListener('dragstart', (event) => {
+	const card = event.target instanceof Element ? event.target.closest('[data-drag-card]') : null;
+	if (!card) {
+		return;
+	}
+	draggedCard = card;
+	event.dataTransfer.effectAllowed = 'move';
+	event.dataTransfer.setData('text/plain', card.dataset.dragCard);
+	card.classList.add('is-dragged');
+});
+
+document.addEventListener('dragend', () => {
+	draggedCard?.classList.remove('is-dragged');
+	draggedCard = null;
+	clearDropTargets();
+});
+
+// Only another column takes the card: dropping it back where it was changes nothing
+document.addEventListener('dragover', (event) => {
+	const column = dropColumn(event);
+	if (!draggedCard || !column || column.dataset.dropStatus === draggedCard.dataset.status) {
+		return;
+	}
+	event.preventDefault();
+	event.dataTransfer.dropEffect = 'move';
+	if (!column.classList.contains('is-drop-target')) {
+		clearDropTargets();
+		column.classList.add('is-drop-target');
+	}
+});
+
+document.addEventListener('dragleave', (event) => {
+	const column = dropColumn(event);
+	if (column && !column.contains(event.relatedTarget)) {
+		column.classList.remove('is-drop-target');
+	}
+});
+
+document.addEventListener('drop', (event) => {
+	const column = dropColumn(event);
+	if (!draggedCard || !column || column.dataset.dropStatus === draggedCard.dataset.status) {
+		return;
+	}
+	event.preventDefault();
+	const card = draggedCard;
+	clearDropTargets();
+	column.prepend(card);
+	card.dataset.status = column.dataset.dropStatus;
+	htmx.ajax('POST', card.dataset.eventsUrl, { swap: 'none', values: { stageCategory: column.dataset.dropStatus, view: 'DRAWER' } });
+});
+
+// The CV page's preview: the CV built from the fields, or the uploaded file, one at a time. Each tab shows its frame
+// and its buttons (data-preview-for) and hides the other's.
+document.addEventListener('change', (event) => {
+	const tab = event.target;
+	if (!(tab instanceof HTMLInputElement) || !tab.matches('[data-preview-tab]')) {
+		return;
+	}
+	tab.closest('aside')?.querySelectorAll('[data-preview-for]').forEach((element) => {
+		element.hidden = element.dataset.previewFor !== tab.value;
+	});
+});
+
+// The inbox's mailbox form: picking a provider fills its IMAP server and port in (data-host, data-port); Other
+// leaves the server to type. Proton Mail Bridge, on this computer (data-local), has its own password and hint.
+document.addEventListener('change', (event) => {
+	const provider = event.target;
+	if (!(provider instanceof HTMLSelectElement) || !provider.matches('[data-mail-provider]')) {
+		return;
+	}
+	const picked = provider.selectedOptions[0]?.dataset ?? {};
+	const field = provider.form?.querySelector('[data-mail-host]');
+	if (field) {
+		field.value = picked.host ?? '';
+		if (!picked.host) {
+			field.focus();
+		}
+	}
+	const port = provider.form?.querySelector('[data-mail-port]');
+	if (port && picked.port) {
+		port.value = picked.port;
+	}
+	const local = picked.local === 'true';
+	provider.form?.querySelectorAll('[data-mail-local]').forEach((element) => {
+		element.hidden = (element.dataset.mailLocal === 'true') !== local;
+	});
+});
+
+/*
+ * The cards of a job's page and side panel (data-collapse="<kind>") fold to their header, and unfold, with the arrow
+ * added to it here. Each kind stays as it was left, for every job: an interview prep folded once stays folded. Again
+ * after HTMX swaps a card in, e.g. while Claude is on it.
+ */
+const foldedKinds = () => new Set((preferences.get('folded') ?? '').split(',').filter(Boolean));
+
+function showFolded() {
+	const folded = foldedKinds();
+	for (const card of document.querySelectorAll('[data-collapse]')) {
+		const header = card.firstElementChild;
+		if (!header) {
+			continue;
+		}
+		let toggle = header.querySelector(':scope > [data-collapse-toggle]');
+		if (!toggle) {
+			toggle = document.createElement('button');
+			toggle.type = 'button';
+			toggle.className = 'collapse-toggle btn btn-ghost ml-auto size-6 flex-none p-0 text-ink/50';
+			toggle.dataset.collapseToggle = '';
+			toggle.innerHTML = '<i class="ph ph-caret-down text-sm"></i>';
+			header.append(toggle);
+		}
+		const isFolded = folded.has(card.dataset.collapse);
+		card.toggleAttribute('data-collapsed', isFolded);
+		toggle.setAttribute('aria-expanded', String(!isFolded));
+		toggle.title = isFolded ? document.body.dataset.unfold : document.body.dataset.fold;
+		toggle.setAttribute('aria-label', toggle.title);
+	}
+}
+document.addEventListener('DOMContentLoaded', showFolded);
+document.addEventListener('htmx:afterSettle', showFolded);
+
+document.addEventListener('click', (event) => {
+	const toggle = event.target instanceof Element ? event.target.closest('[data-collapse-toggle]') : null;
+	if (!toggle) {
+		return;
+	}
+	const kind = toggle.closest('[data-collapse]').dataset.collapse;
+	const folded = foldedKinds();
+	if (!folded.delete(kind)) {
+		folded.add(kind);
+	}
+	preferences.set('folded', [...folded].join(','));
+	showFolded();
 });

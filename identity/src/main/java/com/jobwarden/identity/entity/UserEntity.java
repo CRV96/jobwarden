@@ -11,6 +11,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.jspecify.annotations.Nullable;
 
 @Entity
 @Table(name = "users")
@@ -27,8 +28,15 @@ public class UserEntity {
 	@CreationTimestamp
 	private Instant createdAt;
 
+	/** When its photo last changed; {@code null} without one */
+	private @Nullable Instant imageChangedAt;
+
 	public UserEntity(String name) {
 		this.name = name;
+	}
+
+	public void imageChanged(@Nullable Instant at) {
+		this.imageChangedAt = at;
 	}
 
 }

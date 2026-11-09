@@ -24,10 +24,10 @@
     "scripts": ["background.js"],
     "type": "module"
   },
-  "permissions": ["activeTab", "scripting", "storage", "favicon"],
+  "permissions": ["activeTab", "scripting", "storage", "favicon", "alarms"],
   "host_permissions": ["http://localhost:8080/*"],
   "optional_host_permissions": ["http://*/*", "https://*/*"],
-  "optional_permissions": ["tabs"],
+  "optional_permissions": ["tabs", "notifications"],
   "browser_specific_settings": {
     "gecko": {
       "id": "jobwarden@crv96.github.io",

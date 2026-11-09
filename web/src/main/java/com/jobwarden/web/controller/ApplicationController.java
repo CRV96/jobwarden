@@ -12,17 +12,23 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.identity.dto.User;
+import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.enums.InterviewFormat;
+import com.jobwarden.jobs.enums.PayBasis;
 import com.jobwarden.jobs.enums.RejectionReason;
+import com.jobwarden.jobs.enums.SalaryPeriod;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.service.ApplicationCsvService;
 import com.jobwarden.jobs.service.ApplicationService;
+import com.jobwarden.jobs.service.JobFitService;
+import com.jobwarden.jobs.service.SalaryService;
 import com.jobwarden.web.constants.AppConstants.ControllerConstants;
 import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
 import com.jobwarden.web.constants.AppConstants.HtmxEvents;
@@ -30,6 +36,7 @@ import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.constants.AppConstants.Views;
 import com.jobwarden.web.dto.ApplicationListParams;
 import com.jobwarden.web.dto.FollowUpForm;
+import com.jobwarden.web.dto.JobDetailsForm;
 import com.jobwarden.web.dto.NewApplicationForm;
 import com.jobwarden.web.dto.NewEventForm;
 import com.jobwarden.web.dto.NotesForm;
@@ -77,6 +84,10 @@ class ApplicationController extends BaseController {
 
 	private final ApplicationCsvService csv;
 
+	private final JobFitService fits;
+
+	private final SalaryService salaries;
+
 	/**
 	 * The list, searched, filtered, sorted and paged as its address says. An address past the last page (e.g. after
 	 * deleting the last rows of a page) goes to the last page.
@@ -89,6 +100,8 @@ class ApplicationController extends BaseController {
 			return redirectTo(listParams.withPage(page.getTotalPages()).url());
 		}
 		model.addAttribute(ModelAttributes.APPLICATION_PAGE, page);
+		model.addAttribute(ModelAttributes.FIT_SCORES,
+				this.fits.findScores(userId, page.getContent().stream().map(ApplicationSummary::id).toList()));
 		model.addAttribute(ModelAttributes.STATUS_COUNTS, this.applications.countByStatus(userId, listParams.q()));
 		addImages(model, userId);
 		addFormChoices(model);
@@ -204,7 +217,8 @@ class ApplicationController extends BaseController {
 	 * they're saved, or why they aren't.
 	 */
 	@PutMapping("/{id}/follow-up")
-	String updateFollowUp(@PathVariable long id, @Valid FollowUpForm form, BindingResult result, Model model) {
+	String updateFollowUp(@PathVariable long id, @Valid FollowUpForm form, BindingResult result, Model model,
+			HttpServletResponse response) {
 		long userId = requireProfile(model).id();
 		if (result.hasErrors()) {
 			Map<String, String> errors = fieldErrors(result);
@@ -212,8 +226,32 @@ class ApplicationController extends BaseController {
 			model.addAttribute(ModelAttributes.FIELD_ERRORS, errors);
 		} else {
 			this.applications.updateFollowUp(userId, id, form.toFollowUp());
+			// The job's reminders list its deadline and its day to follow up
+			response.setHeader(HtmxHeaders.TRIGGER, HtmxEvents.FOLLOW_UP_CHANGED);
 		}
 		return Views.FOLLOW_UP_STATUS_FRAGMENT;
+	}
+
+	/**
+	 * Called by HTMX from the job's facts, with its location and its salary as amounts. Like {@link #addEvent},
+	 * returns the part the form is in; when something typed is wrong, with the form still open, saying what.
+	 */
+	@PostMapping("/{id}/details")
+	String updateDetails(@PathVariable long id, @Valid JobDetailsForm form, BindingResult result,
+			@RequestParam(defaultValue = "PAGE") ApplicationView view, Locale locale, Model model,
+			HttpServletResponse response) {
+		long userId = requireProfile(model).id();
+		if (result.hasErrors()) {
+			log.debug("Location and salary of application {} not saved, fields with errors: {}", id,
+					fieldErrors(result).keySet());
+			model.addAttribute(ModelAttributes.DETAILS_ERROR, errorMessage(result));
+			model.addAttribute(ModelAttributes.DETAILS_FORM, form);
+			addApplication(model, userId, id, view);
+			return view.getFragment();
+		}
+		this.applications.updateLocation(userId, id, form.toLocation());
+		this.salaries.change(userId, id, form.toSalaryRange(), locale);
+		return showChangedApplication(model, response, userId, id, view, null);
 	}
 
 	/**
@@ -284,9 +322,15 @@ class ApplicationController extends BaseController {
 	}
 
 	private void addApplication(Model model, long userId, long applicationId, ApplicationView view) {
-		model.addAttribute(ModelAttributes.JOB_APPLICATION, this.applications.findById(userId, applicationId)
-			.orElseThrow(() -> new ApplicationNotFoundException(applicationId)));
+		ApplicationDetails application = this.applications.findById(userId, applicationId)
+			.orElseThrow(() -> new ApplicationNotFoundException(applicationId));
+		model.addAttribute(ModelAttributes.JOB_APPLICATION, application);
 		model.addAttribute(ModelAttributes.VIEW, view);
+		// The facts' form for the location and the salary
+		model.addAttribute(ModelAttributes.SALARY_RANGE, this.salaries.read(application.salary()).orElse(null));
+		model.addAttribute(ModelAttributes.SALARY_CURRENCIES, this.salaries.currencies());
+		model.addAttribute(ModelAttributes.PAY_PERIODS, SalaryPeriod.values());
+		model.addAttribute(ModelAttributes.PAY_BASES, PayBasis.values());
 		addImages(model, userId);
 		addFormChoices(model);
 	}

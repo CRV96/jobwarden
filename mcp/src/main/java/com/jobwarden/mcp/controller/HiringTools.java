@@ -21,6 +21,7 @@ import tools.jackson.databind.node.ObjectNode;
 import org.springframework.stereotype.Component;
 
 import static com.jobwarden.mcp.controller.JobTools.properties;
+import static com.jobwarden.mcp.controller.Schemas.bool;
 import static com.jobwarden.mcp.controller.Schemas.date;
 import static com.jobwarden.mcp.controller.Schemas.integer;
 import static com.jobwarden.mcp.controller.Schemas.list;
@@ -39,6 +40,9 @@ class HiringTools implements McpToolSet {
 
 	private static final int MAX_LISTED = 200;
 
+	/** How many a list gives unless asked for more: adding leaves out what the profile has, so lists are rarely needed. */
+	private static final int LISTED = 50;
+
 	private static final int MAX_RECRUITERS_AT_ONCE = 50;
 
 	private final Profiles profiles;
@@ -54,10 +58,20 @@ class HiringTools implements McpToolSet {
 		return new McpTool("list_recruiters", "List recruiters",
 				"The recruiters and hiring managers the profile knows, from the Who's hiring page: those it follows first, "
 						+ "then those with the most posts. Look at the followed ones' recent posts first. The contacts saved "
-						+ "on its jobs are among them; those it removed aren't, and can't be added again.",
-				object(properties(Profiles.ARGUMENT, Profiles.schema())), true, false, call -> {
+						+ "on its jobs are among them; those it removed aren't, and can't be added again. No need to list them "
+						+ "before adding more: add_recruiters leaves out those the profile has.",
+				object(properties(Profiles.ARGUMENT, Profiles.schema(),
+						"followed_only", bool("Only those the profile follows"),
+						"limit", integer("How many at most, up to " + MAX_LISTED + "; " + LISTED + " if left out"))),
+				true, false, call -> {
 					long userId = this.profiles.of(call);
-					return Map.of("recruiters", this.hiring.findRecruiters(userId).stream().map(HiringTools::row).toList());
+					boolean followedOnly = call.arguments().path("followed_only").asBoolean(false);
+					return Map.of("recruiters", this.hiring.findRecruiters(userId)
+						.stream()
+						.filter(recruiter -> !followedOnly || recruiter.followed())
+						.limit(call.limit("limit", LISTED, MAX_LISTED))
+						.map(HiringTools::row)
+						.toList());
 				});
 	}
 
@@ -101,13 +115,14 @@ class HiringTools implements McpToolSet {
 
 	private McpTool listHiringPosts() {
 		return new McpTool("list_hiring_posts", "List hiring posts",
-				"The hiring posts the profile has, the latest first, to skip them when adding more: their links, roles and "
-						+ "authors. Hidden ones are left out but can't be added again either.",
+				"The hiring posts the profile has, the latest first: their links, roles and authors. Hidden ones are left "
+						+ "out but can't be added again either. No need to list them before adding more: add_hiring_posts "
+						+ "leaves out those the profile has, and filter_links tells which search results are new.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"limit", integer("How many, at most; " + MAX_LISTED + " if left out"))),
+						"limit", integer("How many at most, up to " + MAX_LISTED + "; " + LISTED + " if left out"))),
 				true, false, call -> {
 					long userId = this.profiles.of(call);
-					int limit = call.limit("limit", MAX_LISTED, MAX_LISTED);
+					int limit = call.limit("limit", LISTED, MAX_LISTED);
 					return Map.of("posts", this.hiring.findPosts(userId, HiringPostQuery.ALL)
 						.stream()
 						.limit(limit)

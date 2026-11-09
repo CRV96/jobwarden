@@ -9,6 +9,7 @@ import com.jobwarden.cv.dto.CvDetails;
 import com.jobwarden.cv.dto.CvEducation;
 import com.jobwarden.cv.dto.CvExperience;
 import com.jobwarden.cv.dto.CvLanguage;
+import com.jobwarden.cv.dto.CvProject;
 import com.jobwarden.cv.dto.TailoredCv;
 import com.jobwarden.cv.service.CvService;
 import com.jobwarden.jobs.dto.ApplicationDetails;
@@ -21,6 +22,7 @@ import tools.jackson.databind.node.ObjectNode;
 import org.springframework.stereotype.Component;
 
 import static com.jobwarden.mcp.controller.JobTools.properties;
+import static com.jobwarden.mcp.controller.Schemas.bool;
 import static com.jobwarden.mcp.controller.Schemas.integer;
 import static com.jobwarden.mcp.controller.Schemas.list;
 import static com.jobwarden.mcp.controller.Schemas.object;
@@ -37,6 +39,9 @@ class CvTools implements McpToolSet {
 	/** The most of the file's text it returns: a CV is far shorter, and Claude's context is shared. */
 	static final int MAX_TEXT_LENGTH = 30_000;
 
+	/** The most of it a brief CV returns: the first pages say who the person is. */
+	static final int BRIEF_TEXT_LENGTH = 8_000;
+
 	private final Profiles profiles;
 
 	private final CvService cvs;
@@ -51,17 +56,22 @@ class CvTools implements McpToolSet {
 	private McpTool getCv() {
 		return new McpTool("get_cv", "Get the CV",
 				"The profile's CV, to find jobs that fit it: the fields filled in on the CV page (headline, summary, "
-						+ "experience, education, skills, languages, certifications) and the text of the CV file uploaded. "
-						+ "Either may be missing; has_cv is false when both are.",
-				object(properties(Profiles.ARGUMENT, Profiles.schema())), true, false, call -> {
+						+ "experience, projects, education, skills, languages, certifications), or the text of the CV file uploaded when "
+						+ "there are none; has_cv is false when there's neither. Brief unless full is true: each job's role, "
+						+ "company and dates without its points, enough to find jobs. Tailoring the CV needs it full.",
+				object(properties(Profiles.ARGUMENT, Profiles.schema(),
+						"full", bool("Every point of every job, and the file's text as well as the fields: for tailoring "
+								+ "the CV"))),
+				true, false, call -> {
 					long userId = this.profiles.of(call);
+					boolean full = call.arguments().path("full").asBoolean(false);
 					Cv cv = this.cvs.find(userId);
-					FileView file = (cv.file() == null) ? null
-							: new FileView(cv.file().fileName(), cv.file().uploadedAt(),
-									this.cvs.fileText(userId).map(CvTools::shortened).orElse(null));
 					CvDetails details = cv.details();
 					boolean filledIn = details.isFilledIn() || !details.skills().isEmpty() || details.summary() != null;
-					return new CvView(filledIn || file != null, filledIn ? details(details) : null, file);
+					// The file's text says again what the fields say: only without them, unless asked
+					FileView file = (cv.file() == null) ? null
+							: new FileView(cv.file().fileName(), cv.file().uploadedAt(), fileText(userId, full, filledIn));
+					return new CvView(filledIn || file != null, filledIn ? details(details, full) : null, file);
 				});
 	}
 
@@ -86,12 +96,19 @@ class CvTools implements McpToolSet {
 				"end", string("When it ended"),
 				"description", string("Anything else, a line per point")),
 				"degree");
+		ObjectNode project = object(properties(
+				"name", string("The project"),
+				"link", string("Where to see it, e.g. its repository"),
+				"technologies", string("What it's made with, in a few words"),
+				"description", string("What it does and what the person built, a sentence or three")),
+				"name");
 		ObjectNode cv = object(properties(
 				"full_name", string("Only when the CV page has none: from the CV file"),
 				"headline", string("What the person does, under the name: the posting's title when it's true of them"),
 				"summary", string("Three or four lines on why the person fits the job"),
 				"skills", strings("The posting's keywords the person has first, in its words, then the other relevant ones"),
 				"experience", list(job, "The jobs, newest first: the same jobs and dates as the CV"),
+				"projects", list(project, "As the CV has them, the ones that fit the job first"),
 				"education", list(school, "As the CV has it"),
 				"languages", list(object(properties("language", string("e.g. English"),
 						"level", string("e.g. C1, or Native"))), "As the CV has it"),
@@ -145,6 +162,7 @@ class CvTools implements McpToolSet {
 			.experience(cv.items("experience").stream().map(job -> new CvExperience(job.requiredString("role"),
 					job.string("company"), job.string("location"), job.string("start"), job.string("end"),
 					job.string("description"))).toList())
+			.projects(cv.items("projects").stream().map(ProjectTools::project).toList())
 			.education(cv.items("education").stream().map(school -> new CvEducation(school.requiredString("degree"),
 					school.string("school"), school.string("location"), school.string("start"), school.string("end"),
 					school.string("description"))).toList())
@@ -156,17 +174,33 @@ class CvTools implements McpToolSet {
 			.build();
 	}
 
+	/** The file's text: all of it when asked, the start of it without the fields, nothing with them */
+	private @Nullable String fileText(long userId, boolean full, boolean filledIn) {
+		if (!full && filledIn) {
+			return null;
+		}
+		int length = full ? MAX_TEXT_LENGTH : BRIEF_TEXT_LENGTH;
+		return this.cvs.fileText(userId).map(text -> shortened(text, length)).orElse(null);
+	}
+
 	private static @Nullable String firstOf(@Nullable String saved, @Nullable String written) {
 		return (saved != null) ? saved : written;
 	}
 
-	private static DetailsView details(CvDetails cv) {
-		return new DetailsView(cv.fullName(), cv.headline(), cv.location(), cv.summary(), cv.skills(), cv.experience(),
-				cv.education(), cv.languages(), cv.certifications(), cv.updatedAt());
+	/**
+	 * @param full with every job's points; else only the jobs' roles, companies, places and dates
+	 */
+	private static DetailsView details(CvDetails cv, boolean full) {
+		List<CvExperience> experience = full ? cv.experience() : cv.experience()
+			.stream()
+			.map(job -> new CvExperience(job.role(), job.company(), job.location(), job.start(), job.end(), null))
+			.toList();
+		return new DetailsView(cv.fullName(), cv.headline(), cv.location(), cv.summary(), cv.skills(), experience,
+				cv.projects(), cv.education(), cv.languages(), cv.certifications(), cv.updatedAt());
 	}
 
-	private static String shortened(String text) {
-		return (text.length() <= MAX_TEXT_LENGTH) ? text : text.substring(0, MAX_TEXT_LENGTH) + "…";
+	private static String shortened(String text, int maxLength) {
+		return (text.length() <= maxLength) ? text : text.substring(0, maxLength) + "…";
 	}
 
 	/**
@@ -177,8 +211,9 @@ class CvTools implements McpToolSet {
 
 	/** The fields, without the contact details: Claude needs none of them to find jobs. */
 	record DetailsView(@Nullable String fullName, @Nullable String headline, @Nullable String location,
-			@Nullable String summary, List<String> skills, List<CvExperience> experience, List<CvEducation> education,
-			List<CvLanguage> languages, List<CvCertification> certifications, @Nullable Instant updatedAt) {
+			@Nullable String summary, List<String> skills, List<CvExperience> experience, List<CvProject> projects,
+			List<CvEducation> education, List<CvLanguage> languages, List<CvCertification> certifications,
+			@Nullable Instant updatedAt) {
 	}
 
 	/**
