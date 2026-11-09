@@ -85,7 +85,7 @@
                             </th>
                             <th scope="col" th:text="#{jobs.column.salary}">Salary</th>
                             <th scope="col" th:aria-sort="${listParams.isSortedBy('FIT')} ? (${listParams.dir.isAscending()} ? 'ascending' : 'descending')">
-                                <a th:replace="~{applications/fragments :: sort-link('FIT', #{jobs.column.fit})}"></a>
+                                <th:block th:replace="~{applications/fragments :: sort-link('FIT', #{jobs.column.fit})}"></th:block>
                             </th>
                             <th scope="col" th:aria-sort="${listParams.isSortedBy('SOURCE')} ? (${listParams.dir.isAscending()} ? 'ascending' : 'descending')">
                                 <a th:replace="~{applications/fragments :: sort-link('SOURCE', #{jobs.column.source})}"></a>

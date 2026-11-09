@@ -3,6 +3,7 @@ package com.jobwarden.jobs.service.impl;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
@@ -283,7 +284,9 @@ class DefaultReminderService implements ReminderService {
 	private String when(CalendarEntry entry, LocalDateTime now, Locale locale) {
 		String time = (entry.time() != null) ? entry.time().format(TIME) : null;
 		if (time != null) {
-			long minutes = Duration.between(now, entry.start()).toMinutes();
+			// Between zoned times: an hour that's skipped or repeated as the clocks change counts as it is
+			ZoneId zone = ZoneId.systemDefault();
+			long minutes = Duration.between(now.atZone(zone), entry.start().atZone(zone)).toMinutes();
 			if (minutes <= 0) {
 				return message("notice.when.now", locale);
 			}

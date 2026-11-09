@@ -805,15 +805,16 @@ function showNotificationsOff() {
 	}
 }
 
+// showDueReminders keeps its own errors: the calls only start it (void)
 document.addEventListener('DOMContentLoaded', () => {
-	showDueReminders();
+	void showDueReminders();
 	setInterval(showDueReminders, REMINDERS_EVERY);
 	showNotificationsOff();
 });
 document.addEventListener('htmx:afterSettle', showNotificationsOff);
 document.addEventListener('visibilitychange', () => {
 	if (!document.hidden) {
-		showDueReminders();
+		void showDueReminders();
 	}
 });
 
@@ -822,7 +823,7 @@ document.addEventListener('change', (event) => {
 	const box = event.target;
 	if (box instanceof HTMLInputElement && box.checked && box.closest('[data-reminder-picker]')
 			&& 'Notification' in window && Notification.permission === 'default') {
-		Notification.requestPermission().then(showNotificationsOff);
+		Notification.requestPermission().then(showNotificationsOff, showNotificationsOff);
 	}
 });
 

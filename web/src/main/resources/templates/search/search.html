@@ -232,9 +232,10 @@
 </main>
 
 <!--/* What the page says once the search is saved (DiscoverController.saveSearch), and the saved filters' menu, which
-       HTMX swaps in out of band so it has the new one */-->
+       HTMX swaps in out of band so it has the new one. It takes the place of the page's empty #search-saved, so it
+       has the same id: given here with th:id, as the page itself has it already. */-->
 <th:block th:fragment="saved-answer">
-    <p id="search-saved" class="flex flex-wrap items-center gap-x-1.5 text-xs text-ink/70" role="status">
+    <p th:id="'search-saved'" class="flex flex-wrap items-center gap-x-1.5 text-xs text-ink/70" role="status">
         <i class="ph ph-check-circle text-success"></i>
         <span th:text="#{search.saved(${savedSearch.name})}">Saved as “Remote Java”.</span>
         <a class="link font-medium" th:href="@{/discover(search=${savedSearch.id})}" th:text="#{search.saved.link}">Open Discover</a>

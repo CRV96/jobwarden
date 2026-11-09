@@ -51,15 +51,22 @@
         <p class="text-xs text-ink/60" th:if="${update.applicationId == null}" th:text="#{inbox.noJob}">It names none of your jobs: pick the one it’s about.</p>
         <form class="flex flex-wrap items-center gap-2" th:hx-post="@{/inbox/updates/{id}/apply(id=${update.id})}"
               hx-target="#email-updates" hx-swap="outerHTML">
-            <select class="input w-auto min-w-0 flex-[1_1_220px]" name="job" required th:aria-label="#{inbox.job}">
-                <option value="" th:selected="${update.applicationId == null}" disabled th:text="#{inbox.pickJob}">Which job?</option>
-                <option th:each="job : ${inboxJobs}" th:value="${job.id}" th:selected="${job.id == update.applicationId}"
-                        th:text="${job.company != null} ? #{calendar.entryTitle(${job.title}, ${job.company})} : ${job.title}">Backend engineer at Acme</option>
-            </select>
-            <select class="input w-auto" name="status" th:aria-label="#{inbox.status}">
-                <option th:each="status : ${emailStatuses}" th:value="${status}" th:selected="${status == update.status}"
-                        th:text="#{${'status.' + status}}">Rejected</option>
-            </select>
+            <!--/* The labels are for screen readers only (contents: the select stays the form's flex item) */-->
+            <label class="contents">
+                <span class="sr-only" th:text="#{inbox.job}">Job</span>
+                <select class="input w-auto min-w-0 flex-[1_1_220px]" name="job" required>
+                    <option value="" th:selected="${update.applicationId == null}" disabled th:text="#{inbox.pickJob}">Which job?</option>
+                    <option th:each="job : ${inboxJobs}" th:value="${job.id}" th:selected="${job.id == update.applicationId}"
+                            th:text="${job.company != null} ? #{calendar.entryTitle(${job.title}, ${job.company})} : ${job.title}">Backend engineer at Acme</option>
+                </select>
+            </label>
+            <label class="contents">
+                <span class="sr-only" th:text="#{inbox.status}">Status</span>
+                <select class="input w-auto" name="status">
+                    <option th:each="status : ${emailStatuses}" th:value="${status}" th:selected="${status == update.status}"
+                            th:text="#{${'status.' + status}}">Rejected</option>
+                </select>
+            </label>
             <button class="btn btn-primary" type="submit"><i class="ph ph-check"></i><span th:text="#{inbox.apply}">Apply</span></button>
             <button class="btn btn-ghost" type="button" th:hx-post="@{/inbox/updates/{id}/dismiss(id=${update.id})}"
                     hx-target="#email-updates" hx-swap="outerHTML" th:text="#{inbox.dismiss}">Dismiss</button>

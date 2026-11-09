@@ -17,10 +17,13 @@
         <!--/* As it's typed, HTMX swaps the board; Enter without HTMX loads the whole page, the same */-->
         <form class="relative min-w-[200px] flex-[0_1_300px]" method="get" th:action="@{/pipeline}" role="search">
             <i class="ph ph-magnifying-glass pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-[15px] text-ink/50"></i>
-            <input class="input pl-8" type="search" name="q" th:value="${pipelineSearch}" th:placeholder="#{jobs.search}"
-                   th:aria-label="#{jobs.search}" autocomplete="off"
-                   th:hx-get="@{/pipeline}" hx-trigger="input changed delay:300ms, search" hx-include="closest form"
-                   hx-target="#pipeline" hx-select="#pipeline" hx-swap="outerHTML" hx-push-url="true">
+            <label class="contents">
+                <span class="sr-only" th:text="#{jobs.search}">Search</span>
+                <input class="input pl-8" type="search" name="q" th:value="${pipelineSearch}" th:placeholder="#{jobs.search}"
+                       autocomplete="off"
+                       th:hx-get="@{/pipeline}" hx-trigger="input changed delay:300ms, search" hx-include="closest form"
+                       hx-target="#pipeline" hx-select="#pipeline" hx-swap="outerHTML" hx-push-url="true">
+            </label>
         </form>
         <button class="btn btn-primary" type="button" data-open-dialog="add-job">
             <i class="ph ph-plus text-[15px]"></i><span th:text="#{jobs.add}">Add job</span>

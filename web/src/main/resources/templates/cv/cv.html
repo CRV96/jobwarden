@@ -220,9 +220,9 @@
                 </span>
             </div>
             <iframe class="h-[78vh] w-full rounded-md border border-line bg-white xl:h-auto xl:min-h-0 xl:flex-1" data-preview-for="built"
-                    th:src="@{/cv/preview}" th:title="#{cv.preview.built}" th:hidden="${fileFirst}"></iframe>
+                    th:src="@{/cv/preview}" title="CV preview" th:title="#{cv.preview.built}" th:hidden="${fileFirst}"></iframe>
             <iframe class="h-[78vh] w-full rounded-md border border-line bg-white xl:h-auto xl:min-h-0 xl:flex-1" data-preview-for="file"
-                    th:if="${cv.file}" th:src="@{/cv/file/preview}" th:title="${cv.file.fileName}" th:hidden="${!fileFirst}"
+                    th:if="${cv.file}" th:src="@{/cv/file/preview}" title="Uploaded CV" th:title="${cv.file.fileName}" th:hidden="${!fileFirst}"
                     loading="lazy"></iframe>
         </aside>
     </div>
@@ -257,14 +257,27 @@
 </div>
 
 <div th:fragment="project-row(index, project)" class="grid gap-2 rounded-lg border border-line p-3 sm:grid-cols-2" data-row>
-    <input class="input" type="text" th:name="|projects[${index}].name|" th:value="${project?.name}" maxlength="200"
-           th:placeholder="#{cv.projects.name}" th:aria-label="#{cv.projects.name}">
-    <input class="input" type="url" th:name="|projects[${index}].link|" th:value="${project?.link}" maxlength="200"
-           placeholder="https://github.com/…" th:aria-label="#{cv.projects.link}">
-    <input class="input sm:col-span-2" type="text" th:name="|projects[${index}].technologies|" th:value="${project?.technologies}"
-           maxlength="200" th:placeholder="#{cv.projects.technologies}" th:aria-label="#{cv.projects.technologies}">
-    <textarea class="input sm:col-span-2" rows="3" maxlength="5000" th:name="|projects[${index}].description|"
-              th:placeholder="#{cv.projects.description}" th:aria-label="#{cv.projects.description}" th:text="${project?.description}"></textarea>
+    <!--/* Each field's label is for screen readers only (contents: the field stays the grid's item) */-->
+    <label class="contents">
+        <span class="sr-only" th:text="#{cv.projects.name}">Project</span>
+        <input class="input" type="text" th:name="|projects[${index}].name|" th:value="${project?.name}" maxlength="200"
+               th:placeholder="#{cv.projects.name}">
+    </label>
+    <label class="contents">
+        <span class="sr-only" th:text="#{cv.projects.link}">Link</span>
+        <input class="input" type="url" th:name="|projects[${index}].link|" th:value="${project?.link}" maxlength="200"
+               placeholder="https://github.com/…">
+    </label>
+    <label class="contents">
+        <span class="sr-only" th:text="#{cv.projects.technologies}">Technologies</span>
+        <input class="input sm:col-span-2" type="text" th:name="|projects[${index}].technologies|" th:value="${project?.technologies}"
+               maxlength="200" th:placeholder="#{cv.projects.technologies}">
+    </label>
+    <label class="contents">
+        <span class="sr-only" th:text="#{cv.projects.description}">What it does</span>
+        <textarea class="input sm:col-span-2" rows="3" maxlength="5000" th:name="|projects[${index}].description|"
+                  th:placeholder="#{cv.projects.description}" th:text="${project?.description}"></textarea>
+    </label>
     <button class="btn btn-ghost justify-self-start px-1.5 py-1 text-xs" type="button" data-remove-row>
         <i class="ph ph-trash"></i><span th:text="#{cv.remove}">Remove</span>
     </button>

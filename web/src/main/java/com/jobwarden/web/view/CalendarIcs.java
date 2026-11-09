@@ -140,7 +140,7 @@ public class CalendarIcs {
 		if (!allDay) {
 			return (lead == ReminderLead.AT_TIME) ? "PT0M" : "-PT" + lead.minutes() + "M";
 		}
-		long minutes = ReminderLead.ALL_DAY_START.toSecondOfDay() / 60 - lead.minutes();
+		long minutes = ReminderLead.ALL_DAY_START.toSecondOfDay() / 60L - lead.minutes();
 		return (minutes >= 0) ? "PT" + minutes + "M" : "-PT" + (-minutes) + "M";
 	}
 

@@ -3,7 +3,6 @@ package com.jobwarden.cv.service.impl;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -44,10 +43,6 @@ final class DocxHtml {
 	private static final int MAX_PART_BYTES = 20 * 1024 * 1024;
 
 	private static final Pattern HEADING = Pattern.compile("heading ([1-9])");
-
-	private static final Pattern RELATIONSHIP = Pattern.compile("<Relationship\\b[^>]*>");
-
-	private static final Pattern ATTRIBUTE = Pattern.compile("(\\w+)=\"([^\"]*)\"");
 
 	/**
 	 * @throws IOException if it isn't a Word document
@@ -113,22 +108,25 @@ final class DocxHtml {
 		return names;
 	}
 
-	/** The targets of the document's external links, by relationship id. */
-	private static Map<String, String> links(byte @Nullable [] relationships) {
+	/** The targets of the document's external links, by relationship id, read as the XML they are. */
+	private static Map<String, String> links(byte @Nullable [] relationships) throws IOException {
 		Map<String, String> links = new HashMap<>();
 		if (relationships == null) {
 			return links;
 		}
-		Matcher relationship = RELATIONSHIP.matcher(new String(relationships, StandardCharsets.UTF_8));
-		while (relationship.find()) {
-			Map<String, String> attributes = new HashMap<>();
-			Matcher attribute = ATTRIBUTE.matcher(relationship.group());
-			while (attribute.find()) {
-				attributes.put(attribute.group(1), attribute.group(2).replace("&amp;", "&"));
+		try {
+			XMLStreamReader xml = reader(relationships);
+			while (xml.hasNext()) {
+				if (xml.next() == XMLStreamConstants.START_ELEMENT && xml.getLocalName().equals("Relationship")) {
+					String id = xml.getAttributeValue(null, "Id");
+					String target = xml.getAttributeValue(null, "Target");
+					if (id != null && target != null) {
+						links.put(id, target);
+					}
+				}
 			}
-			if (attributes.containsKey("Id") && attributes.containsKey("Target")) {
-				links.put(attributes.get("Id"), attributes.get("Target"));
-			}
+		} catch (XMLStreamException broken) {
+			throw new IOException("The Word document's links can't be read", broken);
 		}
 		return links;
 	}

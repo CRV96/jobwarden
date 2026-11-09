@@ -8,7 +8,6 @@ import com.jobwarden.identity.exception.UserNotFoundException;
 import com.jobwarden.identity.service.UserService;
 import com.jobwarden.jobs.service.ReminderService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -22,7 +21,6 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("${jobwarden.capture.path}/reminders")
-@CrossOrigin(originPatterns = { "moz-extension://*", "chrome-extension://*" })
 @RequiredArgsConstructor
 class RemindersController {
 

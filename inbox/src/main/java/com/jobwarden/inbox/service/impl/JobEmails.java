@@ -104,9 +104,12 @@ final class JobEmails {
 
 	private static final Pattern ALERT_SENDER = Pattern.compile("jobalert|job-alert|alerts?@|digest|newsletter");
 
-	/** The words a company's legal name ends with, which an email leaves out. */
-	private static final Pattern LEGAL_FORM = Pattern.compile("(?:[\\s,]+(?:inc|llc|ltd|limited|gmbh|ag|sa|srl|s\\.r\\.l"
-			+ "|sp\\.? z o\\.?o|bv|nv|plc|corp|corporation|co|company|group|holding|se|ab|oy|kft|spa|sarl|sas)\\.?)+$");
+	/**
+	 * A word a company's legal name ends with, which an email leaves out: one at a time, so a name ending in several,
+	 * e.g. Acme Group Ltd, loses them one after another, never by repeating a group (withoutLegalForms).
+	 */
+	private static final Pattern LEGAL_FORM = Pattern.compile("(?<![\\s,])[\\s,]+(?:inc|llc|ltd|limited|gmbh|ag|sa|srl|s\\.r\\.l"
+			+ "|sp\\.? z o\\.?o|bv|nv|plc|corp|corporation|co|company|group|holding|se|ab|oy|kft|spa|sarl|sas)\\.?$");
 
 	/** The senders' domains that say nothing of the company: job boards, applicant tracking, mail providers. */
 	private static final Set<String> NOT_A_COMPANY = Set.of("greenhouse", "lever", "workday", "myworkday",
@@ -286,6 +289,17 @@ final class JobEmails {
 		return text.substring(start, Math.min(end, text.length())).replaceAll("\\s+", " ").strip();
 	}
 
+	/** The name without the legal forms it ends with, the last first. */
+	static String withoutLegalForms(String name) {
+		String left = name;
+		Matcher legalForm = LEGAL_FORM.matcher(left);
+		while (legalForm.find()) {
+			left = left.substring(0, legalForm.start());
+			legalForm = LEGAL_FORM.matcher(left);
+		}
+		return left;
+	}
+
 	/**
 	 * The name of the sender's domain, without what comes after: talent@mail.acme.co.uk is acme. None for a domain
 	 * that says nothing of the company.
@@ -355,7 +369,7 @@ final class JobEmails {
 		Prepared(Job job) {
 			this.job = job;
 			String name = (job.company() != null)
-					? String.join(" ", WORD_BREAK.split(LEGAL_FORM.matcher(fold(job.company()).strip()).replaceAll(""))).strip()
+					? String.join(" ", WORD_BREAK.split(withoutLegalForms(fold(job.company()).strip()))).strip()
 					: "";
 			boolean usable = name.replace(" ", "").length() >= 3;
 			this.company = usable ? name : null;

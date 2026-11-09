@@ -4,6 +4,10 @@
        account, or null; githubRepositories what GitHub lists for it; githubError why something couldn't be done;
        projectsRequest Claude's latest writing of the projects, with projectsPrompt to paste while it waits. */-->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <!--/* Only fragments are taken from this file: the title is never shown */-->
+    <title>GitHub projects · JobWarden</title>
+</head>
 <body>
 
 <section th:fragment="loader" class="card flex flex-col gap-2 p-4" th:hx-get="@{/cv/github}" hx-trigger="load"

@@ -4,6 +4,10 @@
        as notifications. Inside other HTMX elements (the job's own, in the side panel), so every request here names its
        own target. */-->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <!--/* Only fragments are taken from this file: the title is never shown */-->
+    <title>Reminders · JobWarden</title>
+</head>
 <body>
 
 <!--/* An entry's reminders, one chip each, ticked when set. Every change sends the ones ticked. An entry without a time

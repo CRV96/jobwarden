@@ -3,6 +3,10 @@
        JobWarden noticed about the posting on its own. On the job's page and in the side panel, the loader asks for the
        card after the rest. Inside the job's own HTMX element, so every request here names its own target. */-->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <!--/* Only fragments are taken from this file: the title is never shown */-->
+    <title>Job fit · JobWarden</title>
+</head>
 <body>
 
 <section th:fragment="loader(jobId)" class="flex flex-col gap-2" data-collapse="fit" th:hx-get="@{/applications/{id}/fit(id=${jobId})}"

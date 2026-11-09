@@ -133,7 +133,7 @@ class DefaultStatisticsService implements StatisticsService {
 		Map<String, String> wording = new LinkedHashMap<>();
 		Map<String, Boolean> mustHave = new LinkedHashMap<>();
 		this.jdbc.sql(GAPS).param("userId", userId).query((row, number) -> {
-			String text = row.getString("text").strip().replaceAll("\\s+", " ").replaceAll("[.;:,]+$", "");
+			String text = withoutTrailingPunctuation(row.getString("text").strip().replaceAll("\\s+", " "));
 			String key = text.toLowerCase(Locale.ROOT);
 			wording.putIfAbsent(key, text);
 			int[] missingAndPartly = counts.computeIfAbsent(key, any -> new int[2]);
@@ -150,6 +150,15 @@ class DefaultStatisticsService implements StatisticsService {
 				.reversed())
 			.limit(SKILL_GAPS)
 			.toList();
+	}
+
+	/** Without the full stops, commas, colons and semicolons it ends with: counted without a pattern, in one pass. */
+	static String withoutTrailingPunctuation(String text) {
+		int end = text.length();
+		while (end > 0 && ".;:,".indexOf(text.charAt(end - 1)) >= 0) {
+			end--;
+		}
+		return text.substring(0, end);
 	}
 
 	private static @Nullable Integer medianDaysToReply(List<Job> sent) {

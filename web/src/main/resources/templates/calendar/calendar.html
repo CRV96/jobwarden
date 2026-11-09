@@ -196,7 +196,10 @@
         <p class="text-xs text-pretty text-ink/60" th:text="#{calendar.feed.hint}">Interviews, deadlines and days to follow up…</p>
     </div>
     <div class="flex items-center gap-2">
-        <input class="input min-w-0 flex-1 text-xs" type="text" readonly th:value="${calendarFeedUrl}" th:aria-label="#{calendar.feed.address}">
+        <label class="contents">
+            <span class="sr-only" th:text="#{calendar.feed.address}">The feed’s address</span>
+            <input class="input min-w-0 flex-1 text-xs" type="text" readonly th:value="${calendarFeedUrl}">
+        </label>
         <button th:replace="~{discover/discover :: copy-button(${calendarFeedUrl})}"></button>
     </div>
     <div class="flex flex-wrap gap-2">

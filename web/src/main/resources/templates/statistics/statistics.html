@@ -77,7 +77,7 @@
                     <h2 id="sites-title" class="section-title" th:text="#{stats.bySite}">Answers by site</h2>
                     <p class="text-xs text-pretty text-ink/55" th:text="#{stats.bySite.hint}">Where the jobs you applied to came from.</p>
                 </div>
-                <table th:replace="~{statistics/statistics :: rates(${stats.bySite}, 'site')}"></table>
+                <th:block th:replace="~{statistics/statistics :: rates(${stats.bySite}, 'site')}"></th:block>
             </section>
 
             <!--/* By who applied: the profile, Claude, the extension's Easy Apply run */-->
@@ -86,7 +86,7 @@
                     <h2 id="methods-title" class="section-title" th:text="#{stats.byMethod}">Answers by how you applied</h2>
                     <p class="text-xs text-pretty text-ink/55" th:text="#{stats.byMethod.hint}">You, Claude from Auto-apply, or the extension.</p>
                 </div>
-                <table th:replace="~{statistics/statistics :: rates(${stats.byMethod}, 'method')}"></table>
+                <th:block th:replace="~{statistics/statistics :: rates(${stats.byMethod}, 'method')}"></th:block>
             </section>
 
             <!--/* The calibration: do the jobs Claude scored high get interviews more often? */-->
@@ -95,7 +95,7 @@
                     <h2 id="calibration-title" class="section-title" th:text="#{stats.byFit}">Do high scores lead to interviews?</h2>
                     <p class="text-xs text-pretty text-ink/55" th:text="#{stats.byFit.hint}">The jobs you applied to, by the fit Claude scored.</p>
                 </div>
-                <table th:replace="~{statistics/statistics :: rates(${stats.byFit}, 'fit')}"></table>
+                <th:block th:replace="~{statistics/statistics :: rates(${stats.byFit}, 'fit')}"></th:block>
                 <p class="flex items-start gap-2 rounded-lg bg-ink/4 p-2.5 text-[13px] text-pretty"
                    th:with="good=${calibration == 'WORKS'}, bad=${calibration == 'BACKWARDS'}">
                     <i class="ph mt-0.5" th:classappend="${good} ? 'ph-check-circle text-success' : (${bad} ? 'ph-warning text-[var(--jw-orange)]' : 'ph-info text-ink/55')"></i>
