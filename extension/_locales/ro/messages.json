@@ -347,12 +347,6 @@
   "watchingTooltip": {
     "message": "Urmărești $1. Apasă ca să nu mai urmărești"
   },
-  "watchNotABoard": {
-    "message": "Urmărirea merge pe pagina unui job sau pe pagina de cariere a unei companii de pe Greenhouse, Lever sau Ashby."
-  },
-  "watchUnavailable": {
-    "message": "JobWarden n-a putut spune dacă urmărești această companie. Dacă tocmai ai actualizat JobWarden, repornește-l."
-  },
   "unwatched": {
     "message": "Nu mai urmărești $1. Joburile găsite pe pagina ei rămân în JobWarden."
   }

@@ -347,12 +347,6 @@
   "watchingTooltip": {
     "message": "Sigues a $1. Haz clic para dejar de seguirla"
   },
-  "watchNotABoard": {
-    "message": "Puedes seguir una empresa desde una de sus ofertas o su página de empleo en Greenhouse, Lever o Ashby."
-  },
-  "watchUnavailable": {
-    "message": "JobWarden no ha podido decir si sigues a esta empresa. Si acabas de actualizar JobWarden, reinícialo."
-  },
   "unwatched": {
     "message": "Ya no sigues a $1. Los empleos encontrados en su página siguen en JobWarden."
   }

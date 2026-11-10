@@ -347,12 +347,6 @@
   "watchingTooltip": {
     "message": "Du beobachtest $1. Klicke, um es nicht mehr zu beobachten"
   },
-  "watchNotABoard": {
-    "message": "Beobachten geht auf der Stellen- oder Karriereseite eines Unternehmens auf Greenhouse, Lever oder Ashby."
-  },
-  "watchUnavailable": {
-    "message": "JobWarden konnte nicht sagen, ob du dieses Unternehmen beobachtest. Wenn du JobWarden gerade aktualisiert hast, starte es neu."
-  },
   "unwatched": {
     "message": "Du beobachtest $1 nicht mehr. Die auf seiner Stellenseite gefundenen Stellen bleiben in JobWarden."
   }

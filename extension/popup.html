@@ -42,10 +42,9 @@
         .limit { display: flex; align-items: center; gap: 8px; }
         .limit .input { width: 64px; }
 
-        /* The eye: coloured while the profile watches the page's company, dimmed where there's none to watch */
+        /* The eye, on a company's job board: coloured while the profile watches the company */
         .header-actions { display: flex; align-items: center; gap: 2px; }
         #watch-toggle[aria-pressed="true"] { color: var(--jw-accent); }
-        #watch-toggle[aria-disabled="true"] { opacity: 0.4; }
     </style>
 </head>
 <body>
@@ -55,7 +54,7 @@
         JobWarden
     </h1>
     <div class="header-actions">
-        <!-- Watches the company whose job board the page is on, or stops watching it (popup.js: showWatch) -->
+        <!-- Only on a company's job board: watches the company, or stops watching it (popup.js: showWatch) -->
         <button id="watch-toggle" class="btn btn-icon" type="button" aria-pressed="false" hidden>
             <svg class="icon" aria-hidden="true"><use href="icons/phosphor.svg#eye"/></svg>
         </button>

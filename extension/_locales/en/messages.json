@@ -347,12 +347,6 @@
   "watchingTooltip": {
     "message": "You watch $1. Click to stop watching"
   },
-  "watchNotABoard": {
-    "message": "Watching works on a company’s job or careers page on Greenhouse, Lever or Ashby."
-  },
-  "watchUnavailable": {
-    "message": "JobWarden couldn’t tell whether you watch this company. If you just updated JobWarden, restart it."
-  },
   "unwatched": {
     "message": "You no longer watch $1. The jobs found on its board stay in JobWarden."
   }

@@ -347,12 +347,6 @@
   "watchingTooltip": {
     "message": "Obserwujesz: $1. Kliknij, aby przestać obserwować"
   },
-  "watchNotABoard": {
-    "message": "Obserwowanie działa na stronie oferty albo stronie kariery firmy w Greenhouse, Lever lub Ashby."
-  },
-  "watchUnavailable": {
-    "message": "JobWarden nie mógł sprawdzić, czy obserwujesz tę firmę. Jeśli JobWarden był właśnie aktualizowany, uruchom go ponownie."
-  },
   "unwatched": {
     "message": "Nie obserwujesz już: $1. Oferty znalezione na jej stronie zostają w JobWarden."
   }

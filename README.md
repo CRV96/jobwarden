@@ -72,7 +72,7 @@ On a job posting, click the extension's icon. It first looks the page up in JobW
 - **Applied** (✓): **Move back to bookmarks**, for an application you didn't actually send, or **Remove application**. Moving back removes the Applied entries from the timeline; it's only offered while nothing else has happened since.
 - **Further along** (interviewing, offer, rejected, no response, position closed, withdrawn): only **Open in JobWarden**. The timeline says more than a click in the extension should undo.
 
-**Watch the company:** the eye beside ⚙ watches the company whose job board the page is on (a job or the careers page on Greenhouse, Lever or Ashby), adding it to the watchlist (see the Watchlist, below). It's coloured while you watch the company; click it again to stop. On other pages it's dimmed, and a click says why.
+**Watch the company:** the eye beside ⚙ watches the company whose job board the page is on (a job or the careers page on Greenhouse, Lever or Ashby), adding it to the watchlist (see the Watchlist, below). It's coloured while you watch the company; click it again to stop. It shows only on those pages.
 
 Removing asks for a second click, and can't be undone. **Include the time** adds the time of day to the timeline entry, not only the date, and the extension remembers the choice.
 

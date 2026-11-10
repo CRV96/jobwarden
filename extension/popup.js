@@ -83,7 +83,6 @@ if (settings.userId === undefined) {
   openSettings.hidden = false;
 } else if (link === null) {
   showStatus(message('pageUnreadable'), 'error');
-  showNothingToWatch(message('watchNotABoard'));
 } else {
   reading = readPage();
   readingIcon = readIcon();
@@ -402,29 +401,25 @@ function showStatus(text, kind = 'info') {
 }
 
 /**
- * The eye beside the settings: on a company's job board (Greenhouse, Lever, Ashby), coloured while the profile watches
- * the company, plain while it doesn't; a click watches it, or stops watching it. Watching reads the board on the
- * server, which takes a few seconds, and its jobs that match the saved searches go to the AI Assistant page. On any
- * other page, or when the server can't tell, the eye is dimmed, and a click says why.
+ * The eye beside the settings, only on a company's job board (Greenhouse, Lever, Ashby): coloured while the profile
+ * watches the company, plain while it doesn't; a click watches it, or stops watching it. Watching reads the board on
+ * the server, which takes a few seconds, and its jobs that match the saved searches go to the AI Assistant page. On any
+ * other page, or when the server can't tell, there's no eye: there'd be nothing it could do.
  */
 async function showWatch() {
-  watchToggle.hidden = false;
   if (!isOnJobBoard(link)) {
-    showNothingToWatch(message('watchNotABoard'));
     return;
   }
   try {
     if (!(await chrome.permissions.contains({ origins: [hostPermission(settings.serverUrl)] }))) {
-      throw new PermissionMissingError();
+      return;
     }
     board = await watchStatus(settings, link);
   } catch (error) {
     console.warn('Could not ask JobWarden about the watchlist', error);
-    showNothingToWatch(message('watchUnavailable'));
     return;
   }
   if (board === null) {
-    showNothingToWatch(message('watchNotABoard'));
     return;
   }
   renderWatch();
@@ -441,7 +436,7 @@ async function showWatch() {
 
 function renderWatch() {
   const label = message(board.watched ? 'watchingTooltip' : 'watchTooltip', board.name);
-  watchToggle.removeAttribute('aria-disabled');
+  watchToggle.hidden = false;
   watchToggle.setAttribute('aria-pressed', String(board.watched));
   watchToggle.title = label;
   watchToggle.setAttribute('aria-label', label);
@@ -449,20 +444,7 @@ function renderWatch() {
   openWatchlist.hidden = !board.watched;
 }
 
-/** Dimmed, with why: a click shows it in the status line, as a disabled button would show nothing. */
-function showNothingToWatch(why) {
-  watchToggle.hidden = false;
-  watchToggle.setAttribute('aria-disabled', 'true');
-  watchToggle.setAttribute('aria-pressed', 'false');
-  watchToggle.title = why;
-  watchToggle.setAttribute('aria-label', why);
-}
-
 async function toggleWatch() {
-  if (board === null || watchToggle.getAttribute('aria-disabled') === 'true') {
-    showStatus(watchToggle.title);
-    return;
-  }
   watchToggle.disabled = true;
   try {
     if (board.watched) {
