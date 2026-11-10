@@ -263,7 +263,7 @@ The pages are in English, Romanian, French, German, Polish, Spanish, Portuguese 
 `./mvnw verify` runs everything. On every pull request and every push to `main`, GitHub Actions runs:
 
 - [CI](.github/workflows/ci.yml): the build and all the tests, with what they cover (`-Pcoverage`, JaCoCo), then SonarCloud's analysis of it; on pull requests, a review of the dependencies they add, which fails on a high-severity vulnerability.
-- [CodeQL](.github/workflows/codeql.yml): code scanning of the Java, the JavaScript and the workflows, weekly too.
+- CodeQL: code scanning of the Java, the JavaScript and the workflows, weekly too. It's GitHub's default setup, in the repository's settings (Code security), not a workflow: the two can't both upload.
 - [Docker image](.github/workflows/docker.yml): builds the image, and on `main` and tags publishes it.
 
 [CodeRabbit](.coderabbit.yaml) reviews each pull request, and [Dependabot](.github/dependabot.yml) keeps the dependencies and the actions up to date. The "Protect Main" ruleset ([.github/rulesets](.github/rulesets)) makes a pull request wait for the build, the dependency review, the image, SonarCloud's quality gate and CodeQL. See [SECURITY.md](SECURITY.md) for reporting a vulnerability.

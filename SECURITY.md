@@ -57,7 +57,7 @@ Out of scope:
 
 ## How the project is checked
 
-- **CodeQL**, with the security-extended queries, on every pull request, on `main` and weekly: the Java, the JavaScript and the workflows.
+- **CodeQL**, GitHub's default setup, on every pull request, on `main` and weekly: the Java, the JavaScript and the workflows.
 - **SonarCloud**: a pull request merges only when its quality gate passes.
 - **Dependabot**: alerts and security fixes as soon as a vulnerability is known, version updates weekly. A pull request that adds a dependency with a high-severity vulnerability fails its dependency review.
 - **Secret scanning**, with push protection: a push with a token in it is refused.
