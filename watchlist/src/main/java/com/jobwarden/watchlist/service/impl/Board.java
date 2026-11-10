@@ -20,7 +20,7 @@ import org.jspecify.annotations.Nullable;
 record Board(Ats ats, String name) {
 
 	/** What a board's name may be: letters, digits, dots, dashes, underscores; Ashby's spaces too. */
-	private static final Pattern NAME = Pattern.compile("[a-z0-9][a-z0-9._ -]{0,99}");
+	private static final Pattern VALID_NAME = Pattern.compile("[a-z0-9][a-z0-9._ -]{0,99}");
 
 	/**
 	 * The board a link is on: the board's own page or one of its jobs, as people share them, or its feed.
@@ -45,7 +45,8 @@ record Board(Ats ats, String name) {
 		URI uri;
 		try {
 			uri = URI.create(address);
-		} catch (IllegalArgumentException notAnAddress) {
+		} catch (IllegalArgumentException _) {
+			// Not an address at all
 			return Optional.empty();
 		}
 		if (uri.getHost() == null || !List.of("http", "https").contains(String.valueOf(uri.getScheme()).toLowerCase(Locale.ROOT))) {
@@ -96,7 +97,7 @@ record Board(Ats ats, String name) {
 
 	private static Optional<Board> named(Ats ats, String name) {
 		String lower = name.strip().toLowerCase(Locale.ROOT);
-		return NAME.matcher(lower).matches() ? Optional.of(new Board(ats, lower)) : Optional.empty();
+		return VALID_NAME.matcher(lower).matches() ? Optional.of(new Board(ats, lower)) : Optional.empty();
 	}
 
 	private static String segment(List<String> path, int index) {

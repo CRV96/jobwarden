@@ -19,6 +19,9 @@ const ICON_SIZE = 32;
 /** The server's code for a profile id that matches no profile: fixed in the settings. */
 const PROFILE_NOT_FOUND = 'IDENTITY-001';
 
+/** The server's code for a company the profile doesn't watch (any more). */
+const WATCHED_COMPANY_NOT_FOUND = 'WATCHLIST-001';
+
 /** The message with each request field's label, for the server's validation errors. */
 const FIELD_LABELS = {
   title: 'jobTitle', company: 'company', location: 'location', description: 'description', link: 'link',
@@ -460,6 +463,11 @@ async function toggleWatch() {
     }
     renderWatch();
   } catch (error) {
+    if (error instanceof ServerError && error.problem.errorCode === WATCHED_COMPANY_NOT_FOUND) {
+      // Removed meanwhile, on the Watchlist page say: the eye says so too
+      board = { ...board, watched: false, companyId: null };
+      renderWatch();
+    }
     showFailure(error);
   } finally {
     watchToggle.disabled = false;

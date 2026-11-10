@@ -59,6 +59,8 @@ class RegionsTests {
 		assertThat(Regions.countriesIn("Porto Alegre, Brazil")).containsExactly("BR");
 		assertThat(Regions.countriesIn("Porto")).containsExactly("PT");
 		assertThat(Regions.countriesIn("Belfast, Northern Ireland")).containsExactly("GB");
+		// "america" alone is the United States, not Central America
+		assertThat(Regions.countriesIn("Remote - Central America")).contains("CR", "PA").doesNotContain("US");
 		// "in" is no country: India's code only counts as a name
 		assertThat(Regions.countriesIn("Remote in Europe")).doesNotContain("IN");
 	}

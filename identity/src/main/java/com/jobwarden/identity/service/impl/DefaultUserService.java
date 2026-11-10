@@ -2,6 +2,7 @@ package com.jobwarden.identity.service.impl;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 
@@ -88,7 +89,8 @@ class DefaultUserService implements UserService {
 		byte[] png = squarePng(content);
 		this.images.findById(id).ifPresentOrElse(image -> image.replace(png),
 				() -> this.images.save(new ProfileImageEntity(id, png)));
-		user.imageChanged(Instant.now());
+		// To the microsecond, as PostgreSQL keeps it: the profile returned and the one read back say the same moment
+		user.imageChanged(Instant.now().truncatedTo(ChronoUnit.MICROS));
 		log.info("Changed the photo of profile {}", id);
 		return UserMapper.toUser(user);
 	}

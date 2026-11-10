@@ -292,16 +292,24 @@ class DefaultWatchlistService implements WatchlistService {
 				}
 			})));
 			for (Future<WatchlistCheck> board : boards) {
-				try {
-					total = total.plus(board.get());
-				} catch (ExecutionException failed) {
-					log.warn("Couldn't read a watched board: {}", failed.getCause().toString());
-				}
+				total = total.plus(resultOf(board));
 			}
-		} catch (InterruptedException interrupted) {
+		} catch (InterruptedException _) {
 			Thread.currentThread().interrupt();
 		}
 		return total;
+	}
+
+	/**
+	 * @return what reading the board did; nothing when it failed in a way readBoard didn't expect, which is logged
+	 */
+	private static WatchlistCheck resultOf(Future<WatchlistCheck> board) throws InterruptedException {
+		try {
+			return board.get();
+		} catch (ExecutionException failed) {
+			log.warn("Couldn't read a watched board: {}", failed.getCause().toString());
+			return WatchlistCheck.NONE;
+		}
 	}
 
 	private WatchlistCheck readBoard(Board board, List<WatchedCompanyEntity> watching,

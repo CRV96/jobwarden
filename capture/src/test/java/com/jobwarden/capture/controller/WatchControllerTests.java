@@ -27,6 +27,7 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
@@ -92,6 +93,11 @@ class WatchControllerTests {
 		assertThat(this.mvc.get().uri(this.capturePath + "/watchlist").param("userId", "1")
 			.param("link", "https://www.linkedin.com/jobs/view/1"))
 			.hasStatus(HttpStatus.NO_CONTENT);
+		// Nor for an address longer than any job's, which isn't even read
+		assertThat(this.mvc.get().uri(this.capturePath + "/watchlist").param("userId", "1")
+			.param("link", "https://jobs.lever.co/acme/" + "a".repeat(2100)))
+			.hasStatus(HttpStatus.NO_CONTENT);
+		then(this.watchlist).should(never()).findBoard(anyLong(), argThat(link -> link.length() > 2048));
 	}
 
 	@Test

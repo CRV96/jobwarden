@@ -61,6 +61,8 @@ class RequestTools implements McpToolSet {
 
 	private static final int COMPANIES = 20;
 
+	private static final int WATCHED_COMPANIES = 50;
+
 	/**
 	 * What the steps of finding jobs say about the watchlist, which JobWarden reads for the saved searches with no
 	 * tokens.
@@ -242,6 +244,7 @@ class RequestTools implements McpToolSet {
 		List<String> companies = (request.kind() == AiRequestKind.FIND_RECRUITERS) ? companies(userId) : List.of();
 		List<String> watched = (taste != null) ? this.watchlist.findCompanies(userId)
 			.stream()
+			.limit(WATCHED_COMPANIES)
 			.map(company -> company.name() + " (" + company.boardUrl() + ")")
 			.toList() : List.of();
 		return new RequestDetails(request.id(), request.kind(), request.status(), request.applicationId(),

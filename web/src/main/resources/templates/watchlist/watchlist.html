@@ -58,7 +58,7 @@
                 <span class="text-xs text-ink/55" th:text="#{watchlist.boards}">Greenhouse, Lever and Ashby</span>
             </div>
         </form>
-        <p class="text-[13px] text-ink/80" role="status" th:each="said : ${watchlistMessages}" th:text="${said}">Watching Acme.</p>
+        <output class="block text-[13px] text-ink/80" th:each="said : ${watchlistMessages}" th:text="${said}">Watching Acme.</output>
         <p class="text-[13px] text-danger" role="alert" th:each="error : ${watchlistErrors}" th:text="${error}">https://example.com: not a board.</p>
 
         <!--/* The companies whose boards the profile's jobs are on: one click watches one */-->

@@ -186,7 +186,7 @@ class McpControllerTests {
 			assertThat(body).extractingPath("$.result.tools[*].name").asArray()
 				.contains("list_profiles", "list_jobs", "get_job", "check_postings", "update_job_status",
 						"update_follow_up", "get_cv", "save_tailored_cv", "list_requests", "get_request", "finish_request", "list_saved_searches", "save_search", "add_found_jobs", "list_found_jobs", "list_recruiters", "add_recruiters", "list_hiring_posts", "add_hiring_posts",
-						"get_application_answers", "list_apply_queue", "start_apply", "report_apply_result");
+						"get_application_answers", "list_apply_queue", "start_apply", "report_apply_result", "watch_company");
 			assertThat(body).extractingPath("$.result.tools[?(@.name == 'update_job_status')].inputSchema.required[*]")
 				.asArray()
 				.containsExactly("job_id", "status");

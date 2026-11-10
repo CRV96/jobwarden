@@ -105,7 +105,7 @@ public final class Regions {
 			for (String language : LANGUAGES) {
 				String name = country.getDisplayCountry(Locale.of(language));
 				// "Myanmar (Burma)": also "myanmar"; "Hong Kong SAR China" comes below
-				Stream.of(name, name.replaceAll("\\s*\\(.*", ""))
+				Stream.of(name, beforeParenthesis(name))
 					.map(Words::of)
 					.map(String::strip)
 					.filter(words -> !words.isEmpty() && !words.equalsIgnoreCase(code) && !AMBIGUOUS.contains(words))
@@ -142,6 +142,8 @@ public final class Regions {
 		regions.put("latin america", LATAM);
 		regions.put("south america", SOUTH_AMERICA);
 		regions.put("north america", NORTH_AMERICA);
+		// Before "america" alone, which is the United States
+		regions.put("central america", codes("BZ CR GT HN NI PA SV"));
 		regions.put("americas", union(NORTH_AMERICA, LATAM));
 		regions.put("worldwide", EVERYWHERE);
 		regions.put("anywhere", EVERYWHERE);
@@ -241,6 +243,12 @@ public final class Regions {
 				.map(String::strip)
 				.forEach(name -> places.put(name, Set.of(code))));
 		return Map.copyOf(places);
+	}
+
+	/** "Myanmar (Burma)" is "Myanmar"; a name without one stays as it is. */
+	private static String beforeParenthesis(String name) {
+		int parenthesis = name.indexOf('(');
+		return (parenthesis < 0) ? name : name.substring(0, parenthesis);
 	}
 
 	private static Set<String> codes(String codes) {

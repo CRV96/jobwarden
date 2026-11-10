@@ -6,10 +6,13 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import com.jobwarden.search.EmploymentType;
 import com.jobwarden.search.WorkType;
@@ -32,6 +35,9 @@ class BoardFeedsTests {
 
 	private BoardFeeds feeds;
 
+	/** Let go once the test is over: the board that sends a little, then stops. */
+	private final CountDownLatch stalled = new CountDownLatch(1);
+
 	/** The User-Agent each path was asked with. */
 	private final Map<String, String> asked = new ConcurrentHashMap<>();
 
@@ -39,14 +45,18 @@ class BoardFeedsTests {
 	void startBoards() throws IOException {
 		this.boards = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
 		this.boards.createContext("/", this::answer);
+		// A thread for each answer, so the one that stalls doesn't hold up the others
+		this.boards.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
 		this.boards.start();
 		URI here = URI.create("http://127.0.0.1:" + this.boards.getAddress().getPort());
-		this.feeds = new BoardFeeds("1.2.3", here, here, URI.create(here + "/eu"), here);
+		this.feeds = new BoardFeeds("1.2.3", here, here, URI.create(here + "/eu"), here, Duration.ofSeconds(1));
 	}
 
 	@AfterEach
 	void stopBoards() {
+		this.stalled.countDown();
 		this.boards.stop(0);
+		this.feeds.stop();
 	}
 
 	@Test
@@ -101,15 +111,30 @@ class BoardFeedsTests {
 
 	@Test
 	void saysWhenThereIsNoSuchBoardOrItCantBeRead() {
-		assertThatExceptionOfType(BoardFailure.class).isThrownBy(() -> this.feeds.postings(new Board(Ats.LEVER, "nobody")))
+		Board nobody = new Board(Ats.LEVER, "nobody");
+		Board broken = new Board(Ats.ASHBY, "broken");
+		Board html = new Board(Ats.ASHBY, "html");
+		Board huge = new Board(Ats.ASHBY, "huge");
+
+		assertThatExceptionOfType(BoardFailure.class).isThrownBy(() -> this.feeds.postings(nobody))
 			.satisfies(failed -> assertThat(failed.notFound()).isTrue());
-		assertThatExceptionOfType(BoardFailure.class).isThrownBy(() -> this.feeds.postings(new Board(Ats.ASHBY, "broken")))
+		assertThatExceptionOfType(BoardFailure.class).isThrownBy(() -> this.feeds.postings(broken))
 			.satisfies(failed -> assertThat(failed.notFound()).isFalse())
 			.withMessageContaining("500");
-		assertThatExceptionOfType(BoardFailure.class).isThrownBy(() -> this.feeds.postings(new Board(Ats.ASHBY, "html")))
+		assertThatExceptionOfType(BoardFailure.class).isThrownBy(() -> this.feeds.postings(html))
 			.withMessageContaining("isn't a board's jobs");
-		assertThatExceptionOfType(BoardFailure.class).isThrownBy(() -> this.feeds.postings(new Board(Ats.ASHBY, "huge")))
+		assertThatExceptionOfType(BoardFailure.class).isThrownBy(() -> this.feeds.postings(huge))
 			.withMessageContaining("bigger than 40 MB");
+	}
+
+	@Test
+	void givesUpOnABoardThatStopsSendingItsAnswer() {
+		Board stopping = new Board(Ats.ASHBY, "stalled");
+		long start = System.nanoTime();
+
+		assertThatExceptionOfType(BoardFailure.class).isThrownBy(() -> this.feeds.postings(stopping))
+			.withMessageContaining("couldn't be read");
+		assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(Duration.ofSeconds(5));
 	}
 
 	private void answer(HttpExchange exchange) throws IOException {
@@ -145,6 +170,15 @@ class BoardFeedsTests {
 					  {"id": "a2", "title": "Hidden", "isListed": false, "jobUrl": "https://jobs.ashbyhq.com/acme/a2"}]}""");
 			case "/posting-api/job-board/broken" -> send(exchange, 500, "{}");
 			case "/posting-api/job-board/html" -> send(exchange, 200, "<html>Maintenance</html>");
+			case "/posting-api/job-board/stalled" -> {
+				// Sends a little, then nothing until the test is over
+				exchange.sendResponseHeaders(200, 0);
+				OutputStream out = exchange.getResponseBody();
+				out.write("{\"jobs\": [{\"title\": ".getBytes(StandardCharsets.UTF_8));
+				out.flush();
+				awaitTheEnd();
+				exchange.close();
+			}
 			case "/posting-api/job-board/huge" -> {
 				// Says it's bigger than any board, and sends a little: the feed reads the length first
 				exchange.sendResponseHeaders(200, 50L * 1024 * 1024);
@@ -153,11 +187,19 @@ class BoardFeedsTests {
 				out.flush();
 				try {
 					out.close();
-				} catch (IOException shorterThanItSaid) {
-					// The server says so, and drops the connection: the feed has given up by then
+				} catch (IOException _) {
+					// Shorter than it said: the server drops the connection, and the feed has given up by then
 				}
 			}
 			default -> send(exchange, 404, "{\"ok\": false, \"error\": \"Document not found\"}");
+		}
+	}
+
+	private void awaitTheEnd() {
+		try {
+			this.stalled.await(30, TimeUnit.SECONDS);
+		} catch (InterruptedException _) {
+			Thread.currentThread().interrupt();
 		}
 	}
 

@@ -43,10 +43,11 @@ import org.jspecify.annotations.Nullable;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 final class PostingMatcher {
 
-	/** What postings call the same job: a Java developer search fits a Java engineer. */
-	private static final Set<String> MAKERS = Set.of("developer", "engineer", "programmer");
-
+	/** The word the others stand for. */
 	private static final String MAKER = "developer";
+
+	/** What postings call the same job: a Java developer search fits a Java engineer. */
+	private static final Set<String> MAKERS = Set.of(MAKER, "engineer", "programmer");
 
 	private static final Set<String> INTERNSHIP_WORDS = Set.of("intern", "interns", "internship", "trainee",
 			"apprentice", "praktikum", "werkstudent");

@@ -21,6 +21,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -30,6 +34,7 @@ import com.jobwarden.search.Regions;
 import com.jobwarden.search.WorkType;
 import com.jobwarden.search.Words;
 import com.jobwarden.watchlist.enums.Ats;
+import jakarta.annotation.PreDestroy;
 import lombok.CustomLog;
 import org.jsoup.parser.Parser;
 import org.jspecify.annotations.Nullable;
@@ -40,6 +45,7 @@ import tools.jackson.core.exc.JacksonIOException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -60,6 +66,11 @@ class BoardFeeds {
 	/** The biggest boards take a while: Ashby's, with every description, can be over 10 MB. */
 	private static final Duration TIMEOUT = Duration.ofSeconds(60);
 
+	/** How long reading a board's answer may take in all: the biggest take a few seconds. */
+	static final Duration READ_DEADLINE = Duration.ofMinutes(2);
+
+	private static final String LOCATION = "location";
+
 	/** More than any board's feed: OpenAI's on Ashby, with every description, is about 14 MB. */
 	static final long MAX_BYTES = 40L * 1024 * 1024;
 
@@ -77,14 +88,29 @@ class BoardFeeds {
 
 	private final Map<Ats, URI> servers = new EnumMap<>(Ats.class);
 
+	private final Duration readDeadline;
+
+	/** Closes the answers that take longer than readDeadline (readWithinDeadline). */
+	private final ScheduledExecutorService deadlines = Executors
+		.newSingleThreadScheduledExecutor(Thread.ofPlatform().daemon().name("board-read-deadline").factory());
+
 	/**
 	 * @param version the version the build put in the app's properties, which the requests say they come from
 	 */
+	@Autowired
 	BoardFeeds(@Value("${jobwarden.version:dev}") String version,
 			@Value("${jobwarden.watchlist.greenhouse-api:https://boards-api.greenhouse.io}") URI greenhouse,
 			@Value("${jobwarden.watchlist.lever-api:https://api.lever.co}") URI lever,
 			@Value("${jobwarden.watchlist.lever-eu-api:https://api.eu.lever.co}") URI leverEu,
 			@Value("${jobwarden.watchlist.ashby-api:https://api.ashbyhq.com}") URI ashby) {
+		this(version, greenhouse, lever, leverEu, ashby, READ_DEADLINE);
+	}
+
+	/**
+	 * @param readDeadline how long reading an answer may take in all: the tests' is short
+	 */
+	BoardFeeds(String version, URI greenhouse, URI lever, URI leverEu, URI ashby, Duration readDeadline) {
+		this.readDeadline = readDeadline;
 		this.userAgent = "JobWarden/" + version + " (+https://github.com/CRV96/jobwarden)";
 		this.servers.put(Ats.GREENHOUSE, greenhouse);
 		this.servers.put(Ats.LEVER, lever);
@@ -146,21 +172,7 @@ class BoardFeeds {
 	private void read(URI address, @Nullable String field, Consumer<JsonNode> job) {
 		send(address, body -> {
 			try (JsonParser parser = this.json.createParser(body)) {
-				JsonToken first = parser.nextToken();
-				if (field == null && first == JsonToken.START_ARRAY) {
-					readJobs(parser, job);
-				} else if (field != null && first == JsonToken.START_OBJECT) {
-					while (parser.nextToken() == JsonToken.PROPERTY_NAME) {
-						String property = parser.currentName();
-						if (parser.nextToken() == JsonToken.START_ARRAY && field.equals(property)) {
-							readJobs(parser, job);
-						} else {
-							parser.skipChildren();
-						}
-					}
-				} else {
-					throw new BoardFailure("The answer isn't a board's jobs");
-				}
+				readAnswer(parser, field, job);
 				return null;
 			} catch (JacksonIOException failed) {
 				throw new BoardFailure(address.getHost() + " couldn't be read: " + failed.getCause().getMessage());
@@ -168,6 +180,30 @@ class BoardFeeds {
 				throw new BoardFailure("The answer isn't a board's jobs: " + notJson.getOriginalMessage());
 			}
 		});
+	}
+
+	/**
+	 * The jobs of the answer: the list it is, or the one under the property.
+	 *
+	 * @throws BoardFailure when the answer is something else
+	 */
+	private static void readAnswer(JsonParser parser, @Nullable String field, Consumer<JsonNode> job) {
+		JsonToken first = parser.nextToken();
+		if (field == null && first == JsonToken.START_ARRAY) {
+			readJobs(parser, job);
+			return;
+		}
+		if (field == null || first != JsonToken.START_OBJECT) {
+			throw new BoardFailure("The answer isn't a board's jobs");
+		}
+		while (parser.nextToken() == JsonToken.PROPERTY_NAME) {
+			String property = parser.currentName();
+			if (parser.nextToken() == JsonToken.START_ARRAY && field.equals(property)) {
+				readJobs(parser, job);
+			} else {
+				parser.skipChildren();
+			}
+		}
 	}
 
 	/** One job at a time, so a board of thousands never sits in memory as a whole tree. */
@@ -197,17 +233,42 @@ class BoardFeeds {
 				if (response.headers().firstValueAsLong("Content-Length").orElse(0) > MAX_BYTES) {
 					throw new BoardFailure("The board is bigger than " + MAX_BYTES / (1024 * 1024) + " MB");
 				}
-				return reader.read(new Capped(body));
+				return readWithinDeadline(body, reader);
 			}
 		} catch (IOException failed) {
 			throw new BoardFailure(address.getHost() + " couldn't be reached: " + failed.getMessage());
-		} catch (InterruptedException interrupted) {
+		} catch (InterruptedException _) {
 			Thread.currentThread().interrupt();
 			throw new BoardFailure("Interrupted while reading " + address.getHost());
 		} catch (JacksonIOException failed) {
 			// Capped's IOException, or the connection's, as the parser passes it on
 			throw new BoardFailure(address.getHost() + " couldn't be read: " + failed.getCause().getMessage());
 		}
+	}
+
+	/**
+	 * The request's timeout ends once the headers are in: a board that then stops sending would hold the reading
+	 * forever, and every reading after it. So the body is closed at the deadline, which ends a read waiting on it with
+	 * an IOException.
+	 */
+	private <T> T readWithinDeadline(InputStream body, Reader<T> reader) throws IOException {
+		ScheduledFuture<?> deadline = this.deadlines.schedule(() -> {
+			try {
+				body.close();
+			} catch (IOException _) {
+				// Closing it is all that's needed: the read stops either way
+			}
+		}, this.readDeadline.toMillis(), TimeUnit.MILLISECONDS);
+		try {
+			return reader.read(new Capped(body));
+		} finally {
+			deadline.cancel(false);
+		}
+	}
+
+	@PreDestroy
+	void stop() {
+		this.deadlines.shutdownNow();
 	}
 
 	private static @Nullable Posting greenhouse(JsonNode job) {
@@ -220,7 +281,7 @@ class BoardFeeds {
 		return Posting.builder()
 			.id(job.path("id").asString(""))
 			.title(title)
-			.location(text(job.path("location"), "name"))
+			.location(text(job.path(LOCATION), "name"))
 			.link(link)
 			.publishedAt((published != null) ? published : instant(text(job, "updated_at")))
 			.company(text(job, "company_name"))
@@ -235,7 +296,7 @@ class BoardFeeds {
 		}
 		JsonNode categories = job.path("categories");
 		List<String> places = strings(categories.path("allLocations"));
-		String location = places.isEmpty() ? text(categories, "location") : String.join("; ", places);
+		String location = places.isEmpty() ? text(categories, LOCATION) : String.join("; ", places);
 		String country = text(job, "country");
 		Employment employment = Employment.of(text(categories, "commitment"));
 		long createdAt = job.path("createdAt").asLong(0);
@@ -261,7 +322,7 @@ class BoardFeeds {
 			return null;
 		}
 		List<JsonNode> secondary = job.path("secondaryLocations").values().stream().toList();
-		String location = Stream.concat(Stream.of(text(job, "location")), secondary.stream().map(place -> text(place, "location")))
+		String location = Stream.concat(Stream.of(text(job, LOCATION)), secondary.stream().map(place -> text(place, LOCATION)))
 			.filter(place -> place != null)
 			.distinct()
 			.collect(Collectors.joining("; "));
@@ -351,10 +412,11 @@ class BoardFeeds {
 		}
 		try {
 			return OffsetDateTime.parse(text).toInstant();
-		} catch (DateTimeParseException withoutOffset) {
+		} catch (DateTimeParseException _) {
+			// Without its offset: as UTC
 			try {
 				return Instant.parse(text);
-			} catch (DateTimeParseException notADate) {
+			} catch (DateTimeParseException _) {
 				return null;
 			}
 		}

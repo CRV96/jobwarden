@@ -42,6 +42,10 @@ class WatchController {
 	 */
 	@GetMapping
 	ResponseEntity<WatchStatus> find(@RequestParam long userId, @RequestParam String link) {
+		if (link.length() > WatchRequest.LINK_MAX_LENGTH) {
+			// No board's link is that long
+			return ResponseEntity.noContent().build();
+		}
 		requireProfile(userId);
 		return this.watchlist.findBoard(userId, link)
 			.map(WatchController::toStatus)
