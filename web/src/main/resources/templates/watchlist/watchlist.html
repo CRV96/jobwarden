@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: page(~{::title}, ~{::main}, 'watchlist')}">
+<head>
+    <title th:text="|#{watchlist.title} · JobWarden|">Watchlist · JobWarden</title>
+</head>
+<body>
+<main class="flex flex-col gap-5">
+    <header class="flex flex-wrap items-end gap-3">
+        <div class="min-w-[260px] flex-1">
+            <h1 class="page-title mb-1 flex items-center gap-2">
+                <i class="ph ph-binoculars text-accent"></i><span th:text="#{watchlist.title}">Watchlist</span>
+            </h1>
+            <p class="text-[13px] text-ink/60" th:text="#{watchlist.hint}">Companies whose job boards JobWarden reads itself…</p>
+        </div>
+        <a class="btn btn-secondary" th:href="@{/discover}">
+            <i class="ph ph-sparkle"></i><span th:text="#{watchlist.review}">Jobs to review</span>
+            <span class="chip-count" th:if="${toReviewAll > 0}" th:text="${toReviewAll}">12</span>
+        </a>
+    </header>
+
+    <!--/* From 1280 pixels wide, the watchlist on the left, how it works on the right */-->
+    <div class="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div th:replace="~{watchlist/watchlist :: watchlist}"></div>
+
+        <aside class="card flex flex-col gap-3 p-4" aria-labelledby="how-title">
+            <h2 id="how-title" class="font-semibold" th:text="#{watchlist.how}">How it works</h2>
+            <ol class="flex flex-col gap-3 text-[13px] text-ink/75">
+                <li class="flex gap-2.5"><i class="ph ph-link text-[16px] text-accent"></i><span th:text="#{watchlist.how.add}">Paste a link…</span></li>
+                <li class="flex gap-2.5"><i class="ph ph-puzzle-piece text-[16px] text-accent"></i><span th:text="#{watchlist.how.extension}">Or with the extension…</span></li>
+                <li class="flex gap-2.5"><i class="ph ph-clock-clockwise text-[16px] text-accent"></i><span th:text="#{watchlist.how.read}">JobWarden reads each board…</span></li>
+                <li class="flex gap-2.5"><i class="ph ph-sparkle text-[16px] text-accent"></i><span th:text="#{watchlist.how.match}">The jobs that match…</span></li>
+            </ol>
+            <a class="link text-[13px]" th:href="@{/search}" th:text="#{watchlist.how.searches}">Build your saved searches in the Search Builder</a>
+        </aside>
+    </div>
+</main>
+
+<!--/* What changes as companies are added, removed or checked: HTMX swaps it with what WatchlistController answers. While
+       one waits for the boards, its button is off and its icon turns. */-->
+<div th:fragment="watchlist" id="watchlist" class="flex min-w-0 flex-col gap-5">
+    <section class="card flex flex-col gap-3 p-4" aria-labelledby="add-title">
+        <h2 id="add-title" class="font-semibold" th:text="#{watchlist.addTitle}">Watch a company</h2>
+        <p class="rounded-lg bg-accent-tint px-3 py-2 text-[13px] text-accent-ink" th:unless="${watchlistHasSearches}">
+            <span th:text="#{watchlist.noSearches}">Save a search first…</span> <a class="link" th:href="@{/search}" th:text="#{nav.search}">Search Builder</a>
+        </p>
+        <form class="flex flex-col gap-2" th:hx-post="@{/watchlist}" hx-target="#watchlist" hx-swap="outerHTML"
+              hx-disabled-elt="find button">
+            <label class="flex flex-col gap-1">
+                <span class="text-xs text-ink/60" th:text="#{watchlist.link}">Links to their jobs or careers pages, one per line</span>
+                <textarea class="input font-mono text-[13px]" name="links" rows="3" required maxlength="5000" spellcheck="false"
+                          th:text="${watchlistLinks}" placeholder="https://jobs.lever.co/acme&#10;https://job-boards.greenhouse.io/globex/jobs/4012"></textarea>
+            </label>
+            <div class="flex flex-wrap items-center gap-2">
+                <button class="btn btn-primary" type="submit">
+                    <i class="ph ph-plus [.htmx-request_&]:animate-spin"></i><span th:text="#{watchlist.add}">Watch</span>
+                </button>
+                <span class="text-xs text-ink/55" th:text="#{watchlist.boards}">Greenhouse, Lever and Ashby</span>
+            </div>
+        </form>
+        <p class="text-[13px] text-ink/80" role="status" th:each="said : ${watchlistMessages}" th:text="${said}">Watching Acme.</p>
+        <p class="text-[13px] text-danger" role="alert" th:each="error : ${watchlistErrors}" th:text="${error}">https://example.com: not a board.</p>
+
+        <!--/* The companies whose boards the profile's jobs are on: one click watches one */-->
+        <div class="flex flex-col gap-1.5" th:unless="${watchlistSuggestions.isEmpty()}">
+            <div class="text-xs font-medium text-ink/60" th:text="#{watchlist.suggestions}">Your jobs are on these boards too</div>
+            <div class="flex flex-wrap gap-1.5">
+                <form th:each="suggestion : ${watchlistSuggestions}" th:hx-post="@{/watchlist}" hx-target="#watchlist"
+                      hx-swap="outerHTML" hx-disabled-elt="find button">
+                    <input type="hidden" name="links" th:value="${suggestion.link}">
+                    <input type="hidden" name="name" th:value="${suggestion.name}">
+                    <button class="chip chip-small" type="submit"
+                            th:title="#{watchlist.suggestion(${suggestion.name}, ${suggestion.ats.label()}, ${suggestion.jobs})}">
+                        <i class="ph ph-plus [.htmx-request_&]:animate-spin"></i><span th:text="${suggestion.name}">Initech</span>
+                        <span class="chip-count" th:text="${suggestion.jobs}">3</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <section class="card flex flex-col gap-2 p-4" aria-labelledby="companies-title">
+        <div class="flex flex-wrap items-center gap-2">
+            <h2 id="companies-title" class="flex-1 font-semibold" th:text="#{watchlist.companies}">Companies you watch</h2>
+            <button class="btn btn-secondary" type="button" th:unless="${watchedCompanies.isEmpty()}" th:hx-post="@{/watchlist/check}"
+                    hx-target="#watchlist" hx-swap="outerHTML" hx-disabled-elt="this">
+                <i class="ph ph-arrows-clockwise [.htmx-request_&]:animate-spin"></i><span th:text="#{watchlist.checkNow}">Check now</span>
+            </button>
+        </div>
+        <p class="text-[13px] text-ink/55" th:if="${watchedCompanies.isEmpty()}" th:text="#{watchlist.empty}">No companies yet.</p>
+        <ul class="flex flex-col divide-y divide-line" th:unless="${watchedCompanies.isEmpty()}">
+            <li class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5" th:each="company : ${watchedCompanies}">
+                <div class="min-w-[200px] flex-1">
+                    <a class="font-medium hover:underline" th:href="${company.boardUrl}" target="_blank" rel="noopener noreferrer"
+                       th:text="${company.name}">Acme</a>
+                    <div class="text-xs text-ink/55">
+                        <span th:text="${company.ats.label()}">Lever</span> ·
+                        <span th:text="${company.lastCheckedAt} ? #{watchlist.checked(${@dates.relativeDay(company.lastCheckedAt)})} : #{watchlist.notChecked}">Checked today</span>
+                    </div>
+                    <div class="text-xs text-danger" th:if="${company.lastError}" th:text="#{watchlist.failed(${company.lastError})}">Couldn’t read it: api.lever.co answered 503</div>
+                </div>
+                <span class="tag" th:classappend="${company.newThisWeek > 0} ? 'st-offer'" th:text="#{watchlist.newThisWeek(${company.newThisWeek})}">2 new this week</span>
+                <button class="btn btn-ghost btn-icon" type="button" th:hx-post="@{/watchlist/{id}/delete(id=${company.id})}"
+                        hx-target="#watchlist" hx-swap="outerHTML" th:title="#{watchlist.remove(${company.name})}"
+                        th:aria-label="#{watchlist.remove(${company.name})}">
+                    <i class="ph ph-trash"></i>
+                </button>
+            </li>
+        </ul>
+    </section>
+</div>
+</body>
+</html>

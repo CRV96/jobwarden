@@ -331,5 +331,26 @@
   },
   "runClose": {
     "message": "Fermer"
+  },
+  "watchTitle": {
+    "message": "Liste de suivi"
+  },
+  "watchHint": {
+    "message": "JobWarden peut lire lui-même la page d’offres de cette entreprise toutes les quelques heures et ajouter ses nouveaux postes qui correspondent à vos recherches enregistrées."
+  },
+  "watchButton": {
+    "message": "Suivre $1"
+  },
+  "watchReading": {
+    "message": "Lecture de la page d’offres…"
+  },
+  "watching": {
+    "message": "Vous suivez $1 : ses nouveaux postes qui correspondent à vos recherches enregistrées arrivent sur la page Assistant IA."
+  },
+  "watchAdded": {
+    "message": "Vous suivez maintenant $1. Postes qui correspondent à vos recherches enregistrées : $2."
+  },
+  "openWatchlist": {
+    "message": "Ouvrir la liste de suivi"
   }
 }

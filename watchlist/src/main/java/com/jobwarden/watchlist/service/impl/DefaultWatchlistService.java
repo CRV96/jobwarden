@@ -30,6 +30,7 @@ import com.jobwarden.discover.dto.SavedSearch;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.service.ApplicationService;
+import com.jobwarden.watchlist.dto.BoardLink;
 import com.jobwarden.watchlist.dto.CompanySuggestion;
 import com.jobwarden.watchlist.dto.WatchResult;
 import com.jobwarden.watchlist.dto.WatchedCompany;
@@ -115,6 +116,18 @@ class DefaultWatchlistService implements WatchlistService {
 	@Transactional(readOnly = true)
 	public List<WatchedCompany> findCompanies(long userId) {
 		return toCompanies(this.companies.findByUserIdOrderByNameAscIdAsc(userId));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public Optional<BoardLink> findBoard(long userId, String link) {
+		return Board.of(link).map(board -> {
+			WatchedCompany watched = this.companies.findByUserIdAndAtsAndBoard(userId, board.ats(), board.name())
+				.map(company -> toCompanies(List.of(company)).getFirst())
+				.orElse(null);
+			return new BoardLink(board.ats(), board.name(), board.url(),
+					(watched != null) ? watched.name() : board.companyName(), watched);
+		});
 	}
 
 	/**

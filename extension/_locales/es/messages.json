@@ -331,5 +331,26 @@
   },
   "runClose": {
     "message": "Cerrar"
+  },
+  "watchTitle": {
+    "message": "Lista de seguimiento"
+  },
+  "watchHint": {
+    "message": "JobWarden puede leer por sí mismo la página de empleo de esta empresa cada pocas horas y añadir sus nuevos empleos que encajen con tus búsquedas guardadas."
+  },
+  "watchButton": {
+    "message": "Seguir a $1"
+  },
+  "watchReading": {
+    "message": "Leyendo la página de empleo…"
+  },
+  "watching": {
+    "message": "Sigues a $1: sus nuevos empleos que encajan con tus búsquedas guardadas van a la página Asistente IA."
+  },
+  "watchAdded": {
+    "message": "Ahora sigues a $1. Empleos que encajan con tus búsquedas guardadas: $2."
+  },
+  "openWatchlist": {
+    "message": "Abrir la lista de seguimiento"
   }
 }

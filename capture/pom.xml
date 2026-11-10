@@ -36,6 +36,11 @@
 			<groupId>com.jobwarden</groupId>
 			<artifactId>jobwarden-cv</artifactId>
 		</dependency>
+		<!-- Watching a company's job board from one of its jobs' pages -->
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-watchlist</artifactId>
+		</dependency>
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

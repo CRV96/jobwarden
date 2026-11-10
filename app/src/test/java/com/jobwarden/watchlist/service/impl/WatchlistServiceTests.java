@@ -118,6 +118,26 @@ class WatchlistServiceTests {
 	}
 
 	@Test
+	void tellsTheBoardALinkIsOnAndWhetherTheProfileWatchesItWithoutReadingIt() {
+		assertThat(this.watchlist.findBoard(this.userId, "https://www.linkedin.com/jobs/view/1")).isEmpty();
+		assertThat(this.watchlist.findBoard(this.userId, "https://jobs.lever.co/acme/7f3a")).hasValueSatisfying(board -> {
+			assertThat(board.name()).isEqualTo("Acme");
+			assertThat(board.boardUrl()).isEqualTo("https://jobs.lever.co/acme");
+			assertThat(board.company()).isNull();
+		});
+
+		this.watchlist.watch(this.userId, "https://jobs.lever.co/acme", "Acme Inc");
+
+		assertThat(this.watchlist.findBoard(this.userId, "https://jobs.lever.co/acme/7f3a")).hasValueSatisfying(board -> {
+			assertThat(board.name()).isEqualTo("Acme Inc");
+			assertThat(board.company()).isNotNull();
+		});
+		assertThat(this.watchlist.findBoard(this.otherUserId, "https://jobs.lever.co/acme/7f3a"))
+			.hasValueSatisfying(board -> assertThat(board.company()).isNull());
+		then(this.feeds).should(times(1)).postings(ACME);
+	}
+
+	@Test
 	void watchesACompanyOnce() {
 		this.watchlist.watch(this.userId, "jobs.lever.co/acme", "Acme Corp");
 

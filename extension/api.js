@@ -110,6 +110,32 @@ export async function dueReminders({ serverUrl, userId }) {
   return response.json();
 }
 
+/**
+ * The job board the page is on, and whether the profile watches its company. Reads no board.
+ *
+ * @param {Settings} settings
+ * @returns {Promise<WatchStatus | null>} null when the page isn't on a Greenhouse, Lever or Ashby board
+ * @typedef {{name: string, system: string, boardUrl: string, watched: boolean, companyId: number | null,
+ *   added: boolean | null, newJobs: number | null}} WatchStatus
+ */
+export async function watchStatus({ serverUrl, userId }, link) {
+  const response = await send(serverUrl, '/watchlist', { query: { userId, link } });
+  return response.status === 204 ? null : response.json();
+}
+
+/**
+ * Watches the company whose board the page is on: the server reads the board, and adds the jobs that match the
+ * saved searches to the AI Assistant page.
+ *
+ * @param {Settings} settings
+ * @param {string | null} name the company's name as the page says it; the board's own if null
+ * @returns {Promise<WatchStatus>} with added and newJobs
+ */
+export async function watch({ serverUrl, userId }, link, name) {
+  const response = await send(serverUrl, '/watchlist', { method: 'POST', body: { userId, link, name } });
+  return response.json();
+}
+
 /** @param {Settings} settings */
 export async function remove({ serverUrl, userId }, applicationId) {
   await send(serverUrl, `/${applicationId}`, { method: 'DELETE', query: { userId } });

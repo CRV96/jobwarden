@@ -331,5 +331,26 @@
   },
   "runClose": {
     "message": "Close"
+  },
+  "watchTitle": {
+    "message": "Watchlist"
+  },
+  "watchHint": {
+    "message": "JobWarden can read this company’s job board itself, every few hours, and add its new jobs that match your saved searches."
+  },
+  "watchButton": {
+    "message": "Watch $1"
+  },
+  "watchReading": {
+    "message": "Reading the job board…"
+  },
+  "watching": {
+    "message": "You watch $1: its new jobs that match your saved searches go to the AI Assistant page."
+  },
+  "watchAdded": {
+    "message": "Watching $1. Jobs that match your saved searches: $2."
+  },
+  "openWatchlist": {
+    "message": "Open the watchlist"
   }
 }

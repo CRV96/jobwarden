@@ -13,6 +13,7 @@
             </h1>
             <p class="text-[13px] text-ink/60" th:text="#{discover.subtitle}">Jobs Claude found for your searches. Save the ones you like, discard the rest.</p>
         </div>
+        <a class="btn btn-ghost" th:href="@{/watchlist}"><i class="ph ph-binoculars"></i><span th:text="#{nav.watchlist}">Watchlist</span></a>
         <a class="btn btn-secondary" th:href="@{/search}"><i class="ph ph-plus"></i><span th:text="#{discover.newSearch}">New search</span></a>
     </header>
 
@@ -183,13 +184,6 @@
                     </li>
                 </ul>
             </section>
-
-            <!--/* The watchlist: loaded after the page, from a controller of its own (WatchlistController) */-->
-            <section id="watchlist" class="card flex items-center gap-2 p-4 text-ink/60" th:hx-get="@{/discover/watchlist}"
-                     hx-trigger="load" hx-swap="outerHTML" aria-busy="true">
-                <i class="ph ph-binoculars text-[20px] text-accent"></i>
-                <span th:text="#{watchlist.title}">Watchlist</span>
-            </section>
         </div>
 
         <div class="scroll-panel min-h-0 min-w-0 overflow-x-hidden">
@@ -329,76 +323,6 @@
         </div>
     </div>
 </main>
-
-<!--/* The companies whose job boards JobWarden reads itself, with no Claude tokens: the postings that match a saved search
-       go to the card to review. Adding, removing and Check now answer with the card again (WatchlistController); while
-       one waits for the boards, its button is off and its icon turns. */-->
-<section th:fragment="watchlist" id="watchlist" class="card flex flex-col gap-3 p-4" aria-labelledby="watchlist-title">
-    <div class="flex flex-wrap items-start gap-2">
-        <div class="min-w-[200px] flex-1">
-            <h2 id="watchlist-title" class="flex items-center gap-2 font-semibold">
-                <i class="ph ph-binoculars text-accent"></i><span th:text="#{watchlist.title}">Watchlist</span>
-            </h2>
-            <p class="text-xs text-ink/60" th:text="#{watchlist.hint}">Companies whose job boards JobWarden reads itself…</p>
-        </div>
-        <button class="btn btn-secondary" type="button" th:unless="${watchedCompanies.isEmpty()}" th:hx-post="@{/discover/watchlist/check}"
-                hx-target="#watchlist" hx-swap="outerHTML" hx-disabled-elt="this">
-            <i class="ph ph-arrows-clockwise [.htmx-request_&]:animate-spin"></i><span th:text="#{watchlist.checkNow}">Check now</span>
-        </button>
-    </div>
-    <p class="text-[13px] text-ink/80" role="status" th:if="${watchlistMessage}" th:text="${watchlistMessage}">Watching Acme.</p>
-    <p class="text-[13px] text-danger" role="alert" th:if="${watchlistError}" th:text="${watchlistError}">There’s no job board at that link.</p>
-    <p class="text-xs text-ink/60" th:unless="${watchlistHasSearches}">
-        <span th:text="#{watchlist.noSearches}">Save a search first…</span> <a class="link" th:href="@{/search}" th:text="#{nav.search}">Search Builder</a>
-    </p>
-    <form class="flex flex-wrap items-end gap-2" th:hx-post="@{/discover/watchlist}" hx-target="#watchlist" hx-swap="outerHTML"
-          hx-disabled-elt="find button">
-        <label class="flex min-w-[220px] flex-1 flex-col gap-1">
-            <span class="text-xs text-ink/60" th:text="#{watchlist.link}">A link to one of its jobs, or to its careers page</span>
-            <input class="input" type="text" name="link" required maxlength="500" th:value="${watchlistLink}"
-                   placeholder="https://jobs.lever.co/acme" autocomplete="off">
-        </label>
-        <button class="btn btn-primary" type="submit">
-            <i class="ph ph-plus [.htmx-request_&]:animate-spin"></i><span th:text="#{watchlist.add}">Watch</span>
-        </button>
-    </form>
-    <p class="text-xs text-ink/55" th:if="${watchedCompanies.isEmpty()}" th:text="#{watchlist.empty}">No companies yet.</p>
-    <ul class="flex flex-col divide-y divide-line" th:unless="${watchedCompanies.isEmpty()}">
-        <li class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2" th:each="company : ${watchedCompanies}">
-            <div class="min-w-[180px] flex-1">
-                <a class="font-medium hover:underline" th:href="${company.boardUrl}" target="_blank" rel="noopener noreferrer"
-                   th:text="${company.name}">Acme</a>
-                <div class="text-xs text-ink/55">
-                    <span th:text="${company.ats.label()}">Lever</span> ·
-                    <span th:text="${company.lastCheckedAt} ? #{watchlist.checked(${@dates.relativeDay(company.lastCheckedAt)})} : #{watchlist.notChecked}">Checked today</span>
-                </div>
-                <div class="text-xs text-danger" th:if="${company.lastError}" th:text="#{watchlist.failed(${company.lastError})}">Couldn’t read it: api.lever.co answered 503</div>
-            </div>
-            <span class="tag" th:classappend="${company.newThisWeek > 0} ? 'st-offer'" th:text="#{watchlist.newThisWeek(${company.newThisWeek})}">2 new this week</span>
-            <button class="btn btn-ghost btn-icon" type="button" th:hx-post="@{/discover/watchlist/{id}/delete(id=${company.id})}"
-                    hx-target="#watchlist" hx-swap="outerHTML" th:title="#{watchlist.remove(${company.name})}"
-                    th:aria-label="#{watchlist.remove(${company.name})}">
-                <i class="ph ph-trash"></i>
-            </button>
-        </li>
-    </ul>
-    <!--/* The companies whose boards the profile's jobs are on: one click watches one */-->
-    <div class="flex flex-col gap-1.5" th:unless="${watchlistSuggestions.isEmpty()}">
-        <div class="text-xs font-medium text-ink/60" th:text="#{watchlist.suggestions}">From your jobs</div>
-        <div class="flex flex-wrap gap-1.5">
-            <form th:each="suggestion : ${watchlistSuggestions}" th:hx-post="@{/discover/watchlist}" hx-target="#watchlist"
-                  hx-swap="outerHTML" hx-disabled-elt="find button">
-                <input type="hidden" name="link" th:value="${suggestion.link}">
-                <input type="hidden" name="name" th:value="${suggestion.name}">
-                <button class="chip chip-small" type="submit"
-                        th:title="#{watchlist.suggestion(${suggestion.name}, ${suggestion.ats.label()}, ${suggestion.jobs})}">
-                    <i class="ph ph-plus [.htmx-request_&]:animate-spin"></i><span th:text="${suggestion.name}">Initech</span>
-                    <span class="chip-count" th:text="${suggestion.jobs}">3</span>
-                </button>
-            </form>
-        </div>
-    </div>
-</section>
 
 <!--/* Copies the text, and says so for a moment (app.js: data-copy-text) */-->
 <button th:fragment="copy-button(text)" class="btn btn-secondary" type="button" th:data-copy-text="${text}">

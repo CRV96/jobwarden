@@ -1,8 +1,8 @@
-import { capture, lookUp, moveBackToSaved, remove, ServerError, serverVersion } from './api.js';
+import { capture, lookUp, moveBackToSaved, remove, ServerError, serverVersion, watch, watchStatus } from './api.js';
 import { message, translatePage } from './i18n.js';
-import { canonicalLink } from './links.js';
+import { canonicalLink, isOnJobBoard } from './links.js';
 import { currentRun, isJobSearch, LINKEDIN_PERMISSION, loadRunOptions, MAX_LIMIT, stopRun } from './runs.js';
-import { APPLICATIONS_PATH, hostPermission, loadSettings, saveSettings } from './settings.js';
+import { APPLICATIONS_PATH, hostPermission, loadSettings, saveSettings, WATCHLIST_PATH } from './settings.js';
 import { iconShowsStatus, showOnIcon, statusLook, statusName } from './status.js';
 import { isNewer } from './versions.js';
 
@@ -79,6 +79,10 @@ if (settings.userId === undefined) {
   reading = readPage();
   readingIcon = readIcon();
   listen();
+  if (isOnJobBoard(link)) {
+    // Not awaited: the page's lookup doesn't wait for it
+    showWatch();
+  }
   await open();
 }
 
@@ -388,6 +392,59 @@ function showStatus(text, kind = 'info') {
   statusLine.textContent = text;
   statusLine.className = `status ${kind}`;
   openSettings.hidden = true;
+}
+
+/**
+ * On a company's job board: whether the profile watches the company, or a button to. Watching reads the board on the
+ * server, which takes a few seconds; its jobs that match the saved searches go to the AI Assistant page. Says nothing
+ * when the server can't tell, so the rest of the popup isn't in the way of it.
+ */
+async function showWatch() {
+  let board;
+  try {
+    if (!(await chrome.permissions.contains({ origins: [hostPermission(settings.serverUrl)] }))) {
+      return;
+    }
+    board = await watchStatus(settings, link);
+  } catch (error) {
+    console.warn('Could not ask about the watchlist', error);
+    return;
+  }
+  if (board === null) {
+    return;
+  }
+  const button = document.getElementById('watch-button');
+  const watchLine = document.getElementById('watch-status');
+  const openWatchlist = document.getElementById('open-watchlist');
+  openWatchlist.href = `${settings.serverUrl}${WATCHLIST_PATH}`;
+  document.getElementById('watch').hidden = false;
+  if (board.watched) {
+    watchLine.textContent = message('watching', board.name);
+    openWatchlist.hidden = false;
+    return;
+  }
+  // The company as the page names it, once extract.js read it; else as the board's address does
+  await reading;
+  const name = job?.company?.trim() || null;
+  button.textContent = message('watchButton', name ?? board.name);
+  button.hidden = false;
+  button.onclick = async () => {
+    button.disabled = true;
+    watchLine.textContent = message('watchReading');
+    watchLine.className = 'status info';
+    try {
+      const watched = await watch(settings, link, name);
+      button.hidden = true;
+      watchLine.textContent = message('watchAdded', watched.name, String(watched.newJobs ?? 0));
+      watchLine.className = 'status success';
+      openWatchlist.hidden = false;
+    } catch (error) {
+      button.disabled = false;
+      watchLine.textContent = (error instanceof ServerError && error.problem.detail)
+        ? error.problem.detail : message('serverUnreachable', settings.serverUrl);
+      watchLine.className = 'status error';
+    }
+  };
 }
 
 /**

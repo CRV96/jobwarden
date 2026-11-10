@@ -331,5 +331,26 @@
   },
   "runClose": {
     "message": "Închide"
+  },
+  "watchTitle": {
+    "message": "Listă de urmărire"
+  },
+  "watchHint": {
+    "message": "JobWarden poate citi singur pagina de joburi a acestei companii la câteva ore și poate adăuga joburile ei noi potrivite căutărilor tale salvate."
+  },
+  "watchButton": {
+    "message": "Urmărește $1"
+  },
+  "watchReading": {
+    "message": "Citesc pagina de joburi…"
+  },
+  "watching": {
+    "message": "Urmărești $1: joburile ei noi potrivite căutărilor tale salvate ajung pe pagina Asistent AI."
+  },
+  "watchAdded": {
+    "message": "Acum urmărești $1. Joburi potrivite căutărilor tale salvate: $2."
+  },
+  "openWatchlist": {
+    "message": "Deschide lista de urmărire"
   }
 }

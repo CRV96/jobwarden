@@ -1,7 +1,9 @@
 package com.jobwarden.watchlist.service;
 
 import java.util.List;
+import java.util.Optional;
 
+import com.jobwarden.watchlist.dto.BoardLink;
 import com.jobwarden.watchlist.dto.CompanySuggestion;
 import com.jobwarden.watchlist.dto.WatchResult;
 import com.jobwarden.watchlist.dto.WatchedCompany;
@@ -17,6 +19,13 @@ public interface WatchlistService {
 	 * @return the companies the profile watches, by name
 	 */
 	List<WatchedCompany> findCompanies(long userId);
+
+	/**
+	 * The board a link is on, and the company the profile watches there, if it does. Reads no board.
+	 *
+	 * @return empty when the link isn't on a Greenhouse, Lever or Ashby board
+	 */
+	Optional<BoardLink> findBoard(long userId, String link);
 
 	/**
 	 * Watches the company whose board the link is on: a link to the board, or to one of its jobs, on Greenhouse,

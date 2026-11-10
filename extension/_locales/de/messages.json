@@ -331,5 +331,26 @@
   },
   "runClose": {
     "message": "Schließen"
+  },
+  "watchTitle": {
+    "message": "Beobachtungsliste"
+  },
+  "watchHint": {
+    "message": "JobWarden kann die Stellenseite dieses Unternehmens selbst alle paar Stunden lesen und seine neuen Stellen hinzufügen, die zu deinen gespeicherten Suchen passen."
+  },
+  "watchButton": {
+    "message": "$1 beobachten"
+  },
+  "watchReading": {
+    "message": "Stellenseite wird gelesen…"
+  },
+  "watching": {
+    "message": "Du beobachtest $1: Seine neuen Stellen, die zu deinen gespeicherten Suchen passen, kommen auf die Seite KI-Assistent."
+  },
+  "watchAdded": {
+    "message": "Du beobachtest jetzt $1. Stellen, die zu deinen gespeicherten Suchen passen: $2."
+  },
+  "openWatchlist": {
+    "message": "Beobachtungsliste öffnen"
   }
 }
