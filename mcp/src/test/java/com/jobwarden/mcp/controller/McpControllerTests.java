@@ -15,6 +15,7 @@ import com.jobwarden.apply.enums.ApplyMode;
 import com.jobwarden.apply.enums.ApplyStatus;
 import com.jobwarden.apply.enums.CoverLetter;
 import com.jobwarden.apply.service.AutoApplyService;
+import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.cv.dto.Cv;
 import com.jobwarden.cv.dto.CvDetails;
 import com.jobwarden.cv.dto.CvExperience;
@@ -66,6 +67,11 @@ import com.jobwarden.jobs.service.JobFitService;
 import com.jobwarden.mcp.dto.PostingCheck;
 import com.jobwarden.mcp.enums.Verdict;
 import com.jobwarden.search.SearchCriteria;
+import com.jobwarden.watchlist.dto.WatchResult;
+import com.jobwarden.watchlist.dto.WatchedCompany;
+import com.jobwarden.watchlist.enums.Ats;
+import com.jobwarden.watchlist.exception.WatchlistErrorCode;
+import com.jobwarden.watchlist.service.WatchlistService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -95,7 +101,7 @@ import static org.mockito.Mockito.never;
  */
 @WebMvcTest(McpController.class)
 @Import({ JobTools.class, DiscoverTools.class, CvTools.class, RequestTools.class, HiringTools.class, ApplyTools.class,
-		PrepTools.class, FitTools.class, InboxTools.class, ProjectTools.class, Profiles.class })
+		PrepTools.class, FitTools.class, InboxTools.class, ProjectTools.class, WatchlistTools.class, Profiles.class })
 class McpControllerTests {
 
 	private static final User ROBERT = new User(1, "Robert", Instant.parse("2026-09-28T10:00:00Z"));
@@ -137,6 +143,9 @@ class McpControllerTests {
 
 	@MockitoBean
 	private GitHubService github;
+
+	@MockitoBean
+	private WatchlistService watchlist;
 
 	@BeforeEach
 	void oneProfile() {
@@ -873,6 +882,47 @@ class McpControllerTests {
 			.asString()
 			.contains("Claude in Chrome", "get_application_answers", "list_apply_queue", "start_apply", "LinkedIn Easy Apply",
 					"Never solve or get around a CAPTCHA", "NEEDS_ANSWER", "Mode REVIEW", "finish_request with request_id 30"));
+	}
+
+	@Test
+	void watchesACompanysBoardAndTellsTheStepsOfFindingJobsWhichAreWatched() {
+		WatchedCompany acme = WatchedCompany.builder()
+			.id(5)
+			.name("Acme")
+			.ats(Ats.LEVER)
+			.board("acme")
+			.boardUrl("https://jobs.lever.co/acme")
+			.addedAt(Instant.now())
+			.build();
+		given(this.watchlist.watch(1, "https://jobs.lever.co/acme/1a2b", null)).willReturn(new WatchResult(acme, true, 2));
+		given(this.watchlist.watch(1, "https://www.linkedin.com/jobs/view/1", null)).willThrow(new BusinessRuleException(
+				WatchlistErrorCode.NOT_A_BOARD_LINK, "Not a link to a Greenhouse, Lever or Ashby board"));
+		given(this.watchlist.findCompanies(1)).willReturn(List.of(acme));
+		given(this.discovery.startRequest(1, 35)).willReturn(AiRequest.builder()
+			.id(35)
+			.kind(AiRequestKind.RUN_SAVED_SEARCHES)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+
+		assertThat(callTool("watch_company", "{\"link\": \"https://jobs.lever.co/acme/1a2b\"}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.company_id").isEqualTo(5);
+			assertThat(result(body)).extractingPath("$.board_url").isEqualTo("https://jobs.lever.co/acme");
+			assertThat(result(body)).extractingPath("$.added").isEqualTo(true);
+			assertThat(result(body)).extractingPath("$.new_jobs").isEqualTo(2);
+		});
+		assertThat(callTool("watch_company", "{\"link\": \"https://www.linkedin.com/jobs/view/1\"}")).bodyJson()
+			.satisfies(body -> {
+				assertThat(body).extractingPath("$.result.isError").isEqualTo(true);
+				assertThat(body).extractingPath("$.result.content[0].text").asString().contains("Greenhouse, Lever or Ashby");
+			});
+		assertThat(callTool("get_request", "{\"request_id\": 35}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.watched_companies").asArray()
+				.containsExactly("Acme (https://jobs.lever.co/acme)");
+			assertThat(result(body)).extractingPath("$.instructions").asString()
+				.contains("watched_companies lists the companies", "call watch_company");
+		});
 	}
 
 	@Test

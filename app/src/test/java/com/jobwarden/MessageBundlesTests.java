@@ -15,6 +15,7 @@ import com.jobwarden.discover.exception.DiscoverErrorCode;
 import com.jobwarden.identity.enums.IdentityErrorCode;
 import com.jobwarden.inbox.exception.InboxErrorCode;
 import com.jobwarden.jobs.exception.JobsErrorCode;
+import com.jobwarden.watchlist.exception.WatchlistErrorCode;
 import com.jobwarden.web.enums.Language;
 import org.junit.jupiter.api.Test;
 
@@ -28,7 +29,7 @@ class MessageBundlesTests {
 	/** Must match spring.messages.basename in application.properties. */
 	private static final List<String> BUNDLES = List.of("i18n/web", "i18n/common-errors", "i18n/identity-errors",
 			"i18n/jobs-errors", "i18n/jobs-reminders", "i18n/jobs-salaries", "i18n/discover-errors", "i18n/cv-errors", "i18n/hiring-errors",
-			"i18n/apply-errors", "i18n/inbox-errors");
+			"i18n/apply-errors", "i18n/inbox-errors", "i18n/watchlist-errors");
 
 	@Test
 	void everyTranslationHasExactlyTheEnglishKeys() throws IOException {
@@ -54,7 +55,7 @@ class MessageBundlesTests {
 			english.putAll(load(bundle + ".properties"));
 		}
 		Stream.of(CommonErrorCode.values(), IdentityErrorCode.values(), JobsErrorCode.values(), DiscoverErrorCode.values(),
-				InboxErrorCode.values())
+				InboxErrorCode.values(), WatchlistErrorCode.values())
 			.flatMap(Arrays::stream)
 			.map(ErrorCode::getMessageKey)
 			.forEach(key -> assertThat(english).as(key).containsKey(key));

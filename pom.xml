@@ -43,6 +43,7 @@
 		<module>hiring</module>
 		<module>apply</module>
 		<module>inbox</module>
+		<module>watchlist</module>
 		<module>capture</module>
 		<module>mcp</module>
 		<module>web</module>
@@ -128,6 +129,11 @@
 			<dependency>
 				<groupId>com.jobwarden</groupId>
 				<artifactId>jobwarden-inbox</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.jobwarden</groupId>
+				<artifactId>jobwarden-watchlist</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 			<!-- The CV: reading an uploaded PDF's text, and making a PDF from the CV page's fields -->
