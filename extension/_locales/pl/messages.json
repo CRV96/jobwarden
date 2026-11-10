@@ -331,5 +331,23 @@
   },
   "runClose": {
     "message": "Zamknij"
+  },
+  "watchReading": {
+    "message": "Czytam stronę z ofertami…"
+  },
+  "watchAdded": {
+    "message": "Obserwujesz teraz: $1. Oferty pasujące do Twoich zapisanych wyszukiwań: $2."
+  },
+  "openWatchlist": {
+    "message": "Otwórz listę obserwowanych"
+  },
+  "watchTooltip": {
+    "message": "Obserwuj: $1. JobWarden czyta jej stronę z ofertami i dodaje oferty pasujące do Twoich zapisanych wyszukiwań"
+  },
+  "watchingTooltip": {
+    "message": "Obserwujesz: $1. Kliknij, aby przestać obserwować"
+  },
+  "unwatched": {
+    "message": "Nie obserwujesz już: $1. Oferty znalezione na jej stronie zostają w JobWarden."
   }
 }

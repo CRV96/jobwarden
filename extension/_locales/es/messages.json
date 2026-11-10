@@ -331,5 +331,23 @@
   },
   "runClose": {
     "message": "Cerrar"
+  },
+  "watchReading": {
+    "message": "Leyendo la página de empleo…"
+  },
+  "watchAdded": {
+    "message": "Ahora sigues a $1. Empleos que encajan con tus búsquedas guardadas: $2."
+  },
+  "openWatchlist": {
+    "message": "Abrir la lista de seguimiento"
+  },
+  "watchTooltip": {
+    "message": "Seguir a $1: JobWarden lee su página de empleo y añade los empleos que encajan con tus búsquedas guardadas"
+  },
+  "watchingTooltip": {
+    "message": "Sigues a $1. Haz clic para dejar de seguirla"
+  },
+  "unwatched": {
+    "message": "Ya no sigues a $1. Los empleos encontrados en su página siguen en JobWarden."
   }
 }

@@ -331,5 +331,23 @@
   },
   "runClose": {
     "message": "Fermer"
+  },
+  "watchReading": {
+    "message": "Lecture de la page d’offres…"
+  },
+  "watchAdded": {
+    "message": "Vous suivez maintenant $1. Postes qui correspondent à vos recherches enregistrées : $2."
+  },
+  "openWatchlist": {
+    "message": "Ouvrir la liste de suivi"
+  },
+  "watchTooltip": {
+    "message": "Suivre $1 : JobWarden lit sa page d’offres et ajoute les postes qui correspondent à vos recherches enregistrées"
+  },
+  "watchingTooltip": {
+    "message": "Vous suivez $1. Cliquez pour ne plus la suivre"
+  },
+  "unwatched": {
+    "message": "Vous ne suivez plus $1. Les postes trouvés sur sa page restent dans JobWarden."
   }
 }

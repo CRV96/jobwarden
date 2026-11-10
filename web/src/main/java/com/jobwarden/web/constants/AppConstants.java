@@ -15,6 +15,8 @@ public final class AppConstants {
 		public static final String APPLY = "/apply";
 		public static final String CV = "/cv";
 		public static final String DISCOVER = "/discover";
+		/** The companies whose job boards JobWarden reads itself, with no Claude tokens. */
+		public static final String WATCHLIST = "/watchlist";
 		public static final String PIPELINE = "/pipeline";
 		public static final String INBOX = "/inbox";
 		/** Setting the reminders of a calendar entry, and those that are due, which the pages ask for. */
@@ -105,6 +107,9 @@ public final class AppConstants {
 		public static final String DISCOVER_REVIEW_FRAGMENT = DISCOVER + " :: review";
 		/** The requests to Claude, which HTMX swaps as one is made, cancelled, or changes while it's open. */
 		public static final String DISCOVER_REQUESTS_FRAGMENT = DISCOVER + " :: requests";
+		public static final String WATCHLIST = "watchlist/watchlist";
+		/** The watchlist's companies, the form to add some and the suggestions, which HTMX swaps after each change. */
+		public static final String WATCHLIST_FRAGMENT = WATCHLIST + " :: watchlist";
 		/** What saving a search answers: that it's saved, and the menu of saved filters, out of band. */
 		public static final String SEARCH_SAVED_FRAGMENT = "search/search :: saved-answer";
 
@@ -350,6 +355,15 @@ public final class AppConstants {
 		public static final String AI_LOOP_PROMPT = "aiLoopPrompt";
 		/** Whether the profile has a CV, uploaded or filled in, for the preset that matches jobs against it. */
 		public static final String HAS_CV = "hasCv";
+		/** The companies the profile watches, and those its jobs suggest. */
+		public static final String WATCHED_COMPANIES = "watchedCompanies";
+		public static final String WATCHLIST_SUGGESTIONS = "watchlistSuggestions";
+		/** Whether the profile has saved searches, which the watchlist's postings are matched against. */
+		public static final String WATCHLIST_HAS_SEARCHES = "watchlistHasSearches";
+		/** What adding or checking did, why each link that couldn't be watched couldn't, and those links, to correct. */
+		public static final String WATCHLIST_MESSAGES = "watchlistMessages";
+		public static final String WATCHLIST_ERRORS = "watchlistErrors";
+		public static final String WATCHLIST_LINKS = "watchlistLinks";
 		/**
 		 * A job's AI-proof CV: the job's id, its {@code TailoredCv} or {@code null}, the latest request to tailor it or
 		 * {@code null}, and the prompt that hands that request to Claude Code while it waits.

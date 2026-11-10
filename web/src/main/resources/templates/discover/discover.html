@@ -13,6 +13,7 @@
             </h1>
             <p class="text-[13px] text-ink/60" th:text="#{discover.subtitle}">Jobs Claude found for your searches. Save the ones you like, discard the rest.</p>
         </div>
+        <a class="btn btn-ghost" th:href="@{/watchlist}"><i class="ph ph-binoculars"></i><span th:text="#{nav.watchlist}">Watchlist</span></a>
         <a class="btn btn-secondary" th:href="@{/search}"><i class="ph ph-plus"></i><span th:text="#{discover.newSearch}">New search</span></a>
     </header>
 

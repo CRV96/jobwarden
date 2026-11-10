@@ -21,6 +21,7 @@ import com.jobwarden.jobs.enums.ApplicationSort;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.search.WorkType;
+import com.jobwarden.watchlist.service.WatchlistService;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
@@ -60,6 +61,19 @@ class RequestTools implements McpToolSet {
 
 	private static final int COMPANIES = 20;
 
+	private static final int WATCHED_COMPANIES = 50;
+
+	/**
+	 * What the steps of finding jobs say about the watchlist, which JobWarden reads for the saved searches with no
+	 * tokens.
+	 */
+	private static final String WATCHED = """
+			watched_companies lists the companies whose job boards JobWarden reads itself, every few hours, for the saved \
+			searches: their matching postings are on the AI Assistant page already, so look elsewhere first.
+			When you come across a company on Greenhouse, Lever or Ashby whose jobs fit, call watch_company with a link to \
+			its board, so JobWarden watches it from then on, with no tokens.
+			""";
+
 	private final Profiles profiles;
 
 	private final DiscoveryService discovery;
@@ -67,6 +81,8 @@ class RequestTools implements McpToolSet {
 	private final HiringService hiring;
 
 	private final ApplicationService applications;
+
+	private final WatchlistService watchlist;
 
 	@Override
 	public List<McpTool> tools() {
@@ -139,7 +155,7 @@ class RequestTools implements McpToolSet {
 				salary, the must-haves), not the whole page; check_postings with urls tells open from closed for many.
 				Add the real, open ones that fit with add_found_jobs and request_id %d, at most %d jobs, each with its \
 				own link and a note on why it fits, in a sentence: the profile reads it when deciding.
-				""".formatted(id, max);
+				%s""".formatted(id, max, WATCHED);
 		String steps = switch (request.kind()) {
 			case FIND_JOBS_FOR_CV -> """
 					Call get_cv and read the headline, the experience, the skills and where the person lives.
@@ -154,7 +170,7 @@ class RequestTools implements McpToolSet {
 					and a short question.
 					Add the real, open postings with add_found_jobs, with the search's search_id and request_id %d, at \
 					most %d jobs in all, each with a note on why it fits.
-					""".formatted(id, max);
+					%s""".formatted(id, max, WATCHED);
 			case CHECK_POSTINGS -> """
 					Call check_postings with close_when_gone true: it checks the Saved, Applied and Interviewing jobs, and \
 					closes the Saved and Applied ones whose posting is certainly gone.
@@ -226,8 +242,13 @@ class RequestTools implements McpToolSet {
 			.map(recruiter -> new RecruiterRef(recruiter.name(), recruiter.profileUrl()))
 			.toList() : List.of();
 		List<String> companies = (request.kind() == AiRequestKind.FIND_RECRUITERS) ? companies(userId) : List.of();
+		List<String> watched = (taste != null) ? this.watchlist.findCompanies(userId)
+			.stream()
+			.limit(WATCHED_COMPANIES)
+			.map(company -> company.name() + " (" + company.boardUrl() + ")")
+			.toList() : List.of();
 		return new RequestDetails(request.id(), request.kind(), request.status(), request.applicationId(),
-				requirements(request), instructions(request), taste, followed, companies, request.createdAt());
+				requirements(request), instructions(request), taste, followed, companies, watched, request.createdAt());
 	}
 
 	/** The jobs found for the profile that it decided on last: those it saved or applied to, and those it discarded. */
@@ -446,10 +467,11 @@ class RequestTools implements McpToolSet {
 	 * @param taste for finding jobs: what the profile kept and discarded of those found for it
 	 * @param followed for hiring posts: the recruiters the profile follows
 	 * @param companies for recruiters: the companies of the profile's jobs still in play
+	 * @param watchedCompanies for finding jobs: the companies whose boards JobWarden reads itself, with their boards
 	 */
 	record RequestDetails(long requestId, AiRequestKind kind, AiRequestStatus status, @Nullable Long jobId,
 			@Nullable RequirementsView requirements, String instructions, @Nullable Taste taste,
-			List<RecruiterRef> followed, List<String> companies, Instant createdAt) {
+			List<RecruiterRef> followed, List<String> companies, List<String> watchedCompanies, Instant createdAt) {
 	}
 
 	/**

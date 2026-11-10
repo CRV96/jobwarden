@@ -94,7 +94,7 @@ class DiscoverControllerTests {
 
 		assertThat(this.mvc.get().uri("/discover")).hasStatusOk()
 			.bodyText()
-			.contains("AI Assistant", "value=\"FIND_JOBS_FOR_CV\"", "value=\"FOLLOW_UP\"", "Find jobs matching my CV",
+			.contains("AI Assistant", "href=\"/watchlist\"", "value=\"FIND_JOBS_FOR_CV\"", "value=\"FOLLOW_UP\"", "Find jobs matching my CV",
 					"Waiting for Claude", "Checked 9 postings, closed 2.",
 					"Do JobWarden request 12: call get_request with request_id 12 and profile_id 1",
 					"claude &quot;Do JobWarden request 12",

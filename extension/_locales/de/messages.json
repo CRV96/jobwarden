@@ -331,5 +331,23 @@
   },
   "runClose": {
     "message": "Schließen"
+  },
+  "watchReading": {
+    "message": "Stellenseite wird gelesen…"
+  },
+  "watchAdded": {
+    "message": "Du beobachtest jetzt $1. Stellen, die zu deinen gespeicherten Suchen passen: $2."
+  },
+  "openWatchlist": {
+    "message": "Beobachtungsliste öffnen"
+  },
+  "watchTooltip": {
+    "message": "$1 beobachten: JobWarden liest seine Stellenseite und fügt die Stellen hinzu, die zu deinen gespeicherten Suchen passen"
+  },
+  "watchingTooltip": {
+    "message": "Du beobachtest $1. Klicke, um es nicht mehr zu beobachten"
+  },
+  "unwatched": {
+    "message": "Du beobachtest $1 nicht mehr. Die auf seiner Stellenseite gefundenen Stellen bleiben in JobWarden."
   }
 }

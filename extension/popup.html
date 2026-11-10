@@ -41,6 +41,10 @@
         #run-options[hidden], #run-going[hidden] { display: none; }
         .limit { display: flex; align-items: center; gap: 8px; }
         .limit .input { width: 64px; }
+
+        /* The eye, on a company's job board: coloured while the profile watches the company */
+        .header-actions { display: flex; align-items: center; gap: 2px; }
+        #watch-toggle[aria-pressed="true"] { color: var(--jw-accent); }
     </style>
 </head>
 <body>
@@ -49,10 +53,16 @@
         <span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="icons/phosphor.svg#shield-check"/></svg></span>
         JobWarden
     </h1>
-    <!-- Opens the settings page (the server and the profile). Its title also says which ones are in use. -->
-    <button id="settings" class="btn btn-icon" type="button">
-        <svg class="icon" aria-hidden="true"><use href="icons/phosphor.svg#gear-six"/></svg>
-    </button>
+    <div class="header-actions">
+        <!-- Only on a company's job board: watches the company, or stops watching it (popup.js: showWatch) -->
+        <button id="watch-toggle" class="btn btn-icon" type="button" aria-pressed="false" hidden>
+            <svg class="icon" aria-hidden="true"><use href="icons/phosphor.svg#eye"/></svg>
+        </button>
+        <!-- Opens the settings page (the server and the profile). Its title also says which ones are in use. -->
+        <button id="settings" class="btn btn-icon" type="button">
+            <svg class="icon" aria-hidden="true"><use href="icons/phosphor.svg#gear-six"/></svg>
+        </button>
+    </div>
 </header>
 
 <main>
@@ -111,6 +121,7 @@
     <p id="status" class="status" role="status"></p>
     <div class="links">
         <a id="open-application" class="link" target="_blank" hidden data-i18n="openApplication">Open in JobWarden</a>
+        <a id="open-watchlist" class="link" target="_blank" hidden data-i18n="openWatchlist">Open the watchlist</a>
         <button id="open-settings" class="btn btn-ghost" type="button" hidden data-i18n="openSettings">Open settings</button>
     </div>
 

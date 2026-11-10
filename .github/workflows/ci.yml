@@ -1,8 +1,9 @@
 name: CI
 
 # Every pull request, and main after a merge: the build with all the tests, SonarCloud's analysis of it, and on pull
-# requests, the dependencies they add, checked for known vulnerabilities. CodeQL and the Docker image have workflows
-# of their own (codeql.yml, docker.yml). The actions are pinned to a commit; Dependabot keeps them up to date.
+# requests, the dependencies they add, checked for known vulnerabilities. The Docker image has a workflow of its own
+# (docker.yml), and CodeQL is GitHub's default setup, in the repository's settings. The actions are pinned to a commit;
+# Dependabot keeps them up to date.
 on:
   push:
     branches: [main]

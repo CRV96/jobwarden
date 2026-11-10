@@ -1,8 +1,10 @@
-import { capture, lookUp, moveBackToSaved, remove, ServerError, serverVersion } from './api.js';
+import {
+  capture, lookUp, moveBackToSaved, remove, ServerError, serverVersion, unwatch, watch, watchStatus,
+} from './api.js';
 import { message, translatePage } from './i18n.js';
-import { canonicalLink } from './links.js';
+import { canonicalLink, isOnJobBoard } from './links.js';
 import { currentRun, isJobSearch, LINKEDIN_PERMISSION, loadRunOptions, MAX_LIMIT, stopRun } from './runs.js';
-import { APPLICATIONS_PATH, hostPermission, loadSettings, saveSettings } from './settings.js';
+import { APPLICATIONS_PATH, hostPermission, loadSettings, saveSettings, WATCHLIST_PATH } from './settings.js';
 import { iconShowsStatus, showOnIcon, statusLook, statusName } from './status.js';
 import { isNewer } from './versions.js';
 
@@ -16,6 +18,9 @@ const ICON_SIZE = 32;
 
 /** The server's code for a profile id that matches no profile: fixed in the settings. */
 const PROFILE_NOT_FOUND = 'IDENTITY-001';
+
+/** The server's code for a company the profile doesn't watch (any more). */
+const WATCHED_COMPANY_NOT_FOUND = 'WATCHLIST-001';
 
 /** The message with each request field's label, for the server's validation errors. */
 const FIELD_LABELS = {
@@ -36,6 +41,8 @@ const confirmation = document.getElementById('confirm');
 const statusLine = document.getElementById('status');
 const openApplication = document.getElementById('open-application');
 const openSettings = document.getElementById('open-settings');
+const watchToggle = document.getElementById('watch-toggle');
+const openWatchlist = document.getElementById('open-watchlist');
 
 /** Thrown instead of calling a server Chrome doesn't let the extension reach yet: fetch would only say it failed. */
 class PermissionMissingError extends Error {}
@@ -44,6 +51,7 @@ translatePage();
 // The settings page is the extension's options page
 document.getElementById('settings').addEventListener('click', () => chrome.runtime.openOptionsPage());
 openSettings.addEventListener('click', () => chrome.runtime.openOptionsPage());
+watchToggle.addEventListener('click', toggleWatch);
 
 const settings = await loadSettings();
 describeSettings();
@@ -55,6 +63,9 @@ let link = canonicalLink(tab.url);
 
 /** @type {import('./api.js').CapturedApplication | null} the page's application, while JobWarden has one */
 let application = null;
+
+/** @type {import('./api.js').WatchStatus | null} the job board the page is on, once the server says, if it's on one */
+let board = null;
 
 /** What extract.js found on the page, or null if it couldn't read it */
 let job = null;
@@ -79,6 +90,8 @@ if (settings.userId === undefined) {
   reading = readPage();
   readingIcon = readIcon();
   listen();
+  // Not awaited: the page's lookup doesn't wait for it
+  showWatch();
   await open();
 }
 
@@ -388,6 +401,77 @@ function showStatus(text, kind = 'info') {
   statusLine.textContent = text;
   statusLine.className = `status ${kind}`;
   openSettings.hidden = true;
+}
+
+/**
+ * The eye beside the settings, only on a company's job board (Greenhouse, Lever, Ashby): coloured while the profile
+ * watches the company, plain while it doesn't; a click watches it, or stops watching it. Watching reads the board on
+ * the server, which takes a few seconds, and its jobs that match the saved searches go to the AI Assistant page. On any
+ * other page, or when the server can't tell, there's no eye: there'd be nothing it could do.
+ */
+async function showWatch() {
+  if (!isOnJobBoard(link)) {
+    return;
+  }
+  try {
+    if (!(await chrome.permissions.contains({ origins: [hostPermission(settings.serverUrl)] }))) {
+      return;
+    }
+    board = await watchStatus(settings, link);
+  } catch (error) {
+    console.warn('Could not ask JobWarden about the watchlist', error);
+    return;
+  }
+  if (board === null) {
+    return;
+  }
+  renderWatch();
+  if (!board.watched) {
+    // The company as the page names it, once extract.js read it, rather than as the board's address does
+    await reading;
+    const name = job?.company?.trim();
+    if (name && !board.watched) {
+      board = { ...board, name };
+      renderWatch();
+    }
+  }
+}
+
+function renderWatch() {
+  const label = message(board.watched ? 'watchingTooltip' : 'watchTooltip', board.name);
+  watchToggle.hidden = false;
+  watchToggle.setAttribute('aria-pressed', String(board.watched));
+  watchToggle.title = label;
+  watchToggle.setAttribute('aria-label', label);
+  openWatchlist.href = `${settings.serverUrl}${WATCHLIST_PATH}`;
+  openWatchlist.hidden = !board.watched;
+}
+
+async function toggleWatch() {
+  watchToggle.disabled = true;
+  try {
+    if (board.watched) {
+      await server(() => unwatch(settings, board.companyId));
+      showStatus(message('unwatched', board.name), 'success');
+      board = { ...board, watched: false, companyId: null };
+    } else {
+      showStatus(message('watchReading'));
+      await reading;
+      const watched = await server(() => watch(settings, link, job?.company?.trim() || null));
+      showStatus(message('watchAdded', watched.name, String(watched.newJobs ?? 0)), 'success');
+      board = watched;
+    }
+    renderWatch();
+  } catch (error) {
+    if (error instanceof ServerError && error.problem.errorCode === WATCHED_COMPANY_NOT_FOUND) {
+      // Removed meanwhile, on the Watchlist page say: the eye says so too
+      board = { ...board, watched: false, companyId: null };
+      renderWatch();
+    }
+    showFailure(error);
+  } finally {
+    watchToggle.disabled = false;
+  }
 }
 
 /**

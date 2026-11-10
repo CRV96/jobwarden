@@ -9,6 +9,9 @@ export const CAPTURE_PATH = '/api/captures';
 export const APPLICATIONS_PATH = '/applications';
 export const PROFILES_PATH = '/profiles';
 
+/** Where the web app lists the companies whose job boards it reads. */
+export const WATCHLIST_PATH = '/watchlist';
+
 /**
  * @returns {Promise<{serverUrl: string, userId: number | undefined, includeTime: boolean}>}
  */

@@ -29,9 +29,10 @@ public enum Recency {
 	}
 
 	/**
-	 * @return how old a posting may be, as LinkedIn's {@code f_TPR=r<seconds>} asks; {@code null} for any age
+	 * @return how old a posting may be, as LinkedIn's {@code f_TPR=r<seconds>} asks, and the watchlist reads a job
+	 * board's dates; {@code null} for any age
 	 */
-	@Nullable Duration age() {
+	public @Nullable Duration age() {
 		return this.age;
 	}
 

@@ -1,6 +1,18 @@
 // The link JobWarden keeps for a page. The server matches captures on the exact link, so saving a posting and
 // looking a page up (the popup, and the icon in background.js) both go through canonicalLink.
 
+/** The job boards the watchlist reads: a company's jobs and careers page on Greenhouse, Lever (and its EU servers) or Ashby. */
+const JOB_BOARD_HOST = /^(boards|job-boards)\.greenhouse\.io$|^jobs\.(eu\.)?lever\.co$|^jobs\.ashbyhq\.com$/;
+
+/**
+ * Whether the page is on a job board the watchlist reads, so the popup offers to watch the company. The server
+ * tells for sure: this only spares asking it on every other page.
+ */
+export function isOnJobBoard(address) {
+  const url = URL.parse(address ?? '');
+  return url !== null && JOB_BOARD_HOST.test(url.hostname.replace(/^www\./, ''));
+}
+
 /** Query parameters that only say where a click came from: dropped, so one posting keeps one link. */
 const TRACKING_PARAMETER = /^(utm_.+|fbclid|gclid|gbraid|wbraid|msclkid|mc_[ce]id|_hs(enc|mi)|igshid|trk.*|trackingId|refId|lipi|alternateChannel)$/i;
 

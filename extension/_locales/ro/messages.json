@@ -331,5 +331,23 @@
   },
   "runClose": {
     "message": "Închide"
+  },
+  "watchReading": {
+    "message": "Citesc pagina de joburi…"
+  },
+  "watchAdded": {
+    "message": "Acum urmărești $1. Joburi potrivite căutărilor tale salvate: $2."
+  },
+  "openWatchlist": {
+    "message": "Deschide lista de urmărire"
+  },
+  "watchTooltip": {
+    "message": "Urmărește $1: JobWarden îi citește pagina de joburi și adaugă joburile potrivite căutărilor tale salvate"
+  },
+  "watchingTooltip": {
+    "message": "Urmărești $1. Apasă ca să nu mai urmărești"
+  },
+  "unwatched": {
+    "message": "Nu mai urmărești $1. Joburile găsite pe pagina ei rămân în JobWarden."
   }
 }

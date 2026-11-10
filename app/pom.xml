@@ -54,6 +54,10 @@
 		</dependency>
 		<dependency>
 			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-watchlist</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
 			<artifactId>jobwarden-apply</artifactId>
 		</dependency>
 		<dependency>

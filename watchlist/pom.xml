@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>com.jobwarden</groupId>
+		<artifactId>jobwarden</artifactId>
+		<version>0.1.0</version>
+	</parent>
+	<artifactId>jobwarden-watchlist</artifactId>
+	<name>JobWarden :: Watchlist</name>
+	<description>Companies whose job boards on Greenhouse, Lever and Ashby JobWarden reads itself, adding the postings that match the saved searches as found jobs</description>
+
+	<dependencies>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-common</artifactId>
+		</dependency>
+		<!-- The profile's jobs, whose links suggest companies to watch -->
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-jobs</artifactId>
+		</dependency>
+		<!-- The saved searches the postings are matched against, and the found jobs they become -->
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-discover</artifactId>
+		</dependency>
+		<!-- The searches' criteria, and the countries of the regions they name -->
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-search</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+		<!-- The boards' JSON, read as it streams in -->
+		<dependency>
+			<groupId>tools.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+		</dependency>
+		<!-- The text of a posting's HTML description -->
+		<dependency>
+			<groupId>org.jsoup</groupId>
+			<artifactId>jsoup</artifactId>
+		</dependency>
+		<!-- @NamedInterface: marks the dto, enums, exception and service packages as the module's public API -->
+		<dependency>
+			<groupId>org.springframework.modulith</groupId>
+			<artifactId>spring-modulith-api</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<optional>true</optional>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+</project>

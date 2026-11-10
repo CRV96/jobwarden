@@ -331,5 +331,23 @@
   },
   "runClose": {
     "message": "Close"
+  },
+  "watchReading": {
+    "message": "Reading the job board…"
+  },
+  "watchAdded": {
+    "message": "Watching $1. Jobs that match your saved searches: $2."
+  },
+  "openWatchlist": {
+    "message": "Open the watchlist"
+  },
+  "watchTooltip": {
+    "message": "Watch $1: JobWarden reads its job board and adds the jobs that match your saved searches"
+  },
+  "watchingTooltip": {
+    "message": "You watch $1. Click to stop watching"
+  },
+  "unwatched": {
+    "message": "You no longer watch $1. The jobs found on its board stay in JobWarden."
   }
 }
