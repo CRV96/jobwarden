@@ -332,25 +332,28 @@
   "runClose": {
     "message": "Schließen"
   },
-  "watchTitle": {
-    "message": "Beobachtungsliste"
-  },
-  "watchHint": {
-    "message": "JobWarden kann die Stellenseite dieses Unternehmens selbst alle paar Stunden lesen und seine neuen Stellen hinzufügen, die zu deinen gespeicherten Suchen passen."
-  },
-  "watchButton": {
-    "message": "$1 beobachten"
-  },
   "watchReading": {
     "message": "Stellenseite wird gelesen…"
-  },
-  "watching": {
-    "message": "Du beobachtest $1: Seine neuen Stellen, die zu deinen gespeicherten Suchen passen, kommen auf die Seite KI-Assistent."
   },
   "watchAdded": {
     "message": "Du beobachtest jetzt $1. Stellen, die zu deinen gespeicherten Suchen passen: $2."
   },
   "openWatchlist": {
     "message": "Beobachtungsliste öffnen"
+  },
+  "watchTooltip": {
+    "message": "$1 beobachten: JobWarden liest seine Stellenseite und fügt die Stellen hinzu, die zu deinen gespeicherten Suchen passen"
+  },
+  "watchingTooltip": {
+    "message": "Du beobachtest $1. Klicke, um es nicht mehr zu beobachten"
+  },
+  "watchNotABoard": {
+    "message": "Beobachten geht auf der Stellen- oder Karriereseite eines Unternehmens auf Greenhouse, Lever oder Ashby."
+  },
+  "watchUnavailable": {
+    "message": "JobWarden konnte nicht sagen, ob du dieses Unternehmen beobachtest. Wenn du JobWarden gerade aktualisiert hast, starte es neu."
+  },
+  "unwatched": {
+    "message": "Du beobachtest $1 nicht mehr. Die auf seiner Stellenseite gefundenen Stellen bleiben in JobWarden."
   }
 }

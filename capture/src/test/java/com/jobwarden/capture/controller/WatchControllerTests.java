@@ -9,6 +9,7 @@ import com.jobwarden.watchlist.dto.BoardLink;
 import com.jobwarden.watchlist.dto.WatchResult;
 import com.jobwarden.watchlist.dto.WatchedCompany;
 import com.jobwarden.watchlist.enums.Ats;
+import com.jobwarden.watchlist.exception.WatchedCompanyNotFoundException;
 import com.jobwarden.watchlist.exception.WatchlistErrorCode;
 import com.jobwarden.watchlist.service.WatchlistService;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,6 +29,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 
 @WebMvcTest(WatchController.class)
@@ -137,6 +139,25 @@ class WatchControllerTests {
 			.isLenientlyEqualTo("""
 					{"detail": "Nu există nicio pagină de joburi la https://jobs.lever.co/nobody: verifică linkul.",
 					 "errorCode": "WATCHLIST-003"}""");
+	}
+
+	@Test
+	void stopsWatchingTheCompany() {
+		assertThat(this.mvc.delete().uri(this.capturePath + "/watchlist/7").param("userId", "1")
+			.header(HttpHeaders.ORIGIN, CHROME_EXTENSION))
+			.hasStatus(HttpStatus.NO_CONTENT);
+		then(this.watchlist).should().unwatch(1, 7);
+	}
+
+	@Test
+	void saysWhenTheCompanyIsntWatchedAnyMore() {
+		willThrow(new WatchedCompanyNotFoundException(7)).given(this.watchlist).unwatch(1, 7);
+
+		assertThat(this.mvc.delete().uri(this.capturePath + "/watchlist/7").param("userId", "1"))
+			.hasStatus(HttpStatus.NOT_FOUND)
+			.bodyJson()
+			.isLenientlyEqualTo("""
+					{"detail": "Company 7 isn’t on your watchlist.", "errorCode": "WATCHLIST-001"}""");
 	}
 
 	@Test

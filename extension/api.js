@@ -136,6 +136,15 @@ export async function watch({ serverUrl, userId }, link, name) {
   return response.json();
 }
 
+/**
+ * Stops watching the company. The jobs found on its board stay on the AI Assistant page.
+ *
+ * @param {Settings} settings
+ */
+export async function unwatch({ serverUrl, userId }, companyId) {
+  await send(serverUrl, `/watchlist/${companyId}`, { method: 'DELETE', query: { userId } });
+}
+
 /** @param {Settings} settings */
 export async function remove({ serverUrl, userId }, applicationId) {
   await send(serverUrl, `/${applicationId}`, { method: 'DELETE', query: { userId } });

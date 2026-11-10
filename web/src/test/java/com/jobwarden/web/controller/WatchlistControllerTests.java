@@ -84,7 +84,7 @@ class WatchlistControllerTests {
 					"Stop watching Acme", "Check now", "Your jobs are on these boards too",
 					"value=\"https://job-boards.greenhouse.io/initech\"",
 					"Watch Initech: its Greenhouse board has 2 of your jobs", "How it works",
-					"click Watch in JobWarden’s popup", "Jobs to review", ">12<")
+					"click the eye at the top of JobWarden’s popup", "Jobs to review", ">12<")
 			.doesNotContain("Save a search first");
 	}
 

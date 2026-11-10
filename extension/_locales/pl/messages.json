@@ -332,25 +332,28 @@
   "runClose": {
     "message": "Zamknij"
   },
-  "watchTitle": {
-    "message": "Lista obserwowanych"
-  },
-  "watchHint": {
-    "message": "JobWarden może sam czytać stronę z ofertami tej firmy co kilka godzin i dodawać jej nowe oferty pasujące do Twoich zapisanych wyszukiwań."
-  },
-  "watchButton": {
-    "message": "Obserwuj: $1"
-  },
   "watchReading": {
     "message": "Czytam stronę z ofertami…"
-  },
-  "watching": {
-    "message": "Obserwujesz: $1. Jej nowe oferty pasujące do Twoich zapisanych wyszukiwań trafiają na stronę Asystent AI."
   },
   "watchAdded": {
     "message": "Obserwujesz teraz: $1. Oferty pasujące do Twoich zapisanych wyszukiwań: $2."
   },
   "openWatchlist": {
     "message": "Otwórz listę obserwowanych"
+  },
+  "watchTooltip": {
+    "message": "Obserwuj: $1. JobWarden czyta jej stronę z ofertami i dodaje oferty pasujące do Twoich zapisanych wyszukiwań"
+  },
+  "watchingTooltip": {
+    "message": "Obserwujesz: $1. Kliknij, aby przestać obserwować"
+  },
+  "watchNotABoard": {
+    "message": "Obserwowanie działa na stronie oferty albo stronie kariery firmy w Greenhouse, Lever lub Ashby."
+  },
+  "watchUnavailable": {
+    "message": "JobWarden nie mógł sprawdzić, czy obserwujesz tę firmę. Jeśli JobWarden był właśnie aktualizowany, uruchom go ponownie."
+  },
+  "unwatched": {
+    "message": "Nie obserwujesz już: $1. Oferty znalezione na jej stronie zostają w JobWarden."
   }
 }

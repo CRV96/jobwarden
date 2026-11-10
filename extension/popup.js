@@ -1,4 +1,6 @@
-import { capture, lookUp, moveBackToSaved, remove, ServerError, serverVersion, watch, watchStatus } from './api.js';
+import {
+  capture, lookUp, moveBackToSaved, remove, ServerError, serverVersion, unwatch, watch, watchStatus,
+} from './api.js';
 import { message, translatePage } from './i18n.js';
 import { canonicalLink, isOnJobBoard } from './links.js';
 import { currentRun, isJobSearch, LINKEDIN_PERMISSION, loadRunOptions, MAX_LIMIT, stopRun } from './runs.js';
@@ -36,6 +38,8 @@ const confirmation = document.getElementById('confirm');
 const statusLine = document.getElementById('status');
 const openApplication = document.getElementById('open-application');
 const openSettings = document.getElementById('open-settings');
+const watchToggle = document.getElementById('watch-toggle');
+const openWatchlist = document.getElementById('open-watchlist');
 
 /** Thrown instead of calling a server Chrome doesn't let the extension reach yet: fetch would only say it failed. */
 class PermissionMissingError extends Error {}
@@ -44,6 +48,7 @@ translatePage();
 // The settings page is the extension's options page
 document.getElementById('settings').addEventListener('click', () => chrome.runtime.openOptionsPage());
 openSettings.addEventListener('click', () => chrome.runtime.openOptionsPage());
+watchToggle.addEventListener('click', toggleWatch);
 
 const settings = await loadSettings();
 describeSettings();
@@ -55,6 +60,9 @@ let link = canonicalLink(tab.url);
 
 /** @type {import('./api.js').CapturedApplication | null} the page's application, while JobWarden has one */
 let application = null;
+
+/** @type {import('./api.js').WatchStatus | null} the job board the page is on, once the server says, if it's on one */
+let board = null;
 
 /** What extract.js found on the page, or null if it couldn't read it */
 let job = null;
@@ -75,14 +83,13 @@ if (settings.userId === undefined) {
   openSettings.hidden = false;
 } else if (link === null) {
   showStatus(message('pageUnreadable'), 'error');
+  showNothingToWatch(message('watchNotABoard'));
 } else {
   reading = readPage();
   readingIcon = readIcon();
   listen();
-  if (isOnJobBoard(link)) {
-    // Not awaited: the page's lookup doesn't wait for it
-    showWatch();
-  }
+  // Not awaited: the page's lookup doesn't wait for it
+  showWatch();
   await open();
 }
 
@@ -395,56 +402,86 @@ function showStatus(text, kind = 'info') {
 }
 
 /**
- * On a company's job board: whether the profile watches the company, or a button to. Watching reads the board on the
- * server, which takes a few seconds; its jobs that match the saved searches go to the AI Assistant page. Says nothing
- * when the server can't tell, so the rest of the popup isn't in the way of it.
+ * The eye beside the settings: on a company's job board (Greenhouse, Lever, Ashby), coloured while the profile watches
+ * the company, plain while it doesn't; a click watches it, or stops watching it. Watching reads the board on the
+ * server, which takes a few seconds, and its jobs that match the saved searches go to the AI Assistant page. On any
+ * other page, or when the server can't tell, the eye is dimmed, and a click says why.
  */
 async function showWatch() {
-  let board;
+  watchToggle.hidden = false;
+  if (!isOnJobBoard(link)) {
+    showNothingToWatch(message('watchNotABoard'));
+    return;
+  }
   try {
     if (!(await chrome.permissions.contains({ origins: [hostPermission(settings.serverUrl)] }))) {
-      return;
+      throw new PermissionMissingError();
     }
     board = await watchStatus(settings, link);
   } catch (error) {
-    console.warn('Could not ask about the watchlist', error);
+    console.warn('Could not ask JobWarden about the watchlist', error);
+    showNothingToWatch(message('watchUnavailable'));
     return;
   }
   if (board === null) {
+    showNothingToWatch(message('watchNotABoard'));
     return;
   }
-  const button = document.getElementById('watch-button');
-  const watchLine = document.getElementById('watch-status');
-  const openWatchlist = document.getElementById('open-watchlist');
-  openWatchlist.href = `${settings.serverUrl}${WATCHLIST_PATH}`;
-  document.getElementById('watch').hidden = false;
-  if (board.watched) {
-    watchLine.textContent = message('watching', board.name);
-    openWatchlist.hidden = false;
-    return;
-  }
-  // The company as the page names it, once extract.js read it; else as the board's address does
-  await reading;
-  const name = job?.company?.trim() || null;
-  button.textContent = message('watchButton', name ?? board.name);
-  button.hidden = false;
-  button.onclick = async () => {
-    button.disabled = true;
-    watchLine.textContent = message('watchReading');
-    watchLine.className = 'status info';
-    try {
-      const watched = await watch(settings, link, name);
-      button.hidden = true;
-      watchLine.textContent = message('watchAdded', watched.name, String(watched.newJobs ?? 0));
-      watchLine.className = 'status success';
-      openWatchlist.hidden = false;
-    } catch (error) {
-      button.disabled = false;
-      watchLine.textContent = (error instanceof ServerError && error.problem.detail)
-        ? error.problem.detail : message('serverUnreachable', settings.serverUrl);
-      watchLine.className = 'status error';
+  renderWatch();
+  if (!board.watched) {
+    // The company as the page names it, once extract.js read it, rather than as the board's address does
+    await reading;
+    const name = job?.company?.trim();
+    if (name && !board.watched) {
+      board = { ...board, name };
+      renderWatch();
     }
-  };
+  }
+}
+
+function renderWatch() {
+  const label = message(board.watched ? 'watchingTooltip' : 'watchTooltip', board.name);
+  watchToggle.removeAttribute('aria-disabled');
+  watchToggle.setAttribute('aria-pressed', String(board.watched));
+  watchToggle.title = label;
+  watchToggle.setAttribute('aria-label', label);
+  openWatchlist.href = `${settings.serverUrl}${WATCHLIST_PATH}`;
+  openWatchlist.hidden = !board.watched;
+}
+
+/** Dimmed, with why: a click shows it in the status line, as a disabled button would show nothing. */
+function showNothingToWatch(why) {
+  watchToggle.hidden = false;
+  watchToggle.setAttribute('aria-disabled', 'true');
+  watchToggle.setAttribute('aria-pressed', 'false');
+  watchToggle.title = why;
+  watchToggle.setAttribute('aria-label', why);
+}
+
+async function toggleWatch() {
+  if (board === null || watchToggle.getAttribute('aria-disabled') === 'true') {
+    showStatus(watchToggle.title);
+    return;
+  }
+  watchToggle.disabled = true;
+  try {
+    if (board.watched) {
+      await server(() => unwatch(settings, board.companyId));
+      showStatus(message('unwatched', board.name), 'success');
+      board = { ...board, watched: false, companyId: null };
+    } else {
+      showStatus(message('watchReading'));
+      await reading;
+      const watched = await server(() => watch(settings, link, job?.company?.trim() || null));
+      showStatus(message('watchAdded', watched.name, String(watched.newJobs ?? 0)), 'success');
+      board = watched;
+    }
+    renderWatch();
+  } catch (error) {
+    showFailure(error);
+  } finally {
+    watchToggle.disabled = false;
+  }
 }
 
 /**

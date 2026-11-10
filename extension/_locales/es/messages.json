@@ -332,25 +332,28 @@
   "runClose": {
     "message": "Cerrar"
   },
-  "watchTitle": {
-    "message": "Lista de seguimiento"
-  },
-  "watchHint": {
-    "message": "JobWarden puede leer por sí mismo la página de empleo de esta empresa cada pocas horas y añadir sus nuevos empleos que encajen con tus búsquedas guardadas."
-  },
-  "watchButton": {
-    "message": "Seguir a $1"
-  },
   "watchReading": {
     "message": "Leyendo la página de empleo…"
-  },
-  "watching": {
-    "message": "Sigues a $1: sus nuevos empleos que encajan con tus búsquedas guardadas van a la página Asistente IA."
   },
   "watchAdded": {
     "message": "Ahora sigues a $1. Empleos que encajan con tus búsquedas guardadas: $2."
   },
   "openWatchlist": {
     "message": "Abrir la lista de seguimiento"
+  },
+  "watchTooltip": {
+    "message": "Seguir a $1: JobWarden lee su página de empleo y añade los empleos que encajan con tus búsquedas guardadas"
+  },
+  "watchingTooltip": {
+    "message": "Sigues a $1. Haz clic para dejar de seguirla"
+  },
+  "watchNotABoard": {
+    "message": "Puedes seguir una empresa desde una de sus ofertas o su página de empleo en Greenhouse, Lever o Ashby."
+  },
+  "watchUnavailable": {
+    "message": "JobWarden no ha podido decir si sigues a esta empresa. Si acabas de actualizar JobWarden, reinícialo."
+  },
+  "unwatched": {
+    "message": "Ya no sigues a $1. Los empleos encontrados en su página siguen en JobWarden."
   }
 }

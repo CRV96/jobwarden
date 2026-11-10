@@ -12,7 +12,9 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,8 +22,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * The watchlist from the extension: on one of a company's jobs on Greenhouse, Lever or Ashby, the popup offers to
- * watch the company's board, or says it's watched. Like {@link CaptureController}, the extensions in Firefox and Chrome
+ * The watchlist from the extension: on one of a company's jobs on Greenhouse, Lever or Ashby, the popup's eye shows
+ * whether the profile watches the company's board, and watches it, or stops, when clicked. Like {@link CaptureController}, the extensions in Firefox and Chrome
  * may call it, and web pages may not.
  */
 @RestController
@@ -59,6 +61,16 @@ class WatchController {
 		WatchStatus status = new WatchStatus(watched.company().name(), watched.company().ats().label(),
 				watched.company().boardUrl(), true, watched.company().id(), watched.added(), watched.newJobs());
 		return ResponseEntity.status(watched.added() ? HttpStatus.CREATED : HttpStatus.OK).body(status);
+	}
+
+	/**
+	 * Stops watching the company: the extension's eye, clicked again. The jobs found on its board stay.
+	 */
+	@DeleteMapping("/{companyId}")
+	ResponseEntity<Void> unwatch(@PathVariable long companyId, @RequestParam long userId) {
+		requireProfile(userId);
+		this.watchlist.unwatch(userId, companyId);
+		return ResponseEntity.noContent().build();
 	}
 
 	private void requireProfile(long userId) {

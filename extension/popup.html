@@ -42,10 +42,10 @@
         .limit { display: flex; align-items: center; gap: 8px; }
         .limit .input { width: 64px; }
 
-        /* On a company's job board: watching it */
-        #watch { display: flex; flex-direction: column; gap: 8px; }
-        #watch h2 { display: flex; align-items: center; gap: 6px; }
-        #watch h2 .icon { color: var(--jw-accent); font-size: 15px; }
+        /* The eye: coloured while the profile watches the page's company, dimmed where there's none to watch */
+        .header-actions { display: flex; align-items: center; gap: 2px; }
+        #watch-toggle[aria-pressed="true"] { color: var(--jw-accent); }
+        #watch-toggle[aria-disabled="true"] { opacity: 0.4; }
     </style>
 </head>
 <body>
@@ -54,10 +54,16 @@
         <span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="icons/phosphor.svg#shield-check"/></svg></span>
         JobWarden
     </h1>
-    <!-- Opens the settings page (the server and the profile). Its title also says which ones are in use. -->
-    <button id="settings" class="btn btn-icon" type="button">
-        <svg class="icon" aria-hidden="true"><use href="icons/phosphor.svg#gear-six"/></svg>
-    </button>
+    <div class="header-actions">
+        <!-- Watches the company whose job board the page is on, or stops watching it (popup.js: showWatch) -->
+        <button id="watch-toggle" class="btn btn-icon" type="button" aria-pressed="false" hidden>
+            <svg class="icon" aria-hidden="true"><use href="icons/phosphor.svg#eye"/></svg>
+        </button>
+        <!-- Opens the settings page (the server and the profile). Its title also says which ones are in use. -->
+        <button id="settings" class="btn btn-icon" type="button">
+            <svg class="icon" aria-hidden="true"><use href="icons/phosphor.svg#gear-six"/></svg>
+        </button>
+    </div>
 </header>
 
 <main>
@@ -116,23 +122,9 @@
     <p id="status" class="status" role="status"></p>
     <div class="links">
         <a id="open-application" class="link" target="_blank" hidden data-i18n="openApplication">Open in JobWarden</a>
+        <a id="open-watchlist" class="link" target="_blank" hidden data-i18n="openWatchlist">Open the watchlist</a>
         <button id="open-settings" class="btn btn-ghost" type="button" hidden data-i18n="openSettings">Open settings</button>
     </div>
-
-    <!-- On a company's job board (Greenhouse, Lever, Ashby): watch it, so JobWarden reads it for new jobs (popup.js) -->
-    <section id="watch" hidden>
-        <hr class="rule-fade">
-        <h2 class="section-title">
-            <svg class="icon" aria-hidden="true"><use href="icons/phosphor.svg#binoculars"/></svg>
-            <span data-i18n="watchTitle">Watchlist</span>
-        </h2>
-        <p class="hint" id="watch-text" data-i18n="watchHint">JobWarden reads this company’s job board itself…</p>
-        <div class="actions">
-            <button class="btn btn-secondary" type="button" id="watch-button" hidden></button>
-        </div>
-        <p id="watch-status" class="status" role="status"></p>
-        <a id="open-watchlist" class="link" target="_blank" hidden data-i18n="openWatchlist">Open the watchlist</a>
-    </section>
 
     <!-- On a LinkedIn job search: start the Easy Apply run (runs.js), or stop the one going on in the tab -->
     <section id="run" hidden>

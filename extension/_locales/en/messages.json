@@ -332,25 +332,28 @@
   "runClose": {
     "message": "Close"
   },
-  "watchTitle": {
-    "message": "Watchlist"
-  },
-  "watchHint": {
-    "message": "JobWarden can read this company’s job board itself, every few hours, and add its new jobs that match your saved searches."
-  },
-  "watchButton": {
-    "message": "Watch $1"
-  },
   "watchReading": {
     "message": "Reading the job board…"
-  },
-  "watching": {
-    "message": "You watch $1: its new jobs that match your saved searches go to the AI Assistant page."
   },
   "watchAdded": {
     "message": "Watching $1. Jobs that match your saved searches: $2."
   },
   "openWatchlist": {
     "message": "Open the watchlist"
+  },
+  "watchTooltip": {
+    "message": "Watch $1: JobWarden reads its job board and adds the jobs that match your saved searches"
+  },
+  "watchingTooltip": {
+    "message": "You watch $1. Click to stop watching"
+  },
+  "watchNotABoard": {
+    "message": "Watching works on a company’s job or careers page on Greenhouse, Lever or Ashby."
+  },
+  "watchUnavailable": {
+    "message": "JobWarden couldn’t tell whether you watch this company. If you just updated JobWarden, restart it."
+  },
+  "unwatched": {
+    "message": "You no longer watch $1. The jobs found on its board stay in JobWarden."
   }
 }
