@@ -282,7 +282,7 @@ The pages are in English, Romanian, French, German, Polish, Spanish, Portuguese 
 - CodeQL: code scanning of the Java, the JavaScript and the workflows, weekly too. It's GitHub's default setup, in the repository's settings (Code security), not a workflow: the two can't both upload.
 - [Docker image](.github/workflows/docker.yml): builds the image, and on `main` and tags publishes it.
 
-[CodeRabbit](.coderabbit.yaml) reviews each pull request, and [Dependabot](.github/dependabot.yml) keeps the dependencies and the actions up to date. The "Protect Main" ruleset ([.github/rulesets](.github/rulesets)) makes a pull request wait for the build, the dependency review, the image, SonarCloud's quality gate and CodeQL. See [SECURITY.md](SECURITY.md) for reporting a vulnerability.
+[CodeRabbit](.coderabbit.yaml) reviews each pull request, and [Dependabot](.github/dependabot.yml) keeps the dependencies and the actions up to date. The "Protect Main" ruleset ([.github/rulesets](.github/rulesets)) makes a pull request wait for the build, the dependency review, the image, SonarCloud's quality gate and CodeQL, and for the code owner's approval ([CODEOWNERS](.github/CODEOWNERS)). GitHub doesn't let anyone approve their own pull request, so the owner's go through the admin bypass, which skips the checks too: merge those only once they're green. The file doesn't apply itself; after changing it, run `gh api -X PUT repos/CRV96/jobwarden/rulesets/26456384 --input .github/rulesets/protect-main.json`. See [SECURITY.md](SECURITY.md) for reporting a vulnerability.
 
 Each kind of test has one place:
 
