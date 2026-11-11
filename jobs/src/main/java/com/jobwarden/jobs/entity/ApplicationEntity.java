@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 import com.jobwarden.jobs.dto.FollowUp;
 import com.jobwarden.jobs.dto.NewApplication;
@@ -97,6 +99,9 @@ public class ApplicationEntity {
 	@UpdateTimestamp
 	private Instant updatedAt;
 
+	/** When the profile archived it; {@code null} while it's in use. */
+	private @Nullable Instant archivedAt;
+
 	@OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
 	// In SQL, because within a day the events without a time come first, like in TimelineEventEntity.isAfter
 	@SQLOrder("event_date ASC, event_time ASC NULLS FIRST, id ASC")
@@ -141,6 +146,27 @@ public class ApplicationEntity {
 			this.currentStatus = event.stageCategory();
 		}
 		markModified();
+	}
+
+	/**
+	 * Whether the event would say again what the one next to it on the timeline says, the one just before it or just
+	 * after: the same status, when it's one that {@link ApplicationStatus#canRepeat() can't repeat}, e.g. Position
+	 * closed after Position closed. With Position reopened between them, it can close again.
+	 */
+	public boolean wouldRepeat(NewTimelineEvent event) {
+		if (event.stageCategory().canRepeat()) {
+			return false;
+		}
+		Optional<TimelineEventEntity> before = this.events.stream()
+			.filter(existing -> !existing.isAfter(event.eventDate(), event.eventTime()))
+			.reduce((latest, existing) -> latest.isAfter(existing.getEventDate(), existing.getEventTime()) ? latest : existing);
+		// The events are in timeline order: of those at the same time, the first one after is next to the new one
+		Optional<TimelineEventEntity> after = this.events.stream()
+			.filter(existing -> existing.isAfter(event.eventDate(), event.eventTime()))
+			.reduce((earliest, existing) -> earliest.isAfter(existing.getEventDate(), existing.getEventTime()) ? existing
+					: earliest);
+		return Stream.concat(before.stream(), after.stream())
+			.anyMatch(next -> next.getStageCategory() == event.stageCategory());
 	}
 
 	/**
@@ -241,6 +267,20 @@ public class ApplicationEntity {
 	 */
 	private void markModified() {
 		this.updatedAt = Instant.now();
+	}
+
+	/**
+	 * Out of the way: off the list, the pipeline and the calendar. Archiving it again keeps the first time.
+	 */
+	public void archive(Instant when) {
+		if (this.archivedAt == null) {
+			this.archivedAt = when;
+		}
+	}
+
+	/** Back in use. */
+	public void restore() {
+		this.archivedAt = null;
 	}
 
 	private TimelineEventEntity latestEvent() {

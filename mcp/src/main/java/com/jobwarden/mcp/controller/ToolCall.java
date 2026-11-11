@@ -86,6 +86,13 @@ record ToolCall(JsonNode arguments, @Nullable Long profileHeader) {
 	}
 
 	List<String> strings(String name) {
+		return strings(name, Integer.MAX_VALUE);
+	}
+
+	/**
+	 * @return the first {@code max} strings of a list, the rest left unread; empty when it's left out
+	 */
+	List<String> strings(String name, int max) {
 		JsonNode value = this.arguments.get(name);
 		if (value == null || value.isNull()) {
 			return List.of();
@@ -95,12 +102,40 @@ record ToolCall(JsonNode arguments, @Nullable Long profileHeader) {
 		}
 		List<String> strings = new ArrayList<>();
 		for (JsonNode item : value) {
+			if (strings.size() == max) {
+				break;
+			}
 			if (!item.isString()) {
 				throw new ToolException(name + " must be a list of strings");
 			}
 			strings.add(item.asString());
 		}
 		return strings;
+	}
+
+	/**
+	 * @return the whole numbers of a list, e.g. ids; empty when it's left out
+	 * @throws ToolException when it holds more than {@code max}
+	 */
+	List<Long> numbers(String name, int max) {
+		JsonNode value = this.arguments.get(name);
+		if (value == null || value.isNull()) {
+			return List.of();
+		}
+		if (!value.isArray()) {
+			throw new ToolException(name + " must be a list of whole numbers");
+		}
+		if (value.size() > max) {
+			throw new ToolException(name + " takes at most " + max + " numbers");
+		}
+		List<Long> numbers = new ArrayList<>();
+		for (JsonNode item : value) {
+			if (!item.isIntegralNumber()) {
+				throw new ToolException(name + " must be a list of whole numbers");
+			}
+			numbers.add(item.asLong());
+		}
+		return numbers;
 	}
 
 	<E extends Enum<E>> List<E> constants(String name, Class<E> type) {

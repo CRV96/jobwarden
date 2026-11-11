@@ -11,6 +11,7 @@ import com.jobwarden.apply.enums.ApplyStatus;
 import com.jobwarden.apply.enums.CoverLetter;
 import com.jobwarden.apply.service.AutoApplyService;
 import com.jobwarden.cv.dto.CvDetails;
+import com.jobwarden.cv.service.CoverLetterService;
 import com.jobwarden.cv.service.CvService;
 import org.jspecify.annotations.Nullable;
 
@@ -37,15 +38,23 @@ class ApplyTools implements McpToolSet {
 
 	private final CvService cvs;
 
+	private final CoverLetterService letters;
+
 	/** Where the web module serves a job's CV for Claude, e.g. /claude/cv?profile=1&job=12 */
 	private final String cvPath;
 
-	ApplyTools(Profiles profiles, AutoApplyService autoApply, CvService cvs,
-			@Value("${jobwarden.claude.cv-path:/claude/cv}") String cvPath) {
+	/** And its cover letter, e.g. /claude/cover-letter?profile=1&job=12 */
+	private final String letterPath;
+
+	ApplyTools(Profiles profiles, AutoApplyService autoApply, CvService cvs, CoverLetterService letters,
+			@Value("${jobwarden.claude.cv-path:/claude/cv}") String cvPath,
+			@Value("${jobwarden.claude.cover-letter-path:/claude/cover-letter}") String letterPath) {
 		this.profiles = profiles;
 		this.autoApply = autoApply;
 		this.cvs = cvs;
+		this.letters = letters;
 		this.cvPath = cvPath;
+		this.letterPath = letterPath;
 	}
 
 	@Override
@@ -77,7 +86,7 @@ class ApplyTools implements McpToolSet {
 				"The jobs the profile queued on JobWarden's Auto-apply page for you to apply to and not done yet, the oldest "
 						+ "first: each with its posting's link, its mode (REVIEW: fill the form in and leave it to send; "
 						+ "SUBMIT: send it once every answer is known), whether a CV is tailored to it, and the address of "
-						+ "the CV to download and upload.",
+						+ "the CV to download and upload; whether it has a cover letter, and the address of its PDF.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema())), true, false, call -> {
 					long userId = this.profiles.of(call);
 					return Map.of("jobs", this.autoApply.findOpenItems(userId).stream().map(item -> row(userId, item)).toList());
@@ -119,13 +128,19 @@ class ApplyTools implements McpToolSet {
 	}
 
 	private QueueRow row(long userId, ApplyItem item) {
-		String cvUrl = ServletUriComponentsBuilder.fromCurrentContextPath()
-			.path(this.cvPath)
-			.queryParam("profile", userId)
-			.queryParam("job", item.applicationId())
-			.toUriString();
+		boolean hasLetter = this.letters.findLetter(userId, item.applicationId()).isPresent();
 		return new QueueRow(item.id(), item.applicationId(), item.title(), item.company(), item.link(), item.mode(),
-				item.status(), this.cvs.findTailored(userId, item.applicationId()).isPresent(), cvUrl, item.question());
+				item.status(), this.cvs.findTailored(userId, item.applicationId()).isPresent(),
+				fileUrl(this.cvPath, userId, item.applicationId()), hasLetter,
+				hasLetter ? fileUrl(this.letterPath, userId, item.applicationId()) : null, item.question());
+	}
+
+	private static String fileUrl(String path, long userId, long jobId) {
+		return ServletUriComponentsBuilder.fromCurrentContextPath()
+			.path(path)
+			.queryParam("profile", userId)
+			.queryParam("job", jobId)
+			.toUriString();
 	}
 
 	/**
@@ -147,10 +162,13 @@ class ApplyTools implements McpToolSet {
 	 * @param hasTailoredCv whether a CV is tailored to the job: the CV to download is that one
 	 * @param cvUrl the CV as a file, to download and upload: the tailored one, else the one built from the CV page, else
 	 * the file uploaded there
+	 * @param hasCoverLetter whether the job has a cover letter, which get_cover_letter gives as text
+	 * @param coverLetterUrl the cover letter as a PDF, to download and upload
 	 * @param question what the form asked last time, when it needed an answer
 	 */
 	record QueueRow(long itemId, long jobId, String title, @Nullable String company, @Nullable String link,
-			ApplyMode mode, ApplyStatus status, boolean hasTailoredCv, String cvUrl, @Nullable String question) {
+			ApplyMode mode, ApplyStatus status, boolean hasTailoredCv, String cvUrl, boolean hasCoverLetter,
+			@Nullable String coverLetterUrl, @Nullable String question) {
 	}
 
 }

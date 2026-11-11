@@ -16,6 +16,7 @@
             </h1>
             <p class="text-[13px] text-ink/60" th:text="#{hiring.subtitle}">Recruiters’ posts saying they’re hiring…</p>
         </div>
+        <th:block th:replace="~{help/help :: how-it-works('hiring')}"></th:block>
         <button class="btn btn-secondary" type="button" data-open-dialog="add-recruiter">
             <i class="ph ph-user-plus"></i><span th:text="#{hiring.addRecruiter}">Add recruiter</span>
         </button>
@@ -302,7 +303,7 @@
     </div>
     <div class="flex flex-col items-start gap-1">
         <p class="text-[13px] whitespace-pre-line text-ink/85" th:classappend="${post.isLong()} ? 'line-clamp-[8]'" data-clamped
-           th:text="${post.text}">I’m hiring Java Fullstack Engineers based in Romania…</p>
+           ><th:block th:replace="~{applications/fragments :: linked-text(${post.text})}">I’m hiring Java Fullstack Engineers based in Romania…</th:block></p>
         <button class="text-xs font-medium text-accent hover:underline" type="button" th:if="${post.isLong()}" data-unclamp
                 th:text="#{hiring.more}">Show more</button>
     </div>

@@ -14,6 +14,7 @@
             <h1 class="page-title mb-1" th:text="#{pipeline.title}">Pipeline</h1>
             <p class="text-[13px] text-ink/60" th:text="#{pipeline.subtitle}">Where each application stands</p>
         </div>
+        <th:block th:replace="~{help/help :: how-it-works('pipeline')}"></th:block>
         <!--/* As it's typed, HTMX swaps the board; Enter without HTMX loads the whole page, the same */-->
         <form class="relative min-w-[200px] flex-[0_1_300px]" method="get" th:action="@{/pipeline}" role="search">
             <i class="ph ph-magnifying-glass pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-[15px] text-ink/50"></i>

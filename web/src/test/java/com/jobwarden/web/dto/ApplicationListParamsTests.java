@@ -12,7 +12,7 @@ class ApplicationListParamsTests {
 
 	@Test
 	void fillsInTheDefaultsForWhatTheAddressLeavesOut() {
-		ApplicationListParams params = new ApplicationListParams(" ", null, null, null, 0, 0);
+		ApplicationListParams params = new ApplicationListParams(" ", null, null, null, null, 0, 0);
 
 		assertThat(params).isEqualTo(ApplicationListParams.defaults());
 		assertThat(params.url()).isEqualTo("/applications");
@@ -20,13 +20,13 @@ class ApplicationListParamsTests {
 
 	@Test
 	void replacesAPageSizeTheListDoesNotOffer() {
-		assertThat(new ApplicationListParams(null, null, null, null, 1, 1000).size()).isEqualTo(20);
-		assertThat(new ApplicationListParams(null, null, null, null, 1, 50).size()).isEqualTo(50);
+		assertThat(new ApplicationListParams(null, null, null, null, null, 1, 1000).size()).isEqualTo(20);
+		assertThat(new ApplicationListParams(null, null, null, null, null, 1, 50).size()).isEqualTo(50);
 	}
 
 	@Test
 	void linksKeepEverythingElse() {
-		ApplicationListParams params = new ApplicationListParams("Java & Kotlin", ApplicationStatus.APPLIED,
+		ApplicationListParams params = new ApplicationListParams("Java & Kotlin", ApplicationStatus.APPLIED, null,
 				ApplicationSort.TITLE, Sort.Direction.DESC, 3, 50);
 
 		assertThat(params.url())
@@ -37,8 +37,21 @@ class ApplicationListParamsTests {
 	}
 
 	@Test
+	void showsTheArchivedJobsWithEveryStatusFromTheFirstPage() {
+		ApplicationListParams archived = new ApplicationListParams("java", ApplicationStatus.APPLIED, null, null, null, 3, 20)
+			.withArchived(true);
+
+		assertThat(archived.url()).isEqualTo("/applications?q=java&archived=true");
+		assertThat(archived.toQuery().archived()).isTrue();
+		assertThat(archived.withStatus(ApplicationStatus.REJECTED).url())
+			.isEqualTo("/applications?q=java&status=REJECTED&archived=true");
+		assertThat(archived.withArchived(false).isArchived()).isFalse();
+		assertThat(ApplicationListParams.defaults().toQuery().archived()).isFalse();
+	}
+
+	@Test
 	void keepsAPlusInTheSearchAPlus() {
-		assertThat(new ApplicationListParams("C++", null, null, null, 1, 20).url()).isEqualTo("/applications?q=C%2B%2B");
+		assertThat(new ApplicationListParams("C++", null, null, null, null, 1, 20).url()).isEqualTo("/applications?q=C%2B%2B");
 	}
 
 	@Test
@@ -73,7 +86,7 @@ class ApplicationListParamsTests {
 	void isFilteredBySearchOrStatusOnly() {
 		assertThat(ApplicationListParams.defaults().sortedBy(ApplicationSort.STATUS).isFiltered()).isFalse();
 		assertThat(ApplicationListParams.defaults().withStatus(ApplicationStatus.OFFER).isFiltered()).isTrue();
-		assertThat(new ApplicationListParams("java", null, null, null, 1, 20).isFiltered()).isTrue();
+		assertThat(new ApplicationListParams("java", null, null, null, null, 1, 20).isFiltered()).isTrue();
 	}
 
 }

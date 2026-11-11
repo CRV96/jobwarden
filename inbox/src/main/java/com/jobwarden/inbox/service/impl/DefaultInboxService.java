@@ -65,7 +65,8 @@ class DefaultInboxService implements InboxService {
 
 	/** The jobs an email can be news about: those still in play, and those that never got an answer. */
 	private static final Set<ApplicationStatus> IN_PLAY = EnumSet.of(ApplicationStatus.SAVED, ApplicationStatus.APPLIED,
-			ApplicationStatus.INTERVIEWING, ApplicationStatus.OFFER, ApplicationStatus.NO_RESPONSE);
+			ApplicationStatus.INTERVIEWING, ApplicationStatus.OFFER, ApplicationStatus.POSITION_REOPENED,
+			ApplicationStatus.NO_RESPONSE);
 
 	private static final int SENDER_MAX_LENGTH = 300;
 
@@ -254,7 +255,8 @@ class DefaultInboxService implements InboxService {
 		int applied = 0;
 		for (EmailUpdateEntity update : waiting.reversed()) {
 			Long job = update.getApplicationId();
-			if (job == null) {
+			// Matched to no job, or to one archived since: it waits for the profile
+			if (job == null || this.applications.findById(userId, job).filter(ApplicationDetails::isArchived).isPresent()) {
 				continue;
 			}
 			try {
@@ -313,12 +315,19 @@ class DefaultInboxService implements InboxService {
 		EmailUpdateEntity update = pending(userId, updateId);
 		LocalDateTime received = LocalDateTime.ofInstant(update.getReceivedAt(), ZoneId.systemDefault())
 			.truncatedTo(ChronoUnit.MINUTES);
-		this.applications.addEvent(userId, applicationId, NewTimelineEvent.builder()
+		NewTimelineEvent event = NewTimelineEvent.builder()
 			.eventDate(received.toLocalDate())
 			.eventTime(received.toLocalTime())
 			.stageCategory(status)
 			.note((note != null) ? note : emailNote(update))
-			.build());
+			.build();
+		// The job may say so already, e.g. an application confirmed after it was marked applied: nothing new to add
+		if (this.applications.wouldRepeat(userId, applicationId, event)) {
+			log.info("Email update {} says application {} of profile {} is {}, as its timeline does already", updateId,
+					applicationId, userId, status);
+		} else {
+			this.applications.addEvent(userId, applicationId, event);
+		}
 		update.applyTo(applicationId, by);
 		log.info("Applied email update {} to application {} of profile {} as {} ({})", updateId, applicationId, userId,
 				status, by);
@@ -366,11 +375,13 @@ class DefaultInboxService implements InboxService {
 			.orElseThrow(() -> new EmailUpdateNotFoundException(updateId));
 	}
 
-	/** The jobs an email can be about, those changed last first: the likelier, among several at one company. */
+	/**
+	 * The jobs an email can be about, those changed last first: the likelier, among several at one company. Each status
+	 * apart, as those lists leave the archived jobs out: an email never changes one.
+	 */
 	private List<JobEmails.Job> jobsInPlay(long userId) {
-		return this.applications.findAll(userId, null)
-			.stream()
-			.filter(job -> IN_PLAY.contains(job.status()))
+		return IN_PLAY.stream()
+			.flatMap(status -> this.applications.findAll(userId, status).stream())
 			.sorted(Comparator.comparing(ApplicationSummary::lastModified).reversed())
 			.map(job -> new JobEmails.Job(job.id(), job.title(), job.company(), job.status()))
 			.toList();

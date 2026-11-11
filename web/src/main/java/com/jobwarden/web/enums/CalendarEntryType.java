@@ -31,6 +31,12 @@ public enum CalendarEntryType {
 	/** What the calendar shows until the profile picks: everything. */
 	public static final Set<CalendarEntryType> ALL = Set.copyOf(EnumSet.allOf(CalendarEntryType.class));
 
+	/**
+	 * What the calendar feed has unless its address picks: what's worth an alarm in a calendar app, without the
+	 * status changes.
+	 */
+	public static final Set<CalendarEntryType> FEED = Set.of(INTERVIEW, DEADLINE, FOLLOW_UP);
+
 	public static CalendarEntryType of(CalendarEntry entry) {
 		return switch (entry.kind()) {
 			case EVENT -> entry.isInterview() ? INTERVIEW : STATUS;

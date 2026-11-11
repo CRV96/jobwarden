@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<!--/* What a job's cards show while Claude has a request about the job open: its status, a button to take it back, and
+       while it waits, what to paste into Claude Code or run in a terminal. request is the AiRequest, prompt its
+       ClaudePrompts.Prompt, cancelUrl where to take it back, target the card HTMX swaps with the answer. */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <!--/* Only fragments are taken from this file: the title is never shown */-->
+    <title>Claude · JobWarden</title>
+</head>
+<body>
+
+<th:block th:fragment="waiting(request, prompt, cancelUrl, target)" th:with="status=${request.status.name()}">
+    <div class="flex items-center gap-2">
+        <span class="tag st-interviewing">
+            <i class="ph ph-arrow-clockwise animate-spin" th:if="${status == 'WORKING'}"></i>
+            <span th:text="#{|ai.status.${status}|}">Waiting for Claude</span>
+        </span>
+        <span class="flex-1"></span>
+        <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button" th:hx-post="${cancelUrl}"
+                th:hx-target="${target}" hx-swap="outerHTML" th:text="#{ai.cancel}">Cancel</button>
+    </div>
+    <th:block th:if="${status == 'WAITING'}">
+        <div class="text-xs text-ink/60" th:text="#{ai.prompt}">Paste this into Claude Code:</div>
+        <div class="flex items-start gap-2">
+            <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${prompt.text}">Do JobWarden request 12…</code>
+            <button th:replace="~{discover/discover :: copy-button(${prompt.text})}"></button>
+        </div>
+        <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
+        <div class="flex items-start gap-2">
+            <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${prompt.command}">claude "Do JobWarden request 12…"</code>
+            <button th:replace="~{discover/discover :: copy-button(${prompt.command})}"></button>
+        </div>
+    </th:block>
+</th:block>
+
+<!--/* A text Claude wrote, to copy as it is: an email, what to say on a call. label names it. */-->
+<div th:fragment="copyable(label, text)" class="flex flex-col gap-1">
+    <div class="flex items-center gap-2">
+        <h3 class="flex-1 text-xs text-ink/60" th:text="${label}">The email</h3>
+        <button th:replace="~{discover/discover :: copy-button(${text})}"></button>
+    </div>
+    <p class="rounded-lg border border-line bg-ink/3 p-2.5 text-[13px] whitespace-pre-line text-pretty text-ink/85"
+       th:text="${text}">Dear Ana, …</p>
+</div>
+
+</body>
+</html>

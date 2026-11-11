@@ -66,7 +66,9 @@ class McpController {
 			Spare the context: links the profile already has are skipped when you add jobs, posts or recruiters, so \
 			never list them first. Pass search results' links to filter_links and open only the new ones that look \
 			right from their title and snippet. Read a page with WebFetch and a short question rather than whole; \
-			check_postings with urls tells open postings from closed ones, many at once, without opening them.""";
+			check_postings with urls tells open postings from closed ones, many at once, without opening them.
+			Messages to recruiters are drafts the profile sends itself: never send them. A cover letter goes out only \
+			with an application, when Auto-apply's steps say to send one.""";
 
 	private final Map<String, McpTool> tools;
 

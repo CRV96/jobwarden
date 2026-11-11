@@ -27,6 +27,7 @@ import com.jobwarden.inbox.service.impl.MailReader.Fetched;
 import com.jobwarden.inbox.service.impl.MailReader.Tested;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.NewApplication;
+import com.jobwarden.jobs.dto.NewTimelineEvent;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.service.ApplicationService;
 import org.junit.jupiter.api.BeforeEach;
@@ -284,6 +285,44 @@ class InboxServiceTests {
 	}
 
 	@Test
+	void leavesAnUpdateForAJobArchivedSinceWaiting() {
+		this.inbox.connect(this.userId, GMAIL);
+		given(this.reader.fetch(any(), any(), any(), any(), anyInt())).willReturn(new Fetched(7, 42, List.of(
+				email("<1@acme.com>", "Your application", "We regret to inform you that the position at Acme has been filled."))),
+				new Fetched(7, 43, List.of()));
+		this.inbox.check(this.userId);
+		assertThat(this.inbox.findPending(this.userId)).singleElement()
+			.satisfies(update -> assertThat(update.applicationId()).isEqualTo(this.acme));
+
+		this.applications.archive(this.userId, List.of(this.acme));
+		this.inbox.changeSettings(this.userId, 10, InboxAutomation.MATCHED);
+		this.inbox.check(this.userId);
+
+		assertThat(this.inbox.findPending(this.userId)).hasSize(1);
+		assertThat(this.applications.findById(this.userId, this.acme).orElseThrow().status()).isEqualTo(ApplicationStatus.APPLIED);
+	}
+
+	@Test
+	void matchesAnEmailToAReopenedJob() {
+		this.applications.addEvent(this.userId, this.acme, NewTimelineEvent.builder()
+			.eventDate(LocalDate.now().minusDays(5))
+			.stageCategory(ApplicationStatus.POSITION_CLOSED)
+			.build());
+		this.applications.addEvent(this.userId, this.acme, NewTimelineEvent.builder()
+			.eventDate(LocalDate.now().minusDays(2))
+			.stageCategory(ApplicationStatus.POSITION_REOPENED)
+			.build());
+		this.inbox.connect(this.userId, GMAIL);
+		this.inbox.changeSettings(this.userId, 10, InboxAutomation.MATCHED);
+		given(this.reader.fetch(any(), any(), any(), any(), anyInt())).willReturn(new Fetched(7, 42, List.of(
+				email("<1@acme.com>", "Your application", "We regret to inform you that the position at Acme has been filled."))));
+
+		this.inbox.check(this.userId);
+
+		assertThat(this.applications.findById(this.userId, this.acme).orElseThrow().status()).isEqualTo(ApplicationStatus.REJECTED);
+	}
+
+	@Test
 	void asksClaudeToSortTheOthersOnceWhenTheProfileSaysSo() {
 		this.inbox.connect(this.userId, GMAIL);
 		given(this.reader.fetch(any(), any(), any(), any(), anyInt())).willReturn(new Fetched(7, 42, List.of(
@@ -351,6 +390,18 @@ class InboxServiceTests {
 		assertThatExceptionOfType(EmailUpdateNotFoundException.class)
 			.isThrownBy(() -> this.inbox.apply(this.userId, update, this.acme, ApplicationStatus.REJECTED, null,
 					UpdateDecider.YOU));
+	}
+
+	@Test
+	void appliesAnUpdateTheJobsTimelineSaysAlreadyWithoutRepeatingIt() {
+		long update = pendingRejection();
+
+		// The job is Applied: an email confirming the application adds nothing to its timeline
+		this.inbox.apply(this.userId, update, this.acme, ApplicationStatus.APPLIED, null, UpdateDecider.CLAUDE);
+
+		assertThat(this.applications.findById(this.userId, this.acme).orElseThrow().timeline()).singleElement()
+			.satisfies(event -> assertThat(event.stageCategory()).isEqualTo(ApplicationStatus.APPLIED));
+		assertThat(this.inbox.findPending(this.userId)).isEmpty();
 	}
 
 	@Test

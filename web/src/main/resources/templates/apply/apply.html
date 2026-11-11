@@ -16,6 +16,7 @@
             </h1>
             <p class="text-[13px] text-ink/60" th:text="#{apply.subtitle}">Claude applies to your saved jobs in your browser…</p>
         </div>
+        <th:block th:replace="~{help/help :: how-it-works('apply')}"></th:block>
     </header>
 
     <div class="card flex items-center gap-2 p-3 text-[13px] text-success" role="status" th:if="${param.saved}">

@@ -3,6 +3,8 @@ package com.jobwarden.mcp.controller;
 import java.util.List;
 import java.util.Map;
 
+import com.jobwarden.cv.dto.Story;
+import com.jobwarden.cv.service.StoryService;
 import com.jobwarden.jobs.dto.InterviewBrief;
 import com.jobwarden.jobs.service.InterviewBriefService;
 import lombok.RequiredArgsConstructor;
@@ -12,12 +14,14 @@ import org.springframework.stereotype.Component;
 
 import static com.jobwarden.mcp.controller.JobTools.properties;
 import static com.jobwarden.mcp.controller.Schemas.integer;
+import static com.jobwarden.mcp.controller.Schemas.list;
 import static com.jobwarden.mcp.controller.Schemas.object;
 import static com.jobwarden.mcp.controller.Schemas.string;
 import static com.jobwarden.mcp.controller.Schemas.strings;
 
 /**
- * Preparing the profile for an interview: the brief Claude writes for a job, which the job's page shows.
+ * Preparing the profile for an interview: the brief Claude writes for a job, which the job's page shows, with the
+ * stories of the profile's story bank that answer what they'll look for.
  */
 @Component
 @RequiredArgsConstructor
@@ -31,6 +35,8 @@ class PrepTools implements McpToolSet {
 	private final Profiles profiles;
 
 	private final InterviewBriefService briefs;
+
+	private final StoryService stories;
 
 	@Override
 	public List<McpTool> tools() {
@@ -47,8 +53,10 @@ class PrepTools implements McpToolSet {
 								+ "what's new; a paragraph or two"),
 						"role", string("What the job is about, and what they'll look for in the interview"),
 						"questions", strings("The questions likely asked, technical and about the person"),
-						"stories", strings("For what they'll look for, a story from the CV each, in a line or two, with the "
-								+ "result"),
+						"stories", strings("For what they'll look for, a story each, in a line or two, with the result: "
+								+ "from the story bank first, else from the CV"),
+						"story_ids", list(integer("A story's id, from list_stories"), "The story bank's stories that "
+								+ "answer what they'll look for, the best first"),
 						"ask_them", strings("Good questions to ask them"),
 						"watch_out", string("What to look into before saying yes; left out when there's nothing"),
 						"sources", strings("The addresses you read")),
@@ -56,17 +64,23 @@ class PrepTools implements McpToolSet {
 				false, false, call -> {
 					long userId = this.profiles.of(call);
 					long jobId = call.requiredNumber("job_id");
+					List<Long> storyIds = this.stories.findAll(userId, call.numbers("story_ids", ITEMS_MAX))
+						.stream()
+						.map(Story::id)
+						.limit(ITEMS_MAX)
+						.toList();
 					InterviewBrief saved = this.briefs.save(userId, jobId, InterviewBrief.builder()
 						.company(shortened(call.requiredString("company")))
 						.role(shortened(call.string("role")))
 						.questions(items(call.strings("questions")))
 						.stories(items(call.strings("stories")))
+						.storyIds(storyIds)
 						.askThem(items(call.strings("ask_them")))
 						.watchOut(shortened(call.string("watch_out")))
 						.sources(items(call.strings("sources")))
 						.build());
 					return Map.of("job_id", jobId, "questions", saved.questions().size(), "stories", saved.stories().size(),
-							"page", "/applications/" + jobId);
+							"bank_stories", saved.storyIds().size(), "page", "/applications/" + jobId);
 				});
 	}
 

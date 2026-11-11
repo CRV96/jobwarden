@@ -1,5 +1,6 @@
 package com.jobwarden.jobs.repository;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
@@ -39,11 +40,50 @@ public interface ApplicationRepository extends JpaRepository<ApplicationEntity, 
 			    a.id, a.title, a.company, a.location, a.salary, a.link, a.source, a.currentStatus, a.capturedAt,
 			    a.updatedAt, a.appliedBy)
 			from ApplicationEntity a
-			where a.userId = :userId and a.currentStatus = :status
+			where a.userId = :userId and a.currentStatus = :status and a.archivedAt is null
 			order by a.capturedAt desc""")
 	List<ApplicationSummary> findSummaries(long userId, ApplicationStatus status);
 
-	long countByUserId(long userId);
+	/**
+	 * @return which of these applications of the profile are archived
+	 */
+	@Query("select a.id from ApplicationEntity a where a.userId = :userId and a.id in :ids and a.archivedAt is not null")
+	List<Long> findArchivedIds(long userId, Collection<Long> ids);
+
+	/** The applications in use: the archived ones left out. */
+	long countByUserIdAndArchivedAtIsNull(long userId);
+
+	long countByUserIdAndArchivedAtIsNotNull(long userId);
+
+	/**
+	 * Archives those of these applications the profile owns and hasn't archived yet.
+	 *
+	 * @return how many it archived
+	 */
+	@Modifying
+	@Query("""
+			update ApplicationEntity a set a.archivedAt = :when
+			where a.userId = :userId and a.id in :ids and a.archivedAt is null""")
+	int archiveOwned(long userId, Collection<Long> ids, Instant when);
+
+	/**
+	 * Brings those of these applications the profile owns back into use.
+	 *
+	 * @return how many came back
+	 */
+	@Modifying
+	@Query("""
+			update ApplicationEntity a set a.archivedAt = null
+			where a.userId = :userId and a.id in :ids and a.archivedAt is not null""")
+	int restoreOwned(long userId, Collection<Long> ids);
+
+	/**
+	 * The applications in use that nothing changed on since then (their timeline included), with these statuses.
+	 */
+	@Query("""
+			select a.id from ApplicationEntity a
+			where a.userId = :userId and a.archivedAt is null and a.updatedAt < :before and a.currentStatus in :statuses""")
+	List<Long> findUnchangedSince(long userId, Instant before, Collection<ApplicationStatus> statuses);
 
 	/**
 	 * When the posting went up, as its job data (a schema.org JobPosting, the raw payload) says, e.g. 2026-08-01 or
@@ -72,7 +112,7 @@ public interface ApplicationRepository extends JpaRepository<ApplicationEntity, 
 			    a.id, a.title, a.company, a.location, a.salary, a.link, a.source, a.currentStatus, a.capturedAt,
 			    a.updatedAt, a.appliedBy)
 			from ApplicationEntity a
-			where a.userId = :userId and a.currentStatus in :statuses
+			where a.userId = :userId and a.currentStatus in :statuses and a.archivedAt is null
 			    and not exists (select f.id from JobFitEntity f where f.applicationId = a.id)
 			order by a.capturedAt desc, a.id desc""")
 	List<ApplicationSummary> findUnscored(long userId, Collection<ApplicationStatus> statuses, Pageable page);
@@ -84,7 +124,7 @@ public interface ApplicationRepository extends JpaRepository<ApplicationEntity, 
 	@Query("""
 			select new com.jobwarden.jobs.repository.WaitingApplication(a.id, max(e.eventDate), a.followUpOn)
 			from TimelineEventEntity e join e.application a
-			where a.userId = :userId and a.currentStatus = :status
+			where a.userId = :userId and a.currentStatus = :status and a.archivedAt is null
 			group by a.id, a.followUpOn""")
 	List<WaitingApplication> findWaiting(long userId, ApplicationStatus status);
 
@@ -96,7 +136,7 @@ public interface ApplicationRepository extends JpaRepository<ApplicationEntity, 
 			    e.id, e.eventDate, e.eventTime, a.id, a.title, a.company, e.stageCategory, e.stageLabel,
 			    e.interviewFormat, e.interviewLocation, e.durationMinutes)
 			from TimelineEventEntity e join e.application a
-			where a.userId = :userId and e.eventDate between :from and :to""")
+			where a.userId = :userId and e.eventDate between :from and :to and a.archivedAt is null""")
 	List<CalendarEvent> findCalendarEvents(long userId, LocalDate from, LocalDate to);
 
 	/**
@@ -128,7 +168,7 @@ public interface ApplicationRepository extends JpaRepository<ApplicationEntity, 
 			select new com.jobwarden.jobs.repository.FollowUpDates(
 			    a.id, a.title, a.company, a.currentStatus, a.deadline, a.followUpOn)
 			from ApplicationEntity a
-			where a.userId = :userId
+			where a.userId = :userId and a.archivedAt is null
 			    and (a.deadline between :from and :to or a.followUpOn between :from and :to)""")
 	List<FollowUpDates> findFollowUpDates(long userId, LocalDate from, LocalDate to);
 

@@ -9,9 +9,12 @@
        of the profile's jobs, to apply to the job's timeline or dismiss (emailUpdates). Next to them, the mailbox:
        connected (mailAccount), or the form to connect one. Nothing changes a job until the profile applies it. */-->
 <main class="page-split flex flex-col gap-4">
-    <header>
-        <h1 class="page-title mb-1" th:text="#{inbox.title}">Inbox</h1>
-        <p class="text-[13px] text-pretty text-ink/60" th:text="#{inbox.subtitle}">Recruiters’ emails, read from your mailbox…</p>
+    <header class="flex flex-wrap items-end gap-3">
+        <div class="min-w-[240px] flex-1">
+            <h1 class="page-title mb-1" th:text="#{inbox.title}">Inbox</h1>
+            <p class="text-[13px] text-pretty text-ink/60" th:text="#{inbox.subtitle}">Recruiters’ emails, read from your mailbox…</p>
+        </div>
+        <th:block th:replace="~{help/help :: how-it-works('inbox')}"></th:block>
     </header>
 
     <div class="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">

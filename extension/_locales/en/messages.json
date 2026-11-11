@@ -170,6 +170,9 @@
   "status_POSITION_CLOSED": {
     "message": "Position closed"
   },
+  "status_POSITION_REOPENED": {
+    "message": "Position re-opened"
+  },
   "status_WITHDRAWN": {
     "message": "Withdrawn"
   },

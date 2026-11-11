@@ -57,17 +57,53 @@ public interface ApplicationService {
 	Page<ApplicationSummary> find(long userId, ApplicationQuery query);
 
 	/**
-	 * How many of the applications matching the search have each status, for every status, in the order of
+	 * How many of the applications in use matching the search have each status, for every status, in the order of
 	 * {@link ApplicationStatus}.
 	 *
 	 * @param search as in {@link ApplicationQuery#search()}
 	 */
-	Map<ApplicationStatus, Long> countByStatus(long userId, @Nullable String search);
+	default Map<ApplicationStatus, Long> countByStatus(long userId, @Nullable String search) {
+		return countByStatus(userId, search, false);
+	}
 
 	/**
-	 * How many applications the profile has.
+	 * Like {@link #countByStatus(long, String)}, of the archived applications when asked.
+	 */
+	Map<ApplicationStatus, Long> countByStatus(long userId, @Nullable String search, boolean archived);
+
+	/**
+	 * How many applications the profile has in use: the archived ones left out.
 	 */
 	long count(long userId);
+
+	/**
+	 * How many applications the profile archived.
+	 */
+	long countArchived(long userId);
+
+	/**
+	 * Archives those of the applications the profile owns: they leave the list, the pipeline, the calendar and its
+	 * feed, and the offers, and stay in the statistics and the salaries. Nothing else about them changes, so they come
+	 * back as they were.
+	 *
+	 * @return how many it archived; those archived already, and another profile's, are left alone
+	 */
+	int archive(long userId, Collection<Long> applicationIds);
+
+	/**
+	 * Brings those of the archived applications the profile owns back into use.
+	 *
+	 * @return how many came back
+	 */
+	int restore(long userId, Collection<Long> applicationIds);
+
+	/**
+	 * Archives the applications in use that nothing changed on, their timeline included, since the start of that day.
+	 *
+	 * @param endedOnly only those that ended: rejected, with no response, closed or withdrawn
+	 * @return how many it archived
+	 */
+	int archiveUnchangedSince(long userId, LocalDate day, boolean endedOnly);
 
 	Optional<ApplicationDetails> findById(long userId, long applicationId);
 
@@ -108,9 +144,19 @@ public interface ApplicationService {
 	 * Adds an event to the timeline. The application's status follows its latest event.
 	 *
 	 * @throws com.jobwarden.common.exception.BusinessRuleException if the event has a rejection reason without being a
-	 * rejection, or interview details without being an interview
+	 * rejection, or interview details without being an interview; or if it would say again what the event before it
+	 * says ({@code STATUS_REPEATED}): a status that {@link ApplicationStatus#canRepeat() can't repeat}, right after the
+	 * same one
 	 */
 	void addEvent(long userId, long applicationId, NewTimelineEvent event);
+
+	/**
+	 * Whether {@link #addEvent} would refuse the event as saying again what the event before it says, so a caller in a
+	 * transaction of its own can leave it out rather than fail.
+	 *
+	 * @throws com.jobwarden.jobs.exception.ApplicationNotFoundException if the profile has no such application
+	 */
+	boolean wouldRepeat(long userId, long applicationId, NewTimelineEvent event);
 
 	/**
 	 * Removes an event from the timeline, e.g. one added by mistake. The status follows the latest event left. The

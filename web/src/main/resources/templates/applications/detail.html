@@ -30,7 +30,9 @@
                     <h1 class="page-title" th:text="${jobApplication.title}">Backend engineer</h1>
                 </div>
                 <div class="flex gap-1.5">
+                    <th:block th:replace="~{help/help :: how-it-works('job')}"></th:block>
                     <th:block th:replace="~{applications/fragments :: share-menu('page', false)}"></th:block>
+                    <button th:replace="~{applications/fragments :: archive-button('btn-secondary')}"></button>
                     <button class="btn btn-secondary" type="button" th:data-open-dialog="|delete-${jobApplication.id}|">
                         <i class="ph ph-trash"></i><span th:text="#{action.delete}">Delete</span>
                     </button>
@@ -41,6 +43,7 @@
                     </a>
                 </div>
             </header>
+            <div th:replace="~{applications/fragments :: archived-note}"></div>
         </div>
 
         <!--/* From 1280 pixels wide, the description and the timeline scroll on the left, the facts and notes on the right */-->
@@ -58,11 +61,26 @@
                     <div th:replace="~{applications/fragments :: facts}"></div>
                     <div th:replace="~{applications/fragments :: status-picker}"></div>
                 </div>
+                <!--/* While the job is at Offer: its terms, and the brief to negotiate it */-->
+                <th:block th:if="${jobApplication.status.name() == 'OFFER'}">
+                    <div class="card p-4">
+                        <section th:replace="~{applications/offer :: terms-loader(${jobApplication.id})}"></section>
+                    </div>
+                    <div class="card p-4">
+                        <section th:replace="~{applications/offer :: negotiation-loader(${jobApplication.id})}"></section>
+                    </div>
+                </th:block>
                 <div class="card p-4">
                     <section th:replace="~{applications/job-fit :: loader(${jobApplication.id})}"></section>
                 </div>
                 <div class="card p-4">
                     <section th:replace="~{applications/tailored-cv :: loader(${jobApplication.id})}"></section>
+                </div>
+                <div class="card p-4">
+                    <section th:replace="~{applications/cover-letter :: loader(${jobApplication.id})}"></section>
+                </div>
+                <div class="card p-4">
+                    <section th:replace="~{applications/outreach :: loader(${jobApplication.id})}"></section>
                 </div>
                 <div class="card p-4">
                     <section th:replace="~{applications/interview-brief :: loader(${jobApplication.id})}"></section>

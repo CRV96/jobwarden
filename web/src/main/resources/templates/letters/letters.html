@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: page(~{::title}, ~{::main}, 'letters')}">
+<head>
+    <title th:text="|#{letters.title} · JobWarden|">Cover letters · JobWarden</title>
+</head>
+<body>
+<!--/* Every job's cover letter and messages in one place (LettersController): the base letter they start from, the jobs
+       in use with their letters (letterRows, each a LetterRow, those letterFilter shows, letterCounts how many each
+       filter would), and beside them the job picked (lettersJob), with the same cards as its own page. Ticked jobs go to
+       Claude at once. From 1280 pixels wide the list scrolls on the left and the job picked fills the right. */-->
+<main class="page-split flex flex-col gap-5">
+    <header class="flex flex-wrap items-end gap-3">
+        <div class="min-w-[240px] flex-1">
+            <h1 class="page-title mb-1" th:text="#{letters.title}">Cover letters</h1>
+            <p class="text-[13px] text-ink/60" th:text="#{letters.subtitle}">Every job’s cover letter and messages in one place.</p>
+        </div>
+        <th:block th:replace="~{help/help :: how-it-works('letters')}"></th:block>
+    </header>
+
+    <div class="card flex flex-wrap items-center gap-2 p-3 text-[13px] text-ink/70" th:unless="${hasCv}">
+        <i class="ph ph-identification-card text-base text-accent"></i>
+        <span th:text="#{tailoredCv.noCv}">Claude needs your CV first: upload it or fill it in.</span>
+        <a class="link" th:href="@{/cv}" th:text="#{tailoredCv.addCv}">Go to the CV page</a>
+    </div>
+
+    <section th:replace="~{letters/letters :: waiting}"></section>
+
+    <div class="grid min-h-0 flex-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] xl:grid-rows-[minmax(0,1fr)]">
+        <div class="scroll-panel flex min-h-0 min-w-0 flex-col gap-5">
+            <section th:replace="~{letters/letters :: base}"></section>
+
+            <section class="card flex flex-col gap-3 p-4" aria-labelledby="letters-jobs-title" th:with="filter=${letterFilter}">
+                <div class="flex flex-wrap items-center gap-2">
+                    <h2 id="letters-jobs-title" class="flex flex-1 items-center gap-1.5 font-semibold">
+                        <i class="ph ph-briefcase text-accent"></i><span th:text="#{letters.jobs}">Your jobs</span>
+                    </h2>
+                    <nav class="seg" th:aria-label="#{letters.filter.label}">
+                        <a class="seg-opt" th:each="option : ${letterFilters}" th:href="@{/letters(show=${option})}"
+                           th:aria-current="${option == filter} ? 'page'">
+                            <span th:text="#{|letters.filter.${option}|}">All</span>
+                            <span class="text-ink/45 tabular-nums" th:text="${letterCounts.get(option)}">12</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <!--/* Shown by app.js while jobs are ticked, as on the Jobs page. Its text carries {0} for the number. */-->
+                <div id="selection-bar" hidden th:data-label="#{jobs.selected}"
+                     class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-accent/10 py-1.5 pr-1.5 pl-3 shadow-[inset_0_0_0_0.5px_color-mix(in_srgb,var(--jw-accent)_35%,transparent)]">
+                    <i class="ph ph-check-square text-base text-accent"></i>
+                    <span class="text-[13px] font-medium tabular-nums" data-selection-count>1 selected</span>
+                    <button class="btn btn-ghost px-2 py-1" type="button" data-clear-selection th:text="#{jobs.clearSelection}">Clear selection</button>
+                    <span class="flex-1"></span>
+                    <span class="text-xs text-ink/55" th:text="#{letters.askLimit(${lettersMaxAsked})}">Claude writes up to 10 at a time.</span>
+                    <button class="btn btn-primary" type="button" th:hx-post="@{/letters/request}"
+                            hx-include="[data-select-row]:checked, #letters-job" hx-target="#letters-waiting" hx-swap="outerHTML">
+                        <i class="ph ph-sparkle"></i><span th:text="#{letters.ask}">Ask Claude for their letters</span>
+                    </button>
+                </div>
+
+                <label class="flex items-center gap-2 px-1 text-xs text-ink/60"
+                       th:if="${hasCv and #lists.size(letterRows.?[canAsk()]) > 1}">
+                    <input class="check" type="checkbox" data-select-all>
+                    <span th:text="#{letters.tickAll}">Tick all without a letter</span>
+                </label>
+
+                <ul class="-mx-1 flex flex-col" th:unless="${letterRows.isEmpty()}">
+                    <th:block th:each="row : ${letterRows}">
+                        <li th:replace="~{letters/letters :: row(false)}"></li>
+                    </th:block>
+                </ul>
+
+                <div class="flex items-start gap-3 rounded-lg bg-ink/3 p-3" th:if="${letterRows.isEmpty()}">
+                    <i class="ph ph-envelope-open text-[20px] text-accent"></i>
+                    <div class="flex flex-col gap-1" th:if="${letterTotal == 0}">
+                        <span class="font-medium" th:text="#{letters.empty.title}">No jobs yet</span>
+                        <span class="text-[13px] text-ink/60" th:text="#{letters.empty.body}">Save jobs from the extension or the Jobs page.</span>
+                        <a class="link self-start text-[13px]" th:href="@{/applications}" th:text="#{letters.empty.jobs}">Go to your jobs</a>
+                    </div>
+                    <span class="text-[13px] text-ink/65" th:unless="${letterTotal == 0}"
+                          th:text="#{|letters.empty.${filter}|}">Every job has its letter.</span>
+                </div>
+            </section>
+        </div>
+
+        <div class="scroll-panel min-h-0 min-w-0">
+            <aside th:replace="~{letters/letters :: panel}"></aside>
+        </div>
+    </div>
+</main>
+
+<!--/* The base letter (baseLetter, or null): what each job's letter starts from. Changed in its field (baseLetterEditing),
+       which stays open saying why when it can't be kept (baseLetterError, with what was typed: baseLetterDraft). It folds
+       to its header, like a job's cards (app.js: data-collapse). */-->
+<section id="base-letter" th:fragment="base" class="card flex flex-col gap-3 p-4" data-collapse="base-letter"
+         aria-labelledby="base-letter-title" th:with="base=${baseLetter}">
+    <div class="flex items-center gap-2">
+        <h2 id="base-letter-title" class="flex flex-1 items-center gap-1.5 font-semibold">
+            <i class="ph ph-signature text-accent"></i><span th:text="#{letters.base.title}">Your base letter</span>
+        </h2>
+        <span class="text-xs text-ink/55" th:if="${base}" th:text="#{letter.updated(${@dates.relativeDay(base.updatedAt)})}">Written: Today</span>
+    </div>
+    <p class="-mt-2 text-xs text-pretty text-ink/60" th:text="#{letters.base.hint('{company}', '{role}')}">The letter every job’s letter starts from.</p>
+
+    <form class="flex flex-col gap-2" th:if="${baseLetterEditing}" th:hx-post="@{/letters/base}" hx-target="#base-letter"
+          hx-swap="outerHTML">
+        <label class="contents">
+            <span class="sr-only" th:text="#{letters.base.title}">Your base letter</span>
+            <textarea class="input min-h-[16rem] text-[13px] leading-relaxed" name="body" rows="14" maxlength="6000"
+                      th:placeholder="#{letters.base.placeholder('{company}', '{role}')}"
+                      th:text="${baseLetterDraft} ?: ${base?.body}"></textarea>
+        </label>
+        <p class="text-[13px] text-danger" role="alert" th:if="${baseLetterError}" th:text="${baseLetterError}">The letter is empty.</p>
+        <div class="flex items-center gap-1.5">
+            <button class="btn btn-primary" type="submit"><i class="ph ph-floppy-disk"></i><span th:text="#{cv.save}">Save</span></button>
+            <button class="btn btn-ghost" type="button" th:hx-get="@{/letters/base}" hx-target="#base-letter" hx-swap="outerHTML"
+                    th:text="#{ai.cancel}">Cancel</button>
+        </div>
+    </form>
+
+    <th:block th:if="${base != null and !baseLetterEditing}">
+        <div class="flex flex-col gap-1">
+            <p class="line-clamp-[6] rounded-lg border border-line bg-ink/3 p-2.5 text-[13px] whitespace-pre-line text-pretty text-ink/85"
+               data-clamped th:text="${base.body}">Dear hiring team, …</p>
+            <button class="link self-start text-xs" type="button" data-unclamp th:if="${#strings.length(base.body) > 300}"
+                    th:text="#{letter.more}">Read it all</button>
+        </div>
+        <div class="flex flex-wrap items-center gap-1.5">
+            <button class="btn btn-secondary" type="button" th:hx-get="@{/letters/base/edit}" hx-target="#base-letter" hx-swap="outerHTML">
+                <i class="ph ph-pencil-simple"></i><span th:text="#{letter.edit}">Change it</span>
+            </button>
+            <button th:replace="~{discover/discover :: copy-button(${base.body})}"></button>
+            <button class="btn btn-ghost" type="button" th:hx-post="@{/letters/base/delete}" th:hx-confirm="#{letters.base.deleteConfirm}"
+                    hx-target="#base-letter" hx-swap="outerHTML">
+                <i class="ph ph-trash"></i><span th:text="#{action.delete}">Delete</span>
+            </button>
+        </div>
+    </th:block>
+
+    <th:block th:if="${base == null and !baseLetterEditing}">
+        <p class="text-[13px] text-pretty text-ink/65" th:text="#{letters.base.empty}">Write it once: each letter starts from it.</p>
+        <button class="btn btn-secondary self-start" type="button" th:hx-get="@{/letters/base/edit}" hx-target="#base-letter"
+                hx-swap="outerHTML">
+            <i class="ph ph-pencil-simple"></i><span th:text="#{letters.base.write}">Write your base letter</span>
+        </button>
+    </th:block>
+</section>
+
+<!--/* One job of the list (row, a LetterRow): a box to tick it, when it has no letter and Claude isn't on it, and the job,
+       which opens beside the list, with its letter's state and how many people its messages are to. While Claude writes
+       its letter, it asks for itself again every few seconds. lettersSelected is the job open beside the list. With oob,
+       it replaces its own row wherever it is (an answer to asking Claude). In a list here only as a list item belongs in
+       one: the fragment is the row alone. */-->
+<ul>
+<li th:fragment="row(oob)" th:id="|letter-row-${row.jobId}|" class="flex items-center gap-1"
+    th:attr="hx-swap-oob=${oob} ? 'true'" hx-disinherit="*"
+    th:hx-get="${row.writing} ? @{/letters/rows/{id}(id=${row.jobId})}" th:hx-trigger="${row.writing} ? 'every 5s'"
+    hx-target="this" hx-swap="outerHTML" hx-include="#letters-job"
+    th:with="pageUrl=${letterFilter != null and letterFilter.name() != 'ALL'} ? @{/letters(show=${letterFilter}, job=${row.jobId})} : @{/letters(job=${row.jobId})}">
+    <span class="flex w-7 flex-none justify-center">
+        <label class="contents" th:if="${hasCv and row.canAsk()}">
+            <span class="sr-only" th:text="#{letters.pick(${row.title})}">Tick Backend engineer</span>
+            <input class="check" type="checkbox" name="ids" th:value="${row.jobId}" data-select-row>
+        </label>
+    </span>
+    <a class="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-2 hover:bg-ink/4 [&.is-open]:bg-accent/10"
+       th:classappend="${lettersSelected != null and row.jobId == lettersSelected} ? 'is-open'" data-drawer-row
+       th:href="${pageUrl}" th:hx-get="@{/letters/jobs/{id}(id=${row.jobId})}" hx-target="#letter-panel"
+       hx-swap="outerHTML show:#letter-panel:top" th:hx-push-url="${pageUrl}">
+        <span th:replace="~{applications/fragments :: company-logo(${row.jobId}, ${row.company}, 28)}"></span>
+        <span class="flex min-w-0 flex-1 flex-col">
+            <span class="truncate text-[13px] font-medium" th:text="${row.title}">Backend engineer</span>
+            <span class="truncate text-xs text-ink/55">
+                <th:block th:text="${row.company} ?: #{application.unknownCompany}">Acme</th:block>
+                · <th:block th:text="#{|status.${row.status}|}">Saved</th:block>
+            </span>
+        </span>
+        <span class="flex flex-none flex-col items-end gap-0.5 text-xs">
+            <span class="tag st-interviewing" th:if="${row.writing}">
+                <i class="ph ph-arrow-clockwise animate-spin"></i><span th:text="#{letters.state.writing}">Claude is writing</span>
+            </span>
+            <span class="flex items-center gap-1 text-success" th:if="${row.hasLetter() and !row.writing}">
+                <i class="ph ph-check-circle"></i><span th:text="#{letters.state.written}">Written</span>
+            </span>
+            <span class="text-ink/50" th:if="${row.hasLetter() and !row.writing}"
+                  th:text="${@dates.relativeDay(row.letter.updatedAt)}">Today</span>
+            <span class="text-ink/45" th:unless="${row.hasLetter() or row.writing}" th:text="#{letters.state.none}">No letter yet</span>
+            <span class="flex items-center gap-1 text-ink/55" th:if="${row.messages > 0}"
+                  th:title="#{letters.messages(${row.messages})}">
+                <i class="ph ph-paper-plane-tilt" aria-hidden="true"></i><span class="sr-only" th:text="#{letters.messages(${row.messages})}">Messages to 2 people</span>
+                <span aria-hidden="true" th:text="${row.messages}">2</span>
+            </span>
+        </span>
+    </a>
+</li>
+</ul>
+
+<!--/* The job picked (lettersJob, or null): its cover letter and its messages, the same cards as on its own page. A
+       field names it for the list's requests (#letters-job), and its row loads again as its letter or messages change
+       (letters-changed, from CoverLetterController and OutreachController). Below the list, on narrower screens, it's
+       as tall as most of the window from the start, so picking a job can scroll it to the top before its cards load. */-->
+<aside id="letter-panel" th:fragment="panel" class="card flex flex-col gap-4 p-4" th:with="job=${lettersJob}"
+       th:classappend="${job} ? 'min-h-[80dvh] xl:min-h-0'"
+       th:aria-label="${job} ? #{letters.panel(${job.title})} : #{letters.panel.empty.title}">
+    <th:block th:if="${job}">
+        <input type="hidden" id="letters-job" name="selected" th:value="${job.id}">
+        <div hidden th:hx-get="@{/letters/rows/{id}(id=${job.id})}" hx-trigger="letters-changed from:body"
+             th:hx-target="|#letter-row-${job.id}|" hx-swap="outerHTML" hx-include="#letters-job"></div>
+        <div class="flex items-start gap-3">
+            <span th:replace="~{applications/fragments :: company-logo(${job.id}, ${job.company}, 40)}"></span>
+            <div class="flex min-w-0 flex-1 flex-col gap-1">
+                <h2 class="leading-tight font-semibold" th:text="${job.title}">Backend engineer</h2>
+                <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink/60">
+                    <span th:text="${job.company} ?: #{application.unknownCompany}">Acme</span>
+                    <span th:replace="~{applications/fragments :: status-badge(${job.status})}"></span>
+                    <a class="link inline-flex items-center gap-1" th:href="@{/applications/{id}(id=${job.id})}">
+                        <i class="ph ph-arrow-square-out"></i><span th:text="#{letters.openJob}">Open the job</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <section th:replace="~{applications/cover-letter :: loader(${job.id})}"></section>
+        <hr class="border-line">
+        <section th:replace="~{applications/outreach :: loader(${job.id})}"></section>
+    </th:block>
+    <div class="flex flex-col items-center gap-2 px-4 py-10 text-center" th:unless="${job}">
+        <i class="ph ph-envelope-open text-[28px] text-accent"></i>
+        <h2 class="font-semibold" th:text="#{letters.panel.empty.title}">Pick a job</h2>
+        <p class="max-w-sm text-[13px] text-pretty text-ink/60" th:text="#{letters.panel.empty.body}">Its cover letter and messages show here.</p>
+    </div>
+</aside>
+
+<!--/* The letters Claude has to write, or is writing (lettersOpen), and while some wait (lettersWaiting), what to paste
+       into Claude Code for them all (lettersPrompt). Asks for itself again every few seconds while there are any; with
+       none, an empty placeholder for the next answer. */-->
+<section id="letters-waiting" th:fragment="waiting" class="card flex flex-col gap-2 p-4" th:hidden="${lettersOpen == 0}"
+         th:with="open=${lettersOpen > 0}" th:hx-get="${open} ? @{/letters/waiting}" th:hx-trigger="${open} ? 'every 5s'"
+         hx-target="this" hx-swap="outerHTML" th:aria-label="#{letters.title}">
+    <th:block th:if="${open}">
+        <div class="flex flex-wrap items-center gap-2">
+            <span class="tag st-interviewing">
+                <i class="ph ph-arrow-clockwise animate-spin" th:if="${lettersWaiting < lettersOpen}"></i>
+                <span th:text="#{letters.writingCount(${lettersOpen})}">Claude has 3 letters to write</span>
+            </span>
+            <span class="flex-1"></span>
+            <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button" th:hx-post="@{/letters/cancel}" hx-include="#letters-job"
+                    hx-target="#letters-waiting" hx-swap="outerHTML" th:hx-confirm="#{letters.cancelConfirm}"
+                    th:text="#{letters.cancelAll}">Cancel them</button>
+        </div>
+        <th:block th:if="${lettersPrompt}">
+            <div class="text-xs text-ink/60" th:text="#{ai.prompt}">Paste this into Claude Code:</div>
+            <div class="flex items-start gap-2">
+                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${lettersPrompt.text}">Do JobWarden requests 12, 13…</code>
+                <button th:replace="~{discover/discover :: copy-button(${lettersPrompt.text})}"></button>
+            </div>
+            <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
+            <div class="flex items-start gap-2">
+                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${lettersPrompt.command}">claude "Do JobWarden requests 12, 13…"</code>
+                <button th:replace="~{discover/discover :: copy-button(${lettersPrompt.command})}"></button>
+            </div>
+        </th:block>
+    </th:block>
+</section>
+
+<!--/* What asking Claude for letters, or cancelling them, answers: the letters waiting, and the rows of those jobs
+       (lettersAsked), each in place of its own */-->
+<th:block th:fragment="asked">
+    <section th:replace="~{letters/letters :: waiting}"></section>
+    <!--/* The rows go out on their own, out of the list, as HTMX swaps only those at the answer's top level */-->
+    <ul th:remove="tag">
+        <th:block th:each="row : ${lettersAsked}">
+            <li th:replace="~{letters/letters :: row(true)}"></li>
+        </th:block>
+    </ul>
+</th:block>
+
+</body>
+</html>

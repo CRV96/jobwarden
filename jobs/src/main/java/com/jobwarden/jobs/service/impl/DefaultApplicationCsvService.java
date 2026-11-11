@@ -74,7 +74,8 @@ class DefaultApplicationCsvService implements ApplicationCsvService {
 			Map.entry("INTERESTED", ApplicationStatus.SAVED), Map.entry("INTERVIEW", ApplicationStatus.INTERVIEWING),
 			Map.entry("INTERVIEWED", ApplicationStatus.INTERVIEWING), Map.entry("OFFERED", ApplicationStatus.OFFER),
 			Map.entry("OFFER_RECEIVED", ApplicationStatus.OFFER), Map.entry("GHOSTED", ApplicationStatus.NO_RESPONSE),
-			Map.entry("CLOSED", ApplicationStatus.POSITION_CLOSED), Map.entry("DECLINED", ApplicationStatus.WITHDRAWN));
+			Map.entry("CLOSED", ApplicationStatus.POSITION_CLOSED), Map.entry("DECLINED", ApplicationStatus.WITHDRAWN),
+			Map.entry("REOPENED", ApplicationStatus.POSITION_REOPENED));
 
 	private final ApplicationRepository applications;
 

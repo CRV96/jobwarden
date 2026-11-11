@@ -49,6 +49,7 @@ import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.data.domain.Page;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -102,7 +103,9 @@ class ApplicationController extends BaseController {
 		model.addAttribute(ModelAttributes.APPLICATION_PAGE, page);
 		model.addAttribute(ModelAttributes.FIT_SCORES,
 				this.fits.findScores(userId, page.getContent().stream().map(ApplicationSummary::id).toList()));
-		model.addAttribute(ModelAttributes.STATUS_COUNTS, this.applications.countByStatus(userId, listParams.q()));
+		model.addAttribute(ModelAttributes.STATUS_COUNTS,
+				this.applications.countByStatus(userId, listParams.q(), listParams.isArchived()));
+		model.addAttribute(ModelAttributes.ARCHIVED_COUNT, this.applications.countArchived(userId));
 		addImages(model, userId);
 		addFormChoices(model);
 		return Views.APPLICATION_LIST;
@@ -131,6 +134,19 @@ class ApplicationController extends BaseController {
 			log.debug("CSV file of profile {} not imported: {}", userId, refused.getMessage());
 			redirect.addFlashAttribute(ModelAttributes.CSV_IMPORT_ERROR, message(refused));
 		}
+		return redirectTo(ControllerConstants.SETTINGS + "#jobs-data");
+	}
+
+	/**
+	 * Archives the jobs nothing changed on since a day, from the settings page, which then says how many, once.
+	 *
+	 * @param endedOnly only those that ended: rejected, with no response, closed or withdrawn
+	 */
+	@PostMapping("/archive-unchanged")
+	String archiveUnchanged(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate before,
+			@RequestParam(defaultValue = "false") boolean endedOnly, Model model, RedirectAttributes redirect) {
+		int archived = this.applications.archiveUnchangedSince(requireProfile(model).id(), before, endedOnly);
+		redirect.addFlashAttribute(ModelAttributes.ARCHIVED_BY_DATE, archived);
 		return redirectTo(ControllerConstants.SETTINGS + "#jobs-data");
 	}
 
@@ -283,6 +299,40 @@ class ApplicationController extends BaseController {
 	ResponseEntity<Void> deleteAll(@RequestParam List<Long> ids, Model model) {
 		this.applications.deleteAll(requireProfile(model).id(), ids);
 		return refresh();
+	}
+
+	/**
+	 * Called by HTMX with the applications ticked in the list: they leave it for the archive, and it reloads.
+	 */
+	@PostMapping("/archive")
+	ResponseEntity<Void> archiveAll(@RequestParam List<Long> ids, Model model) {
+		this.applications.archive(requireProfile(model).id(), ids);
+		return refresh();
+	}
+
+	/**
+	 * Called by HTMX with the archived applications ticked in the list: they're back in use, and it reloads.
+	 */
+	@PostMapping("/restore")
+	ResponseEntity<Void> restoreAll(@RequestParam List<Long> ids, Model model) {
+		this.applications.restore(requireProfile(model).id(), ids);
+		return refresh();
+	}
+
+	/**
+	 * Called by HTMX from the application's page or side panel: archived, or back in use. Like {@link #addEvent},
+	 * answers with the part it's in, and the list or the pipeline behind the side panel reloads.
+	 */
+	@PostMapping("/{id}/archive")
+	String archive(@PathVariable long id, @RequestParam(defaultValue = "false") boolean restore,
+			@RequestParam(defaultValue = "PAGE") ApplicationView view, Model model, HttpServletResponse response) {
+		long userId = requireProfile(model).id();
+		if (restore) {
+			this.applications.restore(userId, List.of(id));
+		} else {
+			this.applications.archive(userId, List.of(id));
+		}
+		return showChangedApplication(model, response, userId, id, view, null);
 	}
 
 	/**

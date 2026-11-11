@@ -22,6 +22,7 @@ import org.springframework.web.util.UriComponentsBuilder;
  * everything else.
  *
  * @param q only applications whose title or company contains this text
+ * @param archived the archived applications rather than those in use
  * @param sort {@link ApplicationSort#ADDED} by default
  * @param dir newest first by default, otherwise A to Z
  * @param page from 1, as the list shows it
@@ -30,6 +31,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 public record ApplicationListParams(
 		@Nullable String q,
 		@Nullable ApplicationStatus status,
+		@Nullable Boolean archived,
 		ApplicationSort sort,
 		Sort.Direction dir,
 		Integer page,
@@ -52,6 +54,7 @@ public record ApplicationListParams(
 	 */
 	public ApplicationListParams {
 		q = FormValues.blankToNull(q);
+		archived = Boolean.TRUE.equals(archived);
 		if (sort == null) {
 			sort = ApplicationSort.ADDED;
 		}
@@ -70,13 +73,14 @@ public record ApplicationListParams(
 	 * The list as it first opens: everything, newest first.
 	 */
 	public static ApplicationListParams defaults() {
-		return new ApplicationListParams(null, null, ApplicationSort.ADDED, Sort.Direction.DESC, 1, DEFAULT_SIZE);
+		return new ApplicationListParams(null, null, false, ApplicationSort.ADDED, Sort.Direction.DESC, 1, DEFAULT_SIZE);
 	}
 
 	public ApplicationQuery toQuery() {
 		return ApplicationQuery.builder()
 			.search(this.q)
 			.status(this.status)
+			.archived(isArchived())
 			.sort(this.sort)
 			.direction(this.dir)
 			.page(this.page - 1)
@@ -98,6 +102,9 @@ public record ApplicationListParams(
 		if (this.status != null) {
 			url.queryParam("status", this.status);
 		}
+		if (isArchived()) {
+			url.queryParam("archived", true);
+		}
 		if (this.sort != ApplicationSort.ADDED || this.dir != defaultDirection(this.sort)) {
 			url.queryParam("sort", this.sort).queryParam("dir", this.dir);
 		}
@@ -114,7 +121,7 @@ public record ApplicationListParams(
 	 * Only applications with this status, or all of them for {@code null}; from the first page.
 	 */
 	public ApplicationListParams withStatus(@Nullable ApplicationStatus status) {
-		return new ApplicationListParams(this.q, status, this.sort, this.dir, 1, this.size);
+		return new ApplicationListParams(this.q, status, this.archived, this.sort, this.dir, 1, this.size);
 	}
 
 	/**
@@ -123,7 +130,19 @@ public record ApplicationListParams(
 	public ApplicationListParams sortedBy(ApplicationSort sort) {
 		Sort.Direction direction = (sort != this.sort) ? defaultDirection(sort)
 				: this.dir.isAscending() ? Sort.Direction.DESC : Sort.Direction.ASC;
-		return new ApplicationListParams(this.q, this.status, sort, direction, 1, this.size);
+		return new ApplicationListParams(this.q, this.status, this.archived, sort, direction, 1, this.size);
+	}
+
+	/**
+	 * The archived applications, or those in use; from the first page, with every status.
+	 */
+	public ApplicationListParams withArchived(boolean archived) {
+		return new ApplicationListParams(this.q, null, archived, this.sort, this.dir, 1, this.size);
+	}
+
+	/** For the template: {@link #archived()} is a {@code Boolean} only so that Spring binds a missing one. */
+	public boolean isArchived() {
+		return Boolean.TRUE.equals(this.archived);
 	}
 
 	public boolean isSortedBy(ApplicationSort sort) {
@@ -145,7 +164,7 @@ public record ApplicationListParams(
 	}
 
 	public ApplicationListParams withPage(int page) {
-		return new ApplicationListParams(this.q, this.status, this.sort, this.dir, page, this.size);
+		return new ApplicationListParams(this.q, this.status, this.archived, this.sort, this.dir, page, this.size);
 	}
 
 	/**

@@ -52,7 +52,7 @@ class ApplicationQueriesImpl implements ApplicationQueries {
 				application.get("company"), application.get("location"), application.get("salary"),
 				application.get("link"), application.get("source"), application.get("currentStatus"),
 				application.get("capturedAt"), application.get("updatedAt"), application.get("appliedBy")))
-			.where(matching(builder, application, userId, query.search(), query.status()))
+			.where(matching(builder, application, userId, query.search(), query.status(), query.archived()))
 			.orderBy(order(builder, rows, application, query));
 
 		Pageable pageable = PageRequest.of(query.page(), query.size());
@@ -65,13 +65,13 @@ class ApplicationQueriesImpl implements ApplicationQueries {
 	}
 
 	@Override
-	public Map<ApplicationStatus, Long> countByStatus(long userId, @Nullable String search) {
+	public Map<ApplicationStatus, Long> countByStatus(long userId, @Nullable String search, boolean archived) {
 		CriteriaBuilder builder = this.entityManager.getCriteriaBuilder();
 		CriteriaQuery<Tuple> query = builder.createTupleQuery();
 		Root<ApplicationEntity> application = query.from(ApplicationEntity.class);
 		Path<ApplicationStatus> status = application.get("currentStatus");
 		query.multiselect(status, builder.count(application))
-			.where(matching(builder, application, userId, search, null))
+			.where(matching(builder, application, userId, search, null, archived))
 			.groupBy(status);
 
 		Map<ApplicationStatus, Long> counts = new EnumMap<>(ApplicationStatus.class);
@@ -86,14 +86,15 @@ class ApplicationQueriesImpl implements ApplicationQueries {
 		CriteriaQuery<Long> count = builder.createQuery(Long.class);
 		Root<ApplicationEntity> application = count.from(ApplicationEntity.class);
 		count.select(builder.count(application))
-			.where(matching(builder, application, userId, query.search(), query.status()));
+			.where(matching(builder, application, userId, query.search(), query.status(), query.archived()));
 		return this.entityManager.createQuery(count).getSingleResult();
 	}
 
 	private static Predicate[] matching(CriteriaBuilder builder, Root<ApplicationEntity> application, long userId,
-			@Nullable String search, @Nullable ApplicationStatus status) {
+			@Nullable String search, @Nullable ApplicationStatus status, boolean archived) {
 		List<Predicate> conditions = new ArrayList<>();
 		conditions.add(builder.equal(application.get("userId"), userId));
+		conditions.add(archived ? builder.isNotNull(application.get("archivedAt")) : builder.isNull(application.get("archivedAt")));
 		if (status != null) {
 			conditions.add(builder.equal(application.get("currentStatus"), status));
 		}

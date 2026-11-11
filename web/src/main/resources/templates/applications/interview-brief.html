@@ -16,8 +16,8 @@
     </h2>
 </section>
 
-<!--/* interviewBrief is the brief, or null; prepRequest the latest request for one, or null; prepPrompt what to paste
-       into Claude Code while it waits. While it's open, the card asks again every few seconds, and shows the brief once
+<!--/* interviewBrief is the brief, or null, briefStories the story bank's stories it draws on; prepRequest the latest
+       request for one, or null; prepPrompt what to paste into Claude Code while it waits. While it's open, the card asks again every few seconds, and shows the brief once
        Claude saves it. */-->
 <section id="interview-brief" th:fragment="card" class="flex flex-col gap-3" data-collapse="prep"
          th:with="status=${prepRequest != null} ? ${prepRequest.status.name()}, open=${prepRequest != null and prepRequest.status.isOpen()},
@@ -76,6 +76,16 @@
             <ol class="list-decimal space-y-1 pl-5 text-[13px] text-ink/85">
                 <li th:each="question : ${brief.questions}" th:text="${question}">How would you make a payment idempotent?</li>
             </ol>
+        </div>
+        <!--/* The story bank's stories that answer what they'll look for: each unfolds to its STAR parts */-->
+        <div class="flex flex-col gap-1" th:unless="${briefStories.isEmpty()}">
+            <h3 class="flex items-center gap-1.5 text-xs text-ink/60">
+                <i class="ph ph-books"></i><span th:text="#{prep.bankStories}">From your story bank</span>
+            </h3>
+            <details class="rounded-lg border border-line px-2.5 py-1.5 text-[13px]" th:each="story : ${briefStories}">
+                <summary class="cursor-pointer font-medium" th:text="${story.title}">Cutting checkout latency in half</summary>
+                <dl th:replace="~{cv/stories :: star(${story})}"></dl>
+            </details>
         </div>
         <div class="flex flex-col gap-1" th:unless="${brief.stories.isEmpty()}">
             <h3 class="text-xs text-ink/60" th:text="#{prep.stories}">Your stories to tell</h3>

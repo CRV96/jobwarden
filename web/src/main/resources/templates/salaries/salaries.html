@@ -7,9 +7,12 @@
 <body>
 <main class="page-split flex flex-col gap-5"
       th:with="currency=${overview.currency}, per=#{|salaries.per.${overview.period}|}">
-    <header>
-        <h1 class="page-title mb-1" th:text="#{salaries.title}">Salaries</h1>
-        <p class="text-[13px] text-ink/60" th:text="#{salaries.subtitle}">What the jobs you track pay, side by side in one currency.</p>
+    <header class="flex flex-wrap items-end gap-3">
+        <div class="min-w-[240px] flex-1">
+            <h1 class="page-title mb-1" th:text="#{salaries.title}">Salaries</h1>
+            <p class="text-[13px] text-ink/60" th:text="#{salaries.subtitle}">What the jobs you track pay, side by side in one currency.</p>
+        </div>
+        <th:block th:replace="~{help/help :: how-it-works('salaries')}"></th:block>
     </header>
 
     <!--/* One row of filters, above all it changes: each change reloads the page (app.js: data-auto-submit). */-->

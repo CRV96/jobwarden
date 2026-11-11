@@ -45,10 +45,19 @@
               th:text="${company != null and !#strings.isEmpty(company)} ? ${@names.initials(company)} : '·'">AC</th:block>
 </span>
 
+<!--/* Text with its web addresses as links (@links), written escaped, part by part, never as HTML. Its own line, so the
+       parts follow each other with no space between them, as the text has them. */-->
+<th:block th:fragment="linked-text(text)"><th:block th:each="part : ${@links.parts(text)}"><a th:if="${part.link}" class="link break-all" th:href="${part.text}" target="_blank" rel="noopener noreferrer nofollow" th:text="${part.text}">https://acme.com/jobs/7</a><th:block th:unless="${part.link}" th:text="${part.text}">Apply at </th:block></th:block></th:block>
+
 <!--/* Where the posting came from: the site, or added by hand without a link. */-->
-<th:block th:fragment="source(source)">
+<!--/* The site a job came from, with its icon; with the posting's link (link, or null), the site opens the posting, in
+       a new tab. Only http(s) links: the link comes from the captured page. */-->
+<th:block th:fragment="source(source, link)"
+          th:with="isLink=${link != null and (#strings.startsWith(link, 'https://') or #strings.startsWith(link, 'http://'))}">
     <th:block th:replace="~{applications/fragments :: source-icon(${source})}"></th:block>
-    <span class="min-w-0 truncate" th:text="${source} ?: #{source.manual}">linkedin.com</span>
+    <a class="min-w-0 truncate hover:text-accent hover:underline" th:if="${isLink}" th:href="${link}" target="_blank"
+       rel="noopener noreferrer" th:title="${link}" th:text="${source} ?: #{source.manual}">linkedin.com</a>
+    <span class="min-w-0 truncate" th:unless="${isLink}" th:text="${source} ?: #{source.manual}">linkedin.com</span>
 </th:block>
 
 <!--/* The job's facts. The location and the salary change from here (POST /applications/{id}/details): a pencil next
@@ -73,9 +82,14 @@
             <dd th:text="${jobApplication.employmentType}">Full-time</dd>
         </th:block>
         <dt class="text-ink/55" th:text="#{jobs.column.source}">Source</dt>
-        <dd class="flex min-w-0 items-center gap-1.5">
+        <dd class="flex min-w-0 items-center gap-1.5"
+            th:with="isLink=${jobApplication.link != null and (#strings.startsWith(jobApplication.link, 'https://') or #strings.startsWith(jobApplication.link, 'http://'))}">
             <th:block th:replace="~{applications/fragments :: source-icon(${jobApplication.source})}"></th:block>
-            <span class="min-w-0 truncate" th:text="${jobApplication.source} ?: #{source.addedByHand}">linkedin.com</span>
+            <!--/* The posting's own address, which opens it: only http(s), as it comes from the captured page */-->
+            <a class="link min-w-0 truncate" th:if="${isLink}" th:href="${jobApplication.link}" target="_blank"
+               rel="noopener noreferrer" th:title="${jobApplication.link}"
+               th:text="${#strings.replace(#strings.replace(jobApplication.link, 'https://', ''), 'http://', '')}">linkedin.com/jobs/view/7</a>
+            <span class="min-w-0 truncate" th:unless="${isLink}" th:text="${jobApplication.source} ?: #{source.addedByHand}">linkedin.com</span>
         </dd>
         <dt class="text-ink/55" th:text="#{jobs.column.added}">Added</dt>
         <dd th:text="${@dates.relativeDay(jobApplication.capturedAt)}" th:title="${@dates.date(jobApplication.capturedAt)}">Today</dd>
@@ -202,7 +216,10 @@
         <th:block th:each="status : ${statuses}">
             <button th:if="${status == jobApplication.status}" class="chip chip-small" type="button" aria-pressed="true"
                     th:text="#{${'status.' + status}}">Interviewing</button>
-            <form th:unless="${status == jobApplication.status or status.name() == 'REJECTED'}" th:hx-post="${eventsUrl}">
+            <!--/* Position re-opened only for a job whose position closed */-->
+            <form th:unless="${status == jobApplication.status or status.name() == 'REJECTED'
+                               or (status.name() == 'POSITION_REOPENED' and jobApplication.status.name() != 'POSITION_CLOSED')}"
+                  th:hx-post="${eventsUrl}">
                 <input type="hidden" name="stageCategory" th:value="${status}">
                 <button class="chip chip-small" type="submit" aria-pressed="false" th:text="#{${'status.' + status}}">Offer</button>
             </form>
@@ -226,8 +243,9 @@
 <section th:fragment="description" class="flex flex-col gap-2" data-collapse="description"
          th:with="long=${#strings.length(jobApplication.description) > 500}">
     <h2 class="flex items-center gap-2 text-xs text-ink/60"><span th:text="#{application.description}">Description</span></h2>
+    <!--/* Its web addresses are links (linked-text) */-->
     <p class="text-[13px] leading-relaxed whitespace-pre-line text-pretty text-ink/85" th:classappend="${long} ? 'line-clamp-12'"
-       th:text="${jobApplication.description}">The posting’s text.</p>
+       ><th:block th:replace="~{applications/fragments :: linked-text(${jobApplication.description})}">The posting’s text.</th:block></p>
     <button th:if="${long}" class="btn btn-ghost self-start" type="button" data-expand
             th:data-more="#{application.showMore}" th:data-less="#{application.showLess}"
             th:text="#{application.showMore}">Show more</button>
@@ -264,7 +282,7 @@
                   th:with="reason=#{${'rejectionReason.' + event.rejectionReason}}"
                   th:text="#{application.timeline.reason(${reason})}">Reason: Position filled</span>
             <span class="text-[13px] leading-normal whitespace-pre-line text-pretty text-ink/80" th:if="${event.note}"
-                  th:text="${event.note}">What was discussed.</span>
+                  ><th:block th:replace="~{applications/fragments :: linked-text(${event.note})}">What was discussed.</th:block></span>
         </li>
     </ol>
 
@@ -273,7 +291,7 @@
            starts on; app.js switches them as another is picked (data-status-select, data-for-statuses). A hidden
            field is disabled too, so it's neither sent nor required. */-->
     <form class="flex flex-col gap-2 rounded-md p-3 shadow-sm" th:hx-post="${eventsUrl}"
-          th:with="current=${jobApplication.status}">
+          th:with="current=${jobApplication.status.likelyNext()}">
         <div class="flex flex-wrap items-center gap-1.5">
             <input class="input w-auto flex-[1_1_150px]" type="date" name="eventDate" required th:value="${now.toLocalDate()}"
                    th:aria-label="#{application.event.date}">
@@ -285,6 +303,9 @@
                     th:text="#{form.clearTime}">Clear time</button>
         </div>
         <select class="input" name="stageCategory" required data-status-select th:aria-label="#{application.event.stage}">
+            <!--/* The form starts on the step most likely next (current): the job's status again when it can repeat
+                   (another interview, another offer round), else Interviewing. Every status stays: one dated earlier
+                   can go between two other steps; one next to the same status is refused, saying why (eventError). */-->
             <option th:each="status : ${statuses}" th:value="${status}" th:selected="${status == current}"
                     th:text="#{${'status.' + status}}">Applied</option>
         </select>
@@ -418,6 +439,22 @@
     <th:block th:unless="${fieldErrors != null and !fieldErrors.isEmpty()}" th:text="#{application.notes.saved}">Saved</th:block>
 </span>
 
+<!--/* Archives the job, or brings it back when it's archived: inside the job's own HTMX element, which it swaps.
+       style is the button's look: btn-secondary on the page, btn-ghost in the side panel. */-->
+<button th:fragment="archive-button(style)" class="btn" th:classappend="${style}" type="button"
+        th:hx-post="@{/applications/{id}/archive(id=${jobApplication.id}, restore=${jobApplication.isArchived()})}"
+        th:title="${jobApplication.isArchived()} ? #{jobs.restore.hint} : #{jobs.archive.hint}">
+    <i class="ph" th:classappend="${jobApplication.isArchived()} ? 'ph-arrow-counter-clockwise' : 'ph-archive'"></i>
+    <span th:text="${jobApplication.isArchived()} ? #{jobs.restore} : #{jobs.archive}">Archive</span>
+</button>
+
+<!--/* That the job is archived, since when, and what that means */-->
+<div th:fragment="archived-note" th:if="${jobApplication.isArchived()}"
+     class="flex items-start gap-2 rounded-lg bg-ink/5 px-3 py-2 text-[13px] text-ink/75" role="status">
+    <i class="ph ph-archive mt-0.5 text-[15px]"></i>
+    <span class="flex-1" th:text="#{application.archived(${@dates.relativeDay(jobApplication.archivedAt)})}">Archived today…</span>
+</div>
+
 <!--/* Asks before deleting. From the application's page, the list opens after; from the side panel, the page behind
        it reloads. */-->
 <dialog th:fragment="delete-dialog" th:id="|delete-${jobApplication.id}|" class="dialog w-[min(400px,calc(100%-32px))]"
@@ -512,6 +549,7 @@
         <h1 class="page-title mb-1" th:text="${heading}">Jobs</h1>
         <p class="text-[13px] text-ink/60" th:if="${subheading}" th:text="${subheading}">Where each application stands</p>
     </div>
+    <th:block th:replace="~{help/help :: how-it-works('jobs')}"></th:block>
     <button class="btn btn-primary" type="button" data-open-dialog="add-job">
         <i class="ph ph-plus text-[15px]"></i><span th:text="#{jobs.add}">Add job</span>
     </button>

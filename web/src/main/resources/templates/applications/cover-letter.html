@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<!--/* A job's cover letter (CoverLetterController): Claude writes it from the CV and the posting, the profile changes it
+       here, previews it and downloads it as a PDF. On the job's page and in the side panel, the loader asks for the card
+       after the rest. Inside the job's own HTMX element, so every request here names its own target. */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <!--/* Only fragments are taken from this file: the title is never shown */-->
+    <title>Cover letter · JobWarden</title>
+</head>
+<body>
+
+<section th:fragment="loader(jobId)" class="flex flex-col gap-2" data-collapse="letter" th:hx-get="@{/applications/{id}/letter/card(id=${jobId})}"
+         hx-trigger="load" hx-target="this" hx-swap="outerHTML">
+    <h2 class="section-title flex items-center gap-1.5">
+        <i class="ph ph-envelope-open text-accent"></i><span th:text="#{letter.title}">Cover letter</span>
+    </h2>
+</section>
+
+<!--/* coverLetter is the letter, or null; letterRequest the latest request for one, or null; letterPrompt what to paste
+       into Claude Code while it waits; letterEditing whether the letter shows in a field to change, letterError why it
+       wasn't saved and letterDraft what was typed, or the base letter filled in for the job (letterFromBase). While the
+       request is open, the card asks again every few seconds, unless the letter is being changed: that would be lost.
+       Saving a change takes the request back (CoverLetterController). */-->
+<section id="cover-letter" th:fragment="card" class="flex flex-col gap-3" data-collapse="letter"
+         th:with="request=${letterRequest}, status=${request != null} ? ${request.status.name()},
+                  open=${request != null and request.status.isOpen()}, letter=${coverLetter},
+                  cardUrl=@{/applications/{id}/letter/card(id=${letterJobId})}, poll=${open and !letterEditing}"
+         th:hx-get="${poll} ? ${cardUrl}" th:hx-trigger="${poll} ? 'every 5s'" hx-target="this" hx-swap="outerHTML">
+    <div class="flex items-center gap-2">
+        <h2 class="section-title flex flex-1 items-center gap-1.5">
+            <i class="ph ph-envelope-open text-accent"></i><span th:text="#{letter.title}">Cover letter</span>
+        </h2>
+        <span class="text-xs text-ink/55" th:if="${letter}"
+              th:text="#{letter.updated(${@dates.relativeDay(letter.updatedAt)})}">Written: Today</span>
+    </div>
+
+    <p class="text-[13px] text-ink/65" th:unless="${hasCv or letter != null}">
+        <th:block th:text="#{tailoredCv.noCv}">Claude needs your CV first: upload it or fill it in.</th:block>
+        <a class="link" th:href="@{/cv}" th:text="#{tailoredCv.addCv}">Go to the CV page</a>
+    </p>
+    <p class="text-[13px] text-pretty text-ink/65" th:if="${hasCv and letter == null and !open and !letterEditing}"
+       th:text="#{letter.hint}">Claude writes a cover letter for this job…</p>
+
+    <th:block th:if="${open}">
+        <th:block th:replace="~{applications/claude :: waiting(${request}, ${letterPrompt},
+                  @{/applications/{id}/letter/cancel(id=${letterJobId})}, '#cover-letter')}"></th:block>
+    </th:block>
+    <p class="text-[13px] text-danger" role="alert" th:if="${status == 'FAILED'}"
+       th:text="#{letter.failed(${request.summary} ?: '')}">Claude couldn’t write it: …</p>
+
+    <!--/* Changing it, or writing one without Claude: saved with the button, the field stays open when it can't be */-->
+    <form class="flex flex-col gap-2" th:if="${letterEditing}" th:hx-post="@{/applications/{id}/letter(id=${letterJobId})}"
+          hx-target="#cover-letter" hx-swap="outerHTML">
+        <label class="contents">
+            <span class="sr-only" th:text="#{letter.title}">Cover letter</span>
+            <textarea class="input min-h-[16rem] text-[13px] leading-relaxed" name="body" rows="14" maxlength="6000"
+                      th:placeholder="#{letter.placeholder}" th:text="${letterDraft} ?: ${letter?.body}"></textarea>
+        </label>
+        <p class="flex items-center gap-1.5 text-xs text-ink/60" th:if="${letterFromBase}">
+            <i class="ph ph-signature text-accent"></i><span th:text="#{letter.fromBase}">Started from your base letter: change what this job needs.</span>
+        </p>
+        <p class="text-[13px] text-danger" role="alert" th:if="${letterError}" th:text="${letterError}">The letter is empty.</p>
+        <div class="flex items-center gap-1.5">
+            <button class="btn btn-primary" type="submit"><i class="ph ph-floppy-disk"></i><span th:text="#{cv.save}">Save</span></button>
+            <button class="btn btn-ghost" type="button" th:hx-get="@{/applications/{id}/letter/card(id=${letterJobId})}"
+                    hx-target="#cover-letter" hx-swap="outerHTML" th:text="#{ai.cancel}">Cancel</button>
+        </div>
+    </form>
+
+    <!--/* The letter: its start, the rest unfolding (app.js: data-unclamp), what Claude highlighted, and what to do with it */-->
+    <th:block th:if="${letter != null and !letterEditing}">
+        <div class="flex flex-col gap-1">
+            <p class="line-clamp-[8] rounded-lg border border-line bg-ink/3 p-2.5 text-[13px] whitespace-pre-line text-pretty text-ink/85"
+               data-clamped th:text="${letter.body}">Dear hiring team, …</p>
+            <button class="link self-start text-xs" type="button" data-unclamp th:if="${#strings.length(letter.body) > 400}"
+                    th:text="#{letter.more}">Read it all</button>
+        </div>
+        <div class="flex flex-col gap-1" th:if="${letter.notes}">
+            <span class="text-xs text-ink/60" th:text="#{letter.notes}">What Claude highlighted</span>
+            <p class="text-[13px] whitespace-pre-line text-ink/80" th:text="${letter.notes}">Led with the Kafka migration…</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-1.5">
+            <a class="btn btn-primary" th:href="@{/applications/{id}/letter/pdf(id=${letterJobId})}">
+                <i class="ph ph-file-pdf"></i><span th:text="#{cv.pdf}">Download PDF</span>
+            </a>
+            <a class="btn btn-secondary" th:href="@{/applications/{id}/letter(id=${letterJobId})}" target="_blank" rel="noopener">
+                <i class="ph ph-arrow-square-out"></i><span th:text="#{cv.preview}">Preview</span>
+            </a>
+            <button th:replace="~{discover/discover :: copy-button(${letter.body})}"></button>
+            <button class="btn btn-ghost" type="button" th:hx-get="@{/applications/{id}/letter/edit(id=${letterJobId})}"
+                    hx-target="#cover-letter" hx-swap="outerHTML">
+                <i class="ph ph-pencil-simple"></i><span th:text="#{letter.edit}">Change it</span>
+            </button>
+            <button class="btn btn-ghost" type="button" th:hx-post="@{/applications/{id}/letter/delete(id=${letterJobId})}"
+                    th:hx-confirm="#{letter.deleteConfirm}" hx-target="#cover-letter" hx-swap="outerHTML">
+                <i class="ph ph-trash"></i><span th:text="#{action.delete}">Delete</span>
+            </button>
+        </div>
+    </th:block>
+
+    <div class="flex flex-wrap items-center gap-1.5" th:unless="${open or letterEditing}">
+        <button class="btn btn-secondary" type="button" th:if="${hasCv}"
+                th:hx-post="@{/applications/{id}/letter/request(id=${letterJobId})}" hx-target="#cover-letter" hx-swap="outerHTML">
+            <i class="ph ph-sparkle"></i><span th:text="${letter} ? #{letter.again} : #{letter.ask}">Ask Claude to write it</span>
+        </button>
+        <button class="btn btn-ghost" type="button" th:if="${letter == null}"
+                th:hx-get="@{/applications/{id}/letter/edit(id=${letterJobId})}" hx-target="#cover-letter" hx-swap="outerHTML">
+            <i class="ph ph-pencil-simple"></i><span th:text="#{letter.write}">Write it myself</span>
+        </button>
+    </div>
+</section>
+
+</body>
+</html>

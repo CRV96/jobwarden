@@ -1,5 +1,6 @@
 package com.jobwarden.mcp.controller;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -23,9 +24,14 @@ import com.jobwarden.cv.dto.CvFile;
 import com.jobwarden.cv.dto.CvLanguage;
 import com.jobwarden.cv.dto.CvProject;
 import com.jobwarden.cv.dto.GitHubProject;
+import com.jobwarden.cv.dto.OutreachDraft;
+import com.jobwarden.cv.dto.Story;
 import com.jobwarden.cv.dto.TailoredCv;
+import com.jobwarden.cv.exception.CvErrorCode;
+import com.jobwarden.cv.service.CoverLetterService;
 import com.jobwarden.cv.service.CvService;
 import com.jobwarden.cv.service.GitHubService;
+import com.jobwarden.cv.service.StoryService;
 import com.jobwarden.discover.dto.AddedFoundJobs;
 import com.jobwarden.discover.dto.AiRequest;
 import com.jobwarden.discover.dto.AiRequirements;
@@ -51,19 +57,33 @@ import com.jobwarden.inbox.enums.UpdateDecision;
 import com.jobwarden.inbox.service.InboxService;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.ApplicationSummary;
+import com.jobwarden.jobs.dto.ComparedOffer;
 import com.jobwarden.jobs.dto.FitRequirement;
 import com.jobwarden.jobs.dto.FollowUp;
 import com.jobwarden.jobs.dto.InterviewBrief;
 import com.jobwarden.jobs.dto.JobFit;
+import com.jobwarden.jobs.dto.JobOffer;
+import com.jobwarden.jobs.dto.NegotiationBrief;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
+import com.jobwarden.jobs.dto.OfferComparison;
+import com.jobwarden.jobs.dto.SalaryEntry;
 import com.jobwarden.jobs.dto.TidyResult;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.enums.InterviewFormat;
 import com.jobwarden.jobs.enums.RequirementImportance;
 import com.jobwarden.jobs.enums.RequirementMatch;
+import com.jobwarden.jobs.enums.SalaryPeriod;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.jobs.service.InterviewBriefService;
 import com.jobwarden.jobs.service.JobFitService;
+import com.jobwarden.jobs.service.OfferService;
+import com.jobwarden.market.dto.MarketCountry;
+import com.jobwarden.market.dto.MarketFigure;
+import com.jobwarden.market.dto.MarketQuery;
+import com.jobwarden.market.dto.MarketSalaries;
+import com.jobwarden.market.dto.SurveyStatus;
+import com.jobwarden.market.enums.MarketSource;
+import com.jobwarden.market.service.MarketSalaryService;
 import com.jobwarden.mcp.dto.PostingCheck;
 import com.jobwarden.mcp.enums.Verdict;
 import com.jobwarden.search.SearchCriteria;
@@ -101,7 +121,8 @@ import static org.mockito.Mockito.never;
  */
 @WebMvcTest(McpController.class)
 @Import({ JobTools.class, DiscoverTools.class, CvTools.class, RequestTools.class, HiringTools.class, ApplyTools.class,
-		PrepTools.class, FitTools.class, InboxTools.class, ProjectTools.class, WatchlistTools.class, Profiles.class })
+		PrepTools.class, FitTools.class, InboxTools.class, ProjectTools.class, WatchlistTools.class, OfferTools.class,
+		LetterTools.class, StoryTools.class, Profiles.class })
 class McpControllerTests {
 
 	private static final User ROBERT = new User(1, "Robert", Instant.parse("2026-09-28T10:00:00Z"));
@@ -147,6 +168,18 @@ class McpControllerTests {
 	@MockitoBean
 	private WatchlistService watchlist;
 
+	@MockitoBean
+	private OfferService offers;
+
+	@MockitoBean
+	private MarketSalaryService market;
+
+	@MockitoBean
+	private CoverLetterService letters;
+
+	@MockitoBean
+	private StoryService stories;
+
 	@BeforeEach
 	void oneProfile() {
 		given(this.users.findAll()).willReturn(List.of(ROBERT));
@@ -186,7 +219,9 @@ class McpControllerTests {
 			assertThat(body).extractingPath("$.result.tools[*].name").asArray()
 				.contains("list_profiles", "list_jobs", "get_job", "check_postings", "update_job_status",
 						"update_follow_up", "get_cv", "save_tailored_cv", "list_requests", "get_request", "finish_request", "list_saved_searches", "save_search", "add_found_jobs", "list_found_jobs", "list_recruiters", "add_recruiters", "list_hiring_posts", "add_hiring_posts",
-						"get_application_answers", "list_apply_queue", "start_apply", "report_apply_result", "watch_company");
+						"get_application_answers", "list_apply_queue", "start_apply", "report_apply_result", "watch_company",
+						"list_offers", "get_market_salaries", "save_negotiation_brief", "get_cover_letter", "save_cover_letter",
+						"save_outreach_draft", "list_stories", "save_stories");
 			assertThat(body).extractingPath("$.result.tools[?(@.name == 'update_job_status')].inputSchema.required[*]")
 				.asArray()
 				.containsExactly("job_id", "status");
@@ -843,7 +878,481 @@ class McpControllerTests {
 			assertThat(result(body)).extractingPath("$.jobs[0].has_tailored_cv").isEqualTo(false);
 			assertThat(result(body)).extractingPath("$.jobs[0].cv_url")
 				.isEqualTo("http://localhost/claude/cv?profile=1&job=7");
+			assertThat(result(body)).extractingPath("$.jobs[0].has_cover_letter").isEqualTo(false);
+			assertThat(result(body)).extractingPath("$.jobs[0]").asMap().doesNotContainKey("cover_letter_url");
 		});
+	}
+
+	@Test
+	void givesTheCoverLetterToUploadWhenTheJobHasOne() {
+		given(this.autoApply.findOpenItems(1)).willReturn(List.of(ApplyItem.builder()
+			.id(3)
+			.applicationId(7)
+			.title("Backend engineer")
+			.mode(ApplyMode.REVIEW)
+			.status(ApplyStatus.QUEUED)
+			.createdAt(Instant.now())
+			.build()));
+		given(this.letters.findLetter(1, 7)).willReturn(Optional.of(
+				new com.jobwarden.cv.dto.CoverLetter(7, "Dear Ana,\n\nKind regards,", null, Instant.now())));
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.SAVED)));
+
+		assertThat(callTool("list_apply_queue", "{}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.jobs[0].has_cover_letter").isEqualTo(true);
+			assertThat(result(body)).extractingPath("$.jobs[0].cover_letter_url")
+				.isEqualTo("http://localhost/claude/cover-letter?profile=1&job=7");
+		});
+		assertThat(callTool("get_cover_letter", "{\"job_id\": 7}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.has_letter").isEqualTo(true);
+			assertThat(result(body)).extractingPath("$.body").isEqualTo("Dear Ana,\n\nKind regards,");
+		});
+	}
+
+	@Test
+	void savesACoverLetterOnlyForTheProfilesOwnJobs() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.SAVED)));
+		given(this.letters.saveLetter(1, 7, "Dear hiring team,\n\nI build payment systems.\n\nKind regards,",
+				"Led with Kafka.", null)).willReturn(new com.jobwarden.cv.dto.CoverLetter(7,
+						"Dear hiring team,\n\nI build payment systems.\n\nKind regards,", "Led with Kafka.", Instant.now()));
+
+		assertThat(callTool("save_cover_letter", """
+				{"job_id": 7, "body": "Dear hiring team,\\n\\nI build payment systems.\\n\\nKind regards,", "notes": "Led with Kafka."}
+				""")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.paragraphs").isEqualTo(3);
+			assertThat(result(body)).extractingPath("$.pdf").isEqualTo("http://localhost/claude/cover-letter?profile=1&job=7");
+		});
+		assertThat(callTool("save_cover_letter", "{\"job_id\": 8, \"body\": \"Dear Ana,\"}")).bodyJson()
+			.extractingPath("$.result.isError")
+			.isEqualTo(true);
+		then(this.letters).should(never()).saveLetter(eq(1L), eq(8L), any(), any(), any());
+	}
+
+	@Test
+	void savesTheMessagesToSomeoneHiringAndRefusesANoteTooLongForLinkedIn() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.APPLIED)));
+		given(this.letters.saveDraft(eq(1L), any(), any())).willAnswer(answer -> answer.<OutreachDraft>getArgument(1)
+			.toBuilder()
+			.id(5)
+			.build());
+
+		assertThat(callTool("save_outreach_draft", """
+				{"job_id": 7, "name": "Ana Pop", "role": "Technical Recruiter at Acme",
+				 "profile_link": "https://www.linkedin.com/in/anapop", "linkedin_note": "Hi Ana, I saw the Java role…",
+				 "email_subject": "The Java Developer role", "email_body": "Dear Ana, …"}
+				""")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.draft_id").isEqualTo(5);
+			assertThat(result(body)).extractingPath("$.note_characters").isEqualTo(28);
+		});
+		ArgumentCaptor<OutreachDraft> draft = ArgumentCaptor.forClass(OutreachDraft.class);
+		then(this.letters).should().saveDraft(eq(1L), draft.capture(), any());
+		assertThat(draft.getValue().applicationId()).isEqualTo(7);
+		assertThat(draft.getValue().recipientLink()).isEqualTo("https://www.linkedin.com/in/anapop");
+
+		given(this.letters.saveDraft(eq(1L), any(), any())).willThrow(new BusinessRuleException(CvErrorCode.LINKEDIN_NOTE_TOO_LONG,
+				"The LinkedIn note has 340 characters", "300", "340"));
+		assertThat(callTool("save_outreach_draft", "{\"job_id\": 7, \"name\": \"Ana Pop\", \"linkedin_note\": \"…\"}"))
+			.bodyJson()
+			.satisfies(body -> {
+				assertThat(body).extractingPath("$.result.isError").isEqualTo(true);
+				assertThat(body).extractingPath("$.result.content[0].text").asString().contains("340 characters");
+			});
+	}
+
+	@Test
+	void handsOutARequestToWriteToThePeopleHiringWithWhomToWriteTo() {
+		given(this.discovery.startRequest(1, 33)).willReturn(AiRequest.builder()
+			.id(33)
+			.kind(AiRequestKind.WRITE_OUTREACH)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(ApplicationDetails.builder()
+			.id(7)
+			.title("Java Developer")
+			.company("Acme")
+			.status(ApplicationStatus.APPLIED)
+			.followUp(FollowUp.builder().contactName("Ana Pop").contactEmail("ana@acme.example").build())
+			.capturedAt(Instant.now())
+			.timeline(List.of())
+			.build()));
+		given(this.hiring.findRecruiters(1)).willReturn(List.of(Recruiter.builder()
+			.id(4)
+			.name("Ion Ionescu")
+			.headline("Talent Partner at Acme")
+			.profileUrl("https://www.linkedin.com/in/ionescu")
+			.company("ACME")
+			.origin(RecruiterOrigin.FOUND)
+			.build(), Recruiter.builder()
+			.id(5)
+			.name("Someone Else")
+			.profileUrl("https://www.linkedin.com/in/else")
+			.company("Globex")
+			.origin(RecruiterOrigin.FOUND)
+			.build()));
+
+		assertThat(callTool("get_request", "{\"request_id\": 33}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.recipients[*].name").asArray().containsExactly("Ana Pop", "Ion Ionescu");
+			assertThat(result(body)).extractingPath("$.recipients[0].why").isEqualTo("the job's contact");
+			assertThat(result(body)).extractingPath("$.recipients[0].email").isEqualTo("ana@acme.example");
+			assertThat(result(body)).extractingPath("$.instructions").asString()
+				.contains("save_outreach_draft with job_id 7", "at most 300 characters", "Never send anything");
+		});
+	}
+
+	@Test
+	void writesOnceToSomeoneWhosBothTheJobsContactAndARecruiter() {
+		given(this.discovery.startRequest(1, 37)).willReturn(AiRequest.builder()
+			.id(37)
+			.kind(AiRequestKind.WRITE_OUTREACH)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(ApplicationDetails.builder()
+			.id(7)
+			.title("Java Developer")
+			.company("Acme")
+			.status(ApplicationStatus.APPLIED)
+			.followUp(FollowUp.builder().contactName("Ana Pop").contactEmail("ana@acme.example").build())
+			.capturedAt(Instant.now())
+			.timeline(List.of())
+			.build()));
+		given(this.hiring.findRecruiters(1)).willReturn(List.of(Recruiter.builder()
+			.id(4)
+			.name(" ana  pop")
+			.headline("Technical Recruiter at Acme")
+			.profileUrl("https://www.linkedin.com/in/anapop")
+			.company("Acme")
+			.origin(RecruiterOrigin.FOUND)
+			.build()));
+
+		assertThat(callTool("get_request", "{\"request_id\": 37}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.recipients").asArray().hasSize(1);
+			assertThat(result(body)).extractingPath("$.recipients[0].name").isEqualTo("Ana Pop");
+			assertThat(result(body)).extractingPath("$.recipients[0].email").isEqualTo("ana@acme.example");
+			assertThat(result(body)).extractingPath("$.recipients[0].profile_link").isEqualTo("https://www.linkedin.com/in/anapop");
+			assertThat(result(body)).extractingPath("$.recipients[0].role").isEqualTo("Technical Recruiter at Acme");
+		});
+	}
+
+	@Test
+	void writesOnceToSomeoneWhomNeitherRecordGivesAnEmailOrARole() {
+		given(this.discovery.startRequest(1, 38)).willReturn(AiRequest.builder()
+			.id(38)
+			.kind(AiRequestKind.WRITE_OUTREACH)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(ApplicationDetails.builder()
+			.id(7)
+			.title("Java Developer")
+			.company("Acme")
+			.status(ApplicationStatus.APPLIED)
+			.followUp(FollowUp.builder().contactName("Ana Pop").build())
+			.capturedAt(Instant.now())
+			.timeline(List.of())
+			.build()));
+		given(this.hiring.findRecruiters(1)).willReturn(List.of(Recruiter.builder()
+			.id(4)
+			.name("Ana Pop")
+			.profileUrl("https://www.linkedin.com/in/anapop")
+			.company("Acme")
+			.origin(RecruiterOrigin.FOUND)
+			.build()));
+
+		assertThat(callTool("get_request", "{\"request_id\": 38}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.recipients").asArray().hasSize(1);
+			assertThat(result(body)).extractingPath("$.recipients[0].profile_link").isEqualTo("https://www.linkedin.com/in/anapop");
+			assertThat(result(body)).extractingPath("$.recipients[0]").asMap().doesNotContainKeys("email", "role");
+		});
+	}
+
+	@Test
+	void neverReplacesALetterChangedByHandAfterItsRequestWasTakenBack() {
+		Instant asked = Instant.now().minusSeconds(600);
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.SAVED)));
+		given(this.discovery.findLatestRequest(1, AiRequestKind.WRITE_COVER_LETTER, 7)).willReturn(Optional.of(AiRequest.builder()
+			.id(34)
+			.kind(AiRequestKind.WRITE_COVER_LETTER)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.CANCELLED)
+			.createdAt(asked)
+			.build()));
+		given(this.letters.findLetter(1, 7)).willReturn(Optional.of(
+				new com.jobwarden.cv.dto.CoverLetter(7, "Dear Ana, as I wrote it myself.", null, Instant.now())));
+
+		assertThat(callTool("save_cover_letter", "{\"job_id\": 7, \"body\": \"Dear Ana,\"}")).bodyJson().satisfies(body -> {
+			assertThat(body).extractingPath("$.result.isError").isEqualTo(true);
+			assertThat(body).extractingPath("$.result.content[0].text").asString().contains("stays as it is");
+		});
+		then(this.letters).should(never()).saveLetter(eq(1L), eq(7L), any(), any(), any());
+	}
+
+	@Test
+	void neverReplacesALetterWhoseRequestWasTakenBackButWritesOneForAJobWithout() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.SAVED)));
+		given(this.discovery.findLatestRequest(1, AiRequestKind.WRITE_COVER_LETTER, 7)).willReturn(Optional.of(AiRequest.builder()
+			.id(34)
+			.kind(AiRequestKind.WRITE_COVER_LETTER)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.CANCELLED)
+			.createdAt(Instant.now())
+			.build()));
+		// Unchanged since it was asked: taken back all the same
+		given(this.letters.findLetter(1, 7)).willReturn(Optional.of(
+				new com.jobwarden.cv.dto.CoverLetter(7, "Dear Ana,", null, Instant.now().minusSeconds(3600))));
+		assertThat(callTool("save_cover_letter", "{\"job_id\": 7, \"body\": \"Dear Ana,\"}")).bodyJson()
+			.extractingPath("$.result.isError")
+			.isEqualTo(true);
+		then(this.letters).should(never()).saveLetter(eq(1L), eq(7L), any(), any(), any());
+
+		// With no letter, Auto-apply's goes in
+		given(this.letters.findLetter(1, 7)).willReturn(Optional.empty());
+		given(this.letters.saveLetter(1, 7, "Dear Ana,", null, null))
+			.willReturn(new com.jobwarden.cv.dto.CoverLetter(7, "Dear Ana,", null, Instant.now()));
+		assertThat(callTool("save_cover_letter", "{\"job_id\": 7, \"body\": \"Dear Ana,\"}")).bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.job_id").isEqualTo(7));
+	}
+
+	@Test
+	void savesClaudesLetterAndMessagesOnlyOverWhatWasntChangedSinceItWasAsked() {
+		Instant asked = Instant.now().minusSeconds(60);
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.SAVED)));
+		for (AiRequestKind kind : List.of(AiRequestKind.WRITE_COVER_LETTER, AiRequestKind.WRITE_OUTREACH)) {
+			given(this.discovery.findLatestRequest(1, kind, 7)).willReturn(Optional.of(AiRequest.builder()
+				.id(34)
+				.kind(kind)
+				.applicationId(7L)
+				.requirements(AiRequirements.NONE)
+				.status(AiRequestStatus.WORKING)
+				.createdAt(asked)
+				.build()));
+		}
+		given(this.letters.saveLetter(1, 7, "Dear Ana,", null, asked))
+			.willReturn(new com.jobwarden.cv.dto.CoverLetter(7, "Dear Ana,", null, Instant.now()));
+		given(this.letters.saveDraft(eq(1L), any(), eq(asked))).willAnswer(answer -> answer.<OutreachDraft>getArgument(1)
+			.toBuilder()
+			.id(5)
+			.build());
+
+		callTool("save_cover_letter", "{\"job_id\": 7, \"body\": \"Dear Ana,\"}");
+		callTool("save_outreach_draft", "{\"job_id\": 7, \"name\": \"Ana Pop\"}");
+
+		// The service keeps what the profile changed after the time it was asked (CoverLetterAndStoryServiceTests)
+		then(this.letters).should().saveLetter(1, 7, "Dear Ana,", null, asked);
+		then(this.letters).should().saveDraft(eq(1L), any(), eq(asked));
+	}
+
+	@Test
+	void savesNoMoreMessagesOnceTheirRequestWasTakenBack() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.APPLIED)));
+		given(this.discovery.findLatestRequest(1, AiRequestKind.WRITE_OUTREACH, 7)).willReturn(Optional.of(AiRequest.builder()
+			.id(36)
+			.kind(AiRequestKind.WRITE_OUTREACH)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.CANCELLED)
+			.createdAt(Instant.now())
+			.build()));
+
+		assertThat(callTool("save_outreach_draft", "{\"job_id\": 7, \"name\": \"Ana Pop\"}")).bodyJson()
+			.satisfies(body -> {
+				assertThat(body).extractingPath("$.result.isError").isEqualTo(true);
+				assertThat(body).extractingPath("$.result.content[0].text").asString().contains("took the request");
+			});
+		then(this.letters).should(never()).saveDraft(anyLong(), any(), any());
+	}
+
+	@Test
+	void refusesMoreStoriesThanABriefNames() {
+		String ids = java.util.stream.LongStream.rangeClosed(1, 21)
+			.mapToObj(String::valueOf)
+			.collect(java.util.stream.Collectors.joining(", "));
+
+		assertThat(callTool("save_interview_brief", "{\"job_id\": 7, \"company\": \"Acme.\", \"story_ids\": [" + ids + "]}"))
+			.bodyJson()
+			.extractingPath("$.result.isError")
+			.isEqualTo(true);
+	}
+
+	@Test
+	void handsOutARequestToWriteACoverLetter() {
+		given(this.discovery.startRequest(1, 34)).willReturn(AiRequest.builder()
+			.id(34)
+			.kind(AiRequestKind.WRITE_COVER_LETTER)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+
+		assertThat(callTool("get_request", "{\"request_id\": 34}")).bodyJson()
+			.extractingPath("$.result.content[0].text")
+			.asString()
+			.contains("get_job with job_id 7", "get_cv with full true", "save_cover_letter and job_id 7", "no clichés",
+					"base_letter");
+	}
+
+	@Test
+	void givesClaudeTheBaseLetterFilledInForTheJob() {
+		given(this.discovery.startRequest(1, 36)).willReturn(AiRequest.builder()
+			.id(36)
+			.kind(AiRequestKind.WRITE_COVER_LETTER)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(ApplicationDetails.builder()
+			.id(7)
+			.title("Java Developer")
+			.company("Acme")
+			.status(ApplicationStatus.SAVED)
+			.capturedAt(Instant.now())
+			.timeline(List.of())
+			.build()));
+		given(this.letters.findBaseLetter(1)).willReturn(Optional.of(new com.jobwarden.cv.dto.BaseLetter(
+				"Dear hiring team,\n\nI'd like to join {company} as {role}.", Instant.now())));
+
+		assertThat(callTool("get_request", "{\"request_id\": 36}")).bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.base_letter")
+				.isEqualTo("Dear hiring team,\n\nI'd like to join Acme as Java Developer."));
+		assertThat(callTool("get_cover_letter", "{\"job_id\": 7}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.has_letter").isEqualTo(false);
+			assertThat(result(body)).extractingPath("$.base_letter")
+				.isEqualTo("Dear hiring team,\n\nI'd like to join Acme as Java Developer.");
+		});
+	}
+
+	@Test
+	void handsOutARequestToNegotiateAnOfferWithTheMarketsFigures() {
+		given(this.discovery.startRequest(1, 35)).willReturn(AiRequest.builder()
+			.id(35)
+			.kind(AiRequestKind.NEGOTIATE_OFFER)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+
+		assertThat(callTool("get_request", "{\"request_id\": 35}")).bodyJson()
+			.extractingPath("$.result.content[0].text")
+			.asString()
+			.contains("list_offers", "get_market_salaries", "save_negotiation_brief and job_id 7", "Never invent an offer");
+	}
+
+	@Test
+	void listsTheOffersWithTheirTermsAndYearlySalaries() {
+		ApplicationSummary acme = ApplicationSummary.builder()
+			.id(7)
+			.title("Java Developer")
+			.company("Acme")
+			.location("Berlin")
+			.status(ApplicationStatus.OFFER)
+			.capturedAt(Instant.now())
+			.build();
+		given(this.offers.compare(1, "EUR", SalaryPeriod.YEAR)).willReturn(OfferComparison.builder()
+			.currency("EUR")
+			.period(SalaryPeriod.YEAR)
+			.offers(List.of(new ComparedOffer(acme, JobOffer.builder().baseSalary("90,000 EUR").bonus("10%").build(),
+					"90,000 EUR", new SalaryEntry(acme, new BigDecimal("90000.00"), new BigDecimal("90000.00"), "EUR", false,
+							null), false, null, false)))
+			.currencies(List.of("EUR"))
+			.build());
+
+		assertThat(callTool("list_offers", "{}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.offers[0].job_id").isEqualTo(7);
+			assertThat(result(body)).extractingPath("$.offers[0].yearly_low").isEqualTo(90000);
+			assertThat(result(body)).extractingPath("$.offers[0].bonus").isEqualTo("10%");
+		});
+	}
+
+	@Test
+	void givesWhatTheMarketPaysAndTheRolesItKnowsWhenItDoesntKnowTheOneAskedFor() {
+		given(this.market.roles()).willReturn(List.of("Developer, back-end", "Developer, full-stack"));
+		given(this.market.find(new MarketQuery("Backend dev", "Java", List.of("DE", "RO")), "EUR", SalaryPeriod.YEAR))
+			.willReturn(MarketSalaries.builder()
+				.role("Backend dev")
+				.skill("Java")
+				.currency("EUR")
+				.period(SalaryPeriod.YEAR)
+				.countries(List.of(new MarketCountry("DE", List.of(new MarketFigure(MarketSource.STACK_OVERFLOW, 2025,
+						new BigDecimal("60000.4"), new BigDecimal("75000.6"), new BigDecimal("90000"), 120)))))
+				.survey(new SurveyStatus(2025, 1000, Instant.now(), false, null))
+				.adzunaSearch("java developer")
+				.build());
+
+		assertThat(callTool("get_market_salaries", """
+				{"role": "Backend dev", "skill": "Java", "countries": ["de", "RO", "DE"]}
+				""")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.countries[0].figures[0].middle").isEqualTo(75001);
+			assertThat(result(body)).extractingPath("$.survey_imported").isEqualTo(true);
+			assertThat(result(body)).extractingPath("$.roles").asArray().contains("Developer, back-end");
+		});
+	}
+
+	@Test
+	void savesTheNegotiationBrief() {
+		given(this.offers.saveBrief(eq(1L), eq(7L), any())).willAnswer(answer -> answer.getArgument(2));
+
+		assertThat(callTool("save_negotiation_brief", """
+				{"job_id": 7, "position": "8% under the median in Germany.", "target": "95,000 EUR",
+				 "leverage": ["Median 92,000 EUR (Stack Overflow 2025)"], "asks": ["A signing bonus"],
+				 "email": "Dear Ana, …"}
+				""")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.leverage").isEqualTo(1);
+			assertThat(result(body)).extractingPath("$.page").isEqualTo("/applications/7");
+		});
+		then(this.offers).should().saveBrief(1, 7, NegotiationBrief.builder()
+			.position("8% under the median in Germany.")
+			.target("95,000 EUR")
+			.leverage(List.of("Median 92,000 EUR (Stack Overflow 2025)"))
+			.asks(List.of("A signing bonus"))
+			.email("Dear Ana, …")
+			.build());
+	}
+
+	@Test
+	void listsTheStoryBankAndAddsTheStoriesDraftedFromTheCv() {
+		Story kafka = Story.builder()
+			.id(3)
+			.title("The Kafka migration")
+			.situation("Orders were lost at peaks.")
+			.result("No order lost since.")
+			.skills(List.of("Kafka"))
+			.build();
+		given(this.stories.findAll(1)).willReturn(List.of(kafka));
+		given(this.stories.addDrafted(eq(1L), any())).willAnswer(answer -> answer.<List<Story>>getArgument(1).subList(0, 1));
+
+		assertThat(callTool("list_stories", "{}")).bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.stories[0].title").isEqualTo("The Kafka migration"));
+		assertThat(callTool("save_stories", """
+				{"stories": [{"title": "Halving checkout latency", "action": "Cached the prices.", "result": "[By how much?]"},
+				             {"title": "The Kafka migration"}]}
+				""")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.added").asArray().containsExactly("Halving checkout latency");
+			assertThat(result(body)).extractingPath("$.left_out").isEqualTo(1);
+		});
+	}
+
+	@Test
+	void keepsOnlyTheProfilesOwnStoriesInAnInterviewBrief() {
+		given(this.stories.findAll(1, List.of(3L, 99L))).willReturn(List.of(Story.builder().id(3).title("Kafka").build()));
+		given(this.briefs.save(eq(1L), eq(7L), any())).willAnswer(answer -> answer.getArgument(2));
+
+		assertThat(callTool("save_interview_brief", """
+				{"job_id": 7, "company": "Acme.", "story_ids": [3, 99]}
+				""")).bodyJson().satisfies(body -> assertThat(result(body)).extractingPath("$.bank_stories").isEqualTo(1));
+		ArgumentCaptor<InterviewBrief> brief = ArgumentCaptor.forClass(InterviewBrief.class);
+		then(this.briefs).should().save(eq(1L), eq(7L), brief.capture());
+		assertThat(brief.getValue().storyIds()).containsExactly(3L);
 	}
 
 	@Test
@@ -955,10 +1464,29 @@ class McpControllerTests {
 	}
 
 	@Test
+	void checksTheNewestJobsFirstWhateverTheirStatus() {
+		given(this.applications.findAll(1, ApplicationStatus.SAVED))
+			.willReturn(List.of(summary(9, ApplicationStatus.SAVED, "https://a.example/9")));
+		given(this.applications.findAll(1, ApplicationStatus.INTERVIEWING))
+			.willReturn(List.of(summary(7, ApplicationStatus.INTERVIEWING, "https://a.example/7")));
+		given(this.applications.findAll(1, ApplicationStatus.APPLIED))
+			.willReturn(List.of(summary(8, ApplicationStatus.APPLIED, "https://a.example/8")));
+		given(this.checker.check(any())).willAnswer(call -> new PostingCheck(call.getArgument(0), Verdict.OPEN, true,
+				"Up", 200, null, null));
+
+		assertThat(callTool("check_postings", "{}")).bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.checked[*].job_id").asArray().containsExactly(7, 8, 9));
+	}
+
+	@Test
 	void closesTheJobsWhosePostingIsCertainlyGone() {
-		given(this.applications.findAll(1, null)).willReturn(List.of(summary(7, ApplicationStatus.APPLIED, "https://a.example/7"),
-				summary(8, ApplicationStatus.INTERVIEWING, "https://a.example/8"),
-				summary(9, ApplicationStatus.REJECTED, "https://a.example/9")));
+		// Each status apart, as those lists leave the archived jobs out; a rejected job isn't checked
+		given(this.applications.findAll(1, ApplicationStatus.APPLIED))
+			.willReturn(List.of(summary(7, ApplicationStatus.APPLIED, "https://a.example/7")));
+		given(this.applications.findAll(1, ApplicationStatus.INTERVIEWING))
+			.willReturn(List.of(summary(8, ApplicationStatus.INTERVIEWING, "https://a.example/8")));
+		given(this.applications.findAll(1, ApplicationStatus.REJECTED))
+			.willReturn(List.of(summary(9, ApplicationStatus.REJECTED, "https://a.example/9")));
 		given(this.checker.check(any())).willAnswer(call -> new PostingCheck(call.getArgument(0), Verdict.CLOSED, true,
 				"The page is gone (404)", 404, null, null));
 
@@ -1094,7 +1622,8 @@ class McpControllerTests {
 			.title("Job " + id)
 			.link(link)
 			.status(status)
-			.capturedAt(Instant.now())
+			// The higher the id, the earlier saved: a list newest first is in the ids' order
+			.capturedAt(Instant.parse("2026-10-01T10:00:00Z").minusSeconds(id * 3600))
 			.build();
 	}
 

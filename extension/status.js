@@ -11,6 +11,7 @@ const LOOKS = {
   APPLIED: { mark: '✓', color: '#007aff', icon: 'check' },
   INTERVIEWING: { mark: '✓', color: '#c56a00', icon: 'check' },
   OFFER: { mark: '✓', color: '#1f9e45', icon: 'check' },
+  POSITION_REOPENED: { mark: '✓', color: '#0f8a8a', icon: 'check' },
   REJECTED: { mark: '✓', color: '#e0302a', icon: 'check' },
   NO_RESPONSE: { mark: '✓', color: '#9a3fd0', icon: 'check' },
   POSITION_CLOSED: { mark: '✓', color: '#8f7150', icon: 'check' },

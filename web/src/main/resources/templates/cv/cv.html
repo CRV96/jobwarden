@@ -9,9 +9,12 @@
        the saved ones, or those typed when they didn't save (fieldErrors says why). The lists' rows are numbered by
        app.js as they're added and removed (data-rows, data-row, data-add-row, data-remove-row). */-->
 <main class="page-split flex flex-col gap-5" th:with="details=${cvDetails}">
-    <header>
-        <h1 class="page-title mb-1" th:text="#{cv.title}">CV</h1>
-        <p class="text-[13px] text-ink/60" th:text="#{cv.subtitle}">Upload your CV, or fill in the fields and JobWarden builds one. Claude reads it to find jobs that fit you.</p>
+    <header class="flex flex-wrap items-end gap-3">
+        <div class="min-w-[240px] flex-1">
+            <h1 class="page-title mb-1" th:text="#{cv.title}">CV</h1>
+            <p class="text-[13px] text-ink/60" th:text="#{cv.subtitle}">Upload your CV, or fill in the fields and JobWarden builds one. Claude reads it to find jobs that fit you.</p>
+        </div>
+        <th:block th:replace="~{help/help :: how-it-works('cv')}"></th:block>
     </header>
 
     <div class="card flex items-center gap-2 p-3 text-[13px] text-success" role="status" th:if="${param.saved}">
@@ -79,6 +82,9 @@
                     </li>
                 </ul>
             </section>
+
+            <!--/* The story bank: the profile's stories for interviews, which the interview briefs draw on; loaded after the rest */-->
+            <section th:replace="~{cv/stories :: loader}"></section>
 
             <!--/* The GitHub account, whose chosen repositories Claude writes the CV's projects from: loaded after the rest */-->
             <section th:replace="~{cv/github :: loader}"></section>

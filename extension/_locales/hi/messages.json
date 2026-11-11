@@ -170,6 +170,9 @@
   "status_POSITION_CLOSED": {
     "message": "पद बंद"
   },
+  "status_POSITION_REOPENED": {
+    "message": "पद फिर से खुला"
+  },
   "status_WITHDRAWN": {
     "message": "वापस लिया"
   },
