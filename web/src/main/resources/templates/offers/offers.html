@@ -15,7 +15,7 @@
     <header class="flex flex-wrap items-end gap-3">
         <div class="min-w-[240px] flex-1">
             <h1 class="page-title mb-1" th:text="#{offers.title}">Offers</h1>
-            <p class="text-[13px] text-ink/60" th:text="#{offers.subtitle}">Your offers side by side, against what the market pays. Claude writes how to negotiate each.</p>
+            <p class="text-[13px] text-ink/60" th:text="#{offers.subtitle}">Your offers side by side, against what the market pays. The AI Assistant writes how to negotiate each.</p>
         </div>
         <th:block th:replace="~{help/help :: how-it-works('offers')}"></th:block>
     </header>
@@ -168,7 +168,7 @@
                                 th:hx-get="@{/applications/{id}/drawer(id=${offer.application.id})}" hx-trigger="click"
                                 hx-target="#drawer-content" hx-swap="innerHTML">
                             <i class="ph" th:classappend="${offer.hasBrief} ? 'ph-scales' : 'ph-sparkle'"></i>
-                            <span th:text="${offer.hasBrief} ? #{offers.readBrief} : #{negotiation.ask}">Ask Claude how to negotiate</span>
+                            <span th:text="${offer.hasBrief} ? #{offers.readBrief} : #{negotiation.ask}">Ask the AI Assistant how to negotiate</span>
                         </button>
                     </td>
                 </tr>

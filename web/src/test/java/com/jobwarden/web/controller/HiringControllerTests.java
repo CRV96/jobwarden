@@ -103,7 +103,7 @@ class HiringControllerTests {
 			.contains("Who’s hiring", "Ana Pop", "IT Recruiter at Acme", "Java Developer", "We&#39;re hiring a Java developer",
 					"href=\"https://www.linkedin.com/posts/ana_hiring-activity-1\"", "fi-ro", "Romania",
 					"href=\"/hiring?tag=java\"", "#java", "hx-post=\"/hiring/posts/9/save\"", "follow-3",
-					"hx-post=\"/hiring/recruiters/3/follow\"", "Ask Claude for posts", "Where do these posts come from?")
+					"hx-post=\"/hiring/recruiters/3/follow\"", "Ask the AI Assistant for posts", "Where do these posts come from?")
 			.doesNotContain("every 5s");
 	}
 
@@ -127,7 +127,7 @@ class HiringControllerTests {
 	void listsTheRecruitersToFollowAndOffersToFindMore() {
 		assertThat(this.mvc.get().uri("/hiring?tab=RECRUITERS")).bodyText()
 			.contains("Ana Pop", "href=\"/hiring?recruiter=3\"", "1 post", "Follow", "hx-post=\"/hiring/recruiters/3/remove\"",
-					"Ask Claude for recruiters", "name=\"kind\" value=\"FIND_RECRUITERS\"", "name=\"count\"",
+					"Ask the AI Assistant for recruiters", "name=\"kind\" value=\"FIND_RECRUITERS\"", "name=\"count\"",
 					"href=\"/hiring?tab=RECRUITERS&amp;who=FOUND\"")
 			.doesNotContain("hiring/posts/9/save", "name=\"recency\"");
 	}
@@ -152,7 +152,7 @@ class HiringControllerTests {
 			.build()));
 
 		assertThat(this.mvc.get().uri("/hiring?tab=RECRUITERS")).bodyText()
-			.contains("Found by Claude", "Hires Java developers for the payments team.", "Globex", "fi-ro",
+			.contains("Found by the AI Assistant", "Hires Java developers for the payments team.", "Globex", "fi-ro",
 					"Contact for", "href=\"/applications/40\"", "Backend engineer · Initech");
 		assertThat(this.mvc.get().uri("/hiring?tab=RECRUITERS&who=FOUND")).bodyText()
 			.contains("Bob Ionescu")
@@ -179,7 +179,7 @@ class HiringControllerTests {
 		assertThat(this.mvc.post().uri("/hiring/requests").param("kind", "FIND_RECRUITERS").param("roles", "Java Developer")
 			.param("places", "Romania").param("count", "20")).hasStatusOk()
 			.bodyText()
-			.contains("Waiting for Claude", "Do JobWarden request 22", "/hiring/requests/latest?kind=FIND_RECRUITERS&amp;waiting=true");
+			.contains("Waiting for the AI Assistant", "Do JobWarden request 22", "/hiring/requests/latest?kind=FIND_RECRUITERS&amp;waiting=true");
 		then(this.discovery).should().createRequest(1, AiRequestKind.FIND_RECRUITERS, AiRequirements.builder()
 			.titles(List.of("Java Developer"))
 			.locations(List.of("Romania"))
@@ -208,7 +208,7 @@ class HiringControllerTests {
 		assertThat(this.mvc.post().uri("/hiring/requests").param("roles", "Java Developer, Backend Engineer ,")
 			.param("places", "Romania").param("recency", "WEEK")).hasStatusOk()
 			.bodyText()
-			.contains("Waiting for Claude", "Do JobWarden request 21", "hx-trigger=\"every 5s\"");
+			.contains("Waiting for the AI Assistant", "Do JobWarden request 21", "hx-trigger=\"every 5s\"");
 		then(this.discovery).should().createRequest(1, AiRequestKind.FIND_HIRING_POSTS, AiRequirements.builder()
 			.titles(List.of("Java Developer", "Backend Engineer"))
 			.locations(List.of("Romania"))

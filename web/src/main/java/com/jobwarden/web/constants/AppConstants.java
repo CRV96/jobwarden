@@ -31,6 +31,8 @@ public final class AppConstants {
 		public static final String STATISTICS = "/statistics";
 		public static final String SEARCH = "/search";
 		public static final String SETTINGS = "/settings";
+		/** Run: JobWarden starts the profile's AI assistant itself, in the background, on requests waiting. */
+		public static final String ASSISTANT_RUN = "/assistant/run";
 		/** The icons of the sites postings came from: /sources/{source}/icon. */
 		public static final String SOURCES = "/sources";
 	}
@@ -149,6 +151,8 @@ public final class AppConstants {
 		public static final String DISCOVER = "discover/discover";
 		/** The card to review and what changes with it, which HTMX swaps after a decision. */
 		public static final String DISCOVER_REVIEW_FRAGMENT = DISCOVER + " :: review";
+		/** What Run answers: that the assistant started, or why not, in place of the button. */
+		public static final String ASSISTANT_RUN_FRAGMENT = "applications/claude :: run-result";
 		/** The requests to Claude, which HTMX swaps as one is made, cancelled, or changes while it's open. */
 		public static final String DISCOVER_REQUESTS_FRAGMENT = DISCOVER + " :: requests";
 		public static final String WATCHLIST = "watchlist/watchlist";
@@ -560,8 +564,19 @@ public final class AppConstants {
 		public static final String RECENT_DECISIONS = "recentDecisions";
 		/** A search just saved, a {@code SavedSearch}. */
 		public static final String SAVED_SEARCH = "savedSearch";
-		/** The address Claude connects to: the app's MCP endpoint. */
+		/** The address the AI assistant connects to: the app's MCP endpoint. */
 		public static final String MCP_URL = "mcpUrl";
+		/** The AI assistants a profile can work with, each an {@code Assistant}, and whether its choice was just saved. */
+		public static final String ASSISTANTS = "assistants";
+		public static final String ASSISTANT_SAVED = "assistantSaved";
+		/** How to connect the profile's assistant to the MCP server: a command, or what to add to its configuration. */
+		public static final String ASSISTANT_CONNECTION = "assistantConnection";
+		/**
+		 * What Run did: the assistant's name, and whether it started, or else why not ({@code RunRefusedException.Reason}).
+		 */
+		public static final String RUN_ASSISTANT = "runAssistant";
+		public static final String RUN_STARTED = "runStarted";
+		public static final String RUN_REFUSED = "runRefused";
 		/** What the search page searches for, a {@code SearchCriteria}. */
 		public static final String SEARCH_CRITERIA = "criteria";
 		/** The search page's queries, a {@code GeneratedQueries}, and the platform whose query it shows. */

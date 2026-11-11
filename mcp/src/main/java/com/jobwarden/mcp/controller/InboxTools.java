@@ -21,7 +21,7 @@ import static com.jobwarden.mcp.controller.Schemas.oneOf;
 /**
  * Sorting the updates JobWarden found in the profile's emails, waiting on the Inbox page: what each email says and
  * which job it matched, if one, then applying it to the right job's timeline, or dismissing it when it isn't news. The
- * page shows what Claude did, and the profile can bring back what Claude dismissed.
+ * page shows what the assistant did, and the profile can bring back what it dismissed.
  */
 @Component
 @RequiredArgsConstructor
@@ -47,11 +47,10 @@ class InboxTools implements McpToolSet {
 
 	private McpTool listEmailUpdates() {
 		return new McpTool("list_email_updates", "List the email updates",
-				"The updates waiting on the Inbox page, the newest first: each an email that looks like news about one of "
-						+ "the profile's jobs, with what JobWarden thinks it says (status), the words that said it, the start "
-						+ "of the email, and the job it matched, when it matched one.",
+				"Emails waiting on the Inbox page that look like news about a job, newest first: JobWarden's guess "
+						+ "(status), the words behind it, the email's start, and the matched job if any.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"limit", integer("How many at most, up to " + UPDATES_MAX + "; 20 if left out"))),
+						"limit", integer("Default 20, max " + UPDATES_MAX))),
 				true, false, call -> {
 					long userId = this.profiles.of(call);
 					return Map.of("updates", this.inbox.findPending(userId)
@@ -64,13 +63,12 @@ class InboxTools implements McpToolSet {
 
 	private McpTool applyEmailUpdate() {
 		return new McpTool("apply_email_update", "Apply an email update",
-				"Adds the email's news to a job's timeline, dated when the email came, which moves the job to the status: "
-						+ "the job it matched, or the one you found it's about. The timeline notes which email it was.",
+				"Adds the email's news to a job's timeline, dated when it came, which moves the job to the status.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"update_id", integer("The update, from list_email_updates"),
-						"job_id", integer("The job it's about, from list_email_updates or list_jobs"),
-						"status", oneOf(EMAIL_STATUSES.toArray(ApplicationStatus[]::new), "What the email says: APPLIED, "
-								+ "the application arrived; INTERVIEWING, an interview or a call is offered; OFFER; REJECTED")),
+						"update_id", integer(),
+						"job_id", integer("The job it's about"),
+						"status", oneOf(EMAIL_STATUSES.toArray(ApplicationStatus[]::new), "APPLIED: received; INTERVIEWING: "
+								+ "an interview or call offered; OFFER; REJECTED")),
 						"update_id", "job_id", "status"),
 				false, false, call -> {
 					long userId = this.profiles.of(call);
@@ -87,11 +85,9 @@ class InboxTools implements McpToolSet {
 
 	private McpTool dismissEmailUpdate() {
 		return new McpTool("dismiss_email_update", "Dismiss an email update",
-				"Drops an update that isn't news about an application after all: a job alert, a newsletter, an ad, or news "
-						+ "the job's timeline already has. The profile can bring it back from the Inbox page.",
-				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"update_id", integer("The update, from list_email_updates")),
-						"update_id"),
+				"Drops an update that isn't news about an application: an alert, a newsletter, an ad, or news the "
+						+ "timeline has. The profile can bring it back.",
+				object(properties(Profiles.ARGUMENT, Profiles.schema(), "update_id", integer()), "update_id"),
 				false, false, call -> {
 					long userId = this.profiles.of(call);
 					long updateId = call.requiredNumber("update_id");

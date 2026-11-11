@@ -133,8 +133,8 @@ class LettersControllerTests {
 			.param("ids", "7", "8", "9", "99")
 			.header("HX-Request", "true")).hasStatusOk()
 			.bodyText()
-			.contains("Claude has 2 letters to write", "Do JobWarden requests 41, 42, one after the other",
-					"profile_id 1", "id=\"letter-row-8\"", "hx-swap-oob=\"true\"", "Claude is writing")
+			.contains("The assistant has 2 letters to write", "Do JobWarden requests 41, 42, one after the other",
+					"profile_id 1", "id=\"letter-row-8\"", "hx-swap-oob=\"true\"", "The AI Assistant is writing")
 			// The rows on their own, where HTMX swaps them in place
 			.doesNotContain("<ul");
 
@@ -174,7 +174,7 @@ class LettersControllerTests {
 
 		assertThat(this.mvc.get().uri("/letters/rows/8").param("selected", "8").header("HX-Request", "true")).hasStatusOk()
 			.bodyText()
-			.contains("id=\"letter-row-8\"", "Claude is writing", "every 5s", "is-open");
+			.contains("id=\"letter-row-8\"", "The AI Assistant is writing", "every 5s", "is-open");
 	}
 
 	@Test

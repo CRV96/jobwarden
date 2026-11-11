@@ -202,7 +202,7 @@ class ApplicationControllerTests {
 		given(this.applications.countByStatus(1, null, false)).willReturn(counts(ApplicationStatus.APPLIED, 2));
 
 		assertThat(this.mvc.get().uri("/applications")).bodyText()
-			.containsOnlyOnce("title=\"Claude applied to it for you, from the Auto-apply page\"");
+			.containsOnlyOnce("title=\"The assistant applied to it for you, from the Auto-apply page\"");
 	}
 
 	@Test
@@ -219,7 +219,7 @@ class ApplicationControllerTests {
 		assertThat(this.mvc.get().uri("/applications")).bodyText()
 			.containsOnlyOnce("title=\"The extension’s Easy Apply run sent it on LinkedIn\"")
 			.contains("ph-puzzle-piece")
-			.doesNotContain("Claude applied to it for you");
+			.doesNotContain("The assistant applied to it for you");
 	}
 
 	@Test

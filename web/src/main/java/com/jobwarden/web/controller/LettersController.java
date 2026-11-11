@@ -29,7 +29,6 @@ import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.web.constants.AppConstants.ControllerConstants;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.constants.AppConstants.Views;
-import com.jobwarden.web.view.ClaudePrompts;
 import com.jobwarden.web.view.LetterFilter;
 import com.jobwarden.web.view.LetterRow;
 import lombok.CustomLog;
@@ -277,7 +276,7 @@ class LettersController extends BaseController {
 		model.addAttribute(ModelAttributes.LETTERS_OPEN, open.size());
 		model.addAttribute(ModelAttributes.LETTERS_WAITING, waiting.size());
 		model.addAttribute(ModelAttributes.LETTERS_PROMPT,
-				waiting.isEmpty() ? null : ClaudePrompts.forRequests(waiting, userId));
+				waiting.isEmpty() ? null : prompt(model, waiting));
 	}
 
 	private void addBaseLetter(Model model, long userId, boolean editing) {

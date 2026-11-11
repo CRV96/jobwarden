@@ -80,7 +80,7 @@ class StoryControllerTests {
 		assertThat(this.mvc.get().uri("/cv/stories").header("HX-Request", "true")).hasStatusOk()
 			.bodyText()
 			.contains("Story bank", "The Kafka migration", "Orders were lost at peaks.", "To finish", "1 of 40",
-					"/cv/stories/3/edit", "Ask Claude to draft them from my CV");
+					"/cv/stories/3/edit", "Ask the AI Assistant to draft them from my CV");
 	}
 
 	@Test

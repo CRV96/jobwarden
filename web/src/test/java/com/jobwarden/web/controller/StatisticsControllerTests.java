@@ -77,7 +77,7 @@ class StatisticsControllerTests {
 			.contains("Statistics", ">40<", "of 57 jobs saved", ">40%<", "16 answered", ">13%<", "9 days",
 					// By site, the jobs added by hand among them
 					"linkedin.com", "Added by hand", "12 of 30 answered, 4 got to an interview", "width: 40%",
-					"You", "Claude", "Strong fit", "Not scored",
+					"You", "AI Assistant", "Strong fit", "Not scored",
 					// 4 of 10 strong fits against 1 of 8 others
 					"Yes: the jobs scored 4 or more got to an interview clearly more often.",
 					"Kubernetes", "Missing in 7, partly in 2", "×2", "AWS", "Position filled", "Lack of experience");

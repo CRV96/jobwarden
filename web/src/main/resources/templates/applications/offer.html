@@ -109,14 +109,14 @@
     </div>
 
     <p class="text-[13px] text-pretty text-ink/65" th:if="${brief == null and !open}" th:text="#{negotiation.hint}">
-        Claude compares the offer with what the market pays…</p>
+        The AI Assistant compares the offer with what the market pays…</p>
 
     <th:block th:if="${open}">
         <th:block th:replace="~{applications/claude :: waiting(${request}, ${negotiationPrompt},
                   @{/applications/{id}/negotiation/cancel(id=${offerJobId})}, '#negotiation')}"></th:block>
     </th:block>
     <p class="text-[13px] text-danger" role="alert" th:if="${status == 'FAILED'}"
-       th:text="#{negotiation.failed(${request.summary} ?: '')}">Claude couldn’t write it: …</p>
+       th:text="#{negotiation.failed(${request.summary} ?: '')}">The AI Assistant couldn’t write it: …</p>
 
     <!--/* The brief: each part only when Claude wrote it */-->
     <th:block th:if="${brief}">
@@ -179,7 +179,7 @@
 
     <button class="btn btn-secondary self-start" type="button" th:unless="${open}"
             th:hx-post="@{/applications/{id}/negotiation/request(id=${offerJobId})}" hx-target="#negotiation" hx-swap="outerHTML">
-        <i class="ph ph-sparkle"></i><span th:text="${brief} ? #{negotiation.again} : #{negotiation.ask}">Ask Claude how to negotiate</span>
+        <i class="ph ph-sparkle"></i><span th:text="${brief} ? #{negotiation.again} : #{negotiation.ask}">Ask the AI Assistant how to negotiate</span>
     </button>
 </section>
 

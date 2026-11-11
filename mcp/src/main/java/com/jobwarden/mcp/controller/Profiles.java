@@ -21,9 +21,11 @@ class Profiles {
 
 	private final UserService users;
 
+	/**
+	 * Without a description, which every tool would repeat: list_profiles says what it is, once.
+	 */
 	static ObjectNode schema() {
-		return Schemas.integer("The profile to work on, from list_profiles. Leave it out when there's only one profile, "
-				+ "or when the server was told which one to use");
+		return Schemas.integer();
 	}
 
 	List<User> all() {

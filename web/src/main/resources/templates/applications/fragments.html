@@ -17,7 +17,7 @@
       th:with="claude=${appliedBy.name() == 'CLAUDE'}"
       th:title="${claude} ? #{applied.byClaude.hint} : #{applied.byExtension.hint}">
     <i class="ph" th:classappend="${claude} ? 'ph-sparkle' : 'ph-puzzle-piece'"></i><span
-        th:text="${claude} ? #{applied.byClaude} : #{applied.byExtension}">by Claude</span>
+        th:text="${claude} ? #{applied.byClaude} : #{applied.byExtension}">by the AI Assistant</span>
 </span>
 <i th:fragment="applied-by-icon(appliedBy)" class="ph text-accent" th:if="${appliedBy != null and appliedBy.name() != 'YOU'}"
    th:with="claude=${appliedBy.name() == 'CLAUDE'}"

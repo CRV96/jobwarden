@@ -17,7 +17,6 @@ import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.web.constants.AppConstants.ControllerConstants;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.constants.AppConstants.Views;
-import com.jobwarden.web.view.ClaudePrompts;
 import com.jobwarden.web.view.CvPdf;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -111,7 +110,7 @@ class TailoredCvController extends BaseController {
 		model.addAttribute(ModelAttributes.TAILORED_CV, this.cvs.findTailored(userId, applicationId).orElse(null));
 		model.addAttribute(ModelAttributes.CV_REQUEST, request.orElse(null));
 		model.addAttribute(ModelAttributes.CV_PROMPT,
-				request.map(asked -> ClaudePrompts.forRequest(asked.id(), userId)).orElse(null));
+				request.map(asked -> prompt(model, asked.id())).orElse(null));
 		return Views.TAILORED_CV_FRAGMENT;
 	}
 

@@ -25,7 +25,7 @@ import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.constants.AppConstants.Views;
 import com.jobwarden.web.dto.ApplyAnswersForm;
-import com.jobwarden.web.view.ClaudePrompts;
+import com.jobwarden.web.view.AssistantPrompts;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
@@ -182,15 +182,16 @@ class ApplyController extends BaseController {
 	}
 
 	/**
-	 * The latest run of Claude on the queue, with what to paste into Claude Code while it waits.
+	 * The latest run on the queue, with what to paste into Claude Code, started with Claude in Chrome, while it waits:
+	 * only Claude Code applies, whatever the profile's assistant.
 	 *
-	 * @return it, or {@code null} if Claude was never asked
+	 * @return it, or {@code null} if it was never asked
 	 */
 	private @Nullable AiRequest addRun(Model model, long userId) {
 		Optional<AiRequest> latest = latestRun(userId);
 		model.addAttribute(ModelAttributes.APPLY_RUN, latest.orElse(null));
 		model.addAttribute(ModelAttributes.APPLY_PROMPT,
-				latest.map(run -> ClaudePrompts.forRequest(run.id(), userId)).orElse(null));
+				latest.map(run -> AssistantPrompts.forApplying(run.id(), userId)).orElse(null));
 		return latest.orElse(null);
 	}
 

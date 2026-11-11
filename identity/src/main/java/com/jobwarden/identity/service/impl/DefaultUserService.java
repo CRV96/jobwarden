@@ -12,6 +12,7 @@ import com.jobwarden.common.image.Images.TooLargeImageException;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.entity.ProfileImageEntity;
 import com.jobwarden.identity.entity.UserEntity;
+import com.jobwarden.identity.enums.Assistant;
 import com.jobwarden.identity.enums.IdentityErrorCode;
 import com.jobwarden.identity.exception.UserNotFoundException;
 import com.jobwarden.identity.mapper.UserMapper;
@@ -105,6 +106,15 @@ class DefaultUserService implements UserService {
 		this.images.deleteById(id);
 		user.imageChanged(null);
 		log.info("Removed the photo of profile {}", id);
+		return UserMapper.toUser(user);
+	}
+
+	@Override
+	@Transactional
+	public User changeAssistant(long id, Assistant assistant) {
+		UserEntity user = getUser(id);
+		user.changeAssistant(assistant);
+		log.info("Profile {} works with {} now", id, assistant.product());
 		return UserMapper.toUser(user);
 	}
 

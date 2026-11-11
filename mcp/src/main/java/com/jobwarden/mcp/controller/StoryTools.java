@@ -1,6 +1,5 @@
 package com.jobwarden.mcp.controller;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -20,7 +19,7 @@ import static com.jobwarden.mcp.controller.Schemas.strings;
 
 /**
  * The profile's story bank, kept with its CV: what it did, told the STAR way (situation, task, action, result), for
- * the interview briefs to draw on; and the stories Claude drafts for it from the CV.
+ * the interview briefs to draw on; and the stories the assistant drafts for it from the CV.
  */
 @Component
 @RequiredArgsConstructor
@@ -43,30 +42,35 @@ class StoryTools implements McpToolSet {
 
 	private McpTool listStories() {
 		return new McpTool("list_stories", "List the story bank",
-				"The profile's own stories, kept with its CV, to tell in interviews: each with its id, its title, what it "
-						+ "shows (skills), and the STAR parts: situation, task, action, result. The profile wrote or checked "
-						+ "them: prefer them to stories made up from the CV.",
-				object(properties(Profiles.ARGUMENT, Profiles.schema())), true, false, call -> {
-					long userId = this.profiles.of(call);
-					return Map.of("stories", this.stories.findAll(userId).stream().map(StoryTools::view).toList());
-				});
+				"The profile's story bank for interviews: id, title, skills and the STAR parts. The person wrote or checked "
+						+ "them: prefer them to stories from the CV.",
+				object(properties(Profiles.ARGUMENT, Profiles.schema())), true, false,
+				call -> Map.of("stories", views(this.profiles.of(call))));
+	}
+
+	/** The story bank as list_stories gives it, which get_request also hands out to prepare an interview. */
+	List<StoryView> views(long userId) {
+		return this.stories.findAll(userId).stream().map(StoryTools::view).toList();
+	}
+
+	/** The story bank's titles: enough not to write a story again. */
+	List<String> titles(long userId) {
+		return this.stories.findAll(userId).stream().map(Story::title).toList();
 	}
 
 	private McpTool saveStories() {
 		ObjectNode story = object(properties(
-				"title", string("What it's about, in a few words, e.g. Cutting checkout latency in half"),
-				"situation", string("Where and when: the team, the product, what was wrong"),
+				"title", string("A few words, e.g. Cutting checkout latency in half"),
+				"situation", string("The team, the product, what was wrong"),
 				"task", string("What the person had to do"),
-				"action", string("What the person did, themselves, step by step"),
-				"result", string("What came of it, with the CV's numbers; [add the number] where the CV has none"),
-				"skills", strings("What it shows, e.g. Kafka, leadership, a conflict handled")),
+				"action", string("What they did themselves, step by step"),
+				"result", string("With the CV's numbers; [add the number] where it has none"),
+				"skills", strings("What it shows, e.g. Kafka, leadership")),
 				"title");
 		return new McpTool("save_stories", "Add stories to the story bank",
-				"Adds stories you drafted from the CV to the profile's story bank, which the CV page shows for it to check "
-						+ "and finish. Those whose title the bank has are left out; the profile's own stay as they are. At "
-						+ "most " + DRAFT_MAX + ".",
-				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"stories", list(story, "The stories, the strongest first")),
+				"Adds stories drafted from the CV to the story bank, for the person to check and finish; titles the bank "
+						+ "has are skipped. Max " + DRAFT_MAX + ".",
+				object(properties(Profiles.ARGUMENT, Profiles.schema(), "stories", list(story, "Strongest first")),
 						"stories"),
 				false, false, call -> {
 					long userId = this.profiles.of(call);
@@ -95,7 +99,7 @@ class StoryTools implements McpToolSet {
 
 	private static StoryView view(Story story) {
 		return new StoryView(story.id(), story.title(), story.skills(), story.situation(), story.task(), story.action(),
-				story.result(), story.updatedAt());
+				story.result());
 	}
 
 	private static @Nullable String shortened(@Nullable String text, int max) {
@@ -103,7 +107,7 @@ class StoryTools implements McpToolSet {
 	}
 
 	record StoryView(long id, String title, List<String> skills, @Nullable String situation, @Nullable String task,
-			@Nullable String action, @Nullable String result, @Nullable Instant updatedAt) {
+			@Nullable String action, @Nullable String result) {
 	}
 
 }

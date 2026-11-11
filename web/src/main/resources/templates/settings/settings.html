@@ -269,31 +269,57 @@
             </div>
         </section>
 
-        <!--/* How to connect Claude to the MCP server (the mcp module) */-->
-        <section class="flex flex-col gap-2">
-            <h2 class="section-title" th:text="#{settings.claude}">Claude</h2>
-            <div class="card flex items-start gap-3 p-3"
-                 th:with="command=|claude mcp add --transport http jobwarden ${mcpUrl}${currentProfile != null ? ' --header &quot;X-JobWarden-Profile: ' + currentProfile.id + '&quot;' : ''}|">
+        <!--/* The AI assistant (the mcp module's MCP server): which one the profile works with, Claude Code or Codex, saved
+               with the button (SettingsController comes back here and says so, once), and how to connect it. The pages
+               write their prompts and terminal commands for the one chosen; without a profile, Claude Code's. */-->
+        <section id="assistant" class="flex flex-col gap-2"
+                 th:with="assistant=${currentProfile != null ? currentProfile.assistant : assistants[0]}">
+            <h2 class="section-title" th:text="#{settings.assistant}">AI Assistant</h2>
+            <output class="card flex items-center gap-2 p-3 text-success" th:if="${assistantSaved}">
+                <i class="ph ph-check-circle text-lg"></i>
+                <span th:text="#{settings.assistant.saved(${assistant.product()})}">Saved: the pages write their prompts for Codex now.</span>
+            </output>
+            <form class="card flex flex-col gap-3 p-3" method="post" th:action="@{/settings/assistant}" th:if="${currentProfile}">
+                <fieldset class="flex flex-col gap-2">
+                    <legend class="mb-1.5 font-medium" th:text="#{settings.assistant.choose}">The assistant you work with</legend>
+                    <label class="flex cursor-pointer items-start gap-2.5 rounded-lg border border-line p-2.5 has-checked:border-accent has-checked:bg-accent/6"
+                           th:each="choice : ${assistants}">
+                        <input class="mt-0.5 accent-[var(--jw-accent)]" type="radio" name="assistant" th:value="${choice}"
+                               th:checked="${choice == assistant}">
+                        <span class="flex min-w-0 flex-col gap-0.5">
+                            <span class="text-[13px] font-medium" th:text="${choice.product()}">Claude Code</span>
+                            <span class="text-xs text-pretty text-ink/60" th:text="#{|settings.assistant.${choice}.hint|}">Every request, Auto-apply included.</span>
+                        </span>
+                    </label>
+                </fieldset>
+                <div>
+                    <button class="btn btn-primary" type="submit">
+                        <i class="ph ph-floppy-disk"></i><span th:text="#{settings.inbox.save}">Save</span>
+                    </button>
+                </div>
+            </form>
+            <div class="card flex items-start gap-3 p-3">
                 <i class="ph ph-sparkle text-[22px] text-accent"></i>
                 <div class="flex min-w-0 flex-1 flex-col gap-2">
                     <div>
-                        <div class="font-medium" th:text="#{settings.claude.name}">JobWarden for Claude (MCP)</div>
-                        <div class="text-xs text-ink/60" th:text="#{settings.claude.body}">
-                            Lets Claude check whether your postings are still up, update their status, and find jobs for your saved searches.</div>
+                        <div class="font-medium" th:text="#{settings.assistant.connect(${assistant.product()})}">Connect Claude Code to JobWarden (MCP)</div>
+                        <div class="text-xs text-ink/60" th:text="#{settings.assistant.body}">
+                            Lets your assistant check whether your postings are still up, update their status, and find jobs for your saved searches.</div>
                     </div>
                     <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
-                        <dt class="text-ink/55" th:text="#{settings.claude.address}">MCP address</dt>
+                        <dt class="text-ink/55" th:text="#{settings.assistant.address}">MCP address</dt>
                         <dd class="min-w-0 truncate font-mono" th:text="${mcpUrl}">http://localhost:8080/mcp</dd>
                     </dl>
-                    <div class="text-xs text-ink/60" th:text="#{settings.claude.command}">In Claude Code, run:</div>
+                    <div class="text-xs text-ink/60" th:text="#{|settings.assistant.${assistant}.command|}">In a terminal, run:</div>
                     <div class="flex items-start gap-2">
-                        <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${command}">claude mcp add --transport http jobwarden http://localhost:8080/mcp</code>
-                        <button class="btn btn-secondary" type="button" th:data-copy-text="${command}">
+                        <code class="query-box min-h-0 flex-1 py-2 text-[12px] whitespace-pre-wrap" th:text="${assistantConnection}">claude mcp add --transport http jobwarden http://localhost:8080/mcp</code>
+                        <button class="btn btn-secondary" type="button" th:data-copy-text="${assistantConnection}">
                             <span class="inline-flex items-center gap-1.5" data-copy-idle><i class="ph ph-copy"></i><span th:text="#{search.copy}">Copy</span></span>
                             <span class="inline-flex items-center gap-1.5" data-copy-done hidden><i class="ph ph-check text-success"></i><span th:text="#{search.copied}">Copied</span></span>
                         </button>
                     </div>
-                    <div class="text-xs text-ink/60" th:text="#{settings.claude.then}">Then ask Claude, e.g. “Check my open applications in JobWarden and close the ones whose posting is gone”.</div>
+                    <div class="text-xs text-ink/60" th:text="#{settings.assistant.then(${assistant.product()})}">Then ask Claude Code, e.g. “Check my open applications in JobWarden and close the ones whose posting is gone”.</div>
+                    <div class="text-xs text-pretty text-ink/60" th:text="#{settings.assistant.chatgpt}">The ChatGPT app can’t connect…</div>
                 </div>
             </div>
         </section>

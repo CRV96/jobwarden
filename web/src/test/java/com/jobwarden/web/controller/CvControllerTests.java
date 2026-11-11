@@ -167,7 +167,7 @@ class CvControllerTests {
 				DETAILS));
 
 		assertThat(this.mvc.get().uri("/cv")).bodyText()
-			.contains("CV Robert.pdf", "83 KB", "Claude can read 4,512 characters of it.", "href=\"/cv/file\"", "Replace");
+			.contains("CV Robert.pdf", "83 KB", "The assistant can read 4,512 characters of it.", "href=\"/cv/file\"", "Replace");
 	}
 
 	@Test

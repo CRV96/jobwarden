@@ -1,6 +1,7 @@
 package com.jobwarden.identity.service;
 
 import com.jobwarden.identity.dto.User;
+import com.jobwarden.identity.enums.Assistant;
 
 import java.util.List;
 import java.util.Optional;
@@ -27,6 +28,13 @@ public interface UserService {
 	User changeImage(long id, byte[] content);
 
 	User removeImage(long id);
+
+	/**
+	 * Which AI assistant the profile works with: its pages then write their prompts and commands for that one.
+	 *
+	 * @return the profile, with its assistant
+	 */
+	User changeAssistant(long id, Assistant assistant);
 
 	/**
 	 * @return the profile's photo, a PNG, if it has one

@@ -16,6 +16,7 @@ import com.jobwarden.discover.enums.Decision;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.jobs.dto.TidyResult;
 import com.jobwarden.jobs.service.ApplicationService;
+import com.jobwarden.web.view.AssistantPrompts;
 import com.jobwarden.web.constants.AppConstants.ControllerConstants;
 import com.jobwarden.web.constants.AppConstants.HtmxEvents;
 import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
@@ -25,7 +26,6 @@ import com.jobwarden.search.Recency;
 import com.jobwarden.search.WorkType;
 import com.jobwarden.web.dto.AiRequestForm;
 import com.jobwarden.web.dto.SearchFilters;
-import com.jobwarden.web.view.ClaudePrompts;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
@@ -198,7 +198,8 @@ class DiscoverController extends BaseController {
 	}
 
 	/**
-	 * The latest requests, the jobs found for the latest of them, and the prompts that hand them to Claude Code.
+	 * The latest requests, the jobs found for the latest of them, and the prompts that hand them to the profile's AI
+	 * assistant, Claude Code or Codex.
 	 */
 	private void addRequests(Model model, long userId) {
 		List<AiRequest> requests = this.discovery.findRequests(userId, REQUESTS);
@@ -209,8 +210,8 @@ class DiscoverController extends BaseController {
 			.collect(Collectors.toMap(AiRequest::id, request -> this.discovery.findFoundJobsOfRequest(userId, request.id()))));
 		model.addAttribute(ModelAttributes.AI_PROMPTS, requests.stream()
 			.filter(request -> request.status() == AiRequestStatus.WAITING)
-			.collect(Collectors.toMap(AiRequest::id, request -> ClaudePrompts.forRequest(request.id(), userId))));
-		model.addAttribute(ModelAttributes.AI_LOOP_PROMPT, ClaudePrompts.loop(userId,
+			.collect(Collectors.toMap(AiRequest::id, request -> prompt(model, request.id()))));
+		model.addAttribute(ModelAttributes.AI_LOOP_PROMPT, AssistantPrompts.loop(requireProfile(model).assistant(), userId,
 				ServletUriComponentsBuilder.fromCurrentContextPath().path(this.requestsPath).toUriString()));
 		model.addAttribute(ModelAttributes.AI_OPEN, requests.stream().anyMatch(request -> request.status().isOpen()));
 		model.addAttribute(ModelAttributes.TO_REVIEW_ALL, this.discovery.countToReview(userId, null));

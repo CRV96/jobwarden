@@ -1,6 +1,9 @@
 package com.jobwarden.mcp.controller;
 
 import java.net.URI;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -13,9 +16,13 @@ import com.jobwarden.common.exception.JobWardenException;
 import lombok.CustomLog;
 import org.jspecify.annotations.Nullable;
 import tools.jackson.core.JacksonException;
+import tools.jackson.core.JsonGenerator;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.PropertyNamingStrategies;
+import tools.jackson.databind.SerializationContext;
+import tools.jackson.databind.ValueSerializer;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.module.SimpleModule;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
@@ -56,19 +63,23 @@ class McpController {
 	private static final Set<String> LOCAL_HOSTS = Set.of("localhost", "127.0.0.1", "[::1]", "::1");
 
 	/**
-	 * Sent once, as the session starts, so short: each request's own steps come with it (get_request). The second
-	 * paragraph saves the most tokens, in every request.
+	 * Sent once, as the session starts, so short, and for any assistant: each request's own steps come with it
+	 * (get_request). The second paragraph saves the most tokens, in every request.
 	 */
-	private static final String INSTRUCTIONS = """
-			JobWarden keeps a job hunt: the jobs saved or applied to, each with a status and a timeline. The profile asks \
-			for work from its pages, as requests: list_requests gives those waiting, get_request one's steps with what \
-			it needs, and finish_request ends it with a summary the page shows.
-			Spare the context: links the profile already has are skipped when you add jobs, posts or recruiters, so \
-			never list them first. Pass search results' links to filter_links and open only the new ones that look \
-			right from their title and snippet. Read a page with WebFetch and a short question rather than whole; \
-			check_postings with urls tells open postings from closed ones, many at once, without opening them.
+	static final String INSTRUCTIONS = """
+			JobWarden tracks a job hunt: jobs with a status and a timeline. The profile asks for work from its pages as \
+			requests: list_requests lists those waiting, get_request gives one's steps and the data they need, \
+			finish_request ends it with a summary the page shows.
+			Spare the context: adding jobs, posts or recruiters skips the links the profile has, so never list them \
+			first. Pass search results' links to filter_links and open only the new ones whose title and snippet fit. \
+			Read a page with a short question (e.g. WebFetch), not whole; check_postings with urls tells open postings \
+			from closed ones, many at once.
 			Messages to recruiters are drafts the profile sends itself: never send them. A cover letter goes out only \
-			with an application, when Auto-apply's steps say to send one.""";
+			with an application, when Auto-apply's steps say so.""";
+
+	/** Times to the minute, e.g. 2026-11-03T09:56Z: seconds and their fractions would only cost tokens. */
+	private static final DateTimeFormatter MINUTES = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm'Z'")
+		.withZone(ZoneOffset.UTC);
 
 	private final Map<String, McpTool> tools;
 
@@ -82,10 +93,19 @@ class McpController {
 			.collect(Collectors.toMap(McpTool::name, Function.identity(), (a, b) -> {
 				throw new IllegalStateException("Two tools named " + a.name());
 			}, LinkedHashMap::new));
-		// Results in snake_case like the arguments, without the empty fields: Claude reads every character
+		// Results in snake_case like the arguments, without the empty fields, and times to the minute: the assistant
+		// reads every character
 		this.json = json.rebuild()
 			.propertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
 			.changeDefaultPropertyInclusion(inclusion -> inclusion.withValueInclusion(JsonInclude.Include.NON_EMPTY))
+			.addModule(new SimpleModule("mcp-times").addSerializer(Instant.class, new ValueSerializer<Instant>() {
+
+				@Override
+				public void serialize(Instant value, JsonGenerator generator, SerializationContext context) {
+					generator.writeString(MINUTES.format(value));
+				}
+
+			}))
 			.build();
 		this.version = version;
 	}
@@ -144,6 +164,10 @@ class McpController {
 		return result.put("instructions", INSTRUCTIONS);
 	}
 
+	/**
+	 * Each tool once: its title for people, at the top only, and the hints clients decide approvals by. Codex, e.g.,
+	 * asks before a tool that isn't read-only and reaches the web, and refuses it in codex exec.
+	 */
 	private ObjectNode toolList() {
 		ObjectNode result = JsonNodeFactory.instance.objectNode();
 		ArrayNode list = result.putArray("tools");
@@ -152,7 +176,6 @@ class McpController {
 				.put("description", tool.description());
 			entry.set("inputSchema", tool.inputSchema());
 			entry.putObject("annotations")
-				.put("title", tool.title())
 				.put("readOnlyHint", tool.readOnly())
 				.put("destructiveHint", false)
 				.put("openWorldHint", tool.openWorld());
@@ -162,7 +185,7 @@ class McpController {
 
 	/**
 	 * A tool that fails because of what it was asked, such as a missing argument or a job that doesn't exist, answers
-	 * with isError and the reason, which Claude reads; an unknown tool is a protocol error.
+	 * with isError and the reason, which the assistant reads; an unknown tool is a protocol error.
 	 */
 	private ObjectNode callTool(JsonNode id, JsonNode params, @Nullable Long profile) {
 		String name = params.path("name").asString("");
@@ -182,7 +205,7 @@ class McpController {
 
 	/**
 	 * The result as JSON text, once: the tools declare no output schema, and the same result again as
-	 * structuredContent would only take up Claude's context a second time.
+	 * structuredContent would only take up the assistant's context a second time.
 	 */
 	private static ObjectNode toolResult(String text, boolean isError) {
 		ObjectNode result = JsonNodeFactory.instance.objectNode();
@@ -208,7 +231,7 @@ class McpController {
 		return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(response);
 	}
 
-	/** No Origin is a client that isn't a browser page, like Claude; a page must be on this machine. */
+	/** No Origin is a client that isn't a browser page, like Claude Code or Codex; a page must be on this machine. */
 	private static boolean isLocal(@Nullable String origin) {
 		if (origin == null || origin.isBlank()) {
 			return true;

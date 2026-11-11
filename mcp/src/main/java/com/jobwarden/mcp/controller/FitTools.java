@@ -22,7 +22,7 @@ import static com.jobwarden.mcp.controller.Schemas.oneOf;
 import static com.jobwarden.mcp.controller.Schemas.string;
 
 /**
- * Scoring how well the profile fits its jobs: Claude reads each posting's requirements against the CV, and JobWarden
+ * Scoring how well the profile fits its jobs: the assistant reads each posting's requirements against the CV, and JobWarden
  * works out the score from them, the same way for every job, so scores compare.
  */
 @Component
@@ -50,37 +50,37 @@ class FitTools implements McpToolSet {
 
 	private McpTool listJobsToScore() {
 		return new McpTool("list_jobs_to_score", "List the jobs to score",
-				"The profile's jobs still to apply to, or waiting on an answer, that have no score yet, the newest first.",
+				"Unscored jobs still to apply to or awaiting an answer, newest first.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"limit", integer("How many at most, up to " + UNSCORED_MAX + "; 10 if left out"))),
-				true, false, call -> {
-					long userId = this.profiles.of(call);
-					return Map.of("jobs", this.fits.findUnscored(userId, call.limit("limit", 10, UNSCORED_MAX))
-						.stream()
-						.map(job -> new JobRef(job.id(), job.title(), job.company(), job.link()))
-						.toList());
-				});
+						"limit", integer("Default 10, max " + UNSCORED_MAX))),
+				true, false,
+				call -> Map.of("jobs", unscored(this.profiles.of(call), call.limit("limit", 10, UNSCORED_MAX))));
+	}
+
+	/** The jobs to score, as list_jobs_to_score gives them, which get_request also hands out to score them. */
+	List<JobRef> unscored(long userId, int limit) {
+		return this.fits.findUnscored(userId, Math.min(limit, UNSCORED_MAX))
+			.stream()
+			.map(job -> new JobRef(job.id(), job.title(), job.company(), job.link()))
+			.toList();
 	}
 
 	private McpTool saveJobFit() {
 		ObjectNode requirement = object(properties(
-				"text", string("The requirement, in the posting's words, short, e.g. 5+ years of Java"),
-				"importance", oneOf(RequirementImportance.values(), "MUST: required, must, you have; NICE: a plus, nice to "
-						+ "have, bonus, preferred"),
-				"match", oneOf(RequirementMatch.values(), "MET: the CV shows it; PARTIAL: something near it (a related "
-						+ "tool, fewer years); MISSING: nothing in the CV supports it"),
-				"note", string("What in the CV meets it, or what's missing, in a few words")),
+				"text", string("In the posting's words, short, e.g. 5+ years of Java"),
+				"importance", oneOf(RequirementImportance.values(), "MUST: required; NICE: a plus"),
+				"match", oneOf(RequirementMatch.values(), "MET: the CV shows it; PARTIAL: something near it; MISSING: "
+						+ "nothing supports it"),
+				"note", string("Why, in a few words")),
 				"text", "importance", "match");
 		return new McpTool("save_job_fit", "Save a job's fit",
-				"Keeps how well the profile fits one of its jobs: the posting's requirements, each a must-have or a plus, "
-						+ "met, partly met or missing by the CV. JobWarden works out the score from them, from 1 to 5, and "
-						+ "returns it; a missing must-have keeps it at 3 at most. From " + REQUIREMENTS_MIN + " to "
-						+ REQUIREMENTS_MAX + " requirements: the ones that matter, the place, the level and the work type "
-						+ "among them when the posting sets them.",
+				"Saves how the profile fits a job: " + REQUIREMENTS_MIN + "-" + REQUIREMENTS_MAX + " of the posting's "
+						+ "requirements, each MUST or NICE, and MET, PARTIAL or MISSING by the CV. Returns the 1-5 score "
+						+ "JobWarden works out; a missing MUST keeps it at 3 at most.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"job_id", integer("The job"),
-						"requirements", list(requirement, "The posting's requirements, the must-haves first"),
-						"summary", string("Why, in a sentence or two: what makes it a fit, and what doesn't")),
+						"job_id", integer(),
+						"requirements", list(requirement, "Must-haves first"),
+						"summary", string("What fits and what doesn't, 1-2 sentences")),
 						"job_id", "requirements"),
 				false, false, call -> {
 					long userId = this.profiles.of(call);

@@ -31,7 +31,6 @@ import com.jobwarden.web.dto.HiringParams;
 import com.jobwarden.web.dto.HiringRequestForm;
 import com.jobwarden.web.enums.HiringTab;
 import com.jobwarden.web.enums.RecruiterFilter;
-import com.jobwarden.web.view.ClaudePrompts;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -217,7 +216,7 @@ class HiringController extends BaseController {
 			.findFirst();
 		model.addAttribute(ModelAttributes.HIRING_REQUEST, latest.orElse(null));
 		model.addAttribute(ModelAttributes.HIRING_PROMPT,
-				latest.map(request -> ClaudePrompts.forRequest(request.id(), userId)).orElse(null));
+				latest.map(request -> prompt(model, request.id())).orElse(null));
 		return latest.orElse(null);
 	}
 

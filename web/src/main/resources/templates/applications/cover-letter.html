@@ -35,18 +35,18 @@
     </div>
 
     <p class="text-[13px] text-ink/65" th:unless="${hasCv or letter != null}">
-        <th:block th:text="#{tailoredCv.noCv}">Claude needs your CV first: upload it or fill it in.</th:block>
+        <th:block th:text="#{tailoredCv.noCv}">The AI Assistant needs your CV first: upload it or fill it in.</th:block>
         <a class="link" th:href="@{/cv}" th:text="#{tailoredCv.addCv}">Go to the CV page</a>
     </p>
     <p class="text-[13px] text-pretty text-ink/65" th:if="${hasCv and letter == null and !open and !letterEditing}"
-       th:text="#{letter.hint}">Claude writes a cover letter for this job…</p>
+       th:text="#{letter.hint}">The AI Assistant writes a cover letter for this job…</p>
 
     <th:block th:if="${open}">
         <th:block th:replace="~{applications/claude :: waiting(${request}, ${letterPrompt},
                   @{/applications/{id}/letter/cancel(id=${letterJobId})}, '#cover-letter')}"></th:block>
     </th:block>
     <p class="text-[13px] text-danger" role="alert" th:if="${status == 'FAILED'}"
-       th:text="#{letter.failed(${request.summary} ?: '')}">Claude couldn’t write it: …</p>
+       th:text="#{letter.failed(${request.summary} ?: '')}">The AI Assistant couldn’t write it: …</p>
 
     <!--/* Changing it, or writing one without Claude: saved with the button, the field stays open when it can't be */-->
     <form class="flex flex-col gap-2" th:if="${letterEditing}" th:hx-post="@{/applications/{id}/letter(id=${letterJobId})}"
@@ -76,7 +76,7 @@
                     th:text="#{letter.more}">Read it all</button>
         </div>
         <div class="flex flex-col gap-1" th:if="${letter.notes}">
-            <span class="text-xs text-ink/60" th:text="#{letter.notes}">What Claude highlighted</span>
+            <span class="text-xs text-ink/60" th:text="#{letter.notes}">What the AI Assistant highlighted</span>
             <p class="text-[13px] whitespace-pre-line text-ink/80" th:text="${letter.notes}">Led with the Kafka migration…</p>
         </div>
         <div class="flex flex-wrap items-center gap-1.5">
@@ -101,7 +101,7 @@
     <div class="flex flex-wrap items-center gap-1.5" th:unless="${open or letterEditing}">
         <button class="btn btn-secondary" type="button" th:if="${hasCv}"
                 th:hx-post="@{/applications/{id}/letter/request(id=${letterJobId})}" hx-target="#cover-letter" hx-swap="outerHTML">
-            <i class="ph ph-sparkle"></i><span th:text="${letter} ? #{letter.again} : #{letter.ask}">Ask Claude to write it</span>
+            <i class="ph ph-sparkle"></i><span th:text="${letter} ? #{letter.again} : #{letter.ask}">Ask the AI Assistant to write it</span>
         </button>
         <button class="btn btn-ghost" type="button" th:if="${letter == null}"
                 th:hx-get="@{/applications/{id}/letter/edit(id=${letterJobId})}" hx-target="#cover-letter" hx-swap="outerHTML">

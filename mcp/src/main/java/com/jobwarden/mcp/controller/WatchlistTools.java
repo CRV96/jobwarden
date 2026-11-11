@@ -33,14 +33,12 @@ class WatchlistTools implements McpToolSet {
 
 	private McpTool watchCompany() {
 		return new McpTool("watch_company", "Watch a company's job board",
-				"Adds a company to the profile's watchlist, by a link to its job board or one of its jobs on Greenhouse, "
-						+ "Lever or Ashby (e.g. https://jobs.lever.co/acme/...): JobWarden then reads the board itself every "
-						+ "few hours, with no tokens, and adds the postings that match the saved searches to the AI Assistant "
-						+ "page, the ones matching now at once. Call it when you come across a company on one of those boards "
-						+ "whose jobs fit. A company watched already stays as it is.",
+				"Watches a company's job board on Greenhouse, Lever or Ashby: JobWarden then reads it every few hours with "
+						+ "no tokens and adds the postings that match the saved searches to the AI Assistant page. Call it "
+						+ "when you find such a company whose jobs fit.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"link", string("A link to the company's board, or to one of its jobs, on Greenhouse, Lever or Ashby"),
-						"name", string("The company's name; the board's own if left out")),
+						"link", string("Its board, or one of its jobs, e.g. https://jobs.lever.co/acme"),
+						"name", string("Default the board's")),
 						"link"),
 				false, true, call -> {
 					long userId = this.profiles.of(call);

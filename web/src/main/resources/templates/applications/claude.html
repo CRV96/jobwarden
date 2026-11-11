@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<!--/* What a job's cards show while Claude has a request about the job open: its status, a button to take it back, and
-       while it waits, what to paste into Claude Code or run in a terminal. request is the AiRequest, prompt its
-       ClaudePrompts.Prompt, cancelUrl where to take it back, target the card HTMX swaps with the answer. */-->
+<!--/* What a job's cards show while the AI Assistant has a request about the job open: its status, a button to take it
+       back, and while it waits, what to paste into the profile's assistant (Claude Code or Codex) or run in a terminal.
+       request is the AiRequest, prompt its AssistantPrompts.Prompt, cancelUrl where to take it back, target the card
+       HTMX swaps with the answer. */-->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
     <!--/* Only fragments are taken from this file: the title is never shown */-->
-    <title>Claude · JobWarden</title>
+    <title>AI Assistant · JobWarden</title>
 </head>
 <body>
 
@@ -13,14 +14,14 @@
     <div class="flex items-center gap-2">
         <span class="tag st-interviewing">
             <i class="ph ph-arrow-clockwise animate-spin" th:if="${status == 'WORKING'}"></i>
-            <span th:text="#{|ai.status.${status}|}">Waiting for Claude</span>
+            <span th:text="#{|ai.status.${status}|}">Waiting for the AI Assistant</span>
         </span>
         <span class="flex-1"></span>
         <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button" th:hx-post="${cancelUrl}"
                 th:hx-target="${target}" hx-swap="outerHTML" th:text="#{ai.cancel}">Cancel</button>
     </div>
     <th:block th:if="${status == 'WAITING'}">
-        <div class="text-xs text-ink/60" th:text="#{ai.prompt}">Paste this into Claude Code:</div>
+        <div class="text-xs text-ink/60" th:text="#{ai.prompt(${prompt.assistant})}">Paste this into Claude Code:</div>
         <div class="flex items-start gap-2">
             <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${prompt.text}">Do JobWarden request 12…</code>
             <button th:replace="~{discover/discover :: copy-button(${prompt.text})}"></button>
@@ -30,10 +31,35 @@
             <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${prompt.command}">claude "Do JobWarden request 12…"</code>
             <button th:replace="~{discover/discover :: copy-button(${prompt.command})}"></button>
         </div>
+        <div th:replace="~{applications/claude :: run(${prompt})}"></div>
     </th:block>
 </th:block>
 
-<!--/* A text Claude wrote, to copy as it is: an email, what to say on a call. label names it. */-->
+<!--/* Run, under a prompt (prompt, an AssistantPrompts.Prompt): JobWarden starts the profile's assistant itself, here, in
+       the background (AssistantRunController), when it found it on this computer; nothing otherwise. Once started, and
+       as the card asks again until the assistant picks the request up, it says so instead. */-->
+<div th:fragment="run(prompt)" class="flex flex-wrap items-center gap-2" th:if="${prompt.runnable}" data-run>
+    <th:block th:unless="${prompt.running}">
+        <button class="btn btn-primary px-2.5 py-1 text-xs" type="button"
+                th:hx-post="@{/assistant/run(requests=${prompt.requestIds})}" hx-target="closest [data-run]" hx-swap="outerHTML">
+            <i class="ph ph-play"></i><span th:text="#{ai.run}">Run it here</span>
+        </button>
+        <span class="text-xs text-pretty text-ink/60" th:text="#{ai.run.hint(${prompt.assistant})}">Starts Claude Code on this computer…</span>
+    </th:block>
+    <span class="text-xs text-success" role="status" th:if="${prompt.running}"
+          th:text="#{ai.run.started(${prompt.assistant})}">Started: Claude Code works on it in the background.</span>
+</div>
+
+<!--/* What Run answers, in place of the button: that the assistant started, or why not (runRefused, a
+       RunRefusedException.Reason), with the prompt still there to paste. */-->
+<div th:fragment="run-result" class="flex flex-wrap items-center gap-2" data-run>
+    <span class="text-xs text-success" role="status" th:if="${runStarted}"
+          th:text="#{ai.run.started(${runAssistant})}">Started: Claude Code works on it in the background.</span>
+    <span class="text-xs text-danger" role="alert" th:unless="${runStarted}"
+          th:text="#{|ai.run.${runRefused}|(${runAssistant})}">Claude Code isn’t on this computer.</span>
+</div>
+
+<!--/* A text the AI Assistant wrote, to copy as it is: an email, what to say on a call. label names it. */-->
 <div th:fragment="copyable(label, text)" class="flex flex-col gap-1">
     <div class="flex items-center gap-2">
         <h3 class="flex-1 text-xs text-ink/60" th:text="${label}">The email</h3>

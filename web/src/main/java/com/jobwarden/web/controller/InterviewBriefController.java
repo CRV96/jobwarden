@@ -14,7 +14,6 @@ import com.jobwarden.jobs.service.InterviewBriefService;
 import com.jobwarden.web.constants.AppConstants.ControllerConstants;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.constants.AppConstants.Views;
-import com.jobwarden.web.view.ClaudePrompts;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Controller;
@@ -84,7 +83,7 @@ class InterviewBriefController extends BaseController {
 				brief.map(found -> this.stories.findAll(userId, found.storyIds())).orElse(List.of()));
 		model.addAttribute(ModelAttributes.PREP_REQUEST, request.orElse(null));
 		model.addAttribute(ModelAttributes.PREP_PROMPT,
-				request.map(asked -> ClaudePrompts.forRequest(asked.id(), userId)).orElse(null));
+				request.map(asked -> prompt(model, asked.id())).orElse(null));
 		return Views.INTERVIEW_BRIEF_FRAGMENT;
 	}
 

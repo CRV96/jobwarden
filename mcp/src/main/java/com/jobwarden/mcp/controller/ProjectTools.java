@@ -1,11 +1,14 @@
 package com.jobwarden.mcp.controller;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 import com.jobwarden.cv.dto.CvDetails;
 import com.jobwarden.cv.dto.CvProject;
+import com.jobwarden.cv.dto.GitHubProject;
 import com.jobwarden.cv.service.CvService;
 import com.jobwarden.cv.service.GitHubService;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +34,19 @@ class ProjectTools implements McpToolSet {
 
 	private static final int DESCRIPTION_MAX_LENGTH = 1000;
 
+	/** How much of a README the assistant reads: what the project is, and how it's built, come first. */
+	static final int README_MAX_LENGTH = 4000;
+
+	/** A fenced block of code: commands to install and run it, rarely what the project is. */
+	private static final Pattern CODE_BLOCK = Pattern.compile("(?s)```.*?(```|$)|~~~.*?(~~~|$)");
+
+	/** An image, a badge among them, linked or not: [![alt](image)](link) or ![alt](image). */
+	private static final Pattern IMAGE = Pattern.compile("\\[?!\\[[^\\]]*]\\([^)]*\\)(]\\([^)]*\\))?");
+
+	private static final Pattern HTML_TAG = Pattern.compile("<!--(?s).*?-->|</?[a-zA-Z][^>]*>");
+
+	private static final Pattern BLANK_LINES = Pattern.compile("\\n{3,}");
+
 	private final Profiles profiles;
 
 	private final GitHubService github;
@@ -44,25 +60,26 @@ class ProjectTools implements McpToolSet {
 
 	private McpTool listGitHubProjects() {
 		return new McpTool("list_github_projects", "List the GitHub projects",
-				"The GitHub repositories the profile chose on the CV page for its CV's projects, each with its link, "
-						+ "description, site, languages (the most used first), topics, stars, dates, and the start of its "
-						+ "README. Only these: the profile chose what you may read.",
+				"The GitHub repositories the profile chose on the CV page, only these: link, description, site, "
+						+ "languages (most used first), topics, stars, dates, and the start of the README.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema())),
-				true, false, call -> Map.of("projects", this.github.findProjects(this.profiles.of(call))));
+				true, false, call -> Map.of("projects", this.github.findProjects(this.profiles.of(call))
+					.stream()
+					.map(ProjectTools::view)
+					.toList()));
 	}
 
 	private McpTool saveCvProjects() {
 		ObjectNode project = object(properties(
-				"name", string("The project's name, as a person would say it"),
-				"link", string("Its repository, or its site"),
-				"technologies", string("What it's made with, in a few words, e.g. Java, Spring Boot, PostgreSQL"),
-				"description", string("What it does and what the person built in it, in one to three sentences")),
+				"name", string("As a person would say it"),
+				"link", string("Repository or site"),
+				"technologies", string("A few words, e.g. Java, Spring Boot, PostgreSQL"),
+				"description", string("What it does and what the person built, 1-3 sentences")),
 				"name");
 		return new McpTool("save_cv_projects", "Save the CV's projects",
-				"Puts the projects on the profile's CV in place of those it had, the ones most worth showing first, at "
-						+ "most " + RequestTools.PROJECTS_MAX + ". The CV page shows them, to review, and the CV's PDF has them.",
-				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"projects", list(project, "The projects, the ones most worth showing first")),
+				"Replaces the CV's projects, for the profile to review on the CV page. Max " + RequestTools.PROJECTS_MAX
+						+ ".",
+				object(properties(Profiles.ARGUMENT, Profiles.schema(), "projects", list(project, "Best first")),
 						"projects"),
 				false, false, call -> {
 					List<CvProject> projects = call.items("projects").stream().map(ProjectTools::project).toList();
@@ -74,15 +91,44 @@ class ProjectTools implements McpToolSet {
 				});
 	}
 
-	/** A project as Claude wrote it, each field kept to a CV's length. */
+	/** A project as the assistant wrote it, each field kept to a CV's length. */
 	static CvProject project(ToolCall item) {
 		return new CvProject(Objects.requireNonNull(shortened(item.requiredString("name"), TEXT_MAX_LENGTH)),
 				shortened(item.string("link"), TEXT_MAX_LENGTH), shortened(item.string("technologies"), TEXT_MAX_LENGTH),
 				shortened(item.string("description"), DESCRIPTION_MAX_LENGTH));
 	}
 
+	/**
+	 * A repository as the assistant reads it: its README without what says nothing about the project to a reader of
+	 * text, namely images and badges, HTML tags and code blocks, and no longer than its start.
+	 */
+	static ProjectView view(GitHubProject project) {
+		return new ProjectView(project.name(), project.url(), project.homepage(), project.description(),
+				project.languages(), project.topics(), project.stars(), project.fork(), project.createdAt(),
+				project.pushedAt(), readme(project.readme()));
+	}
+
+	static @Nullable String readme(@Nullable String readme) {
+		if (readme == null) {
+			return null;
+		}
+		String text = CODE_BLOCK.matcher(readme).replaceAll("");
+		text = IMAGE.matcher(text).replaceAll("");
+		text = HTML_TAG.matcher(text).replaceAll("");
+		text = BLANK_LINES.matcher(text.replaceAll("[ \t]+\n", "\n")).replaceAll("\n\n").strip();
+		return text.isEmpty() ? null : shortened(text, README_MAX_LENGTH);
+	}
+
 	private static @Nullable String shortened(@Nullable String text, int maxLength) {
 		return (text == null || text.length() <= maxLength) ? text : text.substring(0, maxLength - 1) + "…";
+	}
+
+	/**
+	 * @param readme its start, without images, HTML and code blocks
+	 */
+	record ProjectView(String name, String url, @Nullable String homepage, @Nullable String description,
+			List<String> languages, List<String> topics, int stars, boolean fork, @Nullable Instant createdAt,
+			@Nullable Instant pushedAt, @Nullable String readme) {
 	}
 
 }

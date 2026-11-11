@@ -97,7 +97,7 @@ class OfferControllerTests {
 			.bodyText()
 			.contains("Java Developer", "Globex", "90,000 EUR gross per year", "€90K", "Pays the most", "10% yearly",
 					"25 days", "Can’t be read as an amount", "/applications/7/drawer", "Read the brief",
-					"Ask Claude how to negotiate")
+					"Ask the AI Assistant how to negotiate")
 			// Answer due in two days
 			.contains("2 days left")
 			// The market row loads after the page, for the role and language picked

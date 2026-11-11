@@ -32,21 +32,21 @@
     </div>
 
     <p class="text-[13px] text-pretty text-ink/65" th:if="${brief == null and !open}" th:text="#{prep.hint}">
-        Claude finds out about the company and the role…</p>
+        The AI Assistant finds out about the company and the role…</p>
 
     <!--/* Asked, not done yet: what to paste into Claude Code while it waits */-->
     <th:block th:if="${open}">
         <div class="flex items-center gap-2">
             <span class="tag st-interviewing">
                 <i class="ph ph-arrow-clockwise animate-spin" th:if="${status == 'WORKING'}"></i>
-                <span th:text="#{|ai.status.${status}|}">Waiting for Claude</span>
+                <span th:text="#{|ai.status.${status}|}">Waiting for the AI Assistant</span>
             </span>
             <span class="flex-1"></span>
             <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button" th:hx-post="@{/applications/{id}/prep/cancel(id=${prepJobId})}"
                     hx-target="#interview-brief" hx-swap="outerHTML" th:text="#{ai.cancel}">Cancel</button>
         </div>
         <th:block th:if="${status == 'WAITING'}">
-            <div class="text-xs text-ink/60" th:text="#{ai.prompt}">Paste this into Claude Code:</div>
+            <div class="text-xs text-ink/60" th:text="#{ai.prompt(${prepPrompt.assistant})}">Paste this into Claude Code:</div>
             <div class="flex items-start gap-2">
                 <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${prepPrompt.text}">Do JobWarden request 12…</code>
                 <button th:replace="~{discover/discover :: copy-button(${prepPrompt.text})}"></button>
@@ -56,10 +56,11 @@
                 <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${prepPrompt.command}">claude "Do JobWarden request 12…"</code>
                 <button th:replace="~{discover/discover :: copy-button(${prepPrompt.command})}"></button>
             </div>
+            <div th:replace="~{applications/claude :: run(${prepPrompt})}"></div>
         </th:block>
     </th:block>
     <p class="text-[13px] text-danger" role="alert" th:if="${status == 'FAILED'}"
-       th:text="#{prep.failed(${prepRequest.summary} ?: '')}">Claude couldn’t prepare it: …</p>
+       th:text="#{prep.failed(${prepRequest.summary} ?: '')}">The AI Assistant couldn’t prepare it: …</p>
 
     <!--/* The brief: each part only when Claude wrote it */-->
     <th:block th:if="${brief}">
@@ -107,7 +108,7 @@
             </div>
         </div>
         <div class="flex flex-col gap-1" th:unless="${brief.sources.isEmpty()}">
-            <h3 class="text-xs text-ink/60" th:text="#{prep.sources}">Where Claude read it</h3>
+            <h3 class="text-xs text-ink/60" th:text="#{prep.sources}">Where the AI Assistant read it</h3>
             <ul class="flex flex-col gap-0.5 text-xs">
                 <!--/* Only http(s) links: Claude wrote them, from pages it read */-->
                 <li class="truncate" th:each="source : ${brief.sources}">
@@ -125,7 +126,7 @@
 
     <button class="btn btn-secondary self-start" type="button" th:unless="${open}"
             th:hx-post="@{/applications/{id}/prep/request(id=${prepJobId})}" hx-target="#interview-brief" hx-swap="outerHTML">
-        <i class="ph ph-sparkle"></i><span th:text="${brief} ? #{prep.again} : #{prep.ask}">Ask Claude to prepare me</span>
+        <i class="ph ph-sparkle"></i><span th:text="${brief} ? #{prep.again} : #{prep.ask}">Ask the AI Assistant to prepare me</span>
     </button>
 </section>
 

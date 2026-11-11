@@ -30,7 +30,7 @@ import static com.jobwarden.mcp.controller.Schemas.string;
 /**
  * What the profile sends about a job besides its CV: the cover letter, which the job's page shows and downloads as a
  * PDF, and messages to the people who hire for it, a LinkedIn note and an email, which the profile sends itself.
- * JobWarden sends nothing, and neither does Claude.
+ * JobWarden sends nothing, and neither does the assistant.
  */
 @Component
 class LetterTools implements McpToolSet {
@@ -43,7 +43,7 @@ class LetterTools implements McpToolSet {
 
 	private final DiscoveryService discovery;
 
-	/** Where the web module serves a job's cover letter as a PDF for Claude, e.g. /claude/cover-letter?profile=1&job=12 */
+	/** Where the web module serves a job's cover letter as a PDF for the assistant, e.g. /claude/cover-letter?profile=1&job=12 */
 	private final String letterPath;
 
 	LetterTools(Profiles profiles, CoverLetterService letters, ApplicationService applications, DiscoveryService discovery,
@@ -62,13 +62,9 @@ class LetterTools implements McpToolSet {
 
 	private McpTool getCoverLetter() {
 		return new McpTool("get_cover_letter", "Get a job's cover letter",
-				"The cover letter kept for one of the profile's jobs, as the profile last left it: its text, to paste into "
-						+ "a form's field, and the address of its PDF, to download and upload. has_letter is false when "
-						+ "the job has none; then base_letter, when there is one, is the person's own letter filled in for "
-						+ "the job, to start one from.",
-				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"job_id", integer("The job, from get_request, list_jobs or list_apply_queue")),
-						"job_id"),
+				"A job's cover letter: its text, and its PDF's URL to upload. Without one (has_letter false), "
+						+ "base_letter is the person's own letter filled in for the job, if any.",
+				object(properties(Profiles.ARGUMENT, Profiles.schema(), "job_id", integer()), "job_id"),
 				true, false, call -> {
 					long userId = this.profiles.of(call);
 					ApplicationDetails job = requireJob(userId, call.requiredNumber("job_id"));
@@ -84,15 +80,14 @@ class LetterTools implements McpToolSet {
 
 	private McpTool saveCoverLetter() {
 		return new McpTool("save_cover_letter", "Save a cover letter",
-				"Keeps the cover letter you wrote for one of the profile's jobs, replacing the one it had. The job's page "
-						+ "shows it, for the profile to change, and downloads it as a PDF with the CV page's name and "
-						+ "contact details at the top: leave them out of the letter. Only what the CV supports.",
+				"Saves a job's cover letter, replacing its previous one. Its PDF puts the CV page's name and contact "
+						+ "details on top: leave them out. Only what the CV supports.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"job_id", integer("The job it's for, from get_request"),
-						"body", string("The letter, from the greeting (Dear Ana Pop, or Dear hiring team,) to the sign-off "
-								+ "(Kind regards,), paragraphs apart by a blank line; without the name under it, at most "
+						"job_id", integer(),
+						"body", string("From the greeting (Dear Ana Pop, or Dear hiring team,) to the sign-off (Kind "
+								+ "regards,) without the name; a blank line between paragraphs; max "
 								+ CoverLetter.BODY_MAX_LENGTH + " characters"),
-						"notes", string("What you highlighted, and what to check before sending it, in a few lines")),
+						"notes", string("What you highlighted and what to check, in a few lines")),
 						"job_id", "body"),
 				false, false, call -> {
 					long userId = this.profiles.of(call);
@@ -111,20 +106,17 @@ class LetterTools implements McpToolSet {
 
 	private McpTool saveOutreachDraft() {
 		return new McpTool("save_outreach_draft", "Save messages to someone hiring",
-				"Keeps what you wrote to one person about one of the profile's jobs: a LinkedIn connection request's note, "
-						+ "at most " + OutreachDraft.LINKEDIN_NOTE_MAX_LENGTH + " characters, and an email. They replace "
-						+ "what was written to the same person for the job. The job's page shows them for the profile to "
-						+ "change and send itself: never send them.",
+				"Saves messages to one person about a job: a LinkedIn connection note and an email, replacing earlier "
+						+ "ones to them. The profile sends them itself: never send them.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"job_id", integer("The job it's about, from get_request"),
-						"name", string("Whom it's to"),
-						"role", string("What they do, e.g. Technical Recruiter at Acme"),
-						"profile_link", string("Their profile, e.g. on LinkedIn"),
-						"email", string("Their email address, when known"),
-						"linkedin_note", string("The note, at most " + OutreachDraft.LINKEDIN_NOTE_MAX_LENGTH
-								+ " characters, spaces included"),
-						"email_subject", string("The email's subject"),
-						"email_body", string("The email, from the greeting to the sign-off with the person's name")),
+						"job_id", integer(),
+						"name", string("The recipient"),
+						"role", string("e.g. Technical Recruiter at Acme"),
+						"profile_link", string(),
+						"email", string(),
+						"linkedin_note", string("Max " + OutreachDraft.LINKEDIN_NOTE_MAX_LENGTH + " characters with spaces"),
+						"email_subject", string(),
+						"email_body", string("Greeting to sign-off with the person's name")),
 						"job_id", "name"),
 				false, false, call -> {
 					long userId = this.profiles.of(call);
@@ -156,8 +148,8 @@ class LetterTools implements McpToolSet {
 	}
 
 	/**
-	 * Whether the profile took the request back: cancelled it, or changed by hand what Claude was writing, which takes
-	 * it back. Claude's text would replace what the profile kept. A letter Auto-apply writes, with no request, is never
+	 * Whether the profile took the request back: cancelled it, or changed by hand what the assistant was writing,
+	 * which takes it back. The assistant's text would replace what the profile kept. A letter Auto-apply writes, with no request, is never
 	 * refused.
 	 */
 	private static boolean isTakenBack(Optional<AiRequest> asked) {
@@ -165,7 +157,7 @@ class LetterTools implements McpToolSet {
 	}
 
 	/**
-	 * When the profile asked Claude for what it's saving, while the request is open: what the profile changed after
+	 * When the profile asked the assistant for what it's saving, while the request is open: what the profile changed after
 	 * that stays (CoverLetterService). {@code null} without one, e.g. for Auto-apply.
 	 */
 	private static @Nullable Instant askedAt(Optional<AiRequest> asked) {

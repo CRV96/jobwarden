@@ -10,7 +10,6 @@ import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -75,7 +74,12 @@ class JobTools implements McpToolSet {
 
 	private static final int NOTE_MAX_LENGTH = 2000;
 
-	/** The most of a posting's description get_job returns: the rest is boilerplate, mostly, and costs Claude tokens. */
+	/** Who sent an application, as update_job_status names them: the person, or the assistant. */
+	private static final String APPLIED_BY_PERSON = "YOU";
+
+	private static final String APPLIED_BY_ASSISTANT = "ASSISTANT";
+
+	/** The most of a posting's description get_job returns: the rest is boilerplate, mostly, and costs tokens. */
 	static final int DESCRIPTION_MAX_LENGTH = 12_000;
 
 	private final Profiles profiles;
@@ -92,19 +96,18 @@ class JobTools implements McpToolSet {
 
 	private McpTool listProfiles() {
 		return new McpTool("list_profiles", "List profiles",
-				"The profiles in JobWarden, each with its own jobs. Tools take a profile_id when there's more than one.",
+				"The profiles, each with its own jobs: tools take one's id as profile_id when there are several.",
 				object(Map.of()), true, false,
 				call -> Map.of("profiles", this.profiles.all().stream().map(user -> new Profile(user.id(), user.name())).toList()));
 	}
 
 	private McpTool listJobs() {
 		return new McpTool("list_jobs", "List jobs",
-				"The jobs the profile tracks, the latest changed first, with each one's status and the posting's link. "
-						+ "Those it archived are left out.",
+				"The profile's jobs, latest changed first, with status and posting link; archived ones left out.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"status", oneOf(ApplicationStatus.values(), "Only the jobs with this status"),
-						"search", string("Only the jobs whose title or company has these words"),
-						"limit", integer("How many jobs at most, up to 200; 50 if left out"))),
+						"status", oneOf(ApplicationStatus.values()),
+						"search", string("Words in the title or company"),
+						"limit", integer("Default 50, max 200"))),
 				true, false, call -> {
 					long userId = this.profiles.of(call);
 					Page<ApplicationSummary> page = this.applications.find(userId, ApplicationQuery.builder()
@@ -121,37 +124,37 @@ class JobTools implements McpToolSet {
 
 	private McpTool getJob() {
 		return new McpTool("get_job", "Get a job",
-				"One job: its details, the posting's description as it was saved, the notes, who to follow up with and "
-						+ "when, and its timeline, interviews with their format, place and duration.",
-				object(properties(Profiles.ARGUMENT, Profiles.schema(), "job_id", integer("The job, from list_jobs")),
-						"job_id"),
+				"One job: details, the saved posting, notes, contact and follow-up, and its timeline with interviews.",
+				object(properties(Profiles.ARGUMENT, Profiles.schema(), "job_id", integer()), "job_id"),
 				true, false, call -> {
 					long userId = this.profiles.of(call);
 					long jobId = call.requiredNumber("job_id");
-					ApplicationDetails job = this.applications.findById(userId, jobId)
-						.orElseThrow(() -> new ApplicationNotFoundException(jobId));
-					return new JobDetails(job.id(), job.title(), job.company(), job.location(), job.salary(),
-							job.employmentType(), job.status(), job.link(), job.source(), job.notes(),
-							followUp(job.followUp()), shortened(job.description(), DESCRIPTION_MAX_LENGTH), job.capturedAt(),
-							job.timeline().stream().map(JobTools::step).toList());
+					return details(this.applications.findById(userId, jobId)
+						.orElseThrow(() -> new ApplicationNotFoundException(jobId)));
 				});
+	}
+
+	/**
+	 * A job as get_job gives it, which get_request also hands out with a request about the job.
+	 */
+	static JobDetails details(ApplicationDetails job) {
+		return new JobDetails(job.id(), job.title(), job.company(), job.location(), job.salary(), job.employmentType(),
+				job.status(), job.link(), job.notes(), followUp(job.followUp()),
+				shortened(job.description(), DESCRIPTION_MAX_LENGTH), job.timeline().stream().map(JobTools::step).toList());
 	}
 
 	private McpTool checkPostings() {
 		return new McpTool("check_postings", "Check postings",
-				"Fetches the postings' pages to tell whether they're still up: OPEN, CLOSED (the page is gone, it redirects "
-						+ "away, its job data has expired, or it says so) or UNKNOWN (the site blocks automated visits: open "
-						+ "it yourself if you can). Checks the given jobs, or else up to " + MAX_CHECKS + " of the jobs still "
-						+ "Saved, Applied or Interviewing, or the urls given, e.g. search results before adding them as found "
-						+ "jobs: cheaper than opening them. With close_when_gone, jobs that are Saved or Applied and whose "
-						+ "posting is certainly CLOSED move to Position closed, with a note saying why.",
+				"Whether postings are still up, cheaper than opening them: OPEN, CLOSED (gone, redirected away, expired, or "
+						+ "says so) or UNKNOWN (the site blocks bots: open it yourself). Checks the urls, else job_ids, else "
+						+ "up to " + MAX_CHECKS + " jobs still Saved, Applied or Interviewing. close_when_gone moves the Saved "
+						+ "and Applied ones certainly CLOSED to POSITION_CLOSED, with a note.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"job_ids", list(integer("A job"), "The jobs to check, from list_jobs"),
-						"statuses", list(oneOf(ApplicationStatus.values(), "A status"),
-								"Without job_ids, check the jobs with these statuses; Saved, Applied and Interviewing if left out"),
-						"urls", strings("Postings' addresses to check instead, up to " + MAX_CHECKS),
-						"url", string("One posting's address to check instead"),
-						"close_when_gone", bool("Move the Saved and Applied jobs whose posting is certainly closed to Position closed"))),
+						"job_ids", list(integer()),
+						"statuses", list(oneOf(ApplicationStatus.values()), "Without job_ids; default SAVED, APPLIED, INTERVIEWING"),
+						"urls", strings("Posting URLs, max " + MAX_CHECKS),
+						"url", string("One posting URL"),
+						"close_when_gone", bool())),
 				false, true, this::check);
 	}
 
@@ -219,7 +222,7 @@ class JobTools implements McpToolSet {
 	}
 
 	/**
-	 * Each address's verdict, in a line: what Claude needs to keep or leave a search result.
+	 * Each address's verdict, in a line: what the assistant needs to keep or leave a search result.
 	 */
 	private Map<String, Object> checkUrls(List<String> urls) {
 		List<String> asked = urls.stream().distinct().toList();
@@ -255,14 +258,13 @@ class JobTools implements McpToolSet {
 
 	private McpTool tidyApplications() {
 		return new McpTool("tidy_applications", "Tidy up the applications with no answer",
-				"In one call, no need to read the jobs first: moves the jobs applied to "
-						+ RequestTools.NO_RESPONSE_AFTER_DAYS + " days ago or more, with nothing on their timeline since, to "
-						+ "No response, and gives the newer ones without a day to follow up one, "
-						+ RequestTools.FOLLOW_UP_AFTER_DAYS + " days after they were applied to, or tomorrow when that's past.",
+				"In one call, without reading the jobs: moves those applied to " + RequestTools.NO_RESPONSE_AFTER_DAYS
+						+ "+ days ago with nothing since to NO_RESPONSE, and gives newer ones without a follow-up day one, "
+						+ RequestTools.FOLLOW_UP_AFTER_DAYS + " days after applying, or tomorrow.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema())), false, false, call -> {
 					long userId = this.profiles.of(call);
 					TidyResult result = this.applications.tidyUnanswered(userId, RequestTools.NO_RESPONSE_AFTER_DAYS,
-							RequestTools.FOLLOW_UP_AFTER_DAYS, "The company never answered. Moved by Claude.");
+							RequestTools.FOLLOW_UP_AFTER_DAYS, "The company never answered. Moved by the AI Assistant.");
 					return Map.of("waiting_at_applied", result.waiting(), "moved_to_no_response",
 							result.movedToNoResponse().size(), "follow_ups_set", result.followUpsSet().size());
 				});
@@ -291,7 +293,7 @@ class JobTools implements McpToolSet {
 
 	private void close(long userId, ApplicationSummary job, PostingCheck result) {
 		String note = "The posting is no longer up: " + result.reason()
-				+ (result.evidence() != null ? " (\"" + result.evidence() + "\")" : "") + ". Checked by Claude.";
+				+ (result.evidence() != null ? " (\"" + result.evidence() + "\")" : "") + ". Checked by the AI Assistant.";
 		this.applications.addEvent(userId, job.id(), NewTimelineEvent.builder()
 			.eventDate(LocalDate.now())
 			.eventTime(LocalTime.now().truncatedTo(ChronoUnit.MINUTES))
@@ -303,23 +305,22 @@ class JobTools implements McpToolSet {
 
 	private McpTool updateJobStatus() {
 		return new McpTool("update_job_status", "Update a job's status",
-				"Adds a step to the job's timeline, which moves it to that status: e.g. POSITION_CLOSED when its posting "
-						+ "is gone, POSITION_REOPENED when a closed one is up again, NO_RESPONSE when the company never "
-						+ "answered, INTERVIEWING for an interview, with its date, time, format and place. Without a date, "
-						+ "it's now. A status can't follow itself, but for INTERVIEWING and OFFER: the job has it already.",
+				"Adds a timeline step, which moves the job to that status: e.g. POSITION_CLOSED (posting gone), "
+						+ "POSITION_REOPENED, NO_RESPONSE, INTERVIEWING with its date, time, format and place. No date: now. "
+						+ "A status can't follow itself, but INTERVIEWING and OFFER.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"job_id", integer("The job, from list_jobs"),
-						"status", oneOf(ApplicationStatus.values(), "The status to move the job to"),
-						"note", string("Why, for the timeline: e.g. what showed the posting is gone"),
-						"date", date("When it happened, as YYYY-MM-DD; today if left out"),
-						"time", string("With date: the time of day, as HH:MM, e.g. an interview's start"),
-						"stage", string("For INTERVIEWING and OFFER: the company's own step, e.g. Technical interview"),
-						"rejection_reason", oneOf(RejectionReason.values(), "For REJECTED: why, if known"),
-						"interview_format", oneOf(InterviewFormat.values(), "For INTERVIEWING: how it takes place"),
-						"interview_location", string("For INTERVIEWING: the address, or the meeting's link"),
-						"duration_minutes", integer("For INTERVIEWING: how long it takes, in minutes"),
-						"applied_by", oneOf(new AppliedBy[] { AppliedBy.YOU, AppliedBy.CLAUDE }, "For APPLIED: who sent the application, YOU if left "
-								+ "out; CLAUDE only when you sent it yourself")),
+						"job_id", integer(),
+						"status", oneOf(ApplicationStatus.values()),
+						"note", string("Why, for the timeline"),
+						"date", date("Default today"),
+						"time", string("HH:MM, with date"),
+						"stage", string("INTERVIEWING, OFFER: the company's step, e.g. Technical interview"),
+						"rejection_reason", oneOf(RejectionReason.values(), "REJECTED: why, if known"),
+						"interview_format", oneOf(InterviewFormat.values(), "INTERVIEWING"),
+						"interview_location", string("INTERVIEWING: address or meeting link"),
+						"duration_minutes", integer("INTERVIEWING"),
+						"applied_by", oneOf(APPLIED_BY_PERSON, APPLIED_BY_ASSISTANT)
+							.put("description", "APPLIED: who sent it; default YOU (the person), ASSISTANT only if you did")),
 						"job_id", "status"),
 				false, false, call -> {
 					long userId = this.profiles.of(call);
@@ -345,30 +346,28 @@ class JobTools implements McpToolSet {
 						.interviewFormat(interview ? call.constant("interview_format", InterviewFormat.class) : null)
 						.interviewLocation(interview ? call.string("interview_location") : null)
 						.durationMinutes((interview && duration != null) ? duration.intValue() : null)
-						.appliedBy((status == ApplicationStatus.APPLIED) ? Objects.requireNonNullElse(
-								call.constant("applied_by", AppliedBy.class), AppliedBy.YOU) : null)
+						.appliedBy((status == ApplicationStatus.APPLIED) ? appliedBy(call) : null)
 						.build());
 					ApplicationStatus after = this.applications.findById(userId, jobId).orElseThrow().status();
-					log.info("Claude moved application {} of profile {} from {} to {}", jobId, userId, before, after);
+					log.info("The assistant moved application {} of profile {} from {} to {}", jobId, userId, before, after);
 					return Map.of("job_id", jobId, "previous_status", before, "status", after);
 				});
 	}
 
 	private McpTool updateFollowUp() {
 		return new McpTool("update_follow_up", "Update a job's contact and follow-up",
-				"Sets who to follow up with about the job (the recruiter or hiring manager, from an email or the posting), "
-						+ "who referred the profile, when applications close and when to follow up next. Only the fields given "
-						+ "change; an empty string clears one.",
+				"Sets the job's contact (recruiter or hiring manager), referrer, application deadline and next follow-up "
+						+ "day. Only the fields given change; an empty string clears one.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"job_id", integer("The job, from list_jobs"),
-						"contact_name", string("The person to talk to"),
-						"contact_role", string("What they do, e.g. Recruiter"),
-						"contact_email", string("Their email address"),
-						"contact_phone", string("Their phone number"),
-						"contact_link", string("Their profile's address, e.g. on LinkedIn"),
-						"referred_by", string("Who referred the profile for the job"),
-						"deadline", date("When applications close, as YYYY-MM-DD"),
-						"follow_up_on", date("When to follow up next, as YYYY-MM-DD")),
+						"job_id", integer(),
+						"contact_name", string(),
+						"contact_role", string("e.g. Recruiter"),
+						"contact_email", string(),
+						"contact_phone", string(),
+						"contact_link", string("Profile URL, e.g. LinkedIn"),
+						"referred_by", string(),
+						"deadline", date("When applications close"),
+						"follow_up_on", date()),
 						"job_id"),
 				false, false, call -> {
 					long userId = this.profiles.of(call);
@@ -387,9 +386,24 @@ class JobTools implements McpToolSet {
 						.followUpOn(call.arguments().has("follow_up_on") ? call.date("follow_up_on") : before.followUpOn())
 						.build();
 					this.applications.updateFollowUp(userId, jobId, after);
-					log.info("Claude updated the follow-up of application {} of profile {}", jobId, userId);
+					log.info("The assistant updated the follow-up of application {} of profile {}", jobId, userId);
 					return Map.of("job_id", jobId, "follow_up", followUp(after));
 				});
+	}
+
+	/**
+	 * Who sent an application: the person unless the assistant says it did. ASSISTANT is stored as CLAUDE, the name it
+	 * had when Claude Code was the only assistant; CLAUDE is still understood.
+	 */
+	private static AppliedBy appliedBy(ToolCall call) {
+		String by = call.string("applied_by");
+		if (by == null || by.equalsIgnoreCase(APPLIED_BY_PERSON)) {
+			return AppliedBy.YOU;
+		}
+		if (by.equalsIgnoreCase(APPLIED_BY_ASSISTANT) || by.equalsIgnoreCase(AppliedBy.CLAUDE.name())) {
+			return AppliedBy.CLAUDE;
+		}
+		throw new ToolException("applied_by must be " + APPLIED_BY_PERSON + " or " + APPLIED_BY_ASSISTANT);
 	}
 
 	/** The argument when it's given, an empty one clearing the value; else the value as it was. */
@@ -416,7 +430,7 @@ class JobTools implements McpToolSet {
 
 	private static JobRow row(ApplicationSummary job) {
 		return new JobRow(job.id(), job.title(), job.company(), job.location(), job.salary(), job.status(), job.link(),
-				job.source(), job.capturedAt(), job.lastModified());
+				job.lastModified());
 	}
 
 	private static ApplicationSummary summary(ApplicationDetails job) {
@@ -444,15 +458,15 @@ class JobTools implements McpToolSet {
 	record Profile(long id, String name) {
 	}
 
+	/** A job in a list: what tells it apart, without the site (its link says it) or when it was added. */
 	record JobRow(long id, String title, @Nullable String company, @Nullable String location, @Nullable String salary,
-			ApplicationStatus status, @Nullable String link, @Nullable String source, Instant added,
-			Instant lastModified) {
+			ApplicationStatus status, @Nullable String link, Instant lastModified) {
 	}
 
+	/** A job: its timeline says when it was saved, and its link the site. */
 	record JobDetails(long id, String title, @Nullable String company, @Nullable String location,
 			@Nullable String salary, @Nullable String employmentType, ApplicationStatus status, @Nullable String link,
-			@Nullable String source, @Nullable String notes, @Nullable FollowUpView followUp,
-			@Nullable String description, Instant added, List<Step> timeline) {
+			@Nullable String notes, @Nullable FollowUpView followUp, @Nullable String description, List<Step> timeline) {
 	}
 
 	record Step(LocalDate date, @Nullable LocalTime time, ApplicationStatus status, @Nullable String stage,

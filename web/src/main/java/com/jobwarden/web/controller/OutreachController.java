@@ -19,7 +19,6 @@ import com.jobwarden.web.constants.AppConstants.HtmxEvents;
 import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.constants.AppConstants.Views;
-import com.jobwarden.web.view.ClaudePrompts;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -89,7 +88,7 @@ class OutreachController extends BaseController {
 			return Views.OUTREACH_DONE_FRAGMENT;
 		}
 		model.addAttribute(ModelAttributes.OUTREACH_REQUEST, request.get());
-		model.addAttribute(ModelAttributes.OUTREACH_PROMPT, ClaudePrompts.forRequest(request.get().id(), userId));
+		model.addAttribute(ModelAttributes.OUTREACH_PROMPT, prompt(model, request.get().id()));
 		return Views.OUTREACH_WAITING_FRAGMENT;
 	}
 
@@ -166,7 +165,7 @@ class OutreachController extends BaseController {
 		model.addAttribute(ModelAttributes.OUTREACH_SHOWN, drafts.size());
 		model.addAttribute(ModelAttributes.OUTREACH_REQUEST, request.orElse(null));
 		model.addAttribute(ModelAttributes.OUTREACH_PROMPT,
-				request.map(asked -> ClaudePrompts.forRequest(asked.id(), userId)).orElse(null));
+				request.map(asked -> prompt(model, asked.id())).orElse(null));
 		return Views.OUTREACH_FRAGMENT;
 	}
 

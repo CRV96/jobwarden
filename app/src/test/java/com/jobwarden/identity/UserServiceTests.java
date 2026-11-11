@@ -11,6 +11,7 @@ import javax.imageio.ImageIO;
 import com.jobwarden.TestcontainersConfiguration;
 import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.identity.dto.User;
+import com.jobwarden.identity.enums.Assistant;
 import com.jobwarden.identity.enums.IdentityErrorCode;
 import com.jobwarden.identity.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -72,6 +73,18 @@ class UserServiceTests {
 		this.users.create("Alice");
 
 		assertThat(this.users.findAll()).extracting(User::name).containsExactly("Alice", "bob", "Carol");
+	}
+
+	@Test
+	void worksWithClaudeCodeUntilTheProfileChoosesAnotherAssistant() {
+		User created = this.users.create("Robert");
+		assertThat(created.assistant()).isEqualTo(Assistant.CLAUDE_CODE);
+
+		assertThat(this.users.changeAssistant(created.id(), Assistant.CODEX).assistant()).isEqualTo(Assistant.CODEX);
+		assertThat(this.users.findById(created.id())).get().extracting(User::assistant).isEqualTo(Assistant.CODEX);
+		// The database knows only the assistants there are
+		assertThatThrownBy(() -> this.jdbc.sql("UPDATE users SET assistant = 'CHATGPT'").update())
+			.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
 	@Test

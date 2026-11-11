@@ -20,7 +20,7 @@
 
     <div class="card flex flex-wrap items-center gap-2 p-3 text-[13px] text-ink/70" th:unless="${hasCv}">
         <i class="ph ph-identification-card text-base text-accent"></i>
-        <span th:text="#{tailoredCv.noCv}">Claude needs your CV first: upload it or fill it in.</span>
+        <span th:text="#{tailoredCv.noCv}">The AI Assistant needs your CV first: upload it or fill it in.</span>
         <a class="link" th:href="@{/cv}" th:text="#{tailoredCv.addCv}">Go to the CV page</a>
     </div>
 
@@ -51,10 +51,10 @@
                     <span class="text-[13px] font-medium tabular-nums" data-selection-count>1 selected</span>
                     <button class="btn btn-ghost px-2 py-1" type="button" data-clear-selection th:text="#{jobs.clearSelection}">Clear selection</button>
                     <span class="flex-1"></span>
-                    <span class="text-xs text-ink/55" th:text="#{letters.askLimit(${lettersMaxAsked})}">Claude writes up to 10 at a time.</span>
+                    <span class="text-xs text-ink/55" th:text="#{letters.askLimit(${lettersMaxAsked})}">The AI Assistant writes up to 10 at a time.</span>
                     <button class="btn btn-primary" type="button" th:hx-post="@{/letters/request}"
                             hx-include="[data-select-row]:checked, #letters-job" hx-target="#letters-waiting" hx-swap="outerHTML">
-                        <i class="ph ph-sparkle"></i><span th:text="#{letters.ask}">Ask Claude for their letters</span>
+                        <i class="ph ph-sparkle"></i><span th:text="#{letters.ask}">Ask the AI Assistant for their letters</span>
                     </button>
                 </div>
 
@@ -177,7 +177,7 @@
         </span>
         <span class="flex flex-none flex-col items-end gap-0.5 text-xs">
             <span class="tag st-interviewing" th:if="${row.writing}">
-                <i class="ph ph-arrow-clockwise animate-spin"></i><span th:text="#{letters.state.writing}">Claude is writing</span>
+                <i class="ph ph-arrow-clockwise animate-spin"></i><span th:text="#{letters.state.writing}">The AI Assistant is writing</span>
             </span>
             <span class="flex items-center gap-1 text-success" th:if="${row.hasLetter() and !row.writing}">
                 <i class="ph ph-check-circle"></i><span th:text="#{letters.state.written}">Written</span>
@@ -240,7 +240,7 @@
         <div class="flex flex-wrap items-center gap-2">
             <span class="tag st-interviewing">
                 <i class="ph ph-arrow-clockwise animate-spin" th:if="${lettersWaiting < lettersOpen}"></i>
-                <span th:text="#{letters.writingCount(${lettersOpen})}">Claude has 3 letters to write</span>
+                <span th:text="#{letters.writingCount(${lettersOpen})}">The AI Assistant has 3 letters to write</span>
             </span>
             <span class="flex-1"></span>
             <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button" th:hx-post="@{/letters/cancel}" hx-include="#letters-job"
@@ -248,7 +248,7 @@
                     th:text="#{letters.cancelAll}">Cancel them</button>
         </div>
         <th:block th:if="${lettersPrompt}">
-            <div class="text-xs text-ink/60" th:text="#{ai.prompt}">Paste this into Claude Code:</div>
+            <div class="text-xs text-ink/60" th:text="#{ai.prompt(${lettersPrompt.assistant})}">Paste this into Claude Code:</div>
             <div class="flex items-start gap-2">
                 <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${lettersPrompt.text}">Do JobWarden requests 12, 13…</code>
                 <button th:replace="~{discover/discover :: copy-button(${lettersPrompt.text})}"></button>
@@ -258,6 +258,7 @@
                 <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${lettersPrompt.command}">claude "Do JobWarden requests 12, 13…"</code>
                 <button th:replace="~{discover/discover :: copy-button(${lettersPrompt.command})}"></button>
             </div>
+            <div th:replace="~{applications/claude :: run(${lettersPrompt})}"></div>
         </th:block>
     </th:block>
 </section>

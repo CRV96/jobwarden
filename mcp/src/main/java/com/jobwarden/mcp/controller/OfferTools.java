@@ -34,7 +34,7 @@ import static com.jobwarden.mcp.controller.Schemas.strings;
 
 /**
  * Negotiating an offer: the profile's offers side by side, what the market pays from the sources JobWarden has (the
- * Stack Overflow survey, Adzuna's job ads, Eurostat), and the brief Claude writes, which the job's page shows.
+ * Stack Overflow survey, Adzuna's job ads, Eurostat), and the brief the assistant writes, which the job's page shows.
  */
 @Component
 @RequiredArgsConstructor
@@ -63,11 +63,11 @@ class OfferTools implements McpToolSet {
 
 	private McpTool listOffers() {
 		return new McpTool("list_offers", "List the offers",
-				"The profile's jobs at Offer, side by side: each with the terms it typed in (base salary, bonus, equity, "
-						+ "signing bonus, time off, benefits, start date, when to answer by, its notes) and the salary per "
-						+ "year in one currency, so they compare. The salary is the posting's when the terms give none.",
+				"The profile's jobs at Offer: the terms typed in (base salary, bonus, equity, signing bonus, time off, "
+						+ "benefits, start, answer-by date, notes) and the yearly salary in one currency (the posting's when "
+						+ "the terms give none).",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"currency", string("The ISO 4217 code to compare the salaries in; EUR if left out"))),
+						"currency", string("ISO 4217; default EUR"))),
 				true, false, call -> {
 					long userId = this.profiles.of(call);
 					String currency = currency(call.string("currency"));
@@ -78,20 +78,16 @@ class OfferTools implements McpToolSet {
 
 	private McpTool getMarketSalaries() {
 		return new McpTool("get_market_salaries", "Get market salaries",
-				"What a role pays in each country, from JobWarden's sources, the figures of its salaries page: the Stack "
-						+ "Overflow Developer Survey (what developers say they earn, the median and the middle half, by "
-						+ "role and programming language), Adzuna (what current job ads offer, about 18 countries, when the "
-						+ "app has a key) and Eurostat (the mean for professionals in information and communication, "
-						+ "European countries). Gross, per year unless asked otherwise. A role the survey doesn't know "
-						+ "comes back with the roles it does.",
+				"What a role pays by country, gross: the Stack Overflow Developer Survey (median and middle half, by role "
+						+ "and language), Adzuna (current ads, ~18 countries, with a key) and Eurostat (mean for ICT "
+						+ "professionals, Europe). An unknown role returns the known ones.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"role", string("The role as the survey names it, e.g. Developer, back-end; Developer, full-stack; "
-								+ "Engineering manager"),
-						"skill", string("A programming language, e.g. Java; left out for any"),
-						"countries", strings("ISO 3166 two-letter codes, at most " + MAX_COUNTRIES + ", e.g. RO, DE"),
-						"currency", string("The ISO 4217 code to give the figures in; EUR if left out"),
+						"role", string("As the survey names it, e.g. Developer, back-end; Engineering manager"),
+						"skill", string("A language, e.g. Java; default any"),
+						"countries", strings("ISO 3166 codes, max " + MAX_COUNTRIES + ", e.g. RO, DE"),
+						"currency", string("ISO 4217; default EUR"),
 						"period", oneOf(new SalaryPeriod[] { SalaryPeriod.YEAR, SalaryPeriod.MONTH, SalaryPeriod.HOUR },
-								"What the figures pay for; YEAR if left out")),
+								"Default YEAR")),
 						"countries"),
 				true, true, call -> {
 					this.profiles.of(call);
@@ -122,23 +118,21 @@ class OfferTools implements McpToolSet {
 
 	private McpTool saveNegotiationBrief() {
 		return new McpTool("save_negotiation_brief", "Save a negotiation brief",
-				"Keeps the brief you wrote to negotiate one of the profile's offers, replacing the one the job had. The "
-						+ "job's page shows it. Only figures from get_market_salaries, list_offers and the pages you read; "
-						+ "never an offer the profile doesn't have.",
+				"Saves the brief to negotiate a job's offer, replacing its previous one. Only figures from "
+						+ "get_market_salaries, list_offers and pages you read; no offer the profile doesn't have.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"job_id", integer("The job whose offer it is, from get_request"),
-						"position", string("Where the offer stands: against the market for the role in its country, and "
-								+ "against the other offers, with the figures; a paragraph"),
-						"target", string("What to ask for: the figure, and why it's fair, in a sentence or two"),
+						"job_id", integer(),
+						"position", string("The offer against the market in its country and the other offers, with "
+								+ "figures; a paragraph"),
+						"target", string("The figure to ask for and why it's fair, 1-2 sentences"),
 						"walk_away", string("The least worth accepting, and why"),
-						"leverage", strings("What makes the ask fair: the market's figures, the other offers, what the "
-								+ "person brings"),
-						"asks", strings("What else to ask for, should the salary not move: a signing bonus, time off, "
-								+ "remote days, the title, the start date, a review in six months..."),
-						"script", string("What to say on the call, in a few lines, in the person's voice"),
-						"email", string("An email asking for it, from the greeting to the sign-off, ready to adapt"),
-						"watch_out", string("What to be careful about; left out when there's nothing"),
-						"sources", strings("Where the figures come from: the sources and years, and the addresses read")),
+						"leverage", strings("What makes the ask fair: figures, other offers, what the person brings"),
+						"asks", strings("Other asks if the salary won't move: signing bonus, time off, remote days, title, "
+								+ "start date, early review"),
+						"script", string("What to say on the call, a few lines, in the person's voice"),
+						"email", string("Asking for it, greeting to sign-off"),
+						"watch_out", string("Omit if nothing"),
+						"sources", strings("Sources with their years, and URLs read")),
 						"job_id", "position"),
 				false, false, call -> {
 					long userId = this.profiles.of(call);

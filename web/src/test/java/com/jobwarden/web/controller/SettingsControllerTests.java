@@ -10,6 +10,7 @@ import java.util.stream.IntStream;
 
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
+import com.jobwarden.identity.enums.Assistant;
 import com.jobwarden.identity.service.UserService;
 import com.jobwarden.inbox.dto.MailAccount;
 import com.jobwarden.inbox.enums.InboxAutomation;
@@ -89,12 +90,38 @@ class SettingsControllerTests {
 	}
 
 	@Test
-	void showsHowToConnectClaude() {
+	void showsHowToConnectClaudeCode() {
 		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
 
 		assertThat(this.mvc.get().uri("/settings")).bodyText()
-			.contains(">http://localhost/mcp<",
-					"claude mcp add --transport http jobwarden http://localhost/mcp --header &quot;X-JobWarden-Profile: 1000&quot;");
+			.contains(">http://localhost/mcp<", "Connect Claude Code to JobWarden (MCP)",
+					"claude mcp add --scope user --transport http jobwarden http://localhost/mcp --header &quot;X-JobWarden-Profile: 1000&quot;",
+					// The profile picks its assistant; ChatGPT's app can't reach a server on this computer
+					"name=\"assistant\" value=\"CODEX\"", "The ChatGPT app can’t connect")
+			.containsPattern("value=\"CLAUDE_CODE\"[^>]*checked");
+	}
+
+	@Test
+	void showsHowToConnectCodexToAProfileThatWorksWithIt() {
+		given(this.currentUser.get()).willReturn(Optional.of(new User(1000, "Robert", Instant.parse("2026-09-28T10:00:00Z"),
+				null, Assistant.CODEX)));
+
+		assertThat(this.mvc.get().uri("/settings")).bodyText()
+			.contains("Connect Codex to JobWarden (MCP)", "~/.codex/config.toml", "[mcp_servers.jobwarden]",
+					"url = &quot;http://localhost/mcp&quot;", "http_headers = { &quot;X-JobWarden-Profile&quot; = &quot;1000&quot; }")
+			.doesNotContain("claude mcp add")
+			.containsPattern("value=\"CODEX\"[^>]*checked");
+	}
+
+	@Test
+	void savesTheAssistantTheProfileWorksWith() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+
+		assertThat(this.mvc.post().uri("/settings/assistant").param("assistant", "CODEX")).hasStatus3xxRedirection()
+			.hasRedirectedUrl("/settings#assistant")
+			.flash()
+			.containsEntry("assistantSaved", true);
+		then(this.users).should().changeAssistant(1000, Assistant.CODEX);
 	}
 
 	@Test
@@ -226,7 +253,7 @@ class SettingsControllerTests {
 		assertThat(this.mvc.get().uri("/settings")).hasStatusOk()
 			.bodyText()
 			.contains("id=\"inbox\"", "robert@proton.me", "<option value=\"MINUTES_30\" selected=\"selected\">every 30 minutes",
-					"only when I click Check now", "value=\"MATCHED\" checked=\"checked\"", "And let Claude sort the rest");
+					"only when I click Check now", "value=\"MATCHED\" checked=\"checked\"", "And let the AI Assistant sort the rest");
 	}
 
 	@Test

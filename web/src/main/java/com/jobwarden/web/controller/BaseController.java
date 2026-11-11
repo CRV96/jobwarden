@@ -1,6 +1,7 @@
 package com.jobwarden.web.controller;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -11,10 +12,13 @@ import com.jobwarden.identity.service.UserService;
 import com.jobwarden.inbox.service.InboxService;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.updates.service.UpdateService;
+import com.jobwarden.web.assistant.AssistantRunner;
 import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.user.CurrentUser;
 import com.jobwarden.web.user.ProfileNotSelectedException;
+import com.jobwarden.web.view.AssistantPrompts;
+import com.jobwarden.web.view.AssistantPrompts.Prompt;
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +47,8 @@ abstract class BaseController {
 	private @Nullable UpdateService updates;
 
 	private @Nullable InboxService inbox;
+
+	private @Nullable AssistantRunner runner;
 
 	/**
 	 * Setters rather than a constructor, so subclasses keep their Lombok constructors: those can't pass arguments up
@@ -90,6 +96,14 @@ abstract class BaseController {
 	}
 
 	/**
+	 * Optional too: without it, the pages offer no Run, only the prompts to paste.
+	 */
+	@Autowired(required = false)
+	final void setRunner(AssistantRunner runner) {
+		this.runner = runner;
+	}
+
+	/**
 	 * Spring calls this before every handler method of a subclass, so every page has the selected profile (or
 	 * {@code null}) for the sidebar in layout.html. It's the only place a request looks the profile up.
 	 * <p>
@@ -126,6 +140,25 @@ abstract class BaseController {
 			return profile;
 		}
 		throw new ProfileNotSelectedException();
+	}
+
+	/**
+	 * What to paste into the profile's AI assistant to do a request, and the terminal command that starts the assistant
+	 * with it; and whether JobWarden can run it itself, here, and does: the profile is the one {@link #layout} put in the
+	 * model.
+	 */
+	protected Prompt prompt(Model model, long requestId) {
+		return prompt(model, List.of(requestId));
+	}
+
+	/**
+	 * The same for several requests, done one after the other in one session.
+	 */
+	protected Prompt prompt(Model model, List<Long> requestIds) {
+		User profile = requireProfile(model);
+		Prompt prompt = AssistantPrompts.forRequests(profile.assistant(), requestIds, profile.id());
+		return (this.runner == null) ? prompt
+				: prompt.run(this.runner.canRun(profile.assistant()), this.runner.isRunning(requestIds));
 	}
 
 	/**
