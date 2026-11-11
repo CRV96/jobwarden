@@ -21,10 +21,13 @@ public record StoryForm(long id,
 		@Size(max = StoryForm.PART_MAX_LENGTH, message = "{validation.followUp.size}") @Nullable String task,
 		@Size(max = StoryForm.PART_MAX_LENGTH, message = "{validation.followUp.size}") @Nullable String action,
 		@Size(max = StoryForm.PART_MAX_LENGTH, message = "{validation.followUp.size}") @Nullable String result,
-		@Size(max = StoryForm.TITLE_MAX_LENGTH, message = "{validation.followUp.size}") @Nullable String skills) {
+		@Size(max = StoryForm.SKILLS_MAX_LENGTH, message = "{validation.followUp.size}") @Nullable String skills) {
 
-	/** As long as a story's title can be, wherever it comes from; also the {@code maxlength} of the title and the skills in cv/stories.html. */
+	/** As long as a story's title can be, wherever it comes from; also the {@code maxlength} of the title in cv/stories.html. */
 	public static final int TITLE_MAX_LENGTH = Story.TITLE_MAX_LENGTH;
+
+	/** Every skill a story keeps, at their longest, with ", " between them. */
+	public static final int SKILLS_MAX_LENGTH = Story.SKILLS_TEXT_MAX_LENGTH;
 
 	/** Also the {@code maxlength} of each STAR part. */
 	public static final int PART_MAX_LENGTH = 2000;

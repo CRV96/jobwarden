@@ -912,7 +912,7 @@ class McpControllerTests {
 	void savesACoverLetterOnlyForTheProfilesOwnJobs() {
 		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.SAVED)));
 		given(this.letters.saveLetter(1, 7, "Dear hiring team,\n\nI build payment systems.\n\nKind regards,",
-				"Led with Kafka.")).willReturn(new com.jobwarden.cv.dto.CoverLetter(7,
+				"Led with Kafka.", null)).willReturn(new com.jobwarden.cv.dto.CoverLetter(7,
 						"Dear hiring team,\n\nI build payment systems.\n\nKind regards,", "Led with Kafka.", Instant.now()));
 
 		assertThat(callTool("save_cover_letter", """
@@ -924,13 +924,13 @@ class McpControllerTests {
 		assertThat(callTool("save_cover_letter", "{\"job_id\": 8, \"body\": \"Dear Ana,\"}")).bodyJson()
 			.extractingPath("$.result.isError")
 			.isEqualTo(true);
-		then(this.letters).should(never()).saveLetter(eq(1L), eq(8L), any(), any());
+		then(this.letters).should(never()).saveLetter(eq(1L), eq(8L), any(), any(), any());
 	}
 
 	@Test
 	void savesTheMessagesToSomeoneHiringAndRefusesANoteTooLongForLinkedIn() {
 		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.APPLIED)));
-		given(this.letters.saveDraft(eq(1L), any())).willAnswer(answer -> answer.<OutreachDraft>getArgument(1)
+		given(this.letters.saveDraft(eq(1L), any(), any())).willAnswer(answer -> answer.<OutreachDraft>getArgument(1)
 			.toBuilder()
 			.id(5)
 			.build());
@@ -944,11 +944,11 @@ class McpControllerTests {
 			assertThat(result(body)).extractingPath("$.note_characters").isEqualTo(28);
 		});
 		ArgumentCaptor<OutreachDraft> draft = ArgumentCaptor.forClass(OutreachDraft.class);
-		then(this.letters).should().saveDraft(eq(1L), draft.capture());
+		then(this.letters).should().saveDraft(eq(1L), draft.capture(), any());
 		assertThat(draft.getValue().applicationId()).isEqualTo(7);
 		assertThat(draft.getValue().recipientLink()).isEqualTo("https://www.linkedin.com/in/anapop");
 
-		given(this.letters.saveDraft(eq(1L), any())).willThrow(new BusinessRuleException(CvErrorCode.LINKEDIN_NOTE_TOO_LONG,
+		given(this.letters.saveDraft(eq(1L), any(), any())).willThrow(new BusinessRuleException(CvErrorCode.LINKEDIN_NOTE_TOO_LONG,
 				"The LinkedIn note has 340 characters", "300", "340"));
 		assertThat(callTool("save_outreach_draft", "{\"job_id\": 7, \"name\": \"Ana Pop\", \"linkedin_note\": \"…\"}"))
 			.bodyJson()
@@ -1089,9 +1089,85 @@ class McpControllerTests {
 
 		assertThat(callTool("save_cover_letter", "{\"job_id\": 7, \"body\": \"Dear Ana,\"}")).bodyJson().satisfies(body -> {
 			assertThat(body).extractingPath("$.result.isError").isEqualTo(true);
-			assertThat(body).extractingPath("$.result.content[0].text").asString().contains("stays as they wrote it");
+			assertThat(body).extractingPath("$.result.content[0].text").asString().contains("stays as it is");
 		});
-		then(this.letters).should(never()).saveLetter(eq(1L), eq(7L), any(), any());
+		then(this.letters).should(never()).saveLetter(eq(1L), eq(7L), any(), any(), any());
+	}
+
+	@Test
+	void neverReplacesALetterWhoseRequestWasTakenBackButWritesOneForAJobWithout() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.SAVED)));
+		given(this.discovery.findLatestRequest(1, AiRequestKind.WRITE_COVER_LETTER, 7)).willReturn(Optional.of(AiRequest.builder()
+			.id(34)
+			.kind(AiRequestKind.WRITE_COVER_LETTER)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.CANCELLED)
+			.createdAt(Instant.now())
+			.build()));
+		// Unchanged since it was asked: taken back all the same
+		given(this.letters.findLetter(1, 7)).willReturn(Optional.of(
+				new com.jobwarden.cv.dto.CoverLetter(7, "Dear Ana,", null, Instant.now().minusSeconds(3600))));
+		assertThat(callTool("save_cover_letter", "{\"job_id\": 7, \"body\": \"Dear Ana,\"}")).bodyJson()
+			.extractingPath("$.result.isError")
+			.isEqualTo(true);
+		then(this.letters).should(never()).saveLetter(eq(1L), eq(7L), any(), any(), any());
+
+		// With no letter, Auto-apply's goes in
+		given(this.letters.findLetter(1, 7)).willReturn(Optional.empty());
+		given(this.letters.saveLetter(1, 7, "Dear Ana,", null, null))
+			.willReturn(new com.jobwarden.cv.dto.CoverLetter(7, "Dear Ana,", null, Instant.now()));
+		assertThat(callTool("save_cover_letter", "{\"job_id\": 7, \"body\": \"Dear Ana,\"}")).bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.job_id").isEqualTo(7));
+	}
+
+	@Test
+	void savesClaudesLetterAndMessagesOnlyOverWhatWasntChangedSinceItWasAsked() {
+		Instant asked = Instant.now().minusSeconds(60);
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.SAVED)));
+		for (AiRequestKind kind : List.of(AiRequestKind.WRITE_COVER_LETTER, AiRequestKind.WRITE_OUTREACH)) {
+			given(this.discovery.findLatestRequest(1, kind, 7)).willReturn(Optional.of(AiRequest.builder()
+				.id(34)
+				.kind(kind)
+				.applicationId(7L)
+				.requirements(AiRequirements.NONE)
+				.status(AiRequestStatus.WORKING)
+				.createdAt(asked)
+				.build()));
+		}
+		given(this.letters.saveLetter(1, 7, "Dear Ana,", null, asked))
+			.willReturn(new com.jobwarden.cv.dto.CoverLetter(7, "Dear Ana,", null, Instant.now()));
+		given(this.letters.saveDraft(eq(1L), any(), eq(asked))).willAnswer(answer -> answer.<OutreachDraft>getArgument(1)
+			.toBuilder()
+			.id(5)
+			.build());
+
+		callTool("save_cover_letter", "{\"job_id\": 7, \"body\": \"Dear Ana,\"}");
+		callTool("save_outreach_draft", "{\"job_id\": 7, \"name\": \"Ana Pop\"}");
+
+		// The service keeps what the profile changed after the time it was asked (CoverLetterAndStoryServiceTests)
+		then(this.letters).should().saveLetter(1, 7, "Dear Ana,", null, asked);
+		then(this.letters).should().saveDraft(eq(1L), any(), eq(asked));
+	}
+
+	@Test
+	void savesNoMoreMessagesOnceTheirRequestWasTakenBack() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.APPLIED)));
+		given(this.discovery.findLatestRequest(1, AiRequestKind.WRITE_OUTREACH, 7)).willReturn(Optional.of(AiRequest.builder()
+			.id(36)
+			.kind(AiRequestKind.WRITE_OUTREACH)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.CANCELLED)
+			.createdAt(Instant.now())
+			.build()));
+
+		assertThat(callTool("save_outreach_draft", "{\"job_id\": 7, \"name\": \"Ana Pop\"}")).bodyJson()
+			.satisfies(body -> {
+				assertThat(body).extractingPath("$.result.isError").isEqualTo(true);
+				assertThat(body).extractingPath("$.result.content[0].text").asString().contains("took the request");
+			});
+		then(this.letters).should(never()).saveDraft(anyLong(), any(), any());
 	}
 
 	@Test

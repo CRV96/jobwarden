@@ -79,7 +79,12 @@ class StoryTools implements McpToolSet {
 							.task(shortened(item.string("task"), PART_MAX_LENGTH))
 							.action(shortened(item.string("action"), PART_MAX_LENGTH))
 							.result(shortened(item.string("result"), PART_MAX_LENGTH))
-							.skills(item.strings("skills").stream().limit(Story.SKILLS_MAX).toList())
+							// As many as a story keeps, each no longer than a story's skills can be, before anything else
+							.skills(item.strings("skills", Story.SKILLS_MAX)
+								.stream()
+								.map(skill -> (skill.length() > Story.SKILLS_TEXT_MAX_LENGTH)
+										? skill.substring(0, Story.SKILLS_TEXT_MAX_LENGTH) : skill)
+								.toList())
 							.build())
 						.toList();
 					List<Story> added = this.stories.addDrafted(userId, drafted);

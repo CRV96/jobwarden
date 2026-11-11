@@ -45,7 +45,10 @@ public enum CvErrorCode implements ErrorCode {
 	OUTREACH_WITHOUT_RECIPIENT("CV-017"),
 
 	/** A part of a letter or a message is longer than it can be, e.g. an email's subject. */
-	TEXT_TOO_LONG("CV-018");
+	TEXT_TOO_LONG("CV-018"),
+
+	/** Claude's letter or messages would replace ones the profile changed after asking for them. */
+	CHANGED_SINCE_ASKED("CV-019");
 
 	private final String code;
 

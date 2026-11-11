@@ -1,5 +1,6 @@
 package com.jobwarden.cv.service.impl;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -48,9 +49,11 @@ class DefaultCoverLetterService implements CoverLetterService {
 
 	@Override
 	@Transactional
-	public CoverLetter saveLetter(long userId, long applicationId, String body, @Nullable String notes) {
-		CoverLetterEntity entity = this.letters.findByUserIdAndApplicationId(userId, applicationId)
+	public CoverLetter saveLetter(long userId, long applicationId, String body, @Nullable String notes,
+			@Nullable Instant askedAt) {
+		CoverLetterEntity entity = this.letters.findForUpdate(userId, applicationId)
 			.orElseGet(() -> new CoverLetterEntity(userId, applicationId));
+		checkUnchangedSince(entity.getUpdatedAt(), askedAt, "The cover letter");
 		entity.replace(checkedBody(body), checked("The notes", text(notes), CoverLetter.NOTES_MAX_LENGTH));
 		CoverLetter saved = toLetter(this.letters.saveAndFlush(entity));
 		log.info("Saved the cover letter Claude wrote for application {} of profile {}", applicationId, userId);
@@ -61,7 +64,7 @@ class DefaultCoverLetterService implements CoverLetterService {
 	@Transactional
 	public CoverLetter changeLetter(long userId, long applicationId, String body) {
 		String checked = checkedBody(body);
-		CoverLetterEntity entity = this.letters.findByUserIdAndApplicationId(userId, applicationId).orElseGet(() -> {
+		CoverLetterEntity entity = this.letters.findForUpdate(userId, applicationId).orElseGet(() -> {
 			CoverLetterEntity written = new CoverLetterEntity(userId, applicationId);
 			written.replace(checked, null);
 			return written;
@@ -142,7 +145,7 @@ class DefaultCoverLetterService implements CoverLetterService {
 
 	@Override
 	@Transactional
-	public OutreachDraft saveDraft(long userId, OutreachDraft draft) {
+	public OutreachDraft saveDraft(long userId, OutreachDraft draft, @Nullable Instant askedAt) {
 		OutreachDraft tidied = tidied(draft);
 		if (tidied.recipientName() == null || tidied.recipientName().isBlank()) {
 			throw new BusinessRuleException(CvErrorCode.OUTREACH_WITHOUT_RECIPIENT, "The draft says whom to no one");
@@ -153,11 +156,12 @@ class DefaultCoverLetterService implements CoverLetterService {
 		checked("The profile link", tidied.recipientLink(), OutreachDraft.LINK_MAX_LENGTH);
 		checked("The email address", tidied.recipientEmail(), OutreachDraft.EMAIL_MAX_LENGTH);
 		checkEmail(tidied.emailSubject(), tidied.emailBody());
-		OutreachDraftEntity entity = this.drafts.findByUserIdAndApplicationIdOrderByIdAsc(userId, draft.applicationId())
+		OutreachDraftEntity entity = this.drafts.findForUpdate(userId, draft.applicationId())
 			.stream()
 			.filter(kept -> samePerson(kept, tidied))
 			.findFirst()
 			.orElseGet(() -> new OutreachDraftEntity(userId, draft.applicationId()));
+		checkUnchangedSince(entity.getUpdatedAt(), askedAt, "The messages to " + tidied.recipientName());
 		entity.replace(tidied);
 		OutreachDraft saved = toDraft(this.drafts.saveAndFlush(entity));
 		log.info("Saved messages to someone about application {} of profile {}", draft.applicationId(), userId);
@@ -168,7 +172,7 @@ class DefaultCoverLetterService implements CoverLetterService {
 	@Transactional
 	public OutreachDraft changeDraft(long userId, long draftId, @Nullable String linkedinNote,
 			@Nullable String emailSubject, @Nullable String emailBody) {
-		OutreachDraftEntity entity = this.drafts.findByIdAndUserId(draftId, userId)
+		OutreachDraftEntity entity = this.drafts.findOwnedForUpdate(draftId, userId)
 			.orElseThrow(() -> new OutreachDraftNotFoundException(draftId));
 		String note = text(linkedinNote);
 		checkNote(note);
@@ -211,6 +215,19 @@ class DefaultCoverLetterService implements CoverLetterService {
 		if (length > OutreachDraft.LINKEDIN_NOTE_MAX_LENGTH) {
 			throw new BusinessRuleException(CvErrorCode.LINKEDIN_NOTE_TOO_LONG, "The LinkedIn note has " + length
 					+ " characters", String.valueOf(OutreachDraft.LINKEDIN_NOTE_MAX_LENGTH), String.valueOf(length));
+		}
+	}
+
+	/**
+	 * Refuses Claude's text in place of what the profile changed after asking Claude for it.
+	 *
+	 * @param updatedAt when what Claude's text would replace last changed; {@code null} for nothing to replace
+	 * @param what names it in the exception's message, which Claude reads
+	 */
+	private static void checkUnchangedSince(@Nullable Instant updatedAt, @Nullable Instant askedAt, String what) {
+		if (updatedAt != null && askedAt != null && updatedAt.isAfter(askedAt)) {
+			throw new BusinessRuleException(CvErrorCode.CHANGED_SINCE_ASKED, what + " changed after you were asked for it: "
+					+ "it stays as the person left it. Don't save it again.");
 		}
 	}
 

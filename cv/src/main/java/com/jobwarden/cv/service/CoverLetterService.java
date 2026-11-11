@@ -1,5 +1,6 @@
 package com.jobwarden.cv.service;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -22,12 +23,15 @@ public interface CoverLetterService {
 	Optional<CoverLetter> findLetter(long userId, long applicationId);
 
 	/**
-	 * Keeps the letter Claude wrote, replacing the one the job had.
+	 * Keeps the letter Claude wrote, replacing the one the job had, unless the profile changed that one after asking
+	 * Claude: then it stays. Checked and written at once, so a change the profile saves meanwhile is never lost.
 	 *
+	 * @param askedAt when the profile asked Claude for the letter; {@code null} when it didn't, e.g. Auto-apply writing
+	 * one for a job without
 	 * @throws com.jobwarden.common.exception.BusinessRuleException if it's empty or longer than
-	 * {@link CoverLetter#BODY_MAX_LENGTH}
+	 * {@link CoverLetter#BODY_MAX_LENGTH}, or the letter changed after {@code askedAt}
 	 */
-	CoverLetter saveLetter(long userId, long applicationId, String body, @Nullable String notes);
+	CoverLetter saveLetter(long userId, long applicationId, String body, @Nullable String notes, @Nullable Instant askedAt);
 
 	/**
 	 * Keeps the letter as the profile changed it, or wrote it without Claude: Claude's notes stay.
@@ -75,12 +79,14 @@ public interface CoverLetterService {
 
 	/**
 	 * Keeps the messages Claude wrote to someone about a job: they replace those to the same person (the same profile
-	 * link, or else the same name), or are added. Blank text is no value.
+	 * link, or else the same name), unless the profile changed those after asking Claude, or are added. Blank text is
+	 * no value. Checked and written at once, like {@link #saveLetter}.
 	 *
-	 * @throws com.jobwarden.common.exception.BusinessRuleException if it says to no one, or the LinkedIn note is longer
-	 * than {@link OutreachDraft#LINKEDIN_NOTE_MAX_LENGTH}
+	 * @param askedAt when the profile asked Claude for them, or {@code null}
+	 * @throws com.jobwarden.common.exception.BusinessRuleException if it says to no one, the LinkedIn note is longer
+	 * than {@link OutreachDraft#LINKEDIN_NOTE_MAX_LENGTH}, or the messages to the person changed after {@code askedAt}
 	 */
-	OutreachDraft saveDraft(long userId, OutreachDraft draft);
+	OutreachDraft saveDraft(long userId, OutreachDraft draft, @Nullable Instant askedAt);
 
 	/**
 	 * Keeps the messages as the profile changed them.

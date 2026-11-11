@@ -1,6 +1,7 @@
 package com.jobwarden.cv.entity;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -46,7 +47,7 @@ public class CoverLetterEntity {
 	public void replace(String body, @Nullable String notes) {
 		this.body = body;
 		this.notes = notes;
-		this.updatedAt = Instant.now();
+		this.updatedAt = Instant.now().truncatedTo(ChronoUnit.MICROS);
 	}
 
 	/**
@@ -54,7 +55,7 @@ public class CoverLetterEntity {
 	 */
 	public void changeBody(String body) {
 		this.body = body;
-		this.updatedAt = Instant.now();
+		this.updatedAt = Instant.now().truncatedTo(ChronoUnit.MICROS);
 	}
 
 }

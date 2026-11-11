@@ -1,6 +1,7 @@
 package com.jobwarden.cv.entity;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import com.jobwarden.cv.dto.OutreachDraft;
 import jakarta.persistence.Entity;
@@ -69,7 +70,7 @@ public class OutreachDraftEntity {
 		this.linkedinNote = linkedinNote;
 		this.emailSubject = emailSubject;
 		this.emailBody = emailBody;
-		this.updatedAt = Instant.now();
+		this.updatedAt = Instant.now().truncatedTo(ChronoUnit.MICROS);
 	}
 
 }

@@ -65,7 +65,8 @@ class DefaultInboxService implements InboxService {
 
 	/** The jobs an email can be news about: those still in play, and those that never got an answer. */
 	private static final Set<ApplicationStatus> IN_PLAY = EnumSet.of(ApplicationStatus.SAVED, ApplicationStatus.APPLIED,
-			ApplicationStatus.INTERVIEWING, ApplicationStatus.OFFER, ApplicationStatus.NO_RESPONSE);
+			ApplicationStatus.INTERVIEWING, ApplicationStatus.OFFER, ApplicationStatus.POSITION_REOPENED,
+			ApplicationStatus.NO_RESPONSE);
 
 	private static final int SENDER_MAX_LENGTH = 300;
 
@@ -254,7 +255,8 @@ class DefaultInboxService implements InboxService {
 		int applied = 0;
 		for (EmailUpdateEntity update : waiting.reversed()) {
 			Long job = update.getApplicationId();
-			if (job == null) {
+			// Matched to no job, or to one archived since: it waits for the profile
+			if (job == null || this.applications.findById(userId, job).filter(ApplicationDetails::isArchived).isPresent()) {
 				continue;
 			}
 			try {

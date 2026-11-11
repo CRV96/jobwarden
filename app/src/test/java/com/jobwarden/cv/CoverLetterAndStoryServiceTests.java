@@ -1,5 +1,6 @@
 package com.jobwarden.cv;
 
+import java.time.Instant;
 import java.util.List;
 
 import com.jobwarden.TestcontainersConfiguration;
@@ -57,7 +58,7 @@ class CoverLetterAndStoryServiceTests {
 		long job = insertJob(this.userId, "Backend engineer");
 
 		CoverLetter written = this.letters.saveLetter(this.userId, job,
-				" Dear hiring team,\n\nI build payment systems.\n \nKind regards, ", "Led with Kafka.");
+				" Dear hiring team,\n\nI build payment systems.\n \nKind regards, ", "Led with Kafka.", null);
 		assertThat(written.body()).isEqualTo("Dear hiring team,\n\nI build payment systems.\n \nKind regards,");
 		assertThat(written.paragraphs()).containsExactly("Dear hiring team,", "I build payment systems.", "Kind regards,");
 
@@ -70,6 +71,35 @@ class CoverLetterAndStoryServiceTests {
 	}
 
 	@Test
+	void neverReplacesWhatTheProfileChangedAfterAskingClaude() {
+		long job = insertJob(this.userId, "Backend engineer");
+		this.letters.saveLetter(this.userId, job, "Dear hiring team,", null, null);
+		this.letters.saveDraft(this.userId, OutreachDraft.builder().applicationId(job).recipientName("Ana Pop").linkedinNote("Hi Ana!").build(), null);
+		Instant asked = this.letters.findLetter(this.userId, job).orElseThrow().updatedAt().plusNanos(1_000);
+
+		// Claude was asked, then the profile changed both before Claude's came
+		this.letters.changeLetter(this.userId, job, "Dear Ana, as I wrote it.");
+		OutreachDraft changed = this.letters.findDrafts(this.userId, job).getFirst();
+		this.letters.changeDraft(this.userId, changed.id(), "Hi Ana, as I wrote it.", null, null);
+
+		assertThatExceptionOfType(BusinessRuleException.class)
+			.isThrownBy(() -> this.letters.saveLetter(this.userId, job, "Dear hiring team, from Claude.", null, asked))
+			.satisfies(refused -> assertThat(refused.getErrorCode()).isEqualTo(CvErrorCode.CHANGED_SINCE_ASKED));
+		assertThatExceptionOfType(BusinessRuleException.class).isThrownBy(() -> this.letters.saveDraft(this.userId,
+				OutreachDraft.builder().applicationId(job).recipientName("Ana Pop").linkedinNote("From Claude.").build(), asked))
+			.satisfies(refused -> assertThat(refused.getErrorCode()).isEqualTo(CvErrorCode.CHANGED_SINCE_ASKED));
+		assertThat(this.letters.findLetter(this.userId, job).orElseThrow().body()).isEqualTo("Dear Ana, as I wrote it.");
+		assertThat(this.letters.findDrafts(this.userId, job).getFirst().linkedinNote()).isEqualTo("Hi Ana, as I wrote it.");
+
+		// Asked after the change, Claude's replace it; and a message to someone new is added
+		Instant later = Instant.now().plusSeconds(1);
+		assertThat(this.letters.saveLetter(this.userId, job, "Dear hiring team, from Claude.", null, later).body())
+			.isEqualTo("Dear hiring team, from Claude.");
+		this.letters.saveDraft(this.userId, OutreachDraft.builder().applicationId(job).recipientName("Ion Ionescu").build(), asked);
+		assertThat(this.letters.findDrafts(this.userId, job)).hasSize(2);
+	}
+
+	@Test
 	void writesALetterWithoutClaudeAndRefusesAnEmptyOrTooLongOne() {
 		long job = insertJob(this.userId, "Backend engineer");
 
@@ -77,7 +107,7 @@ class CoverLetterAndStoryServiceTests {
 		assertThatExceptionOfType(BusinessRuleException.class).isThrownBy(() -> this.letters.changeLetter(this.userId, job, " "))
 			.satisfies(refused -> assertThat(refused.getErrorCode()).isEqualTo(CvErrorCode.COVER_LETTER_EMPTY));
 		assertThatExceptionOfType(BusinessRuleException.class)
-			.isThrownBy(() -> this.letters.saveLetter(this.userId, job, "x".repeat(CoverLetter.BODY_MAX_LENGTH + 1), null))
+			.isThrownBy(() -> this.letters.saveLetter(this.userId, job, "x".repeat(CoverLetter.BODY_MAX_LENGTH + 1), null, null))
 			.satisfies(refused -> assertThat(refused.getErrorCode()).isEqualTo(CvErrorCode.COVER_LETTER_TOO_LONG));
 
 		this.letters.deleteLetter(this.otherUserId, job);
@@ -113,8 +143,8 @@ class CoverLetterAndStoryServiceTests {
 		long others = insertJob(this.otherUserId, "Someone else's job");
 		this.letters.changeLetter(this.userId, acme, "Dear Ana,");
 		this.letters.changeLetter(this.otherUserId, others, "Dear Ion,");
-		this.letters.saveDraft(this.userId, OutreachDraft.builder().applicationId(globex).recipientName("Ana Pop").build());
-		this.letters.saveDraft(this.userId, OutreachDraft.builder().applicationId(globex).recipientName("Ion Ionescu").build());
+		this.letters.saveDraft(this.userId, OutreachDraft.builder().applicationId(globex).recipientName("Ana Pop").build(), null);
+		this.letters.saveDraft(this.userId, OutreachDraft.builder().applicationId(globex).recipientName("Ion Ionescu").build(), null);
 
 		assertThat(this.letters.findLetters(this.userId, List.of(acme, globex, others))).containsOnlyKeys(acme)
 			.extractingByKey(acme)
@@ -136,9 +166,9 @@ class CoverLetterAndStoryServiceTests {
 			.emailBody(" ")
 			.build();
 
-		OutreachDraft first = this.letters.saveDraft(this.userId, toAna);
-		this.letters.saveDraft(this.userId, toAna.toBuilder().recipientName("Ana Pop-Ionescu").linkedinNote("Hello Ana!").build());
-		this.letters.saveDraft(this.userId, OutreachDraft.builder().applicationId(job).recipientName("Hiring team").build());
+		OutreachDraft first = this.letters.saveDraft(this.userId, toAna, null);
+		this.letters.saveDraft(this.userId, toAna.toBuilder().recipientName("Ana Pop-Ionescu").linkedinNote("Hello Ana!").build(), null);
+		this.letters.saveDraft(this.userId, OutreachDraft.builder().applicationId(job).recipientName("Hiring team").build(), null);
 
 		List<OutreachDraft> drafts = this.letters.findDrafts(this.userId, job);
 		assertThat(drafts).extracting(OutreachDraft::recipientName).containsExactly("Ana Pop-Ionescu", "Hiring team");
@@ -154,7 +184,7 @@ class CoverLetterAndStoryServiceTests {
 		assertThatExceptionOfType(OutreachDraftNotFoundException.class)
 			.isThrownBy(() -> this.letters.changeDraft(this.otherUserId, first.id(), "Hi", null, null));
 		assertThatExceptionOfType(BusinessRuleException.class).isThrownBy(() -> this.letters.saveDraft(this.userId,
-				OutreachDraft.builder().applicationId(job).recipientName(" ").build()));
+				OutreachDraft.builder().applicationId(job).recipientName(" ").build(), null));
 
 		this.letters.deleteDraft(this.userId, first.id());
 		assertThat(this.letters.findDrafts(this.userId, job)).hasSize(1);
@@ -165,18 +195,18 @@ class CoverLetterAndStoryServiceTests {
 		long job = insertJob(this.userId, "Backend engineer");
 
 		assertThatExceptionOfType(BusinessRuleException.class)
-			.isThrownBy(() -> this.letters.saveLetter(this.userId, job, "Dear Ana,", "x".repeat(CoverLetter.NOTES_MAX_LENGTH + 1)))
+			.isThrownBy(() -> this.letters.saveLetter(this.userId, job, "Dear Ana,", "x".repeat(CoverLetter.NOTES_MAX_LENGTH + 1), null))
 			.satisfies(refused -> assertThat(refused.getErrorCode()).isEqualTo(CvErrorCode.TEXT_TOO_LONG));
 		assertThatExceptionOfType(BusinessRuleException.class).isThrownBy(() -> this.letters.saveDraft(this.userId,
 				OutreachDraft.builder()
 					.applicationId(job)
 					.recipientName("Ana Pop")
 					.emailSubject("x".repeat(OutreachDraft.EMAIL_SUBJECT_MAX_LENGTH + 1))
-					.build()))
+					.build(), null))
 			.satisfies(refused -> assertThat(refused.getMessage()).contains("The email's subject has 301 characters"));
 		assertThatExceptionOfType(BusinessRuleException.class).isThrownBy(() -> this.letters.saveDraft(this.userId,
-				OutreachDraft.builder().applicationId(job).recipientName("x".repeat(OutreachDraft.RECIPIENT_MAX_LENGTH + 1)).build()));
-		OutreachDraft kept = this.letters.saveDraft(this.userId, OutreachDraft.builder().applicationId(job).recipientName("Ana Pop").build());
+				OutreachDraft.builder().applicationId(job).recipientName("x".repeat(OutreachDraft.RECIPIENT_MAX_LENGTH + 1)).build(), null));
+		OutreachDraft kept = this.letters.saveDraft(this.userId, OutreachDraft.builder().applicationId(job).recipientName("Ana Pop").build(), null);
 		assertThatExceptionOfType(BusinessRuleException.class).isThrownBy(() -> this.letters.changeDraft(this.userId,
 				kept.id(), null, null, "x".repeat(OutreachDraft.EMAIL_BODY_MAX_LENGTH + 1)));
 	}

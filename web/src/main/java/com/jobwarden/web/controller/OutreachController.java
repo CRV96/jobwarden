@@ -118,14 +118,12 @@ class OutreachController extends BaseController {
 			@RequestParam(required = false) @Nullable String emailSubject,
 			@RequestParam(required = false) @Nullable String emailBody, Model model) {
 		long userId = requireProfile(model).id();
-		requireApplication(userId, id);
-		OutreachDraft draft = this.letters.findDrafts(userId, id)
-			.stream()
-			.filter(kept -> kept.id() == draftId)
-			.findFirst()
-			.orElseThrow(() -> new OutreachDraftNotFoundException(draftId));
+		OutreachDraft draft = requireDraft(userId, id, draftId);
 		try {
 			draft = this.letters.changeDraft(userId, draftId, linkedinNote, emailSubject, emailBody);
+			// The messages as changed win over those Claude was writing: save_outreach_draft refuses them now
+			latestRequest(userId, id).filter(request -> request.status().isOpen())
+				.ifPresent(request -> this.discovery.cancelRequest(userId, request.id()));
 		} catch (BusinessRuleException refused) {
 			log.debug("Outreach draft {} not saved: {}", draftId, refused.getMessage());
 			model.addAttribute(ModelAttributes.OUTREACH_ERROR, message(refused));
@@ -139,10 +137,23 @@ class OutreachController extends BaseController {
 	@PostMapping("/{draftId}/delete")
 	String delete(@PathVariable long id, @PathVariable long draftId, Model model, HttpServletResponse response) {
 		long userId = requireProfile(model).id();
-		requireApplication(userId, id);
+		requireDraft(userId, id, draftId);
 		this.letters.deleteDraft(userId, draftId);
 		response.setHeader(HtmxHeaders.TRIGGER, HtmxEvents.LETTERS_CHANGED);
 		return showCard(model, userId, id);
+	}
+
+	/**
+	 * @throws ApplicationNotFoundException if the profile has no such job
+	 * @throws OutreachDraftNotFoundException if the job has no such message, the profile's other jobs' included
+	 */
+	private OutreachDraft requireDraft(long userId, long applicationId, long draftId) {
+		requireApplication(userId, applicationId);
+		return this.letters.findDrafts(userId, applicationId)
+			.stream()
+			.filter(kept -> kept.id() == draftId)
+			.findFirst()
+			.orElseThrow(() -> new OutreachDraftNotFoundException(draftId));
 	}
 
 	private String showCard(Model model, long userId, long applicationId) {

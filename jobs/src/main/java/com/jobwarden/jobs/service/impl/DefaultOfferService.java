@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import com.jobwarden.jobs.dto.ApplicationSummary;
@@ -114,7 +115,7 @@ class DefaultOfferService implements OfferService {
 			.currency(shownIn)
 			.period(period)
 			.offers(compared)
-			.currencies(DefaultSalaryService.currencies(read, rates))
+			.currencies(currencies(read, rates, shownIn))
 			.ratesDate(rates.date())
 			.build();
 	}
@@ -200,6 +201,16 @@ class DefaultOfferService implements OfferService {
 			.sources(brief.getSources())
 			.updatedAt(brief.getUpdatedAt())
 			.build();
+	}
+
+	/**
+	 * The currencies to pick from: the common ones and the offers', and the one shown, so picking something else on the
+	 * page never changes it unasked.
+	 */
+	private static List<String> currencies(List<SalaryRange> salaries, RateTable rates, String shownIn) {
+		TreeSet<String> currencies = new TreeSet<>(DefaultSalaryService.currencies(salaries, rates));
+		currencies.add(shownIn);
+		return List.copyOf(currencies);
 	}
 
 }

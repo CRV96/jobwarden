@@ -108,6 +108,11 @@ class OfferServiceTests {
 		assertThat(posting.hasBrief()).isTrue();
 		assertThat(offer(comparison, unreadable).salaryUnreadable()).isTrue();
 		assertThat(comparison.best()).hasValueSatisfying(best -> assertThat(best.application().id()).isEqualTo(typedIn));
+		// In a currency no offer is in, nor a common one: still one to pick, so the page keeps it
+		assertThat(this.offers.compare(this.userId, "SEK", SalaryPeriod.YEAR)).satisfies(inSek -> {
+			assertThat(inSek.currency()).isEqualTo("SEK");
+			assertThat(inSek.currencies()).contains("SEK", "EUR");
+		});
 	}
 
 	@Test

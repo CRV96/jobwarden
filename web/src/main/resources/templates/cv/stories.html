@@ -92,7 +92,7 @@
         </label>
         <label class="flex flex-col gap-1">
             <span class="text-xs text-ink/60" th:text="#{stories.skills}">What it shows</span>
-            <input class="input" type="text" name="skills" maxlength="200" th:value="${form.skills}"
+            <input class="input" type="text" name="skills" maxlength="620" th:value="${form.skills}"
                    th:placeholder="#{stories.skills.placeholder}">
         </label>
         <p class="text-[13px] text-danger" role="alert" th:if="${storyError}" th:text="${storyError}">A story needs a title.</p>

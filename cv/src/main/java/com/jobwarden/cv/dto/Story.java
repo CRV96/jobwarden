@@ -35,6 +35,12 @@ public record Story(long id, String title, @Nullable String situation, @Nullable
 	/** The most skills a story keeps. */
 	public static final int SKILLS_MAX = 10;
 
+	/**
+	 * The longest text of skills read, apart by commas: every skill a story keeps, at their longest, with ", " between.
+	 * Also the skills field's {@code maxlength} in cv/stories.html.
+	 */
+	public static final int SKILLS_TEXT_MAX_LENGTH = SKILLS_MAX * (SKILL_MAX_LENGTH + 2);
+
 	public Story {
 		skills = (skills == null) ? List.of() : List.copyOf(skills);
 	}

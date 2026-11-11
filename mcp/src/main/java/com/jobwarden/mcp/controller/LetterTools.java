@@ -97,12 +97,13 @@ class LetterTools implements McpToolSet {
 				false, false, call -> {
 					long userId = this.profiles.of(call);
 					ApplicationDetails job = requireJob(userId, call.requiredNumber("job_id"));
-					if (changedSinceCancelled(userId, job.id())) {
-						throw new ToolException("The person took the request for this letter back and changed the letter "
-								+ "since: it stays as they wrote it. Don't save it again.");
+					Optional<AiRequest> asked = latest(userId, AiRequestKind.WRITE_COVER_LETTER, job.id());
+					if (isTakenBack(asked) && this.letters.findLetter(userId, job.id()).isPresent()) {
+						throw new ToolException("The person took the request for this letter back: the letter the job has "
+								+ "stays as it is. Don't save it again.");
 					}
 					CoverLetter saved = this.letters.saveLetter(userId, job.id(), call.requiredString("body"),
-							call.string("notes"));
+							call.string("notes"), askedAt(asked));
 					return Map.of("job_id", job.id(), "paragraphs", saved.paragraphs().size(), "pdf",
 							pdfUrl(userId, job.id()), "page", "/applications/" + job.id());
 				});
@@ -128,6 +129,12 @@ class LetterTools implements McpToolSet {
 				false, false, call -> {
 					long userId = this.profiles.of(call);
 					ApplicationDetails job = requireJob(userId, call.requiredNumber("job_id"));
+					// Taken back, or by changing a message by hand: the messages stay as the profile left them
+					Optional<AiRequest> asked = latest(userId, AiRequestKind.WRITE_OUTREACH, job.id());
+					if (isTakenBack(asked)) {
+						throw new ToolException("The person took the request for these messages back: they stay as they "
+								+ "are. Don't save any more.");
+					}
 					OutreachDraft saved = this.letters.saveDraft(userId, OutreachDraft.builder()
 						.applicationId(job.id())
 						.recipientName(call.requiredString("name"))
@@ -137,23 +144,32 @@ class LetterTools implements McpToolSet {
 						.linkedinNote(call.string("linkedin_note"))
 						.emailSubject(call.string("email_subject"))
 						.emailBody(call.string("email_body"))
-						.build());
+						.build(), askedAt(asked));
 					return Map.of("job_id", job.id(), "draft_id", saved.id(), "note_characters",
 							saved.linkedinNoteLength(), "page", "/applications/" + job.id());
 				});
 	}
 
+	/** The latest request of that kind about the job, open or not. */
+	private Optional<AiRequest> latest(long userId, AiRequestKind kind, long jobId) {
+		return this.discovery.findLatestRequest(userId, kind, jobId);
+	}
+
 	/**
-	 * Whether the profile took back the latest request for the job's letter, and its letter changed since it asked:
-	 * changing the letter by hand takes the request back, so a letter Claude was still writing would undo that change.
-	 * A letter Auto-apply writes for a job without one is never refused.
+	 * Whether the profile took the request back: cancelled it, or changed by hand what Claude was writing, which takes
+	 * it back. Claude's text would replace what the profile kept. A letter Auto-apply writes, with no request, is never
+	 * refused.
 	 */
-	private boolean changedSinceCancelled(long userId, long jobId) {
-		Optional<AiRequest> asked = this.discovery.findLatestRequest(userId, AiRequestKind.WRITE_COVER_LETTER, jobId);
-		return asked.filter(request -> request.status() == AiRequestStatus.CANCELLED)
-			.flatMap(request -> this.letters.findLetter(userId, jobId)
-				.filter(letter -> letter.updatedAt().isAfter(request.createdAt())))
-			.isPresent();
+	private static boolean isTakenBack(Optional<AiRequest> asked) {
+		return asked.filter(request -> request.status() == AiRequestStatus.CANCELLED).isPresent();
+	}
+
+	/**
+	 * When the profile asked Claude for what it's saving, while the request is open: what the profile changed after
+	 * that stays (CoverLetterService). {@code null} without one, e.g. for Auto-apply.
+	 */
+	private static @Nullable Instant askedAt(Optional<AiRequest> asked) {
+		return asked.filter(request -> request.status().isOpen()).map(AiRequest::createdAt).orElse(null);
 	}
 
 	private ApplicationDetails requireJob(long userId, long jobId) {

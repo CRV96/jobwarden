@@ -69,7 +69,10 @@
 <div th:fragment="done" class="flex flex-wrap items-center gap-2 rounded-lg bg-ink/4 p-2.5"
      role="status" th:with="status=${outreachRequest != null} ? ${outreachRequest.status.name()} : 'DONE'">
     <span class="tag" th:text="#{|ai.status.${status}|}">Done</span>
-    <span class="min-w-[12rem] flex-1 text-[13px] text-pretty text-ink/70" th:text="#{outreach.done}">Save what you’re changing first, then show Claude’s messages.</span>
+    <span class="min-w-[12rem] flex-1 text-[13px] text-pretty text-ink/70" th:if="${status == 'DONE'}"
+          th:text="#{outreach.done}">Save what you’re changing first, then show Claude’s messages.</span>
+    <!--/* Taken back, e.g. by saving a message changed by hand: Claude may have written some before */-->
+    <span class="flex-1" th:unless="${status == 'DONE'}"></span>
     <button class="btn btn-secondary px-2 py-1 text-xs" type="button" th:hx-get="@{/applications/{id}/outreach(id=${outreachJobId})}"
             hx-target="#outreach" hx-swap="outerHTML" th:text="#{outreach.show}">Show them</button>
 </div>

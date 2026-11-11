@@ -86,6 +86,13 @@ record ToolCall(JsonNode arguments, @Nullable Long profileHeader) {
 	}
 
 	List<String> strings(String name) {
+		return strings(name, Integer.MAX_VALUE);
+	}
+
+	/**
+	 * @return the first {@code max} strings of a list, the rest left unread; empty when it's left out
+	 */
+	List<String> strings(String name, int max) {
 		JsonNode value = this.arguments.get(name);
 		if (value == null || value.isNull()) {
 			return List.of();
@@ -95,6 +102,9 @@ record ToolCall(JsonNode arguments, @Nullable Long profileHeader) {
 		}
 		List<String> strings = new ArrayList<>();
 		for (JsonNode item : value) {
+			if (strings.size() == max) {
+				break;
+			}
 			if (!item.isString()) {
 				throw new ToolException(name + " must be a list of strings");
 			}

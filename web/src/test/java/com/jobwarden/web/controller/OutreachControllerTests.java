@@ -31,8 +31,10 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 
 @WebMvcTest(OutreachController.class)
 class OutreachControllerTests {
@@ -153,6 +155,36 @@ class OutreachControllerTests {
 			.bodyText()
 			.contains("Done", "Save what you’re changing first", "Show them", "hx-get=\"/applications/7/outreach\"")
 			.doesNotContain("Ana Pop", "every 5s", "id=\"outreach-waiting\"");
+	}
+
+	@Test
+	void deletesOnlyAMessageOfTheJobItsAskedFor() {
+		given(this.letters.findDrafts(1, 7)).willReturn(List.of(DRAFT));
+
+		// Message 9 is another job's
+		assertThat(this.mvc.post().uri("/applications/7/outreach/9/delete").header("HX-Request", "true")).hasStatus4xxClientError();
+		then(this.letters).should(never()).deleteDraft(anyLong(), anyLong());
+
+		this.mvc.post().uri("/applications/7/outreach/5/delete").header("HX-Request", "true").exchange();
+		then(this.letters).should().deleteDraft(1, 5);
+	}
+
+	@Test
+	void takesBackTheRequestOnceAMessageChangedByHandIsSaved() {
+		given(this.letters.findDrafts(1, 7)).willReturn(List.of(DRAFT));
+		given(this.letters.changeDraft(1, 5, "Hi Ana!", null, null)).willReturn(DRAFT.toBuilder().linkedinNote("Hi Ana!").build());
+		given(this.discovery.findLatestRequest(1, AiRequestKind.WRITE_OUTREACH, 7)).willReturn(Optional.of(AiRequest.builder()
+			.id(36)
+			.kind(AiRequestKind.WRITE_OUTREACH)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WORKING)
+			.createdAt(Instant.now())
+			.build()));
+
+		this.mvc.post().uri("/applications/7/outreach/5").param("linkedinNote", "Hi Ana!").header("HX-Request", "true").exchange();
+
+		then(this.discovery).should().cancelRequest(1, 36);
 	}
 
 	@Test
