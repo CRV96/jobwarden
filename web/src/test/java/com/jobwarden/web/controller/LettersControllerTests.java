@@ -134,7 +134,9 @@ class LettersControllerTests {
 			.header("HX-Request", "true")).hasStatusOk()
 			.bodyText()
 			.contains("Claude has 2 letters to write", "Do JobWarden requests 41, 42, one after the other",
-					"profile_id 1", "id=\"letter-row-8\"", "hx-swap-oob=\"true\"", "Claude is writing");
+					"profile_id 1", "id=\"letter-row-8\"", "hx-swap-oob=\"true\"", "Claude is writing")
+			// The rows on their own, where HTMX swaps them in place
+			.doesNotContain("<ul");
 
 		then(this.discovery).should().createRequest(1, AiRequestKind.WRITE_COVER_LETTER, 8);
 		then(this.discovery).should().createRequest(1, AiRequestKind.WRITE_COVER_LETTER, 9);

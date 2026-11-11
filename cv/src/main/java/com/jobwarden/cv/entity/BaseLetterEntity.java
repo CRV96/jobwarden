@@ -1,6 +1,7 @@
 package com.jobwarden.cv.entity;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -29,9 +30,12 @@ public class BaseLetterEntity {
 		this.userId = userId;
 	}
 
+	/**
+	 * In microseconds, as the database keeps it: the letter saved is the letter read back, on any clock.
+	 */
 	public void changeBody(String body) {
 		this.body = body;
-		this.updatedAt = Instant.now();
+		this.updatedAt = Instant.now().truncatedTo(ChronoUnit.MICROS);
 	}
 
 }

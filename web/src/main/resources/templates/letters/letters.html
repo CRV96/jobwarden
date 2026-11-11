@@ -149,7 +149,9 @@
 <!--/* One job of the list (row, a LetterRow): a box to tick it, when it has no letter and Claude isn't on it, and the job,
        which opens beside the list, with its letter's state and how many people its messages are to. While Claude writes
        its letter, it asks for itself again every few seconds. lettersSelected is the job open beside the list. With oob,
-       it replaces its own row wherever it is (an answer to asking Claude). */-->
+       it replaces its own row wherever it is (an answer to asking Claude). In a list here only as a list item belongs in
+       one: the fragment is the row alone. */-->
+<ul>
 <li th:fragment="row(oob)" th:id="|letter-row-${row.jobId}|" class="flex items-center gap-1"
     th:attr="hx-swap-oob=${oob} ? 'true'" hx-disinherit="*"
     th:hx-get="${row.writing} ? @{/letters/rows/{id}(id=${row.jobId})}" th:hx-trigger="${row.writing} ? 'every 5s'"
@@ -191,6 +193,7 @@
         </span>
     </a>
 </li>
+</ul>
 
 <!--/* The job picked (lettersJob, or null): its cover letter and its messages, the same cards as on its own page. A
        field names it for the list's requests (#letters-job), and its row loads again as its letter or messages change
@@ -263,9 +266,12 @@
        (lettersAsked), each in place of its own */-->
 <th:block th:fragment="asked">
     <section th:replace="~{letters/letters :: waiting}"></section>
-    <th:block th:each="row : ${lettersAsked}">
-        <li th:replace="~{letters/letters :: row(true)}"></li>
-    </th:block>
+    <!--/* The rows go out on their own, out of the list, as HTMX swaps only those at the answer's top level */-->
+    <ul th:remove="tag">
+        <th:block th:each="row : ${lettersAsked}">
+            <li th:replace="~{letters/letters :: row(true)}"></li>
+        </th:block>
+    </ul>
 </th:block>
 
 </body>
