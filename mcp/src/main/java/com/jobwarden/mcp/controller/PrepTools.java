@@ -64,7 +64,7 @@ class PrepTools implements McpToolSet {
 				false, false, call -> {
 					long userId = this.profiles.of(call);
 					long jobId = call.requiredNumber("job_id");
-					List<Long> storyIds = this.stories.findAll(userId, call.numbers("story_ids"))
+					List<Long> storyIds = this.stories.findAll(userId, call.numbers("story_ids", ITEMS_MAX))
 						.stream()
 						.map(Story::id)
 						.limit(ITEMS_MAX)

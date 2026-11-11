@@ -3,10 +3,15 @@ package com.jobwarden.mcp.controller;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import com.jobwarden.cv.dto.CoverLetter;
 import com.jobwarden.cv.dto.OutreachDraft;
 import com.jobwarden.cv.service.CoverLetterService;
+import com.jobwarden.discover.dto.AiRequest;
+import com.jobwarden.discover.enums.AiRequestKind;
+import com.jobwarden.discover.enums.AiRequestStatus;
+import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.service.ApplicationService;
@@ -36,14 +41,17 @@ class LetterTools implements McpToolSet {
 
 	private final ApplicationService applications;
 
+	private final DiscoveryService discovery;
+
 	/** Where the web module serves a job's cover letter as a PDF for Claude, e.g. /claude/cover-letter?profile=1&job=12 */
 	private final String letterPath;
 
-	LetterTools(Profiles profiles, CoverLetterService letters, ApplicationService applications,
+	LetterTools(Profiles profiles, CoverLetterService letters, ApplicationService applications, DiscoveryService discovery,
 			@Value("${jobwarden.claude.cover-letter-path:/claude/cover-letter}") String letterPath) {
 		this.profiles = profiles;
 		this.letters = letters;
 		this.applications = applications;
+		this.discovery = discovery;
 		this.letterPath = letterPath;
 	}
 
@@ -89,6 +97,10 @@ class LetterTools implements McpToolSet {
 				false, false, call -> {
 					long userId = this.profiles.of(call);
 					ApplicationDetails job = requireJob(userId, call.requiredNumber("job_id"));
+					if (changedSinceCancelled(userId, job.id())) {
+						throw new ToolException("The person took the request for this letter back and changed the letter "
+								+ "since: it stays as they wrote it. Don't save it again.");
+					}
 					CoverLetter saved = this.letters.saveLetter(userId, job.id(), call.requiredString("body"),
 							call.string("notes"));
 					return Map.of("job_id", job.id(), "paragraphs", saved.paragraphs().size(), "pdf",
@@ -129,6 +141,19 @@ class LetterTools implements McpToolSet {
 					return Map.of("job_id", job.id(), "draft_id", saved.id(), "note_characters",
 							saved.linkedinNoteLength(), "page", "/applications/" + job.id());
 				});
+	}
+
+	/**
+	 * Whether the profile took back the latest request for the job's letter, and its letter changed since it asked:
+	 * changing the letter by hand takes the request back, so a letter Claude was still writing would undo that change.
+	 * A letter Auto-apply writes for a job without one is never refused.
+	 */
+	private boolean changedSinceCancelled(long userId, long jobId) {
+		Optional<AiRequest> asked = this.discovery.findLatestRequest(userId, AiRequestKind.WRITE_COVER_LETTER, jobId);
+		return asked.filter(request -> request.status() == AiRequestStatus.CANCELLED)
+			.flatMap(request -> this.letters.findLetter(userId, jobId)
+				.filter(letter -> letter.updatedAt().isAfter(request.createdAt())))
+			.isPresent();
 	}
 
 	private ApplicationDetails requireJob(long userId, long jobId) {

@@ -51,7 +51,7 @@ class DefaultCoverLetterService implements CoverLetterService {
 	public CoverLetter saveLetter(long userId, long applicationId, String body, @Nullable String notes) {
 		CoverLetterEntity entity = this.letters.findByUserIdAndApplicationId(userId, applicationId)
 			.orElseGet(() -> new CoverLetterEntity(userId, applicationId));
-		entity.replace(checkedBody(body), text(notes));
+		entity.replace(checkedBody(body), checked("The notes", text(notes), CoverLetter.NOTES_MAX_LENGTH));
 		CoverLetter saved = toLetter(this.letters.saveAndFlush(entity));
 		log.info("Saved the cover letter Claude wrote for application {} of profile {}", applicationId, userId);
 		return saved;
@@ -148,6 +148,11 @@ class DefaultCoverLetterService implements CoverLetterService {
 			throw new BusinessRuleException(CvErrorCode.OUTREACH_WITHOUT_RECIPIENT, "The draft says whom to no one");
 		}
 		checkNote(tidied.linkedinNote());
+		checked("The name", tidied.recipientName(), OutreachDraft.RECIPIENT_MAX_LENGTH);
+		checked("The role", tidied.recipientRole(), OutreachDraft.RECIPIENT_MAX_LENGTH);
+		checked("The profile link", tidied.recipientLink(), OutreachDraft.LINK_MAX_LENGTH);
+		checked("The email address", tidied.recipientEmail(), OutreachDraft.EMAIL_MAX_LENGTH);
+		checkEmail(tidied.emailSubject(), tidied.emailBody());
 		OutreachDraftEntity entity = this.drafts.findByUserIdAndApplicationIdOrderByIdAsc(userId, draft.applicationId())
 			.stream()
 			.filter(kept -> samePerson(kept, tidied))
@@ -167,6 +172,7 @@ class DefaultCoverLetterService implements CoverLetterService {
 			.orElseThrow(() -> new OutreachDraftNotFoundException(draftId));
 		String note = text(linkedinNote);
 		checkNote(note);
+		checkEmail(text(emailSubject), text(emailBody));
 		entity.changeMessages(note, text(emailSubject), text(emailBody));
 		log.info("Saved the messages of draft {} of profile {}", draftId, userId);
 		return toDraft(this.drafts.saveAndFlush(entity));
@@ -206,6 +212,23 @@ class DefaultCoverLetterService implements CoverLetterService {
 			throw new BusinessRuleException(CvErrorCode.LINKEDIN_NOTE_TOO_LONG, "The LinkedIn note has " + length
 					+ " characters", String.valueOf(OutreachDraft.LINKEDIN_NOTE_MAX_LENGTH), String.valueOf(length));
 		}
+	}
+
+	private static void checkEmail(@Nullable String subject, @Nullable String body) {
+		checked("The email's subject", subject, OutreachDraft.EMAIL_SUBJECT_MAX_LENGTH);
+		checked("The email", body, OutreachDraft.EMAIL_BODY_MAX_LENGTH);
+	}
+
+	/**
+	 * @param what names it in the exception's message, which Claude reads, e.g. "The email's subject"
+	 * @return the text, when it's at most {@code max} characters
+	 */
+	private static @Nullable String checked(String what, @Nullable String text, int max) {
+		if (text != null && text.length() > max) {
+			throw new BusinessRuleException(CvErrorCode.TEXT_TOO_LONG,
+					what + " has " + text.length() + " characters, at most " + max, String.valueOf(max));
+		}
+		return text;
 	}
 
 	private static OutreachDraft tidied(OutreachDraft draft) {

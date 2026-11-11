@@ -20,6 +20,9 @@ public record CoverLetter(long applicationId, String body, @Nullable String note
 	/** The longest letter kept: a cover letter fits on a page. */
 	public static final int BODY_MAX_LENGTH = 6000;
 
+	/** The longest notes kept: a few lines on what Claude highlighted. */
+	public static final int NOTES_MAX_LENGTH = 2000;
+
 	/**
 	 * @return the paragraphs, as the letter's blank lines part them, each with its own line breaks
 	 */

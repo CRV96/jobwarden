@@ -28,20 +28,23 @@ public record MarketForm(@Nullable String role, @Nullable String skill, @Nullabl
 	/** The most countries the section shows: the market module asks for no more. */
 	public static final int MAX_COUNTRIES = 12;
 
+	/** The longest role or skill taken: the survey's longest names are well within it. */
+	public static final int MAX_FILTER_LENGTH = 100;
+
 	private static final Set<String> COUNTRY_CODES = Set.of(Locale.getISOCountries());
 
 	/**
 	 * @return the role picked, empty for all
 	 */
 	public String selectedRole() {
-		return (this.role != null) ? this.role.strip() : DEFAULT_ROLE;
+		return (this.role != null) ? limited(this.role) : DEFAULT_ROLE;
 	}
 
 	/**
 	 * @return the skill picked, empty for any
 	 */
 	public String selectedSkill() {
-		return (this.skill != null) ? this.skill.strip() : DEFAULT_SKILL;
+		return (this.skill != null) ? limited(this.skill) : DEFAULT_SKILL;
 	}
 
 	/**
@@ -75,6 +78,12 @@ public record MarketForm(@Nullable String role, @Nullable String skill, @Nullabl
 			.queryParam("skill", selectedSkill());
 		countries().stream().filter(code -> !code.equals(withoutCountry)).forEach(code -> address.queryParam("country", code));
 		return address.encode().build().toUriString();
+	}
+
+	/** Stripped, and at most {@link #MAX_FILTER_LENGTH} characters: the address may say anything. */
+	private static String limited(String text) {
+		String stripped = text.strip();
+		return (stripped.length() > MAX_FILTER_LENGTH) ? stripped.substring(0, MAX_FILTER_LENGTH).strip() : stripped;
 	}
 
 	private static @Nullable String emptyToNull(String text) {

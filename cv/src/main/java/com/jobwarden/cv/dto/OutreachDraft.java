@@ -27,6 +27,21 @@ public record OutreachDraft(long id, long applicationId, String recipientName, @
 	/** The most a LinkedIn connection request's note can have. */
 	public static final int LINKEDIN_NOTE_MAX_LENGTH = 300;
 
+	/** The longest name, and the longest role, of whom it's to. */
+	public static final int RECIPIENT_MAX_LENGTH = 200;
+
+	/** The longest profile link kept. */
+	public static final int LINK_MAX_LENGTH = 500;
+
+	/** The longest email address: what the standard allows. */
+	public static final int EMAIL_MAX_LENGTH = 320;
+
+	/** The longest email subject; also the field's {@code maxlength} in applications/outreach.html. */
+	public static final int EMAIL_SUBJECT_MAX_LENGTH = 300;
+
+	/** The longest email; also the field's {@code maxlength} in applications/outreach.html. */
+	public static final int EMAIL_BODY_MAX_LENGTH = 5000;
+
 	/**
 	 * @return how many characters the note has, as LinkedIn counts them: each letter once, whatever its encoding
 	 */

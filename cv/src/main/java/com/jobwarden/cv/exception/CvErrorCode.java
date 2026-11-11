@@ -42,7 +42,10 @@ public enum CvErrorCode implements ErrorCode {
 	TOO_MANY_STORIES("CV-016"),
 
 	/** A message must say whom it's to. */
-	OUTREACH_WITHOUT_RECIPIENT("CV-017");
+	OUTREACH_WITHOUT_RECIPIENT("CV-017"),
+
+	/** A part of a letter or a message is longer than it can be, e.g. an email's subject. */
+	TEXT_TOO_LONG("CV-018");
 
 	private final String code;
 

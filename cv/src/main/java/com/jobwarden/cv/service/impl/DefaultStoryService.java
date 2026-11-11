@@ -1,6 +1,7 @@
 package com.jobwarden.cv.service.impl;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -125,14 +126,25 @@ class DefaultStoryService implements StoryService {
 			.task(text(story.task()))
 			.action(text(story.action()))
 			.result(text(story.result()))
-			.skills(story.skills()
-				.stream()
-				.filter(Objects::nonNull)
-				.map(String::strip)
-				.filter(skill -> !skill.isEmpty())
-				.distinct()
-				.toList())
+			.skills(skills(story.skills()))
 			.build();
+	}
+
+	/**
+	 * The skills as kept: the form lists them apart by commas, so a skill with a comma is two ("C, C++" is C and C++),
+	 * whoever wrote it. Each once, at most {@link Story#SKILL_MAX_LENGTH} characters, at most {@link Story#SKILLS_MAX}.
+	 */
+	private static List<String> skills(List<String> skills) {
+		Set<String> seen = new HashSet<>();
+		return skills.stream()
+			.filter(Objects::nonNull)
+			.flatMap(skill -> Arrays.stream(skill.split("[,\\n]")))
+			.map(String::strip)
+			.filter(skill -> !skill.isEmpty())
+			.map(skill -> (skill.length() > Story.SKILL_MAX_LENGTH) ? skill.substring(0, Story.SKILL_MAX_LENGTH).strip() : skill)
+			.filter(skill -> seen.add(skill.toLowerCase(Locale.ROOT)))
+			.limit(Story.SKILLS_MAX)
+			.toList();
 	}
 
 	private static String key(String title) {

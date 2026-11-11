@@ -174,6 +174,7 @@
                         </select>
                         <input type="hidden" name="q" th:if="${listParams.q}" th:value="${listParams.q}">
                         <input type="hidden" name="status" th:if="${listParams.status}" th:value="${listParams.status}">
+                        <input type="hidden" name="archived" value="true" th:if="${listParams.isArchived()}">
                         <input type="hidden" name="sort" th:value="${listParams.sort}">
                         <input type="hidden" name="dir" th:value="${listParams.dir}">
                     </form>

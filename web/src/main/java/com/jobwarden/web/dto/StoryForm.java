@@ -12,7 +12,8 @@ import static com.jobwarden.web.dto.FormValues.blankToNull;
 /**
  * A story of the story bank, as the CV page's form sends it: a new one when its id is 0.
  *
- * @param skills what it shows, separated by commas or one per line
+ * @param skills what it shows, separated by commas or one per line; the skills kept never hold a comma
+ * (StoryService), so a story's skills read back as they were
  */
 public record StoryForm(long id,
 		@Size(max = StoryForm.TITLE_MAX_LENGTH, message = "{validation.followUp.size}") @Nullable String title,
@@ -22,8 +23,8 @@ public record StoryForm(long id,
 		@Size(max = StoryForm.PART_MAX_LENGTH, message = "{validation.followUp.size}") @Nullable String result,
 		@Size(max = StoryForm.TITLE_MAX_LENGTH, message = "{validation.followUp.size}") @Nullable String skills) {
 
-	/** Also the {@code maxlength} of the title and the skills in cv/stories.html. */
-	public static final int TITLE_MAX_LENGTH = 200;
+	/** As long as a story's title can be, wherever it comes from; also the {@code maxlength} of the title and the skills in cv/stories.html. */
+	public static final int TITLE_MAX_LENGTH = Story.TITLE_MAX_LENGTH;
 
 	/** Also the {@code maxlength} of each STAR part. */
 	public static final int PART_MAX_LENGTH = 2000;

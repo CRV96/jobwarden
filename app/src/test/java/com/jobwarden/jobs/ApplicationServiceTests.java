@@ -201,6 +201,19 @@ class ApplicationServiceTests {
 	}
 
 	@Test
+	void comparesWithTheFirstOfTheEventsAtTheSameTimeAfterIt() {
+		long id = create(this.userId, "Backend engineer", ApplicationStatus.APPLIED);
+		this.applications.addEvent(this.userId, id, event(TODAY.plusDays(1), LocalTime.NOON, ApplicationStatus.POSITION_CLOSED));
+		this.applications.addEvent(this.userId, id, event(TODAY.plusDays(1), LocalTime.NOON, ApplicationStatus.POSITION_REOPENED));
+
+		// At 11:00 it would come right before the Position closed at noon, not the Position reopened after it
+		NewTimelineEvent closedBefore = event(TODAY.plusDays(1), LocalTime.of(11, 0), ApplicationStatus.POSITION_CLOSED);
+		assertThat(this.applications.wouldRepeat(this.userId, id, closedBefore)).isTrue();
+		assertThatExceptionOfType(BusinessRuleException.class)
+			.isThrownBy(() -> this.applications.addEvent(this.userId, id, closedBefore));
+	}
+
+	@Test
 	void archivesAndBringsBackWithoutChangingAnythingElse() {
 		long archived = create(this.userId, "Backend engineer", ApplicationStatus.APPLIED);
 		long inUse = create(this.userId, "Data engineer", ApplicationStatus.APPLIED);

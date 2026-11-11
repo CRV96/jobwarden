@@ -48,6 +48,10 @@ public final class AppConstants {
 		public static final String REFRESH = "HX-Refresh";
 		/** Tells HTMX to fire these events on the page, for the parts of it that listen. */
 		public static final String TRIGGER = "HX-Trigger";
+		/** Tells HTMX to swap the response into this element instead of the one the request named. */
+		public static final String RETARGET = "HX-Retarget";
+		/** Tells HTMX how to swap the response instead of how the request said. */
+		public static final String RESWAP = "HX-Reswap";
 	}
 
 	/**
@@ -105,6 +109,8 @@ public final class AppConstants {
 		public static final String OUTREACH_FRAGMENT = "applications/outreach :: card";
 		/** One message, which HTMX swaps once it's saved. */
 		public static final String OUTREACH_DRAFT_FRAGMENT = "applications/outreach :: draft";
+		/** The request for a job's messages while it's open, which HTMX asks for again until it isn't. */
+		public static final String OUTREACH_WAITING_FRAGMENT = "applications/outreach :: waiting";
 		public static final String LETTERS = "letters/letters";
 		/** The Cover letters page's base letter, which HTMX swaps as it's changed. */
 		public static final String BASE_LETTER_FRAGMENT = LETTERS + " :: base";

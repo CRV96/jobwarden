@@ -322,11 +322,30 @@ class RequestTools implements McpToolSet {
 		return found.values().stream().limit(RECIPIENTS).toList();
 	}
 
-	/** Each person once: by their profile, or else their name. The first reason stays. */
+	/**
+	 * Each person once: the same profile, or the same name when either has no profile. What one record lacks, the other
+	 * fills in (the job's contact's email, a recruiter's profile); the first reason stays.
+	 */
 	private static void add(Map<String, RecipientRef> found, RecipientRef recipient) {
-		String key = (recipient.profileLink() != null) ? recipient.profileLink().toLowerCase(Locale.ROOT)
-				: recipient.name().toLowerCase(Locale.ROOT);
-		found.putIfAbsent(key, recipient);
+		for (Map.Entry<String, RecipientRef> known : found.entrySet()) {
+			RecipientRef kept = known.getValue();
+			boolean sameProfile = kept.profileLink() != null && recipient.profileLink() != null
+					&& kept.profileLink().equalsIgnoreCase(recipient.profileLink());
+			boolean sameName = (kept.profileLink() == null || recipient.profileLink() == null)
+					&& nameKey(kept.name()).equals(nameKey(recipient.name()));
+			if (sameProfile || sameName) {
+				known.setValue(new RecipientRef(kept.name(), Objects.requireNonNullElse(kept.role(), recipient.role()),
+						Objects.requireNonNullElse(kept.profileLink(), recipient.profileLink()),
+						Objects.requireNonNullElse(kept.email(), recipient.email()), kept.why()));
+				return;
+			}
+		}
+		found.put(String.valueOf(found.size()), recipient);
+	}
+
+	/** A name as written in either record: whatever the case and the spaces. */
+	private static String nameKey(String name) {
+		return name.strip().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
 	}
 
 	private static String name(FoundJob job) {

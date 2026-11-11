@@ -29,8 +29,6 @@ class StoryTools implements McpToolSet {
 	/** The most a part of a story keeps: a story is told in a minute or two. */
 	private static final int PART_MAX_LENGTH = 2000;
 
-	private static final int SKILLS_MAX = 10;
-
 	/** The most stories one request drafts: the CV's best, for the profile to finish. */
 	static final int DRAFT_MAX = 8;
 
@@ -76,12 +74,12 @@ class StoryTools implements McpToolSet {
 						.stream()
 						.limit(DRAFT_MAX)
 						.map(item -> Story.builder()
-							.title(shortened(item.requiredString("title")))
-							.situation(shortened(item.string("situation")))
-							.task(shortened(item.string("task")))
-							.action(shortened(item.string("action")))
-							.result(shortened(item.string("result")))
-							.skills(item.strings("skills").stream().limit(SKILLS_MAX).toList())
+							.title(shortened(item.requiredString("title"), Story.TITLE_MAX_LENGTH))
+							.situation(shortened(item.string("situation"), PART_MAX_LENGTH))
+							.task(shortened(item.string("task"), PART_MAX_LENGTH))
+							.action(shortened(item.string("action"), PART_MAX_LENGTH))
+							.result(shortened(item.string("result"), PART_MAX_LENGTH))
+							.skills(item.strings("skills").stream().limit(Story.SKILLS_MAX).toList())
 							.build())
 						.toList();
 					List<Story> added = this.stories.addDrafted(userId, drafted);
@@ -95,8 +93,8 @@ class StoryTools implements McpToolSet {
 				story.result(), story.updatedAt());
 	}
 
-	private static @Nullable String shortened(@Nullable String text) {
-		return (text == null || text.length() <= PART_MAX_LENGTH) ? text : text.substring(0, PART_MAX_LENGTH - 1) + "…";
+	private static @Nullable String shortened(@Nullable String text, int max) {
+		return (text == null || text.length() <= max) ? text : text.substring(0, max - 1) + "…";
 	}
 
 	record StoryView(long id, String title, List<String> skills, @Nullable String situation, @Nullable String task,

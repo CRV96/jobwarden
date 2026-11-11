@@ -318,15 +318,17 @@ class ApplicationControllerTests {
 	}
 
 	@Test
-	void offersNoRepeatOfAStatusThatCantRepeatAndReopensOnlyAClosedJob() {
+	void offersEveryStatusAndReopensOnlyAClosedJob() {
 		given(this.applications.findById(1, 7)).willReturn(Optional.of(APPLICATION.toBuilder()
 			.status(ApplicationStatus.POSITION_CLOSED)
 			.build()));
 
+		// Closed again can still go earlier on the timeline, between two other steps: the service says when it can't
 		assertThat(this.mvc.get().uri("/applications/7")).hasStatusOk()
 			.bodyText()
-			.contains("<option value=\"POSITION_CLOSED\" disabled=\"disabled\">Position closed</option>",
-					"value=\"POSITION_REOPENED\"", ">Position re-opened</button>");
+			.contains("<option value=\"POSITION_CLOSED\">Position closed</option>", "value=\"POSITION_REOPENED\"",
+					">Position re-opened</button>")
+			.doesNotContain("disabled=\"disabled\">Position closed");
 		given(this.applications.findById(1, 7)).willReturn(Optional.of(APPLICATION));
 		assertThat(this.mvc.get().uri("/applications/7")).hasStatusOk()
 			.bodyText()

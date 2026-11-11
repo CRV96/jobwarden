@@ -44,6 +44,12 @@ public interface ApplicationRepository extends JpaRepository<ApplicationEntity, 
 			order by a.capturedAt desc""")
 	List<ApplicationSummary> findSummaries(long userId, ApplicationStatus status);
 
+	/**
+	 * @return which of these applications of the profile are archived
+	 */
+	@Query("select a.id from ApplicationEntity a where a.userId = :userId and a.id in :ids and a.archivedAt is not null")
+	List<Long> findArchivedIds(long userId, Collection<Long> ids);
+
 	/** The applications in use: the archived ones left out. */
 	long countByUserIdAndArchivedAtIsNull(long userId);
 

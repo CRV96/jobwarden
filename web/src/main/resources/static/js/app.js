@@ -234,14 +234,17 @@ document.addEventListener('click', (event) => {
 });
 
 /**
- * Shows how many characters the field has, of the most it takes: "212/300", in red past it.
+ * Shows how many characters the field has, of the most it takes: "212/300", in red past it. It counts each letter
+ * once, an emoji too, as LinkedIn does; data-count-max says the most when maxlength, which counts an emoji as two,
+ * leaves room for more.
  */
 function countCharacters(field) {
 	const counter = document.getElementById(field.dataset.count);
 	if (counter) {
 		const length = [...field.value].length;
-		counter.textContent = `${length}/${field.maxLength}`;
-		counter.classList.toggle('text-danger', field.maxLength > 0 && length > field.maxLength);
+		const max = Number(field.dataset.countMax) || field.maxLength;
+		counter.textContent = `${length}/${max}`;
+		counter.classList.toggle('text-danger', max > 0 && length > max);
 	}
 }
 

@@ -26,6 +26,15 @@ public record Story(long id, String title, @Nullable String situation, @Nullable
 	/** The most stories a bank keeps: enough for any interview, few enough to read through. */
 	public static final int MAX_STORIES = 40;
 
+	/** The longest title: a few words. Also the title field's {@code maxlength} in cv/stories.html. */
+	public static final int TITLE_MAX_LENGTH = 200;
+
+	/** The longest skill kept: a skill is a word or two. */
+	public static final int SKILL_MAX_LENGTH = 60;
+
+	/** The most skills a story keeps. */
+	public static final int SKILLS_MAX = 10;
+
 	public Story {
 		skills = (skills == null) ? List.of() : List.copyOf(skills);
 	}

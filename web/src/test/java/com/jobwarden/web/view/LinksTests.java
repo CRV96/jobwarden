@@ -1,5 +1,6 @@
 package com.jobwarden.web.view;
 
+import com.jobwarden.web.view.Links.Part;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -9,26 +10,28 @@ class LinksTests {
 	private final Links links = new Links();
 
 	@Test
-	void makesTheWebAddressesLinksAndEscapesTheRest() {
-		assertThat(this.links.html("Apply at https://jobs.lever.co/acme/7. Or <b>email</b> us & say hi"))
-			.isEqualTo("Apply at <a class=\"link break-all\" href=\"https://jobs.lever.co/acme/7\" target=\"_blank\" "
-					+ "rel=\"noopener noreferrer nofollow\">https://jobs.lever.co/acme/7</a>. Or &lt;b&gt;email&lt;/b&gt; us "
-					+ "&amp; say hi");
+	void partsTheWebAddressesFromTheRest() {
+		assertThat(this.links.parts("Apply at https://jobs.lever.co/acme/7. Or <b>email</b> us & say hi")).containsExactly(
+				new Part("Apply at ", false), new Part("https://jobs.lever.co/acme/7", true),
+				new Part(". Or <b>email</b> us & say hi", false));
+		assertThat(this.links.parts("https://acme.com")).containsExactly(new Part("https://acme.com", true));
 	}
 
 	@Test
 	void keepsTheAddressesQueryAndABracketItOpens() {
-		assertThat(this.links.html("(see https://en.wikipedia.org/wiki/Java_(programming_language))"))
-			.contains("href=\"https://en.wikipedia.org/wiki/Java_(programming_language)\"")
-			.endsWith("</a>)");
-		assertThat(this.links.html("https://acme.com/jobs?team=a&id=7")).contains("href=\"https://acme.com/jobs?team=a&amp;id=7\"");
+		assertThat(this.links.parts("(see https://en.wikipedia.org/wiki/Java_(programming_language))")).containsExactly(
+				new Part("(see ", false), new Part("https://en.wikipedia.org/wiki/Java_(programming_language)", true),
+				new Part(")", false));
+		assertThat(this.links.parts("https://acme.com/jobs?team=a&id=7"))
+			.containsExactly(new Part("https://acme.com/jobs?team=a&id=7", true));
 	}
 
 	@Test
 	void neverLinksAnythingButWebAddresses() {
-		assertThat(this.links.html("javascript:alert(1) and ftp://files")).doesNotContain("<a");
-		assertThat(this.links.html("https://evil.com/\"onmouseover=\"x")).doesNotContain("\"onmouseover");
-		assertThat(this.links.html(null)).isEmpty();
+		assertThat(this.links.parts("javascript:alert(1) and ftp://files")).noneMatch(Part::link);
+		assertThat(this.links.parts("https://evil.com/\"onmouseover=\"x")).filteredOn(Part::link)
+			.containsExactly(new Part("https://evil.com/", true));
+		assertThat(this.links.parts(null)).isEmpty();
 	}
 
 }

@@ -373,11 +373,13 @@ class DefaultInboxService implements InboxService {
 			.orElseThrow(() -> new EmailUpdateNotFoundException(updateId));
 	}
 
-	/** The jobs an email can be about, those changed last first: the likelier, among several at one company. */
+	/**
+	 * The jobs an email can be about, those changed last first: the likelier, among several at one company. Each status
+	 * apart, as those lists leave the archived jobs out: an email never changes one.
+	 */
 	private List<JobEmails.Job> jobsInPlay(long userId) {
-		return this.applications.findAll(userId, null)
-			.stream()
-			.filter(job -> IN_PLAY.contains(job.status()))
+		return IN_PLAY.stream()
+			.flatMap(status -> this.applications.findAll(userId, status).stream())
 			.sorted(Comparator.comparing(ApplicationSummary::lastModified).reversed())
 			.map(job -> new JobEmails.Job(job.id(), job.title(), job.company(), job.status()))
 			.toList();

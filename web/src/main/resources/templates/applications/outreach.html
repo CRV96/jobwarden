@@ -18,12 +18,11 @@
 </section>
 
 <!--/* outreachDrafts are the messages, to each person; outreachRequest the latest request to write them, or null, and
-       outreachPrompt what to paste into Claude Code while it waits. While it's open, the card asks again every few
-       seconds. */-->
+       outreachPrompt what to paste into Claude Code while it waits. While it's open, only its status asks again every
+       few seconds (waiting), so the messages being changed meanwhile stay; once Claude is done, the card loads again. */-->
 <section id="outreach" th:fragment="card" class="flex flex-col gap-3" data-collapse="outreach"
          th:with="request=${outreachRequest}, status=${request != null} ? ${request.status.name()},
-                  open=${request != null and request.status.isOpen()}, cardUrl=@{/applications/{id}/outreach(id=${outreachJobId})}"
-         th:hx-get="${open} ? ${cardUrl}" th:hx-trigger="${open} ? 'every 5s'" hx-target="this" hx-swap="outerHTML">
+                  open=${request != null and request.status.isOpen()}">
     <h2 class="section-title flex items-center gap-1.5">
         <i class="ph ph-paper-plane-tilt text-accent"></i><span th:text="#{outreach.title}">Reach out</span>
     </h2>
@@ -36,8 +35,7 @@
        th:text="#{outreach.hint}">Claude writes a LinkedIn note and an email to the job’s contact…</p>
 
     <th:block th:if="${open}">
-        <th:block th:replace="~{applications/claude :: waiting(${request}, ${outreachPrompt},
-                  @{/applications/{id}/outreach/cancel(id=${outreachJobId})}, '#outreach')}"></th:block>
+        <div th:replace="~{applications/outreach :: waiting}"></div>
     </th:block>
     <p class="text-[13px] text-danger" role="alert" th:if="${status == 'FAILED'}"
        th:text="#{outreach.failed(${request.summary} ?: '')}">Claude couldn’t write them: …</p>
@@ -54,6 +52,16 @@
         <i class="ph ph-sparkle"></i><span th:text="${outreachDrafts.isEmpty()} ? #{outreach.ask} : #{outreach.again}">Ask Claude to write them</span>
     </button>
 </section>
+
+<!--/* The request while it's open (outreachRequest, with outreachPrompt), asking for itself again every few seconds: as
+       long as it's open, the server answers with it; once it isn't, with the whole card, in place of this card
+       (OutreachController.waiting). */-->
+<div id="outreach-waiting" th:fragment="waiting" class="flex flex-col gap-2"
+     th:hx-get="@{/applications/{id}/outreach/waiting(id=${outreachJobId})}" hx-trigger="every 5s" hx-target="this"
+     hx-swap="outerHTML">
+    <th:block th:replace="~{applications/claude :: waiting(${outreachRequest}, ${outreachPrompt},
+              @{/applications/{id}/outreach/cancel(id=${outreachJobId})}, '#outreach')}"></th:block>
+</div>
 
 <!--/* One person's messages (draft, an OutreachDraft): who, the note with its count of LinkedIn's 300 characters, and
        the email. Saved with the button; copied as they stand (app.js: data-copy-from); the email opens in the profile's
@@ -80,7 +88,9 @@
             <span class="tabular-nums" th:id="|note-count-${draft.id}|" th:classappend="${draft.linkedinNoteLength() > 300} ? 'text-danger'"
                   th:text="|${draft.linkedinNoteLength()}/300|">212/300</span>
         </span>
-        <textarea class="input text-[13px]" name="linkedinNote" rows="4" maxlength="300" th:id="|note-${draft.id}|"
+        <!--/* LinkedIn counts letters, an emoji as one; maxlength counts an emoji as two. So maxlength leaves room for
+               300 of any kind, the count shows past 300 in red, and the server refuses a note over it. */-->
+        <textarea class="input text-[13px]" name="linkedinNote" rows="4" maxlength="600" data-count-max="300" th:id="|note-${draft.id}|"
                   th:data-count="|note-count-${draft.id}|" th:text="${draft.linkedinNote}">Hi Ana, …</textarea>
     </label>
     <div class="flex flex-wrap items-center gap-1.5">

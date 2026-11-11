@@ -160,10 +160,11 @@ public class ApplicationEntity {
 		Optional<TimelineEventEntity> before = this.events.stream()
 			.filter(existing -> !existing.isAfter(event.eventDate(), event.eventTime()))
 			.reduce((latest, existing) -> latest.isAfter(existing.getEventDate(), existing.getEventTime()) ? latest : existing);
+		// The events are in timeline order: of those at the same time, the first one after is next to the new one
 		Optional<TimelineEventEntity> after = this.events.stream()
 			.filter(existing -> existing.isAfter(event.eventDate(), event.eventTime()))
-			.reduce((earliest, existing) -> existing.isAfter(earliest.getEventDate(), earliest.getEventTime()) ? earliest
-					: existing);
+			.reduce((earliest, existing) -> earliest.isAfter(existing.getEventDate(), existing.getEventTime()) ? existing
+					: earliest);
 		return Stream.concat(before.stream(), after.stream())
 			.anyMatch(next -> next.getStageCategory() == event.stageCategory());
 	}

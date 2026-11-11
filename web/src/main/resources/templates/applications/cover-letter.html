@@ -19,12 +19,13 @@
 <!--/* coverLetter is the letter, or null; letterRequest the latest request for one, or null; letterPrompt what to paste
        into Claude Code while it waits; letterEditing whether the letter shows in a field to change, letterError why it
        wasn't saved and letterDraft what was typed, or the base letter filled in for the job (letterFromBase). While the
-       request is open, the card asks again every few seconds. */-->
+       request is open, the card asks again every few seconds, unless the letter is being changed: that would be lost.
+       Saving a change takes the request back (CoverLetterController). */-->
 <section id="cover-letter" th:fragment="card" class="flex flex-col gap-3" data-collapse="letter"
          th:with="request=${letterRequest}, status=${request != null} ? ${request.status.name()},
                   open=${request != null and request.status.isOpen()}, letter=${coverLetter},
-                  cardUrl=@{/applications/{id}/letter/card(id=${letterJobId})}"
-         th:hx-get="${open} ? ${cardUrl}" th:hx-trigger="${open} ? 'every 5s'" hx-target="this" hx-swap="outerHTML">
+                  cardUrl=@{/applications/{id}/letter/card(id=${letterJobId})}, poll=${open and !letterEditing}"
+         th:hx-get="${poll} ? ${cardUrl}" th:hx-trigger="${poll} ? 'every 5s'" hx-target="this" hx-swap="outerHTML">
     <div class="flex items-center gap-2">
         <h2 class="section-title flex flex-1 items-center gap-1.5">
             <i class="ph ph-envelope-open text-accent"></i><span th:text="#{letter.title}">Cover letter</span>

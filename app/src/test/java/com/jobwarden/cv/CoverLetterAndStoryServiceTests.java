@@ -161,18 +161,40 @@ class CoverLetterAndStoryServiceTests {
 	}
 
 	@Test
+	void refusesALetterOrAMessageLongerThanItsParts() {
+		long job = insertJob(this.userId, "Backend engineer");
+
+		assertThatExceptionOfType(BusinessRuleException.class)
+			.isThrownBy(() -> this.letters.saveLetter(this.userId, job, "Dear Ana,", "x".repeat(CoverLetter.NOTES_MAX_LENGTH + 1)))
+			.satisfies(refused -> assertThat(refused.getErrorCode()).isEqualTo(CvErrorCode.TEXT_TOO_LONG));
+		assertThatExceptionOfType(BusinessRuleException.class).isThrownBy(() -> this.letters.saveDraft(this.userId,
+				OutreachDraft.builder()
+					.applicationId(job)
+					.recipientName("Ana Pop")
+					.emailSubject("x".repeat(OutreachDraft.EMAIL_SUBJECT_MAX_LENGTH + 1))
+					.build()))
+			.satisfies(refused -> assertThat(refused.getMessage()).contains("The email's subject has 301 characters"));
+		assertThatExceptionOfType(BusinessRuleException.class).isThrownBy(() -> this.letters.saveDraft(this.userId,
+				OutreachDraft.builder().applicationId(job).recipientName("x".repeat(OutreachDraft.RECIPIENT_MAX_LENGTH + 1)).build()));
+		OutreachDraft kept = this.letters.saveDraft(this.userId, OutreachDraft.builder().applicationId(job).recipientName("Ana Pop").build());
+		assertThatExceptionOfType(BusinessRuleException.class).isThrownBy(() -> this.letters.changeDraft(this.userId,
+				kept.id(), null, null, "x".repeat(OutreachDraft.EMAIL_BODY_MAX_LENGTH + 1)));
+	}
+
+	@Test
 	void keepsTheStoriesTidiedAndInTheirOrder() {
 		Story saved = this.stories.save(this.userId, Story.builder()
 			.title(" The Kafka migration ")
 			.situation("Orders were lost at peaks.")
 			.result(" ")
-			.skills(List.of("Kafka", " Kafka ", "", "leadership"))
+			.skills(List.of("Kafka", " Kafka ", "", "leadership", "C, C++", "x".repeat(Story.SKILL_MAX_LENGTH + 5)))
 			.build());
 		Story second = this.stories.save(this.userId, Story.builder().title("Halving checkout latency").build());
 
 		assertThat(saved.title()).isEqualTo("The Kafka migration");
 		assertThat(saved.result()).isNull();
-		assertThat(saved.skills()).containsExactly("Kafka", "leadership");
+		// A skill is never a list, which the form would read back as two; nor longer than a skill is
+		assertThat(saved.skills()).containsExactly("Kafka", "leadership", "C", "C++", "x".repeat(Story.SKILL_MAX_LENGTH));
 		assertThat(this.stories.findAll(this.userId)).extracting(Story::id).containsExactly(saved.id(), second.id());
 		// In the order a brief names them, the ones gone or another profile's left out
 		assertThat(this.stories.findAll(this.userId, List.of(second.id(), 999_999L, saved.id()))).extracting(Story::id)

@@ -61,6 +61,27 @@ class OutreachController extends BaseController {
 		return showCard(model, userId, id);
 	}
 
+	/**
+	 * Called by HTMX every few seconds while the request is open: its status and what to paste into Claude Code, as
+	 * long as it's open; then the whole card, in place of the card, with the messages Claude wrote. Only the status
+	 * swaps till then, so a message being changed meanwhile stays as it's typed.
+	 */
+	@GetMapping("/waiting")
+	String waiting(@PathVariable long id, Model model, HttpServletResponse response) {
+		long userId = requireProfile(model).id();
+		requireApplication(userId, id);
+		Optional<AiRequest> request = latestRequest(userId, id).filter(asked -> asked.status().isOpen());
+		if (request.isEmpty()) {
+			response.setHeader(HtmxHeaders.RETARGET, "#outreach");
+			response.setHeader(HtmxHeaders.RESWAP, "outerHTML");
+			return showCard(model, userId, id);
+		}
+		model.addAttribute(ModelAttributes.OUTREACH_JOB_ID, id);
+		model.addAttribute(ModelAttributes.OUTREACH_REQUEST, request.get());
+		model.addAttribute(ModelAttributes.OUTREACH_PROMPT, ClaudePrompts.forRequest(request.get().id(), userId));
+		return Views.OUTREACH_WAITING_FRAGMENT;
+	}
+
 	@PostMapping("/request")
 	String ask(@PathVariable long id, Model model) {
 		long userId = requireProfile(model).id();

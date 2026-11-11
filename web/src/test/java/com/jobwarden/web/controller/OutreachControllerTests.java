@@ -11,7 +11,10 @@ import com.jobwarden.cv.dto.OutreachDraft;
 import com.jobwarden.cv.exception.CvErrorCode;
 import com.jobwarden.cv.service.CoverLetterService;
 import com.jobwarden.cv.service.CvService;
+import com.jobwarden.discover.dto.AiRequest;
+import com.jobwarden.discover.dto.AiRequirements;
 import com.jobwarden.discover.enums.AiRequestKind;
+import com.jobwarden.discover.enums.AiRequestStatus;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.service.UserService;
@@ -103,6 +106,45 @@ class OutreachControllerTests {
 			.contains("Ana Pop", "Technical Recruiter at Acme", "Hi Ana, I saw the Java role at Acme.", "36/300",
 					"href=\"https://www.linkedin.com/in/anapop\"", "data-copy-from=\"subject-5 body-5\"",
 					"mailto:ana@acme.example?subject=The%20Java%20Developer%20role", "never sends anything");
+	}
+
+	@Test
+	void asksOnlyForTheRequestsStatusWhileItsOpenAndForTheCardOnceItsDone() {
+		AiRequest working = AiRequest.builder()
+			.id(36)
+			.kind(AiRequestKind.WRITE_OUTREACH)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WORKING)
+			.createdAt(Instant.now())
+			.build();
+		given(this.discovery.findLatestRequest(1, AiRequestKind.WRITE_OUTREACH, 7)).willReturn(Optional.of(working));
+		given(this.letters.findDrafts(1, 7)).willReturn(List.of(DRAFT));
+
+		// The card itself never asks again: a message being changed stays
+		assertThat(this.mvc.get().uri("/applications/7/outreach").header("HX-Request", "true")).hasStatusOk()
+			.bodyText()
+			.contains("id=\"outreach-waiting\"", "/applications/7/outreach/waiting")
+			.doesNotContain("hx-get=\"/applications/7/outreach\"");
+		assertThat(this.mvc.get().uri("/applications/7/outreach/waiting").header("HX-Request", "true")).hasStatusOk()
+			.satisfies(result -> assertThat(result).doesNotContainHeader("HX-Retarget"))
+			.bodyText()
+			.contains("id=\"outreach-waiting\"")
+			.doesNotContain("Ana Pop");
+
+		given(this.discovery.findLatestRequest(1, AiRequestKind.WRITE_OUTREACH, 7))
+			.willReturn(Optional.of(AiRequest.builder()
+				.id(36)
+				.kind(AiRequestKind.WRITE_OUTREACH)
+				.applicationId(7L)
+				.requirements(AiRequirements.NONE)
+				.status(AiRequestStatus.DONE)
+				.createdAt(Instant.now())
+				.build()));
+		assertThat(this.mvc.get().uri("/applications/7/outreach/waiting").header("HX-Request", "true")).hasStatusOk()
+			.satisfies(result -> assertThat(result).headers().hasValue("HX-Retarget", "#outreach"))
+			.bodyText()
+			.contains("id=\"outreach\"", "Ana Pop");
 	}
 
 	@Test

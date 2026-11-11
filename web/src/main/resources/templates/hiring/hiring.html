@@ -303,7 +303,7 @@
     </div>
     <div class="flex flex-col items-start gap-1">
         <p class="text-[13px] whitespace-pre-line text-ink/85" th:classappend="${post.isLong()} ? 'line-clamp-[8]'" data-clamped
-           th:with="linked=${@links.html(post.text)}" th:utext="${linked}">I’m hiring Java Fullstack Engineers based in Romania…</p>
+           ><th:block th:replace="~{applications/fragments :: linked-text(${post.text})}">I’m hiring Java Fullstack Engineers based in Romania…</th:block></p>
         <button class="text-xs font-medium text-accent hover:underline" type="button" th:if="${post.isLong()}" data-unclamp
                 th:text="#{hiring.more}">Show more</button>
     </div>

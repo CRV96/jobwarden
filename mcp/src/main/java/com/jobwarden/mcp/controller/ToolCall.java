@@ -105,14 +105,18 @@ record ToolCall(JsonNode arguments, @Nullable Long profileHeader) {
 
 	/**
 	 * @return the whole numbers of a list, e.g. ids; empty when it's left out
+	 * @throws ToolException when it holds more than {@code max}
 	 */
-	List<Long> numbers(String name) {
+	List<Long> numbers(String name, int max) {
 		JsonNode value = this.arguments.get(name);
 		if (value == null || value.isNull()) {
 			return List.of();
 		}
 		if (!value.isArray()) {
 			throw new ToolException(name + " must be a list of whole numbers");
+		}
+		if (value.size() > max) {
+			throw new ToolException(name + " takes at most " + max + " numbers");
 		}
 		List<Long> numbers = new ArrayList<>();
 		for (JsonNode item : value) {

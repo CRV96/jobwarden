@@ -132,6 +132,20 @@ class ReminderServiceTests {
 	}
 
 	@Test
+	void givesNoReminderOfAnArchivedJobAndKeepsItForWhenItsBack() {
+		long job = create(this.userId);
+		long soon = addInterview(job, LocalDateTime.now().plusMinutes(10));
+		this.reminders.set(this.userId, new ReminderTarget(job, CalendarEntryKind.EVENT, soon), ReminderLead.MINUTES_15, true);
+
+		this.applications.archive(this.userId, List.of(job));
+		assertThat(this.reminders.claimDue(this.userId, Locale.ENGLISH)).isEmpty();
+
+		this.applications.restore(this.userId, List.of(job));
+		assertThat(this.reminders.claimDue(this.userId, Locale.ENGLISH)).singleElement()
+			.satisfies(notice -> assertThat(notice.applicationId()).isEqualTo(job));
+	}
+
+	@Test
 	void remindsAgainOfAnEntryMovedSinceAndOnceOfSeveralDueTogether() {
 		long job = create(this.userId);
 		this.applications.updateFollowUp(this.userId, job, FollowUp.builder().followUpOn(TODAY.plusDays(1)).build());

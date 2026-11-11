@@ -27,11 +27,13 @@ public record OfferComparison(String currency, SalaryPeriod period, List<Compare
 	}
 
 	/**
-	 * @return the offer that pays the most, by the middle of its range, when two or more have a salary to compare
+	 * @return the offer that pays the most, by the middle of its range, when two or more have a salary to compare: all
+	 * of them gross, all net, or none saying, as a gross salary and a net one aren't the same amount
 	 */
 	public Optional<ComparedOffer> best() {
 		List<ComparedOffer> paid = this.offers.stream().filter(offer -> offer.salary() != null).toList();
-		return (paid.size() < 2) ? Optional.empty()
+		long bases = paid.stream().map(offer -> Optional.ofNullable(offer.salary().basis())).distinct().count();
+		return (paid.size() < 2 || bases > 1) ? Optional.empty()
 				: paid.stream().max(Comparator.comparing(offer -> offer.salary().midpoint()));
 	}
 

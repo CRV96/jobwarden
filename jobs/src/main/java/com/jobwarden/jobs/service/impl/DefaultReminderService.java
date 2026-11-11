@@ -9,6 +9,7 @@ import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -117,6 +118,9 @@ class DefaultReminderService implements ReminderService {
 			return List.of();
 		}
 		Map<ReminderTarget, CalendarEntry> entries = entries(userId, all);
+		// An archived job's reminders wait: they come again with the job, unless their entry is over by then
+		Set<Long> archived = new HashSet<>(this.applications.findArchivedIds(userId,
+				all.stream().map(ReminderEntity::getApplicationId).distinct().toList()));
 		LocalDateTime now = LocalDateTime.now();
 		// Several reminders of one entry may be due at once, e.g. after the computer slept through the first: they all
 		// count as come, and say it once, with the one that's due last
@@ -129,7 +133,7 @@ class DefaultReminderService implements ReminderService {
 				over.add(reminder);
 				continue;
 			}
-			if (!isDue(reminder, entry, now) || this.reminders.markNotified(reminder.getId(), entry.start()) == 0) {
+			if (archived.contains(reminder.getApplicationId()) || !isDue(reminder, entry, now) || this.reminders.markNotified(reminder.getId(), entry.start()) == 0) {
 				continue;
 			}
 			due.merge(target, reminder, (one, other) -> (one.getRemindBefore().minutes() <= other.getRemindBefore()

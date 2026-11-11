@@ -13,7 +13,10 @@ import com.jobwarden.cv.dto.CvDetails;
 import com.jobwarden.cv.exception.CvErrorCode;
 import com.jobwarden.cv.service.CoverLetterService;
 import com.jobwarden.cv.service.CvService;
+import com.jobwarden.discover.dto.AiRequest;
+import com.jobwarden.discover.dto.AiRequirements;
 import com.jobwarden.discover.enums.AiRequestKind;
+import com.jobwarden.discover.enums.AiRequestStatus;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.service.UserService;
@@ -136,9 +139,19 @@ class CoverLetterControllerTests {
 	@Test
 	void keepsTheLetterAsChangedOrSaysWhyNot() {
 		given(this.letters.changeLetter(1, 7, "Dear Ana,")).willReturn(LETTER);
+		given(this.discovery.findLatestRequest(1, AiRequestKind.WRITE_COVER_LETTER, 7)).willReturn(Optional.of(AiRequest.builder()
+			.id(34)
+			.kind(AiRequestKind.WRITE_COVER_LETTER)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WORKING)
+			.createdAt(Instant.now())
+			.build()));
 		assertThat(this.mvc.post().uri("/applications/7/letter").param("body", "Dear Ana,").header("HX-Request", "true"))
 			.hasStatusOk();
 		then(this.letters).should().changeLetter(1, 7, "Dear Ana,");
+		// The letter as changed wins over the one Claude was writing
+		then(this.discovery).should().cancelRequest(1, 34);
 
 		given(this.letters.changeLetter(1, 7, " ")).willThrow(
 				new BusinessRuleException(CvErrorCode.COVER_LETTER_EMPTY, "The cover letter is empty"));

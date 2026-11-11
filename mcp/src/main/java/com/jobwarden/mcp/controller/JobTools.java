@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -281,8 +282,11 @@ class JobTools implements McpToolSet {
 	private List<ApplicationSummary> waiting(long userId, ToolCall call) {
 		List<ApplicationStatus> asked = call.constants("statuses", ApplicationStatus.class);
 		Set<ApplicationStatus> statuses = asked.isEmpty() ? WAITING : EnumSet.copyOf(asked);
-		// Each status apart: those lists leave the archived jobs out
-		return statuses.stream().flatMap(status -> this.applications.findAll(userId, status).stream()).toList();
+		// Each status apart, as those lists leave the archived jobs out; then the newest first, whatever their status
+		return statuses.stream()
+			.flatMap(status -> this.applications.findAll(userId, status).stream())
+			.sorted(Comparator.comparing(ApplicationSummary::capturedAt).reversed())
+			.toList();
 	}
 
 	private void close(long userId, ApplicationSummary job, PostingCheck result) {

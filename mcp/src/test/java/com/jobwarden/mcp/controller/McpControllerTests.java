@@ -1002,6 +1002,77 @@ class McpControllerTests {
 	}
 
 	@Test
+	void writesOnceToSomeoneWhosBothTheJobsContactAndARecruiter() {
+		given(this.discovery.startRequest(1, 37)).willReturn(AiRequest.builder()
+			.id(37)
+			.kind(AiRequestKind.WRITE_OUTREACH)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(ApplicationDetails.builder()
+			.id(7)
+			.title("Java Developer")
+			.company("Acme")
+			.status(ApplicationStatus.APPLIED)
+			.followUp(FollowUp.builder().contactName("Ana Pop").contactEmail("ana@acme.example").build())
+			.capturedAt(Instant.now())
+			.timeline(List.of())
+			.build()));
+		given(this.hiring.findRecruiters(1)).willReturn(List.of(Recruiter.builder()
+			.id(4)
+			.name(" ana  pop")
+			.headline("Technical Recruiter at Acme")
+			.profileUrl("https://www.linkedin.com/in/anapop")
+			.company("Acme")
+			.origin(RecruiterOrigin.FOUND)
+			.build()));
+
+		assertThat(callTool("get_request", "{\"request_id\": 37}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.recipients").asArray().hasSize(1);
+			assertThat(result(body)).extractingPath("$.recipients[0].name").isEqualTo("Ana Pop");
+			assertThat(result(body)).extractingPath("$.recipients[0].email").isEqualTo("ana@acme.example");
+			assertThat(result(body)).extractingPath("$.recipients[0].profile_link").isEqualTo("https://www.linkedin.com/in/anapop");
+			assertThat(result(body)).extractingPath("$.recipients[0].role").isEqualTo("Technical Recruiter at Acme");
+		});
+	}
+
+	@Test
+	void neverReplacesALetterChangedByHandAfterItsRequestWasTakenBack() {
+		Instant asked = Instant.now().minusSeconds(600);
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.SAVED)));
+		given(this.discovery.findLatestRequest(1, AiRequestKind.WRITE_COVER_LETTER, 7)).willReturn(Optional.of(AiRequest.builder()
+			.id(34)
+			.kind(AiRequestKind.WRITE_COVER_LETTER)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.CANCELLED)
+			.createdAt(asked)
+			.build()));
+		given(this.letters.findLetter(1, 7)).willReturn(Optional.of(
+				new com.jobwarden.cv.dto.CoverLetter(7, "Dear Ana, as I wrote it myself.", null, Instant.now())));
+
+		assertThat(callTool("save_cover_letter", "{\"job_id\": 7, \"body\": \"Dear Ana,\"}")).bodyJson().satisfies(body -> {
+			assertThat(body).extractingPath("$.result.isError").isEqualTo(true);
+			assertThat(body).extractingPath("$.result.content[0].text").asString().contains("stays as they wrote it");
+		});
+		then(this.letters).should(never()).saveLetter(eq(1L), eq(7L), any(), any());
+	}
+
+	@Test
+	void refusesMoreStoriesThanABriefNames() {
+		String ids = java.util.stream.LongStream.rangeClosed(1, 21)
+			.mapToObj(String::valueOf)
+			.collect(java.util.stream.Collectors.joining(", "));
+
+		assertThat(callTool("save_interview_brief", "{\"job_id\": 7, \"company\": \"Acme.\", \"story_ids\": [" + ids + "]}"))
+			.bodyJson()
+			.extractingPath("$.result.isError")
+			.isEqualTo(true);
+	}
+
+	@Test
 	void handsOutARequestToWriteACoverLetter() {
 		given(this.discovery.startRequest(1, 34)).willReturn(AiRequest.builder()
 			.id(34)
@@ -1283,6 +1354,21 @@ class McpControllerTests {
 	}
 
 	@Test
+	void checksTheNewestJobsFirstWhateverTheirStatus() {
+		given(this.applications.findAll(1, ApplicationStatus.SAVED))
+			.willReturn(List.of(summary(9, ApplicationStatus.SAVED, "https://a.example/9")));
+		given(this.applications.findAll(1, ApplicationStatus.INTERVIEWING))
+			.willReturn(List.of(summary(7, ApplicationStatus.INTERVIEWING, "https://a.example/7")));
+		given(this.applications.findAll(1, ApplicationStatus.APPLIED))
+			.willReturn(List.of(summary(8, ApplicationStatus.APPLIED, "https://a.example/8")));
+		given(this.checker.check(any())).willAnswer(call -> new PostingCheck(call.getArgument(0), Verdict.OPEN, true,
+				"Up", 200, null, null));
+
+		assertThat(callTool("check_postings", "{}")).bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.checked[*].job_id").asArray().containsExactly(7, 8, 9));
+	}
+
+	@Test
 	void closesTheJobsWhosePostingIsCertainlyGone() {
 		// Each status apart, as those lists leave the archived jobs out; a rejected job isn't checked
 		given(this.applications.findAll(1, ApplicationStatus.APPLIED))
@@ -1426,7 +1512,8 @@ class McpControllerTests {
 			.title("Job " + id)
 			.link(link)
 			.status(status)
-			.capturedAt(Instant.now())
+			// The higher the id, the earlier saved: a list newest first is in the ids' order
+			.capturedAt(Instant.parse("2026-10-01T10:00:00Z").minusSeconds(id * 3600))
 			.build();
 	}
 

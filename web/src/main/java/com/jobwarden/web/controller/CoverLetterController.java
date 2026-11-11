@@ -81,7 +81,8 @@ class CoverLetterController extends BaseController {
 
 	/**
 	 * Keeps the letter as changed; when it can't be kept (empty, too long), the field stays open with what was typed,
-	 * saying why.
+	 * saying why. A change kept takes back the request for Claude to write it, if one is open: the profile's own letter
+	 * wins, and save_cover_letter refuses Claude's, should it come after all (LetterTools).
 	 */
 	@PostMapping
 	String save(@PathVariable long id, @RequestParam(defaultValue = "") String body, Model model,
@@ -96,6 +97,8 @@ class CoverLetterController extends BaseController {
 			model.addAttribute(ModelAttributes.LETTER_DRAFT, body);
 			return showCard(model, userId, id, true);
 		}
+		latestRequest(userId, id).filter(request -> request.status().isOpen())
+			.ifPresent(request -> this.discovery.cancelRequest(userId, request.id()));
 		response.setHeader(HtmxHeaders.TRIGGER, HtmxEvents.LETTERS_CHANGED);
 		return showCard(model, userId, id, false);
 	}
