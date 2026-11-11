@@ -64,8 +64,9 @@
 </div>
 
 <!--/* The request is done (outreachRequest, or null): the card shows Claude's messages at the press of a button, once
-       what's being typed is saved, as loading it again would lose that. */-->
-<div id="outreach-waiting" th:fragment="done" class="flex flex-wrap items-center gap-2 rounded-lg bg-ink/4 p-2.5"
+       what's being typed is saved, as loading it again would lose that. It takes the place of waiting, and nothing asks
+       for it again, so it needs no id. */-->
+<div th:fragment="done" class="flex flex-wrap items-center gap-2 rounded-lg bg-ink/4 p-2.5"
      role="status" th:with="status=${outreachRequest != null} ? ${outreachRequest.status.name()} : 'DONE'">
     <span class="tag" th:text="#{|ai.status.${status}|}">Done</span>
     <span class="min-w-[12rem] flex-1 text-[13px] text-pretty text-ink/70" th:text="#{outreach.done}">Save what you’re changing first, then show Claude’s messages.</span>

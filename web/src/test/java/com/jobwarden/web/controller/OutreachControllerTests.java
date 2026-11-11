@@ -151,9 +151,8 @@ class OutreachControllerTests {
 			.hasStatusOk()
 			.satisfies(result -> assertThat(result).doesNotContainHeader("HX-Retarget"))
 			.bodyText()
-			.contains("id=\"outreach-waiting\"", "Done", "Save what you’re changing first", "Show them",
-					"hx-get=\"/applications/7/outreach\"")
-			.doesNotContain("Ana Pop", "every 5s");
+			.contains("Done", "Save what you’re changing first", "Show them", "hx-get=\"/applications/7/outreach\"")
+			.doesNotContain("Ana Pop", "every 5s", "id=\"outreach-waiting\"");
 	}
 
 	@Test
