@@ -40,6 +40,7 @@
 	--jw-red: #e0302a;
 	--jw-purple: #9a3fd0;
 	--jw-brown: #8f7150;
+	--jw-teal: #0f8a8a;
 }
 
 [data-theme="dark"] {
@@ -66,6 +67,7 @@
 	--jw-red: #ff453a;
 	--jw-purple: #bf5af2;
 	--jw-brown: #ac8e68;
+	--jw-teal: #3cc6c6;
 }
 
 @theme inline {
@@ -474,6 +476,10 @@
 
 	.st-position_closed {
 		--st: var(--jw-brown);
+	}
+
+	.st-position_reopened {
+		--st: var(--jw-teal);
 	}
 
 	/* — Surfaces — */

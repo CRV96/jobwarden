@@ -98,7 +98,8 @@ class JobTools implements McpToolSet {
 
 	private McpTool listJobs() {
 		return new McpTool("list_jobs", "List jobs",
-				"The jobs the profile tracks, the latest changed first, with each one's status and the posting's link.",
+				"The jobs the profile tracks, the latest changed first, with each one's status and the posting's link. "
+						+ "Those it archived are left out.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
 						"status", oneOf(ApplicationStatus.values(), "Only the jobs with this status"),
 						"search", string("Only the jobs whose title or company has these words"),
@@ -280,7 +281,8 @@ class JobTools implements McpToolSet {
 	private List<ApplicationSummary> waiting(long userId, ToolCall call) {
 		List<ApplicationStatus> asked = call.constants("statuses", ApplicationStatus.class);
 		Set<ApplicationStatus> statuses = asked.isEmpty() ? WAITING : EnumSet.copyOf(asked);
-		return this.applications.findAll(userId, null).stream().filter(job -> statuses.contains(job.status())).toList();
+		// Each status apart: those lists leave the archived jobs out
+		return statuses.stream().flatMap(status -> this.applications.findAll(userId, status).stream()).toList();
 	}
 
 	private void close(long userId, ApplicationSummary job, PostingCheck result) {
@@ -298,8 +300,9 @@ class JobTools implements McpToolSet {
 	private McpTool updateJobStatus() {
 		return new McpTool("update_job_status", "Update a job's status",
 				"Adds a step to the job's timeline, which moves it to that status: e.g. POSITION_CLOSED when its posting "
-						+ "is gone, NO_RESPONSE when the company never answered, INTERVIEWING for an interview, with its date, "
-						+ "time, format and place. Without a date, it's now.",
+						+ "is gone, POSITION_REOPENED when a closed one is up again, NO_RESPONSE when the company never "
+						+ "answered, INTERVIEWING for an interview, with its date, time, format and place. Without a date, "
+						+ "it's now. A status can't follow itself, but for INTERVIEWING and OFFER: the job has it already.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
 						"job_id", integer("The job, from list_jobs"),
 						"status", oneOf(ApplicationStatus.values(), "The status to move the job to"),

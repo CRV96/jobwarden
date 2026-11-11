@@ -10,9 +10,12 @@
        or FEW to tell); missingKeywords what the tailored CVs couldn't claim, with how often. Each chart is one series in
        the accent colour, its numbers written beside it, and the exact counts in its row's title. */-->
 <main class="flex flex-col gap-5" th:with="stats=${statistics}">
-    <header>
-        <h1 class="page-title mb-1" th:text="#{nav.statistics}">Statistics</h1>
-        <p class="text-[13px] text-pretty text-ink/60" th:text="#{stats.subtitle}">How your applications went…</p>
+    <header class="flex flex-wrap items-end gap-3">
+        <div class="min-w-[240px] flex-1">
+            <h1 class="page-title mb-1" th:text="#{nav.statistics}">Statistics</h1>
+            <p class="text-[13px] text-pretty text-ink/60" th:text="#{stats.subtitle}">How your applications went…</p>
+        </div>
+        <th:block th:replace="~{help/help :: how-it-works('statistics')}"></th:block>
     </header>
 
     <div class="card flex flex-col items-center gap-2 p-8 text-center" th:if="${stats.sent == 0}">

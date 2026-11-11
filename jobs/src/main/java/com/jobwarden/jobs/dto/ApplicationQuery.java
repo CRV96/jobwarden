@@ -15,6 +15,7 @@ import org.springframework.data.domain.Sort;
  * @param search only applications whose title or company contains this text, ignoring case; {@code null} or blank
  * for all
  * @param status only applications with this status; {@code null} for all
+ * @param archived the archived applications rather than those in use
  * @param page the page number, from 0
  * @param size how many applications a page holds
  */
@@ -22,6 +23,7 @@ import org.springframework.data.domain.Sort;
 public record ApplicationQuery(
 		@Nullable String search,
 		@Nullable ApplicationStatus status,
+		boolean archived,
 		ApplicationSort sort,
 		Sort.Direction direction,
 		int page,

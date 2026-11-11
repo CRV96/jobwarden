@@ -13,6 +13,7 @@ import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.enums.CalendarEntryKind;
 import com.jobwarden.jobs.enums.InterviewFormat;
 import com.jobwarden.jobs.enums.ReminderLead;
+import com.jobwarden.web.enums.CalendarEntryType;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.context.support.StaticMessageSource;
@@ -58,9 +59,11 @@ class CalendarIcsTests {
 					.title("Data engineer")
 					.status(ApplicationStatus.APPLIED)
 					.build()),
-				id -> "http://localhost:8080/applications/" + id, ZoneId.of("Europe/Bucharest"), Locale.ENGLISH);
+				CalendarEntryType.FEED, id -> "http://localhost:8080/applications/" + id, ZoneId.of("Europe/Bucharest"),
+				Locale.ENGLISH);
 
 		assertThat(calendar).startsWith("BEGIN:VCALENDAR\r\nVERSION:2.0\r\n")
+			.contains("X-WR-CALNAME:JobWarden\r\n")
 			.endsWith("END:VCALENDAR\r\n")
 			.contains("UID:event-12@jobwarden\r\n", "DTSTART:20261103T120000Z\r\n", "DTEND:20261103T133000Z\r\n",
 					"SUMMARY:Technical interview · Backend engineer at Acme\r\n",
@@ -71,6 +74,39 @@ class CalendarIcsTests {
 					"UID:deadline-8@jobwarden\r\n", "DTSTART;VALUE=DATE:20261105\r\n", "DTEND;VALUE=DATE:20261106\r\n",
 					"SUMMARY:Applications close · Platform engineer\r\n", "TRIGGER:PT540M\r\n", "TRIGGER:-PT900M\r\n")
 			.doesNotContain("Data engineer");
+	}
+
+	@Test
+	void writesOnlyWhatTheFeedAsksForAndSaysSoInItsName() {
+		List<CalendarEntry> entries = List.of(CalendarEntry.builder()
+			.date(LocalDate.of(2026, 11, 3))
+			.time(LocalTime.of(14, 0))
+			.kind(CalendarEntryKind.EVENT)
+			.eventId(12L)
+			.applicationId(7)
+			.title("Backend engineer")
+			.status(ApplicationStatus.INTERVIEWING)
+			.build(), CalendarEntry.builder()
+				.date(LocalDate.of(2026, 11, 1))
+				.kind(CalendarEntryKind.EVENT)
+				.eventId(13L)
+				.applicationId(9)
+				.title("Data engineer")
+				.status(ApplicationStatus.POSITION_CLOSED)
+				.build(), CalendarEntry.builder()
+					.date(LocalDate.of(2026, 11, 5))
+					.kind(CalendarEntryKind.FOLLOW_UP)
+					.applicationId(8)
+					.title("Platform engineer")
+					.status(ApplicationStatus.APPLIED)
+					.build());
+
+		String statuses = this.ics.write(entries, Set.of(CalendarEntryType.STATUS, CalendarEntryType.FOLLOW_UP),
+				id -> "/applications/" + id, ZoneId.of("Europe/Bucharest"), Locale.ENGLISH);
+
+		assertThat(statuses).contains("X-WR-CALNAME:JobWarden · Status changes\\, Follow-ups\r\n",
+				"SUMMARY:Position closed · Data engineer\r\n", "SUMMARY:Follow up · Platform engineer\r\n")
+			.doesNotContain("Backend engineer");
 	}
 
 	@Test
@@ -90,6 +126,9 @@ class CalendarIcsTests {
 		messages.addMessage("calendar.kind.FOLLOW_UP", Locale.ENGLISH, "Follow up");
 		messages.addMessage("calendar.feed.interview", Locale.ENGLISH, "Interview");
 		messages.addMessage("interviewFormat.VIDEO", Locale.ENGLISH, "Video call");
+		messages.addMessage("status.POSITION_CLOSED", Locale.ENGLISH, "Position closed");
+		messages.addMessage("calendar.type.STATUS", Locale.ENGLISH, "Status changes");
+		messages.addMessage("calendar.type.FOLLOW_UP", Locale.ENGLISH, "Follow-ups");
 		return messages;
 	}
 

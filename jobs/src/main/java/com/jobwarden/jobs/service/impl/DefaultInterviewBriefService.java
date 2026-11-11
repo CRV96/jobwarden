@@ -62,6 +62,7 @@ class DefaultInterviewBriefService implements InterviewBriefService {
 			.role(brief.getRole())
 			.questions(brief.getQuestions())
 			.stories(brief.getStories())
+			.storyIds(brief.getStoryIds())
 			.askThem(brief.getAskThem())
 			.watchOut(brief.getWatchOut())
 			.sources(brief.getSources())

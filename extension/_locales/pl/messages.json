@@ -170,6 +170,9 @@
   "status_POSITION_CLOSED": {
     "message": "Oferta zamknięta"
   },
+  "status_POSITION_REOPENED": {
+    "message": "Oferta ponownie otwarta"
+  },
   "status_WITHDRAWN": {
     "message": "Wycofana"
   },

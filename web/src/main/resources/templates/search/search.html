@@ -24,9 +24,9 @@
     <!--/* A description fills in the filters (DescriptionParser), keeping the sites: the server answers with the whole
            page, and HTMX swaps its filters, and its queries out of band. app.js shows the examples while the field is
            empty. */-->
-    <form class="relative" th:hx-get="@{/search}" hx-target="#boolean-search" hx-select="#boolean-search" hx-swap="outerHTML"
+    <form class="relative" th:hx-get="@{/search}" hx-target="#warden-query" hx-select="#warden-query" hx-swap="outerHTML"
           hx-select-oob="#search-output" hx-replace-url="true"
-          hx-include="#boolean-search [name='sites'], #boolean-search [name='platform']">
+          hx-include="#warden-query [name='sites'], #warden-query [name='platform']">
         <div class="card flex items-center gap-2 p-1.5 pl-3 focus-within:shadow-[0_0_0_3.5px_color-mix(in_srgb,var(--jw-accent)_40%,transparent)]">
             <i class="ph ph-sparkle text-base text-accent"></i>
             <input id="describe" class="min-w-0 flex-1 bg-transparent py-2 text-[15px] outline-none placeholder:text-ink/45 focus-visible:outline-none"
@@ -50,7 +50,7 @@
         <!--/* Any change asks for the queries again (SearchController), and the address follows, so a search can be
                bookmarked. The excluded terms are typed: they ask once the typing stops. The platform goes along, as it
                always did: with it, a search without sites has none, instead of the default ones. */-->
-        <form id="boolean-search" class="card flex min-h-0 flex-col" th:hx-get="@{/search}"
+        <form id="warden-query" class="card flex min-h-0 flex-col" th:hx-get="@{/search}"
               hx-trigger="submit, change, input changed delay:300ms from:#search-excludes" hx-sync="this:replace"
               hx-target="#search-output" hx-select="#search-output" hx-swap="outerHTML" hx-replace-url="true">
             <input type="hidden" name="platform" th:value="${selectedPlatform}">
@@ -189,7 +189,7 @@
 
     <!--/* Sends the search form's filters too (hx-include), so the saved search is what the page shows */-->
     <dialog id="save-search" class="dialog" aria-labelledby="save-search-title">
-        <form class="flex flex-col gap-3" th:hx-post="@{/discover/searches}" hx-include="#boolean-search"
+        <form class="flex flex-col gap-3" th:hx-post="@{/discover/searches}" hx-include="#warden-query"
               hx-target="#search-saved" hx-swap="outerHTML" data-close-dialog-on-success>
             <h2 id="save-search-title" class="dialog-title" th:text="#{search.save.title}">Save this search</h2>
             <p class="text-ink/65" th:text="#{search.save.body}">Claude looks for jobs for your saved searches and adds them to Discover.</p>
@@ -205,19 +205,24 @@
         </form>
     </dialog>
 
-    <!--/* How the queries work, and where postings go once found */-->
-    <dialog id="search-help" class="dialog w-[min(640px,calc(100%-32px))]" aria-labelledby="search-help-title">
-        <div class="flex flex-col gap-3">
+    <!--/* The page step by step, then the questions: what a Warden Query is, why the career sites, Google's limit,
+           remote jobs. Scrolls on its own when it's taller than the window. */-->
+    <dialog id="search-help" class="dialog max-h-[calc(100dvh-48px)] w-[min(640px,calc(100%-32px))] overflow-y-auto" aria-labelledby="search-help-title">
+        <div class="flex flex-col gap-4">
             <div class="flex items-center gap-2">
-                <h2 id="search-help-title" class="dialog-title flex-1" th:text="#{search.faq}">Questions</h2>
+                <h2 id="search-help-title" class="dialog-title flex flex-1 items-center gap-2">
+                    <i class="ph ph-lightbulb text-accent"></i><span th:text="#{help.button}">How it works</span>
+                </h2>
                 <button class="btn btn-ghost btn-icon" type="button" data-close-dialog th:title="#{action.close}" th:aria-label="#{action.close}">
                     <i class="ph ph-x"></i>
                 </button>
             </div>
-            <div class="divide-y divide-line">
-                <details class="group py-3" th:each="topic : ${ {'boolean', 'ats', 'limit', 'remote'} }" th:open="${topic == 'boolean'}">
+            <th:block th:replace="~{help/help :: steps('search')}"></th:block>
+            <h3 class="section-title" th:text="#{search.faq}">Questions</h3>
+            <div class="-mt-2 divide-y divide-line">
+                <details class="group py-3" th:each="topic : ${ {'query', 'ats', 'limit', 'remote'} }">
                     <summary class="flex cursor-pointer list-none items-center gap-3 font-medium select-none [&::-webkit-details-marker]:hidden">
-                        <span class="flex-1" th:text="#{|search.faq.${topic}.question|}">What is a Boolean search?</span>
+                        <span class="flex-1" th:text="#{|search.faq.${topic}.question|}">What is a Warden Query?</span>
                         <i class="ph ph-caret-down text-xs opacity-60 transition-transform group-open:rotate-180"></i>
                     </summary>
                     <p class="mt-2 leading-6 text-ink/70" th:text="#{|search.faq.${topic}.answer|}">A search that combines keywords with operators.</p>

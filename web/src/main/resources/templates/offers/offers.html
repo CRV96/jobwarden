@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: page(~{::title}, ~{::main}, 'offers')}">
+<head>
+    <title th:text="|#{offers.title} · JobWarden|">Offers · JobWarden</title>
+</head>
+<body>
+<!--/* The profile's offers side by side (OfferController): one column per job at Offer, one row per term. offerComparison
+       is an OfferComparison, its salaries in one currency and per one period; marketForm the role and language the
+       market row compares with, which loads after the page (offerMarketUrl). A click on an offer's heading opens its
+       job in the side panel, where its terms change, and the table reloads (applications-changed). */-->
+<main class="page-split flex flex-col gap-5"
+      th:with="comparison=${offerComparison}, currency=${comparison.currency}, per=#{|salaries.per.${comparison.period}|},
+               best=${comparison.best().orElse(null)}">
+    <header class="flex flex-wrap items-end gap-3">
+        <div class="min-w-[240px] flex-1">
+            <h1 class="page-title mb-1" th:text="#{offers.title}">Offers</h1>
+            <p class="text-[13px] text-ink/60" th:text="#{offers.subtitle}">Your offers side by side, against what the market pays. Claude writes how to negotiate each.</p>
+        </div>
+        <th:block th:replace="~{help/help :: how-it-works('offers')}"></th:block>
+    </header>
+
+    <!--/* Each change reloads the page (app.js: data-auto-submit) */-->
+    <form class="flex flex-wrap items-center gap-x-4 gap-y-2" method="get" th:action="@{/offers}" th:unless="${comparison.isEmpty()}">
+        <label class="flex items-center gap-2">
+            <span class="text-ink/60" th:text="#{salaries.currency}">Currency</span>
+            <select class="input w-auto py-1 pr-7" name="currency" data-auto-submit>
+                <option th:each="code : ${comparison.currencies}" th:value="${code}" th:text="${code}"
+                        th:selected="${code == currency}">EUR</option>
+            </select>
+        </label>
+        <div class="seg" role="radiogroup" th:aria-label="#{salaries.period.label}">
+            <label class="seg-opt" th:each="period : ${salaryPeriods}">
+                <input type="radio" name="period" th:value="${period}" th:checked="${period == comparison.period}" data-auto-submit>
+                <span th:text="#{|salaries.period.${period}|}">Per year</span>
+            </label>
+        </div>
+        <label class="flex items-center gap-2">
+            <span class="text-ink/60" th:text="#{market.role}">Role</span>
+            <select class="input w-auto max-w-[16rem] py-1 pr-7" name="role" data-auto-submit>
+                <option value="" th:text="#{market.role.all}" th:selected="${marketForm.selectedRole().isEmpty()}">All roles</option>
+                <option th:each="role : ${marketRoles}" th:value="${role}" th:text="${role}"
+                        th:selected="${role == marketForm.selectedRole()}">Developer, back-end</option>
+            </select>
+        </label>
+        <label class="flex items-center gap-2">
+            <span class="text-ink/60" th:text="#{market.skill}">Language</span>
+            <select class="input w-auto py-1 pr-7" name="skill" data-auto-submit>
+                <option value="" th:text="#{market.skill.any}" th:selected="${marketForm.selectedSkill().isEmpty()}">Any language</option>
+                <option th:each="skill : ${marketSkills}" th:value="${skill}" th:text="${skill}"
+                        th:selected="${skill == marketForm.selectedSkill()}">Java</option>
+            </select>
+        </label>
+        <noscript><button class="btn btn-secondary" type="submit" th:text="#{salaries.apply}">Show</button></noscript>
+    </form>
+
+    <div class="card flex items-start gap-3 p-4" th:if="${comparison.isEmpty()}">
+        <i class="ph ph-handshake text-[22px] text-accent"></i>
+        <div class="flex flex-col gap-1">
+            <div class="font-medium" th:text="#{offers.empty.title}">No offers yet</div>
+            <p class="text-ink/60" th:text="#{offers.empty.body}">When a job gets to Offer, it shows here…</p>
+            <a class="link self-start text-[13px]" th:href="@{/pipeline}" th:text="#{offers.empty.pipeline}">Open the pipeline</a>
+        </div>
+    </div>
+
+    <!--/* The table scrolls sideways when there are more offers than room; the terms' names stay in view. What's inside
+           inherits none of its HTMX attributes: the market row's answer isn't the whole page to select #offers from. */-->
+    <section id="offers" class="card min-h-0 overflow-auto p-0" th:unless="${comparison.isEmpty()}" th:aria-label="#{offers.title}"
+             th:hx-get="@{/offers(currency=${currency}, period=${comparison.period}, role=${marketForm.selectedRole()}, skill=${marketForm.selectedSkill()})}"
+             hx-trigger="applications-changed from:body" hx-select="#offers" hx-target="this" hx-swap="outerHTML"
+             hx-disinherit="*">
+        <table class="w-full border-collapse text-[13px]">
+            <thead>
+            <tr class="border-b border-line">
+                <th class="sticky left-0 z-10 w-36 min-w-36 bg-surface p-3 text-left align-bottom text-xs font-normal text-ink/55" scope="col">
+                    <span class="sr-only" th:text="#{offers.term}">Term</span>
+                </th>
+                <th class="min-w-[220px] p-3 text-left align-top font-normal" scope="col" th:each="offer : ${comparison.offers}"
+                    th:with="job=${offer.application}">
+                    <div class="flex cursor-pointer items-start gap-2 rounded-md" data-drawer-row
+                         th:hx-get="@{/applications/{id}/drawer(id=${job.id})}" hx-trigger="click" hx-target="#drawer-content" hx-swap="innerHTML">
+                        <span th:replace="~{applications/fragments :: company-logo(${job.id}, ${job.company}, 32)}"></span>
+                        <span class="flex min-w-0 flex-col">
+                            <button class="text-left leading-tight font-semibold hover:text-accent hover:underline" type="button"
+                                    th:text="${job.title}">Backend engineer</button>
+                            <span class="text-xs text-ink/60" th:text="${job.company} ?: #{application.unknownCompany}">Acme</span>
+                        </span>
+                    </div>
+                    <span class="tag st-offer mt-2" th:if="${best != null and best.application.id == job.id}">
+                        <i class="ph ph-trophy"></i><span th:text="#{offers.best}">Pays the most</span>
+                    </span>
+                </th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-line">
+            <tr>
+                <th class="sticky left-0 bg-surface p-3 text-left align-top text-xs font-normal text-ink/60" scope="row"
+                    th:text="#{offers.salary(${per})}">Base salary, a year</th>
+                <td class="p-3 align-top" th:each="offer : ${comparison.offers}">
+                    <th:block th:if="${offer.salary}">
+                        <div class="text-[17px] leading-tight font-semibold tracking-[-0.01em] tabular-nums"
+                             th:classappend="${best != null and best.application.id == offer.application.id} ? 'text-success'"
+                             th:text="${offer.salary.isRange()} ? ${@money.range(offer.salary.low, offer.salary.high, currency)} : ${@money.compact(offer.salary.low, currency)}">€84K</div>
+                    </th:block>
+                    <div class="mt-0.5 text-xs text-ink/55" th:if="${offer.salaryText}" th:text="${offer.salaryText}">90,000 EUR gross per year</div>
+                    <span class="tag mt-1" th:if="${offer.salaryFromPosting}" th:text="#{offers.fromPosting}">The posting’s</span>
+                    <div class="mt-1 flex items-center gap-1 text-xs text-danger" th:if="${offer.salaryUnreadable()}">
+                        <i class="ph ph-warning-circle"></i><span th:text="#{offers.unreadable}">Can’t read it as an amount</span>
+                    </div>
+                    <span class="text-ink/40" th:unless="${offer.salaryText}">—</span>
+                </td>
+            </tr>
+            <!--/* What the market pays, beside each: loads after the page */-->
+            <tr id="offers-market" th:hx-get="${offerMarketUrl}" hx-trigger="load" hx-target="this" hx-swap="outerHTML">
+                <th class="sticky left-0 bg-surface p-3 text-left align-top text-xs font-normal text-ink/60" scope="row"
+                    th:text="#{offers.market}">The market</th>
+                <td class="p-3 align-top text-xs text-ink/55" th:colspan="${comparison.offers.size()}">
+                    <i class="ph ph-arrow-clockwise animate-spin"></i> <span th:text="#{market.loading}">Loading what the market pays…</span>
+                </td>
+            </tr>
+            <tr th:replace="~{offers/offers :: term(#{offer.bonus}, 'bonus')}"></tr>
+            <tr th:replace="~{offers/offers :: term(#{offer.signingBonus}, 'signingBonus')}"></tr>
+            <tr th:replace="~{offers/offers :: term(#{offer.equity}, 'equity')}"></tr>
+            <tr th:replace="~{offers/offers :: term(#{offer.timeOff}, 'timeOff')}"></tr>
+            <tr th:replace="~{offers/offers :: term(#{offer.benefits}, 'benefits')}"></tr>
+            <tr>
+                <th class="sticky left-0 bg-surface p-3 text-left align-top text-xs font-normal text-ink/60" scope="row"
+                    th:text="#{jobs.column.location}">Location</th>
+                <td class="p-3 align-top" th:each="offer : ${comparison.offers}" th:text="${offer.application.location} ?: '—'">Berlin, hybrid</td>
+            </tr>
+            <tr>
+                <th class="sticky left-0 bg-surface p-3 text-left align-top text-xs font-normal text-ink/60" scope="row"
+                    th:text="#{offer.startDate}">Starts on</th>
+                <td class="p-3 align-top" th:each="offer : ${comparison.offers}"
+                    th:text="${offer.terms.startDate} ? ${@dates.date(offer.terms.startDate)} : '—'">1 Feb 2027</td>
+            </tr>
+            <tr>
+                <th class="sticky left-0 bg-surface p-3 text-left align-top text-xs font-normal text-ink/60" scope="row"
+                    th:text="#{offer.respondBy}">Answer by</th>
+                <td class="p-3 align-top" th:each="offer : ${comparison.offers}"
+                    th:with="due=${offer.terms.respondBy}, left=${offer.terms.daysToRespond(today)}">
+                    <th:block th:if="${due}">
+                        <span th:text="${@dates.date(due)}">20 Nov 2026</span>
+                        <!--/* Soon: from three days left */-->
+                        <span class="tag st-rejected ml-1" th:if="${left <= 3}"
+                              th:text="${left < 0} ? #{offers.respondBy.past} : (${left == 0} ? #{date.today} : #{offers.respondBy.left(${left})})">3 days left</span>
+                    </th:block>
+                    <span class="text-ink/40" th:unless="${due}">—</span>
+                </td>
+            </tr>
+            <tr>
+                <th class="sticky left-0 bg-surface p-3 text-left align-top text-xs font-normal text-ink/60" scope="row"
+                    th:text="#{fit.title}">Fit</th>
+                <td class="p-3 align-top" th:each="offer : ${comparison.offers}">
+                    <span th:replace="~{applications/job-fit :: score(${offer.fitScore})}"></span>
+                    <span class="text-ink/40" th:unless="${offer.fitScore}">—</span>
+                </td>
+            </tr>
+            <tr th:replace="~{offers/offers :: term(#{offer.notes}, 'notes')}"></tr>
+            <tr>
+                <th class="sticky left-0 bg-surface p-3 text-left align-top text-xs font-normal text-ink/60" scope="row"
+                    th:text="#{negotiation.title}">Negotiation</th>
+                <td class="p-3 align-top" th:each="offer : ${comparison.offers}">
+                    <button class="btn btn-secondary px-2 py-1 text-xs" type="button" data-drawer-row
+                            th:hx-get="@{/applications/{id}/drawer(id=${offer.application.id})}" hx-trigger="click"
+                            hx-target="#drawer-content" hx-swap="innerHTML">
+                        <i class="ph" th:classappend="${offer.hasBrief} ? 'ph-scales' : 'ph-sparkle'"></i>
+                        <span th:text="${offer.hasBrief} ? #{offers.readBrief} : #{negotiation.ask}">Ask Claude how to negotiate</span>
+                    </button>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <div class="text-xs text-ink/55" th:unless="${comparison.isEmpty()}">
+        <p th:if="${comparison.ratesDate}" th:text="#{salaries.rates(${@dates.date(comparison.ratesDate)})}">Converted at the European Central Bank’s rates of 23 Oct 2026.</p>
+        <p th:unless="${comparison.ratesDate}" th:text="#{salaries.rates.approximate}">Converted at approximate rates.</p>
+    </div>
+
+    <dialog th:replace="~{applications/fragments :: drawer-dialog}"></dialog>
+</main>
+
+<!--/* A row of terms typed in as text: the label, and each offer's (a property of its JobOffer), or a dash */-->
+<tr th:fragment="term(label, property)">
+    <th class="sticky left-0 bg-surface p-3 text-left align-top text-xs font-normal text-ink/60" scope="row" th:text="${label}">Bonus</th>
+    <td class="p-3 align-top whitespace-pre-line text-pretty" th:each="offer : ${offerComparison.offers}"
+        th:with="value=${offer.terms.__${property}__}" th:text="${value} ?: '—'">10% yearly</td>
+</tr>
+
+<!--/* What the market pays beside each offer (OfferController.market): the source's middle figure for the role in the
+       job's country, its middle half when it has one, and how far the offer is from the middle. offerMarkets maps each
+       job to its OfferMarket; a job without one names no single country, or one the sources lack. */-->
+<tr id="offers-market" th:fragment="market" th:with="currency=${offerComparison.currency}">
+    <th class="sticky left-0 bg-surface p-3 text-left align-top text-xs font-normal text-ink/60" scope="row"
+        th:text="#{offers.market}">The market</th>
+    <td class="p-3 align-top" th:each="offer : ${offerComparison.offers}" th:with="beside=${offerMarkets.get(offer.application.id)}">
+        <th:block th:if="${beside}" th:with="figure=${beside.figure}, band=${beside.band(offer.salary?.midpoint())}">
+            <div class="flex items-center gap-1.5 text-xs text-ink/60">
+                <span class="fi rounded-[2px]" th:classappend="|fi-${#strings.toLowerCase(beside.country)}|"></span>
+                <span th:text="${@countries.name(beside.country)}">Germany</span>
+            </div>
+            <div class="mt-0.5 font-medium tabular-nums"
+                 th:text="${figure.hasRange()} ? #{market.tip.range(${@money.range(figure.lowerQuartile, figure.upperQuartile, currency)}, ${@money.compact(figure.middle, currency)})} : #{market.tip.mean(${@money.compact(figure.middle, currency)})}">Middle half €60K – €90K, median €75K</div>
+            <div class="mt-1 flex flex-wrap items-center gap-1" th:if="${beside.percentFromMiddle != null}">
+                <span class="tag tabular-nums" th:classappend="${beside.percentFromMiddle >= 0} ? 'st-offer' : 'st-rejected'"
+                      th:text="${beside.percentFromMiddle >= 0} ? #{offers.market.above(${beside.percentFromMiddle})} : #{offers.market.below(${-beside.percentFromMiddle})}">+12% vs the middle</span>
+                <span class="text-xs text-ink/55" th:if="${band}" th:text="#{|offers.market.band.${band}|}">In the middle half</span>
+            </div>
+            <div class="mt-1 text-[11px] text-ink/45" th:text="|#{|market.source.${figure.source}|} ${figure.year}|">Stack Overflow survey 2025</div>
+        </th:block>
+        <span class="text-xs text-ink/50" th:unless="${beside}" th:text="#{offers.market.none}">No country to compare with</span>
+    </td>
+</tr>
+</body>
+</html>

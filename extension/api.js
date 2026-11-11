@@ -7,8 +7,8 @@
 import { CAPTURE_PATH } from './settings.js';
 
 /**
- * @typedef {'SAVED' | 'APPLIED' | 'INTERVIEWING' | 'OFFER' | 'REJECTED' | 'NO_RESPONSE' | 'POSITION_CLOSED'
- *   | 'WITHDRAWN'} ApplicationStatus
+ * @typedef {'SAVED' | 'APPLIED' | 'INTERVIEWING' | 'OFFER' | 'POSITION_REOPENED' | 'REJECTED' | 'NO_RESPONSE'
+ *   | 'POSITION_CLOSED' | 'WITHDRAWN'} ApplicationStatus
  * @typedef {{
  *   applicationId: number,
  *   title: string,

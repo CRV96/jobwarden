@@ -6,6 +6,7 @@ import java.time.LocalTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.TemporalAdjusters;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -33,6 +34,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * The applications' timelines on a calendar, a month, a week or a day at a time: every status they got, the interviews,
@@ -110,30 +112,56 @@ class CalendarController extends BaseController {
 			.toList());
 		model.addAttribute(ModelAttributes.TODAY, today);
 		addImages(model, userId);
-		addFeed(model, this.feeds.token(userId));
+		addFeed(model, this.feeds.token(userId), CalendarEntryType.FEED);
 		return Views.CALENDAR;
 	}
 
 	/**
-	 * A new address for the calendar feed, when the old one got where it shouldn't: the old one stops working. HTMX
-	 * swaps the Subscribe menu's content with the new one.
+	 * Called by HTMX as the Subscribe menu's choices change: the menu again, with the feed's address for what's picked,
+	 * e.g. only the interviews and the days to follow up. Each choice is an address of its own, so a calendar app can
+	 * subscribe to several.
+	 *
+	 * @param show what the feed has, as the legend names it; the usual when none is picked
 	 */
-	@PostMapping("/feed/renew")
-	String renewFeed(Model model) {
-		addFeed(model, this.feeds.renewToken(requireProfile(model).id()));
+	@GetMapping("/feed")
+	String feed(@RequestParam(required = false) @Nullable List<String> show, Model model) {
+		addFeed(model, this.feeds.token(requireProfile(model).id()), feedTypes(show));
 		return Views.CALENDAR_FEED_FRAGMENT;
 	}
 
 	/**
-	 * The feed's address, and the same as webcal:, which opens the system's calendar app to subscribe to it.
+	 * A new address for the calendar feed, when the old one got where it shouldn't: the old one stops working, for
+	 * every choice. HTMX swaps the Subscribe menu's content with the new one, for the choices picked.
 	 */
-	private static void addFeed(Model model, String token) {
-		String url = ServletUriComponentsBuilder.fromCurrentContextPath()
+	@PostMapping("/feed/renew")
+	String renewFeed(@RequestParam(required = false) @Nullable List<String> show, Model model) {
+		addFeed(model, this.feeds.renewToken(requireProfile(model).id()), feedTypes(show));
+		return Views.CALENDAR_FEED_FRAGMENT;
+	}
+
+	private static Set<CalendarEntryType> feedTypes(@Nullable List<String> show) {
+		Set<CalendarEntryType> types = CalendarEntryType.parse((show != null) ? show : List.of());
+		return types.isEmpty() ? CalendarEntryType.FEED : types;
+	}
+
+	/**
+	 * The feed's address, and the same as webcal:, which opens the system's calendar app to subscribe to it. The usual
+	 * types leave the address short, as it always was.
+	 */
+	private static void addFeed(Model model, String token, Set<CalendarEntryType> types) {
+		UriComponentsBuilder address = ServletUriComponentsBuilder.fromCurrentContextPath()
 			.path(ControllerConstants.CALENDAR + "/feed.ics")
-			.queryParam("token", token)
-			.toUriString();
+			.queryParam("token", token);
+		if (!types.equals(CalendarEntryType.FEED)) {
+			Arrays.stream(CalendarEntryType.values())
+				.filter(types::contains)
+				.forEach(type -> address.queryParam("show", type.parameter()));
+		}
+		String url = address.toUriString();
 		model.addAttribute(ModelAttributes.CALENDAR_FEED_URL, url);
 		model.addAttribute(ModelAttributes.CALENDAR_WEBCAL_URL, url.replaceFirst("^https?:", "webcal:"));
+		model.addAttribute(ModelAttributes.CALENDAR_FEED_TYPES, types);
+		model.addAttribute(ModelAttributes.CALENDAR_TYPES, CalendarEntryType.values());
 	}
 
 	private void addDays(Model model, long userId, LocalDate first, int count, LocalDate today,

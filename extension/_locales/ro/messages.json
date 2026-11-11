@@ -170,6 +170,9 @@
   "status_POSITION_CLOSED": {
     "message": "Post închis"
   },
+  "status_POSITION_REOPENED": {
+    "message": "Post redeschis"
+  },
   "status_WITHDRAWN": {
     "message": "Retrasă"
   },

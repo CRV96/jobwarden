@@ -25,7 +25,8 @@ public interface ApplicationQueries {
 	 * How many of the applications matching the search have each status. A status no application has is left out.
 	 *
 	 * @param search as in {@link ApplicationQuery#search()}
+	 * @param archived the archived applications rather than those in use
 	 */
-	Map<ApplicationStatus, Long> countByStatus(long userId, @Nullable String search);
+	Map<ApplicationStatus, Long> countByStatus(long userId, @Nullable String search, boolean archived);
 
 }

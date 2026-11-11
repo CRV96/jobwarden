@@ -32,9 +32,9 @@
     <link rel="apple-touch-icon" th:href="@{/apple-touch-icon.png}">
     <link rel="stylesheet" th:href="@{/webjars/phosphor-icons__web/src/regular/style.css}">
     <!--/* Only some pages show flags: the settings page next to the languages, the search page next to the locations,
-           the salaries page next to the countries, Who's hiring next to the posts */-->
+           the salaries and offers pages next to the countries, Who's hiring next to the posts */-->
     <link rel="stylesheet" th:href="@{/webjars/flag-icons/css/flag-icons.min.css}"
-          th:if="${languages != null or section == 'search' or section == 'salaries' or section == 'hiring'}">
+          th:if="${languages != null or section == 'search' or section == 'salaries' or section == 'offers' or section == 'hiring'}">
     <link rel="stylesheet" th:href="@{/css/app.css}">
     <!--/* By default HTMX doesn't send a form with an invalid field, and doesn't say why either. */-->
     <meta name="htmx-config" content='{"reportValidityOfForms": true}'>
@@ -62,73 +62,35 @@
             </button>
         </div>
 
-        <nav class="flex flex-col gap-0.5" th:aria-label="#{nav.label}">
-            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/search}"
-               th:aria-current="${section == 'search'} ? 'page'" th:title="#{nav.search}">
-                <i class="ph ph-list-magnifying-glass"></i>
-                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.search}">Search Builder</span>
-            </a>
-            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/hiring}"
-               th:aria-current="${section == 'hiring'} ? 'page'" th:title="#{nav.hiring}">
-                <i class="ph ph-megaphone-simple"></i>
-                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.hiring}">Who’s hiring</span>
-            </a>
-            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/discover}"
-               th:aria-current="${section == 'discover'} ? 'page'" th:title="#{nav.discover}">
-                <i class="ph ph-sparkle"></i>
-                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.discover}">Discover</span>
-                <span class="rounded-full bg-accent px-1.5 text-[11px] font-medium text-white max-md:hidden folded:hidden"
-                      th:if="${discoverCount != null and discoverCount > 0}" th:text="${discoverCount}">4</span>
-            </a>
-            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/watchlist}"
-               th:aria-current="${section == 'watchlist'} ? 'page'" th:title="#{nav.watchlist}">
-                <i class="ph ph-binoculars"></i>
-                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.watchlist}">Watchlist</span>
-            </a>
-            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/apply}"
-               th:aria-current="${section == 'apply'} ? 'page'" th:title="#{nav.apply}">
-                <i class="ph ph-paper-plane-tilt"></i>
-                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.apply}">Auto-apply</span>
-            </a>
-            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/applications}"
-               th:aria-current="${section == 'jobs'} ? 'page'" th:title="#{nav.jobs}">
-                <i class="ph ph-briefcase"></i>
-                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.jobs}">Jobs</span>
-                <span class="text-[11px] text-ink/55 max-md:hidden folded:hidden" th:if="${applicationCount != null}"
-                      th:text="${applicationCount}">57</span>
-            </a>
-            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/inbox}"
-               th:aria-current="${section == 'inbox'} ? 'page'" th:title="#{nav.inbox}">
-                <i class="ph ph-envelope-simple"></i>
-                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.inbox}">Inbox</span>
-                <span class="rounded-full bg-accent px-1.5 text-[11px] font-medium text-white max-md:hidden folded:hidden"
-                      th:if="${inboxCount != null and inboxCount > 0}" th:text="${inboxCount}">2</span>
-            </a>
-            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/pipeline}"
-               th:aria-current="${section == 'pipeline'} ? 'page'" th:title="#{nav.pipeline}">
-                <i class="ph ph-kanban"></i>
-                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.pipeline}">Pipeline</span>
-            </a>
-            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/calendar}"
-               th:aria-current="${section == 'calendar'} ? 'page'" th:title="#{nav.calendar}">
-                <i class="ph ph-calendar-dots"></i>
-                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.calendar}">Calendar</span>
-            </a>
-            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/salaries}"
-               th:aria-current="${section == 'salaries'} ? 'page'" th:title="#{nav.salaries}">
-                <i class="ph ph-coins"></i>
-                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.salaries}">Salaries</span>
-            </a>
-            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/statistics}"
-               th:aria-current="${section == 'statistics'} ? 'page'" th:title="#{nav.statistics}">
-                <i class="ph ph-chart-bar"></i>
-                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.statistics}">Statistics</span>
-            </a>
-            <a class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/cv}"
-               th:aria-current="${section == 'cv'} ? 'page'" th:title="#{nav.cv}">
-                <i class="ph ph-identification-card"></i>
-                <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="#{nav.cv}">CV</span>
-            </a>
+        <!--/* The pages by topic, in the order a job hunt goes: following the jobs, finding them, applying, deciding. Each
+               topic's heading shows with the labels; folded to the icons, a line parts the topics. The list scrolls on
+               its own when the window is too short for it. */-->
+        <nav class="-mx-1 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-1" th:aria-label="#{nav.label}">
+            <div class="flex flex-col gap-0.5" role="group" aria-labelledby="nav-group-track">
+                <h2 th:replace="~{layout :: nav-heading('track', false)}"></h2>
+                <a th:replace="~{layout :: nav-link(@{/applications}, #{nav.jobs}, 'ph-briefcase', ${section == 'jobs'}, ${applicationCount}, 'count')}"></a>
+                <a th:replace="~{layout :: nav-link(@{/pipeline}, #{nav.pipeline}, 'ph-kanban', ${section == 'pipeline'}, null, null)}"></a>
+                <a th:replace="~{layout :: nav-link(@{/calendar}, #{nav.calendar}, 'ph-calendar-dots', ${section == 'calendar'}, null, null)}"></a>
+                <a th:replace="~{layout :: nav-link(@{/inbox}, #{nav.inbox}, 'ph-envelope-simple', ${section == 'inbox'}, ${inboxCount}, 'pill')}"></a>
+            </div>
+            <div class="flex flex-col gap-0.5" role="group" aria-labelledby="nav-group-find">
+                <h2 th:replace="~{layout :: nav-heading('find', true)}"></h2>
+                <a th:replace="~{layout :: nav-link(@{/discover}, #{nav.discover}, 'ph-sparkle', ${section == 'discover'}, ${discoverCount}, 'pill')}"></a>
+                <a th:replace="~{layout :: nav-link(@{/search}, #{nav.search}, 'ph-list-magnifying-glass', ${section == 'search'}, null, null)}"></a>
+                <a th:replace="~{layout :: nav-link(@{/watchlist}, #{nav.watchlist}, 'ph-binoculars', ${section == 'watchlist'}, null, null)}"></a>
+                <a th:replace="~{layout :: nav-link(@{/hiring}, #{nav.hiring}, 'ph-megaphone-simple', ${section == 'hiring'}, null, null)}"></a>
+            </div>
+            <div class="flex flex-col gap-0.5" role="group" aria-labelledby="nav-group-apply">
+                <h2 th:replace="~{layout :: nav-heading('apply', true)}"></h2>
+                <a th:replace="~{layout :: nav-link(@{/cv}, #{nav.cv}, 'ph-identification-card', ${section == 'cv'}, null, null)}"></a>
+                <a th:replace="~{layout :: nav-link(@{/apply}, #{nav.apply}, 'ph-paper-plane-tilt', ${section == 'apply'}, null, null)}"></a>
+            </div>
+            <div class="flex flex-col gap-0.5" role="group" aria-labelledby="nav-group-decide">
+                <h2 th:replace="~{layout :: nav-heading('decide', true)}"></h2>
+                <a th:replace="~{layout :: nav-link(@{/offers}, #{nav.offers}, 'ph-handshake', ${section == 'offers'}, null, null)}"></a>
+                <a th:replace="~{layout :: nav-link(@{/salaries}, #{nav.salaries}, 'ph-coins', ${section == 'salaries'}, null, null)}"></a>
+                <a th:replace="~{layout :: nav-link(@{/statistics}, #{nav.statistics}, 'ph-chart-bar', ${section == 'statistics'}, null, null)}"></a>
+            </div>
         </nav>
 
         <!--/* The selected profile, with a menu to switch to another. Pages that know it put it in the model as
@@ -233,5 +195,32 @@
                 th:title="#{action.close}" th:aria-label="#{action.close}"><i class="ph ph-x text-xs"></i></button>
     </div>
 </template>
+
+<!--/* The sidebar's parts, only ever taken from here as fragments: as part of the page, the block shows nothing */-->
+<th:block th:if="${false}">
+
+<!--/* A topic's heading in the sidebar (topic: track, find, apply, decide); folded to the icons, a line instead, above
+       every topic but the first (divider) */-->
+<th:block th:fragment="nav-heading(topic, divider)">
+    <h2 class="px-3 pt-1 pb-1 text-[11px] font-semibold tracking-[0.06em] whitespace-nowrap text-ink/45 uppercase max-md:sr-only folded:sr-only"
+        th:id="|nav-group-${topic}|" th:text="#{|nav.group.${topic}|}">Find</h2>
+    <span class="mx-3 mb-1 hidden h-px bg-line max-md:block folded:block" aria-hidden="true" th:if="${divider}"></span>
+</th:block>
+
+<!--/* A page of the sidebar: its address, its name, its icon, whether it's the one shown, and a number beside it, as a
+       quiet count (badgeStyle 'count', e.g. the jobs) or a blue pill when something waits (badgeStyle 'pill', shown above
+       0). Folded to the icons, the name is the link's title. */-->
+<a th:fragment="nav-link(href, label, icon, current, badge, badgeStyle)"
+   class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="${href}"
+   th:aria-current="${current} ? 'page'" th:title="${label}">
+    <i class="ph" th:classappend="${icon}"></i>
+    <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="${label}">Jobs</span>
+    <span class="text-[11px] text-ink/55 max-md:hidden folded:hidden" th:if="${badge != null and badgeStyle == 'count'}"
+          th:text="${badge}">57</span>
+    <span class="rounded-full bg-accent px-1.5 text-[11px] font-medium text-white max-md:hidden folded:hidden"
+          th:if="${badge != null and badgeStyle == 'pill' and badge > 0}" th:text="${badge}">4</span>
+</a>
+
+</th:block>
 </body>
 </html>

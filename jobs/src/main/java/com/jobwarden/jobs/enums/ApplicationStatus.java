@@ -8,7 +8,12 @@ package com.jobwarden.jobs.enums;
  */
 public enum ApplicationStatus {
 
-	SAVED, APPLIED, INTERVIEWING, OFFER, REJECTED,
+	SAVED, APPLIED, INTERVIEWING, OFFER,
+
+	/** The company opened the position again after closing it: the application is in play again, and may close again. */
+	POSITION_REOPENED,
+
+	REJECTED,
 
 	/** Never heard back. */
 	NO_RESPONSE,
@@ -24,6 +29,29 @@ public enum ApplicationStatus {
 	 */
 	public boolean hasStages() {
 		return this == INTERVIEWING || this == OFFER;
+	}
+
+	/**
+	 * Whether an event with this status can follow one with the same: an interview after an interview, another round of
+	 * offers. The others say something once: a job closed is closed until it's reopened, then it can close again.
+	 */
+	public boolean canRepeat() {
+		return hasStages();
+	}
+
+	/**
+	 * The step most likely added next to a job with this status: the same again when it can repeat (another interview,
+	 * another round of offers), else an interview.
+	 */
+	public ApplicationStatus likelyNext() {
+		return canRepeat() ? this : INTERVIEWING;
+	}
+
+	/**
+	 * Whether the application ended with this status: turned down, never answered, closed, or withdrawn.
+	 */
+	public boolean hasEnded() {
+		return this == REJECTED || this == NO_RESPONSE || this == POSITION_CLOSED || this == WITHDRAWN;
 	}
 
 	/**

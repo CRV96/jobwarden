@@ -21,6 +21,7 @@
                        th:hx-get="@{/applications}" hx-trigger="input changed delay:300ms, search" hx-include="closest form"
                        hx-target="#jobs" hx-select="#jobs" hx-select-oob="#status-filter" hx-swap="outerHTML" hx-push-url="true">
                 <input type="hidden" name="status" th:if="${listParams.status}" th:value="${listParams.status}">
+                <input type="hidden" name="archived" value="true" th:if="${listParams.isArchived()}">
                 <th:block th:unless="${listParams.isSortedBy('ADDED') and !listParams.dir.isAscending()}">
                     <input type="hidden" name="sort" th:value="${listParams.sort}">
                     <input type="hidden" name="dir" th:value="${listParams.dir}">
@@ -28,15 +29,24 @@
                 <input type="hidden" name="size" th:if="${listParams.size != 20}" th:value="${listParams.size}">
             </form>
 
-            <nav id="status-filter" class="flex flex-wrap gap-1" th:aria-label="#{jobs.filter}">
+            <!--/* The statuses of the jobs in use, or of the archived ones; then the archive, apart, with its own count */-->
+            <nav id="status-filter" class="flex flex-wrap items-center gap-1" th:aria-label="#{jobs.filter}">
                 <a class="chip" th:href="@{${listParams.withStatus(null).url()}}" th:aria-current="${listParams.status == null} ? 'true'">
-                    <span th:text="#{jobs.filter.all}">All</span>
+                    <span th:text="${listParams.isArchived()} ? #{jobs.filter.allArchived} : #{jobs.filter.all}">All</span>
                     <span class="chip-count" th:text="${#aggregates.sum(statusCounts.values())}">57</span>
                 </a>
-                <a class="chip" th:each="status : ${statuses}" th:href="@{${listParams.withStatus(status).url()}}"
-                   th:aria-current="${status == listParams.status} ? 'true'">
-                    <span th:text="#{${'status.' + status}}">Applied</span>
-                    <span class="chip-count" th:text="${statusCounts.get(status)}">12</span>
+                <th:block th:each="status : ${statuses}">
+                    <a class="chip" th:if="${statusCounts.get(status) > 0 or status == listParams.status or status.name() != 'POSITION_REOPENED'}"
+                       th:href="@{${listParams.withStatus(status).url()}}" th:aria-current="${status == listParams.status} ? 'true'">
+                        <span th:text="#{${'status.' + status}}">Applied</span>
+                        <span class="chip-count" th:text="${statusCounts.get(status)}">12</span>
+                    </a>
+                </th:block>
+                <span class="mx-1 h-5 w-px bg-line" aria-hidden="true"></span>
+                <a class="chip" th:href="@{${listParams.withArchived(!listParams.isArchived()).url()}}"
+                   th:aria-current="${listParams.isArchived()} ? 'true'" th:title="#{jobs.archived.hint}">
+                    <i class="ph ph-archive"></i><span th:text="#{jobs.archived}">Archived</span>
+                    <span class="chip-count" th:text="${archivedCount}">3</span>
                 </a>
             </nav>
         </div>
@@ -48,6 +58,14 @@
             <span class="text-[13px] font-medium tabular-nums" data-selection-count>1 selected</span>
             <button class="btn btn-ghost px-2 py-1" type="button" data-clear-selection th:text="#{jobs.clearSelection}">Clear selection</button>
             <span class="flex-1"></span>
+            <button class="btn btn-secondary" type="button" th:unless="${listParams.isArchived()}" th:hx-post="@{/applications/archive}"
+                    hx-include="[data-select-row]:checked">
+                <i class="ph ph-archive"></i><span th:text="#{jobs.archive}">Archive</span>
+            </button>
+            <button class="btn btn-secondary" type="button" th:if="${listParams.isArchived()}" th:hx-post="@{/applications/restore}"
+                    hx-include="[data-select-row]:checked">
+                <i class="ph ph-arrow-counter-clockwise"></i><span th:text="#{jobs.restore}">Bring back</span>
+            </button>
             <button class="btn btn-danger" type="button" data-open-dialog="delete-selected">
                 <i class="ph ph-trash"></i><span th:text="#{action.delete}">Delete</span>
             </button>
@@ -126,7 +144,7 @@
                             </td>
                             <td>
                                 <span class="flex min-w-0 items-center gap-1.5 text-xs text-ink/65">
-                                    <th:block th:replace="~{applications/fragments :: source(${summary.source})}"></th:block>
+                                    <th:block th:replace="~{applications/fragments :: source(${summary.source}, ${summary.link})}"></th:block>
                                 </span>
                             </td>
                             <td>
@@ -185,10 +203,16 @@
             </th:block>
 
             <div class="flex flex-col items-start gap-1.5 py-6" th:unless="${applicationPage.hasContent()}">
-                <i class="ph ph-binoculars text-[28px] text-accent"></i>
-                <p class="text-base font-medium" th:text="${listParams.isFiltered()} ? #{jobs.empty.title} : #{jobs.none.title}">No postings match</p>
-                <p class="text-[13px] text-ink/60" th:text="${listParams.isFiltered()} ? #{jobs.empty.body} : #{jobs.none.body}">
-                    Try a different search or status filter.</p>
+                <i class="ph text-[28px] text-accent" th:classappend="${listParams.isArchived()} ? 'ph-archive' : 'ph-binoculars'"></i>
+                <th:block th:unless="${listParams.isArchived() and !listParams.isFiltered()}">
+                    <p class="text-base font-medium" th:text="${listParams.isFiltered()} ? #{jobs.empty.title} : #{jobs.none.title}">No postings match</p>
+                    <p class="text-[13px] text-ink/60" th:text="${listParams.isFiltered()} ? #{jobs.empty.body} : #{jobs.none.body}">
+                        Try a different search or status filter.</p>
+                </th:block>
+                <th:block th:if="${listParams.isArchived() and !listParams.isFiltered()}">
+                    <p class="text-base font-medium" th:text="#{jobs.archived.none.title}">Nothing archived</p>
+                    <p class="text-[13px] text-ink/60" th:text="#{jobs.archived.none.body}">Archive the jobs you’re done with…</p>
+                </th:block>
             </div>
         </div>
     </div>

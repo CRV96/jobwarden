@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<!--/* How a page works: a button for its header, and the guide it opens. Each page names its topic, and the guide reads
+       its texts from the messages: howto.<topic>.intro, its steps howto.<topic>.1 to howto.<topic>.8 (those there are),
+       and a tip, howto.<topic>.tip, when there's one. */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<th:block th:fragment="how-it-works(topic)">
+    <button class="btn btn-ghost" type="button" th:data-open-dialog="|how-${topic}|">
+        <i class="ph ph-question"></i><span th:text="#{help.button}">How it works</span>
+    </button>
+    <dialog th:id="|how-${topic}|" class="dialog w-[min(580px,calc(100%-32px))]" th:aria-labelledby="|how-${topic}-title|">
+        <div class="flex flex-col gap-4">
+            <div class="flex items-center gap-2">
+                <h2 th:id="|how-${topic}-title|" class="dialog-title flex flex-1 items-center gap-2">
+                    <i class="ph ph-lightbulb text-accent"></i><span th:text="#{help.button}">How it works</span>
+                </h2>
+                <button class="btn btn-ghost btn-icon" type="button" data-close-dialog th:title="#{action.close}" th:aria-label="#{action.close}">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+            <th:block th:replace="~{help/help :: steps(${topic})}"></th:block>
+            <div class="dialog-actions">
+                <button class="btn btn-primary" type="button" data-close-dialog th:text="#{help.done}">Got it</button>
+            </div>
+        </div>
+    </dialog>
+</th:block>
+
+<!--/* The guide itself: what the page is for, its steps, numbered, and the tip */-->
+<th:block th:fragment="steps(topic)">
+    <p class="text-[13px] leading-6 text-pretty text-ink/75" th:text="#{|howto.${topic}.intro|}">What the page is for.</p>
+    <ol class="flex flex-col gap-3">
+        <th:block th:each="number : ${#numbers.sequence(1, 8)}"
+                  th:with="step=${#messages.msgOrNull('howto.' + topic + '.' + number)}">
+            <li class="flex items-start gap-3" th:if="${step}">
+                <span class="grid size-6 flex-none place-items-center rounded-full bg-accent-tint text-xs font-semibold text-accent-ink"
+                      th:text="${number}">1</span>
+                <span class="pt-0.5 text-[13px] leading-6 text-pretty text-ink/85" th:text="${step}">A step.</span>
+            </li>
+        </th:block>
+    </ol>
+    <th:block th:with="tip=${#messages.msgOrNull('howto.' + topic + '.tip')}">
+        <p class="flex items-start gap-2 rounded-lg bg-ink/4 px-3 py-2.5 text-xs leading-5 text-pretty text-ink/70" th:if="${tip}">
+            <i class="ph ph-info mt-0.5 text-[14px] text-accent"></i><span th:text="${tip}">A tip.</span>
+        </p>
+    </th:block>
+</th:block>
+
+</body>
+</html>

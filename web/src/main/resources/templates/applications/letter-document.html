@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<!--/* A job's cover letter (coverLetter, a CoverLetter) as a page and as the HTML its PDF is made from (LetterPdf), laid
+       out like the CV (cv/document.html): the CV page's name and contact details (cvDetails) at the top, the date
+       (letterDate, written out already), the job (jobApplication), the letter's paragraphs, and the name under them.
+       CSS 2.1 for openhtmltopdf, no beans and no @{...} links: the PDF is made outside a request. */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}"
+      th:with="cv=${cvDetails}, letter=${coverLetter}, job=${jobApplication}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${job.company} ? |#{letter.title} · ${job.company}| : #{letter.title}">Cover letter</title>
+    <style media="screen">
+        @font-face { font-family: 'Noto Sans'; src: url('/fonts/NotoSans-Regular.ttf'); font-weight: 400; font-style: normal; }
+        @font-face { font-family: 'Noto Sans'; src: url('/fonts/NotoSans-Bold.ttf'); font-weight: 700; font-style: normal; }
+        @font-face { font-family: 'Noto Sans'; src: url('/fonts/NotoSans-Italic.ttf'); font-weight: 400; font-style: italic; }
+        html { background: #e9e9ec; }
+        body { box-sizing: border-box; width: 210mm; min-height: 297mm; margin: 24px auto; padding: 20mm;
+               background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08); }
+        @media (max-width: 860px) { body { width: auto; min-height: 0; margin: 0; padding: 24px; box-shadow: none; } }
+    </style>
+    <style>
+        @page { size: A4; margin: 20mm 20mm 22mm; }
+        body { margin: 0; color: #1d1d1f; font-family: 'Noto Sans', sans-serif; font-size: 10.5pt; line-height: 1.55; }
+        h1 { margin: 0; font-size: 20pt; font-weight: 700; line-height: 1.15; }
+        .headline { margin-top: 3pt; color: #0058b8; font-size: 11pt; }
+        .contact { margin-top: 6pt; padding-bottom: 10pt; border-bottom: 0.75pt solid #d0d0d6; color: #555; font-size: 9pt; }
+        .contact span { white-space: nowrap; }
+        .contact .dot { padding: 0 4pt; color: #b0b0b6; }
+        .contact a { color: #555; text-decoration: none; }
+        .meta { margin: 18pt 0 16pt; }
+        .meta td { padding: 0; vertical-align: top; }
+        .meta table { width: 100%; border-collapse: collapse; }
+        .to { font-weight: 700; }
+        .role { color: #444; }
+        .date { width: 35%; color: #666; text-align: right; white-space: nowrap; }
+        .paragraph { margin: 0 0 10pt; white-space: pre-line; }
+        .name { margin-top: 2pt; font-weight: 700; }
+    </style>
+</head>
+<body>
+<th:block th:if="${cv.fullName}">
+    <h1 th:text="${cv.fullName}">Ana Pop</h1>
+    <div class="headline" th:if="${cv.headline}" th:text="${cv.headline}">Senior Java Developer</div>
+</th:block>
+<!--/* The contact line: a dot between the parts. Only http(s) addresses become links. */-->
+<div class="contact" th:unless="${cv.contacts().isEmpty()}">
+    <th:block th:each="part, row : ${cv.contacts()}"
+              th:with="isLink=${#strings.startsWith(part, 'https://') or #strings.startsWith(part, 'http://')}">
+        <span class="dot" th:unless="${row.first}">·</span>
+        <span th:if="${isLink}"><a th:href="${part}"
+              th:text="${#strings.replace(#strings.replace(part, 'https://', ''), 'http://', '')}">linkedin.com/in/ana</a></span>
+        <span th:unless="${isLink}" th:text="${part}">Cluj-Napoca, Romania</span>
+    </th:block>
+</div>
+
+<div class="meta">
+    <table>
+        <tr>
+            <td>
+                <div class="to" th:text="${job.company} ?: #{letter.doc.hiringTeam}">Acme</div>
+                <div class="role" th:text="#{letter.doc.role(${job.title})}">Re: Backend engineer</div>
+            </td>
+            <td class="date" th:text="${letterDate}">10 Nov 2026</td>
+        </tr>
+    </table>
+</div>
+
+<p class="paragraph" th:each="paragraph : ${letter.paragraphs()}" th:text="${paragraph}">Dear hiring team, …</p>
+<div class="name" th:if="${cv.fullName}" th:text="${cv.fullName}">Ana Pop</div>
+</body>
+</html>

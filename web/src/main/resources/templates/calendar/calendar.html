@@ -19,6 +19,7 @@
             <h1 class="page-title mb-1" th:text="#{calendar.title}">Calendar</h1>
             <p class="text-[13px] text-ink/60" th:text="#{calendar.subtitle}">Interviews, status changes, deadlines and follow-ups.</p>
         </div>
+        <th:block th:replace="~{help/help :: how-it-works('calendar')}"></th:block>
         <!--/* The calendar in the profile's calendar app: the feed's address, to subscribe to (calendarFeedUrl) */-->
         <button id="feed-button" class="btn btn-secondary" type="button" popovertarget="feed-menu">
             <i class="ph ph-calendar-plus text-[15px]"></i><span th:text="#{calendar.feed.button}">Subscribe</span>
@@ -195,6 +196,21 @@
         <div class="text-[13px] font-semibold" th:text="#{calendar.feed.title}">Add to your calendar app</div>
         <p class="text-xs text-pretty text-ink/60" th:text="#{calendar.feed.hint}">Interviews, deadlines and days to follow up…</p>
     </div>
+    <!--/* What the feed has: each choice is an address of its own (CalendarController.feed), so a calendar app can
+           subscribe to only the interviews, say, and another to the days to follow up. */-->
+    <form id="calendar-feed-types" class="flex flex-col gap-1.5" th:hx-get="@{/calendar/feed}" hx-trigger="change"
+          hx-target="#calendar-feed" hx-swap="outerHTML">
+        <span class="text-xs text-ink/60" th:text="#{calendar.feed.pick}">What it shows</span>
+        <div class="flex flex-wrap gap-1.5">
+            <label class="chip chip-small cursor-pointer has-[:checked]:bg-accent-tint has-[:checked]:text-accent-ink"
+                   th:each="type : ${calendarTypes}">
+                <!--/* data-feed-type tells these apart from the legend's own choices, named the same */-->
+                <input class="check" type="checkbox" name="show" th:value="${type.parameter()}" data-feed-type
+                       th:checked="${calendarFeedTypes.contains(type)}">
+                <span th:text="#{|calendar.type.${type}|}">Interviews</span>
+            </label>
+        </div>
+    </form>
     <div class="flex items-center gap-2">
         <label class="contents">
             <span class="sr-only" th:text="#{calendar.feed.address}">The feed’s address</span>
@@ -213,8 +229,8 @@
     <p class="text-xs text-pretty text-ink/55" th:text="#{calendar.feed.google}">Google Calendar fetches it from Google’s servers…</p>
     <div class="flex items-center gap-2 border-t border-line pt-3">
         <p class="flex-1 text-xs text-pretty text-ink/55" th:text="#{calendar.feed.secret}">Whoever has the address can read your calendar.</p>
-        <button class="btn btn-ghost" type="button" th:hx-post="@{/calendar/feed/renew}" hx-target="#calendar-feed" hx-swap="outerHTML"
-                th:text="#{calendar.feed.renew}">New address</button>
+        <button class="btn btn-ghost" type="button" th:hx-post="@{/calendar/feed/renew}" hx-include="#calendar-feed-types"
+                hx-target="#calendar-feed" hx-swap="outerHTML" th:text="#{calendar.feed.renew}">New address</button>
     </div>
 </div>
 

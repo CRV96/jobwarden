@@ -44,7 +44,7 @@ class DefaultSalaryService implements SalaryService {
 	private static final List<String> COMMON_CURRENCIES = List.of("EUR", "USD", "GBP");
 
 	/** The currency shown unless another is asked for. */
-	private static final String DEFAULT_CURRENCY = "EUR";
+	static final String DEFAULT_CURRENCY = "EUR";
 
 	/** A year in euros under which a salary that doesn't say its period is per hour, per day, per month: */
 	private static final BigDecimal HOURLY_BELOW = BigDecimal.valueOf(150);
@@ -152,7 +152,7 @@ class DefaultSalaryService implements SalaryService {
 	 * The salary in the currency and per the period shown. A salary that doesn't say its period gets the one its
 	 * amount suggests: 15,000 RON is a month, not a year.
 	 */
-	private static SalaryEntry entry(ApplicationSummary application, SalaryRange salary, RateTable rates,
+	static SalaryEntry entry(ApplicationSummary application, SalaryRange salary, RateTable rates,
 			String currency, SalaryPeriod shownPer) {
 		SalaryPeriod period = (salary.period() != null) ? salary.period() : guessedPeriod(salary, rates);
 		Function<BigDecimal, BigDecimal> converted = amount -> rates.convert(amount, salary.currency(), currency)
@@ -174,7 +174,7 @@ class DefaultSalaryService implements SalaryService {
 		return (inEuros.compareTo(MONTHLY_BELOW) < 0) ? SalaryPeriod.MONTH : SalaryPeriod.YEAR;
 	}
 
-	private static List<String> currencies(Iterable<SalaryRange> salaries, RateTable rates) {
+	static List<String> currencies(Iterable<SalaryRange> salaries, RateTable rates) {
 		TreeSet<String> currencies = new TreeSet<>(COMMON_CURRENCIES);
 		salaries.forEach(salary -> currencies.add(salary.currency()));
 		currencies.retainAll(rates.currencies());

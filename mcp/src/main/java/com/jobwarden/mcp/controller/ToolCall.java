@@ -103,6 +103,27 @@ record ToolCall(JsonNode arguments, @Nullable Long profileHeader) {
 		return strings;
 	}
 
+	/**
+	 * @return the whole numbers of a list, e.g. ids; empty when it's left out
+	 */
+	List<Long> numbers(String name) {
+		JsonNode value = this.arguments.get(name);
+		if (value == null || value.isNull()) {
+			return List.of();
+		}
+		if (!value.isArray()) {
+			throw new ToolException(name + " must be a list of whole numbers");
+		}
+		List<Long> numbers = new ArrayList<>();
+		for (JsonNode item : value) {
+			if (!item.isIntegralNumber()) {
+				throw new ToolException(name + " must be a list of whole numbers");
+			}
+			numbers.add(item.asLong());
+		}
+		return numbers;
+	}
+
 	<E extends Enum<E>> List<E> constants(String name, Class<E> type) {
 		return strings(name).stream().map(value -> constant(name, value, type)).toList();
 	}

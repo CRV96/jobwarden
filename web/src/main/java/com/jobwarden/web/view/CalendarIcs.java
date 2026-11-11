@@ -7,13 +7,16 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.function.LongFunction;
+import java.util.stream.Collectors;
 
 import com.jobwarden.jobs.dto.CalendarEntry;
-import com.jobwarden.jobs.enums.CalendarEntryKind;
 import com.jobwarden.jobs.enums.ReminderLead;
+import com.jobwarden.web.enums.CalendarEntryType;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.context.MessageSource;
@@ -55,23 +58,25 @@ public class CalendarIcs {
 	private final MessageSource messages;
 
 	/**
-	 * @param entries what's on the calendar; the status changes that aren't interviews are left out
+	 * @param entries what's on the calendar
+	 * @param types the kinds of entries to put in, e.g. only the interviews; the others are left out
 	 * @param jobUrl the address of a job's page, from its id
 	 */
-	public String write(List<CalendarEntry> entries, LongFunction<String> jobUrl, ZoneId zone, Locale locale) {
+	public String write(List<CalendarEntry> entries, Set<CalendarEntryType> types, LongFunction<String> jobUrl,
+			ZoneId zone, Locale locale) {
 		StringBuilder ics = new StringBuilder();
 		line(ics, "BEGIN:VCALENDAR");
 		line(ics, "VERSION:2.0");
 		line(ics, "PRODID:-//JobWarden//Calendar//EN");
 		line(ics, "CALSCALE:GREGORIAN");
 		line(ics, "METHOD:PUBLISH");
-		line(ics, "X-WR-CALNAME:JobWarden");
+		line(ics, "X-WR-CALNAME:" + text(name(types, locale)));
 		// How often the apps that read these ask again
 		line(ics, "REFRESH-INTERVAL;VALUE=DURATION:PT1H");
 		line(ics, "X-PUBLISHED-TTL:PT1H");
 		String stamp = UTC.format(Instant.now().atOffset(ZoneOffset.UTC));
 		for (CalendarEntry entry : entries) {
-			if (entry.kind() == CalendarEntryKind.EVENT && !entry.isInterview()) {
+			if (!types.contains(CalendarEntryType.of(entry))) {
 				continue;
 			}
 			event(ics, entry, jobUrl.apply(entry.applicationId()), stamp, zone, locale);
@@ -113,11 +118,26 @@ public class CalendarIcs {
 		line(ics, "END:VEVENT");
 	}
 
-	/** E.g. Technical interview · Backend engineer at Acme */
+	/**
+	 * What the calendar app calls it: JobWarden, and what it has when that isn't the usual, so that several feeds tell
+	 * apart: "JobWarden · Interviews, Follow-ups".
+	 */
+	private String name(Set<CalendarEntryType> types, Locale locale) {
+		if (types.equals(CalendarEntryType.FEED)) {
+			return "JobWarden";
+		}
+		return "JobWarden · " + Arrays.stream(CalendarEntryType.values())
+			.filter(types::contains)
+			.map(type -> this.messages.getMessage("calendar.type." + type, null, locale))
+			.collect(Collectors.joining(", "));
+	}
+
+	/** E.g. Technical interview · Backend engineer at Acme, or Position closed · Backend engineer at Acme */
 	private String summary(CalendarEntry entry, Locale locale) {
 		String what = switch (entry.kind()) {
 			case EVENT -> (entry.stageLabel() != null) ? entry.stageLabel()
-					: this.messages.getMessage("calendar.feed.interview", null, locale);
+					: entry.isInterview() ? this.messages.getMessage("calendar.feed.interview", null, locale)
+					: this.messages.getMessage("status." + entry.status(), null, locale);
 			case DEADLINE, FOLLOW_UP -> this.messages.getMessage("calendar.kind." + entry.kind(), null, locale);
 		};
 		String job = (entry.company() != null)

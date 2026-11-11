@@ -11,9 +11,12 @@
     <a class="btn btn-ghost self-start px-1.5 py-1" th:href="@{/applications}">
         <i class="ph ph-caret-left"></i><span th:text="#{nav.jobs}">Jobs</span>
     </a>
-    <header>
-        <h1 class="page-title mb-1" th:text="#{newApplication.title}">Add a job</h1>
-        <p class="text-[13px] text-ink/60" th:text="#{newApplication.intro}">For a job you found without the browser extension, e.g. through a referral or a recruiter.</p>
+    <header class="flex flex-wrap items-end gap-3">
+        <div class="min-w-[240px] flex-1">
+            <h1 class="page-title mb-1" th:text="#{newApplication.title}">Add a job</h1>
+            <p class="text-[13px] text-ink/60" th:text="#{newApplication.intro}">For a job you found without the browser extension, e.g. through a referral or a recruiter.</p>
+        </div>
+        <th:block th:replace="~{help/help :: how-it-works('newJob')}"></th:block>
     </header>
 
     <!--/* From 1024 pixels wide, the details on the left and the description as tall as the window on the right */-->

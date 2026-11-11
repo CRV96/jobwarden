@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<!--/* A job's messages to the people who hire for it (OutreachController): to each, a LinkedIn note of 300 characters at
+       most and an email, written by Claude, changed here, copied and sent by the profile itself: JobWarden never sends
+       anything. On the job's page and in the side panel, the loader asks for the card after the rest. Inside the job's
+       own HTMX element, so every request here names its own target. */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <!--/* Only fragments are taken from this file: the title is never shown */-->
+    <title>Outreach · JobWarden</title>
+</head>
+<body>
+
+<section th:fragment="loader(jobId)" class="flex flex-col gap-2" data-collapse="outreach" th:hx-get="@{/applications/{id}/outreach(id=${jobId})}"
+         hx-trigger="load" hx-target="this" hx-swap="outerHTML">
+    <h2 class="section-title flex items-center gap-1.5">
+        <i class="ph ph-paper-plane-tilt text-accent"></i><span th:text="#{outreach.title}">Reach out</span>
+    </h2>
+</section>
+
+<!--/* outreachDrafts are the messages, to each person; outreachRequest the latest request to write them, or null, and
+       outreachPrompt what to paste into Claude Code while it waits. While it's open, the card asks again every few
+       seconds. */-->
+<section id="outreach" th:fragment="card" class="flex flex-col gap-3" data-collapse="outreach"
+         th:with="request=${outreachRequest}, status=${request != null} ? ${request.status.name()},
+                  open=${request != null and request.status.isOpen()}, cardUrl=@{/applications/{id}/outreach(id=${outreachJobId})}"
+         th:hx-get="${open} ? ${cardUrl}" th:hx-trigger="${open} ? 'every 5s'" hx-target="this" hx-swap="outerHTML">
+    <h2 class="section-title flex items-center gap-1.5">
+        <i class="ph ph-paper-plane-tilt text-accent"></i><span th:text="#{outreach.title}">Reach out</span>
+    </h2>
+
+    <p class="text-[13px] text-ink/65" th:unless="${hasCv}">
+        <th:block th:text="#{tailoredCv.noCv}">Claude needs your CV first: upload it or fill it in.</th:block>
+        <a class="link" th:href="@{/cv}" th:text="#{tailoredCv.addCv}">Go to the CV page</a>
+    </p>
+    <p class="text-[13px] text-pretty text-ink/65" th:if="${hasCv and outreachDrafts.isEmpty() and !open}"
+       th:text="#{outreach.hint}">Claude writes a LinkedIn note and an email to the job’s contact…</p>
+
+    <th:block th:if="${open}">
+        <th:block th:replace="~{applications/claude :: waiting(${request}, ${outreachPrompt},
+                  @{/applications/{id}/outreach/cancel(id=${outreachJobId})}, '#outreach')}"></th:block>
+    </th:block>
+    <p class="text-[13px] text-danger" role="alert" th:if="${status == 'FAILED'}"
+       th:text="#{outreach.failed(${request.summary} ?: '')}">Claude couldn’t write them: …</p>
+
+    <th:block th:each="draft : ${outreachDrafts}">
+        <form th:replace="~{applications/outreach :: draft}"></form>
+    </th:block>
+    <p class="flex items-start gap-1.5 text-xs text-ink/55" th:unless="${outreachDrafts.isEmpty()}">
+        <i class="ph ph-info mt-0.5"></i><span th:text="#{outreach.youSend}">You send them yourself: JobWarden never sends anything.</span>
+    </p>
+
+    <button class="btn btn-secondary self-start" type="button" th:if="${hasCv and !open}"
+            th:hx-post="@{/applications/{id}/outreach/request(id=${outreachJobId})}" hx-target="#outreach" hx-swap="outerHTML">
+        <i class="ph ph-sparkle"></i><span th:text="${outreachDrafts.isEmpty()} ? #{outreach.ask} : #{outreach.again}">Ask Claude to write them</span>
+    </button>
+</section>
+
+<!--/* One person's messages (draft, an OutreachDraft): who, the note with its count of LinkedIn's 300 characters, and
+       the email. Saved with the button; copied as they stand (app.js: data-copy-from); the email opens in the profile's
+       own email app. outreachError says why a change wasn't saved. */-->
+<form th:fragment="draft" th:id="|draft-${draft.id}|" class="flex flex-col gap-2 rounded-lg border border-line p-3"
+      th:hx-post="@{/applications/{id}/outreach/{draftId}(id=${outreachJobId}, draftId=${draft.id})}" hx-target="this" hx-swap="outerHTML"
+      th:with="isLink=${draft.recipientLink != null and (#strings.startsWith(draft.recipientLink, 'https://') or #strings.startsWith(draft.recipientLink, 'http://'))}">
+    <div class="flex items-start gap-2">
+        <i class="ph ph-user-circle mt-0.5 text-[18px] text-ink/50"></i>
+        <div class="min-w-0 flex-1">
+            <div class="truncate font-medium" th:text="${draft.recipientName}">Ana Pop</div>
+            <div class="truncate text-xs text-ink/60" th:if="${draft.recipientRole}" th:text="${draft.recipientRole}">Technical Recruiter at Acme</div>
+        </div>
+        <button class="btn btn-ghost btn-icon" type="button" th:title="#{action.delete}" th:aria-label="#{action.delete}"
+                th:hx-post="@{/applications/{id}/outreach/{draftId}/delete(id=${outreachJobId}, draftId=${draft.id})}"
+                th:hx-confirm="#{outreach.deleteConfirm}" hx-target="#outreach" hx-swap="outerHTML">
+            <i class="ph ph-trash"></i>
+        </button>
+    </div>
+
+    <label class="flex flex-col gap-1">
+        <span class="flex items-center gap-2 text-xs text-ink/60">
+            <i class="ph ph-linkedin-logo"></i><span class="flex-1" th:text="#{outreach.note}">LinkedIn note</span>
+            <span class="tabular-nums" th:id="|note-count-${draft.id}|" th:classappend="${draft.linkedinNoteLength() > 300} ? 'text-danger'"
+                  th:text="|${draft.linkedinNoteLength()}/300|">212/300</span>
+        </span>
+        <textarea class="input text-[13px]" name="linkedinNote" rows="4" maxlength="300" th:id="|note-${draft.id}|"
+                  th:data-count="|note-count-${draft.id}|" th:text="${draft.linkedinNote}">Hi Ana, …</textarea>
+    </label>
+    <div class="flex flex-wrap items-center gap-1.5">
+        <button class="btn btn-secondary px-2 py-1 text-xs" type="button" th:data-copy-from="|note-${draft.id}|">
+            <span class="inline-flex items-center gap-1.5" data-copy-idle><i class="ph ph-copy"></i><span th:text="#{outreach.copyNote}">Copy the note</span></span>
+            <span class="inline-flex items-center gap-1.5" data-copy-done hidden><i class="ph ph-check text-success"></i><span th:text="#{search.copied}">Copied</span></span>
+        </button>
+        <!--/* Only http(s) links: Claude found them */-->
+        <a class="btn btn-ghost px-2 py-1 text-xs" th:if="${isLink}" th:href="${draft.recipientLink}" target="_blank" rel="noopener noreferrer">
+            <i class="ph ph-arrow-square-out"></i><span th:text="#{outreach.openProfile}">Open their profile</span>
+        </a>
+    </div>
+
+    <div class="flex flex-col gap-1">
+        <span class="flex items-center gap-1.5 text-xs text-ink/60">
+            <i class="ph ph-envelope-simple"></i><span th:text="#{outreach.email}">Email</span>
+            <span class="truncate text-ink/50" th:if="${draft.recipientEmail}" th:text="|· ${draft.recipientEmail}|">· ana@acme.com</span>
+        </span>
+        <input class="input text-[13px]" type="text" name="emailSubject" maxlength="300" th:id="|subject-${draft.id}|"
+               th:value="${draft.emailSubject}" th:aria-label="#{outreach.subject}" th:placeholder="#{outreach.subject}">
+        <textarea class="input text-[13px]" name="emailBody" rows="7" maxlength="5000" th:id="|body-${draft.id}|"
+                  th:aria-label="#{outreach.email}" th:text="${draft.emailBody}">Dear Ana, …</textarea>
+    </div>
+    <p class="text-[13px] text-danger" role="alert" th:if="${outreachError}" th:text="${outreachError}">A LinkedIn note can have at most 300 characters.</p>
+    <div class="flex flex-wrap items-center gap-1.5">
+        <button class="btn btn-secondary px-2 py-1 text-xs" type="button" th:data-copy-from="|subject-${draft.id} body-${draft.id}|">
+            <span class="inline-flex items-center gap-1.5" data-copy-idle><i class="ph ph-copy"></i><span th:text="#{outreach.copyEmail}">Copy the email</span></span>
+            <span class="inline-flex items-center gap-1.5" data-copy-done hidden><i class="ph ph-check text-success"></i><span th:text="#{search.copied}">Copied</span></span>
+        </button>
+        <a class="btn btn-ghost px-2 py-1 text-xs" th:if="${draft.emailBody}"
+           th:href="|mailto:${draft.recipientEmail ?: ''}?subject=${#uris.escapeQueryParam(draft.emailSubject ?: '')}&body=${#uris.escapeQueryParam(draft.emailBody)}|">
+            <i class="ph ph-envelope-open"></i><span th:text="#{outreach.openEmail}">Open in my email app</span>
+        </a>
+        <span class="flex-1"></span>
+        <button class="btn btn-primary px-2 py-1 text-xs" type="submit">
+            <i class="ph ph-floppy-disk"></i><span th:text="#{cv.save}">Save</span>
+        </button>
+    </div>
+</form>
+
+</body>
+</html>

@@ -262,6 +262,21 @@ class CalendarControllerTests {
 	}
 
 	@Test
+	void givesAnAddressOfItsOwnForWhatTheFeedShows() {
+		assertThat(this.mvc.get().uri("/calendar/feed").param("show", "interview", "follow-up").header("HX-Request", "true"))
+			.hasStatusOk()
+			.bodyText()
+			.contains("value=\"http://localhost/calendar/feed.ics?token=s3cret&amp;show=interview&amp;show=follow-up\"",
+					"href=\"webcal://localhost/calendar/feed.ics?token=s3cret&amp;show=interview&amp;show=follow-up\"",
+					"value=\"interview\" data-feed-type checked=\"checked\"")
+			.doesNotContain("value=\"deadline\" data-feed-type checked");
+		// Nothing picked: the usual, with its short address
+		assertThat(this.mvc.get().uri("/calendar/feed").header("HX-Request", "true")).hasStatusOk()
+			.bodyText()
+			.contains("value=\"http://localhost/calendar/feed.ics?token=s3cret\"");
+	}
+
+	@Test
 	void sendsTheBrowserToTheProfilePickerWhenNoProfileIsSelected() {
 		given(this.currentUser.get()).willReturn(Optional.empty());
 

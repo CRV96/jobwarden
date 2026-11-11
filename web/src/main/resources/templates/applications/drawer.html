@@ -28,14 +28,21 @@
         </button>
     </div>
 
+    <div th:replace="~{applications/fragments :: archived-note}"></div>
     <div th:replace="~{applications/fragments :: facts}"></div>
     <div th:replace="~{applications/fragments :: status-picker}"></div>
+    <th:block th:if="${jobApplication.status.name() == 'OFFER'}">
+        <section th:replace="~{applications/offer :: terms-loader(${jobApplication.id})}"></section>
+        <section th:replace="~{applications/offer :: negotiation-loader(${jobApplication.id})}"></section>
+    </th:block>
     <section th:replace="~{applications/job-fit :: loader(${jobApplication.id})}"></section>
     <th:block th:if="${jobApplication.description}">
         <section th:replace="~{applications/fragments :: description}"></section>
     </th:block>
     <section th:replace="~{applications/fragments :: timeline}"></section>
     <section th:replace="~{applications/tailored-cv :: loader(${jobApplication.id})}"></section>
+    <section th:replace="~{applications/cover-letter :: loader(${jobApplication.id})}"></section>
+    <section th:replace="~{applications/outreach :: loader(${jobApplication.id})}"></section>
     <section th:replace="~{applications/interview-brief :: loader(${jobApplication.id})}"></section>
     <form th:replace="~{applications/fragments :: follow-up}"></form>
     <section th:replace="~{calendar/reminders :: loader(${jobApplication.id})}"></section>
@@ -48,6 +55,7 @@
             <i class="ph ph-arrow-square-out"></i><span th:text="#{application.openPosting}">Open posting</span>
         </a>
         <span class="flex-1"></span>
+        <button th:replace="~{applications/fragments :: archive-button('btn-ghost')}"></button>
         <button class="btn btn-ghost" type="button" th:data-open-dialog="|delete-${jobApplication.id}|">
             <i class="ph ph-trash"></i><span th:text="#{action.delete}">Delete</span>
         </button>

@@ -1,9 +1,10 @@
 package com.jobwarden.discover.enums;
 
 /**
- * What the profile can ask Claude to do: the AI Assistant page's presets, a CV for one job and a brief for its
- * interview from the job's page, hiring posts and recruiters from the Who's hiring page, applying to jobs from the
- * Auto-apply page, sorting the emails on the Inbox page, and the CV's projects from GitHub on the CV page.
+ * What the profile can ask Claude to do: the AI Assistant page's presets; a CV, a cover letter, messages to the people
+ * hiring, a brief for the interview and one to negotiate the offer, from a job's page; hiring posts and recruiters
+ * from the Who's hiring page, applying to jobs from the Auto-apply page, sorting the emails on the Inbox page, and the
+ * CV's projects from GitHub and the story bank's stories on the CV page.
  */
 public enum AiRequestKind {
 
@@ -56,7 +57,25 @@ public enum AiRequestKind {
 	SORT_INBOX,
 
 	/** Write the CV's personal projects from the GitHub repositories the profile chose on the CV page. */
-	WRITE_PROJECTS;
+	WRITE_PROJECTS,
+
+	/** Write a cover letter for one job, from the CV and the posting. The request names the job. */
+	WRITE_COVER_LETTER,
+
+	/**
+	 * Write a LinkedIn note and an email about one job to the people who hire for it: its contact, its recruiters, the
+	 * author of the post it came from. The profile sends them itself. The request names the job.
+	 */
+	WRITE_OUTREACH,
+
+	/**
+	 * Write a brief to negotiate one job's offer: where it stands against the market salaries JobWarden has and the
+	 * other offers, what to ask for and how. The request names the job.
+	 */
+	NEGOTIATE_OFFER,
+
+	/** Draft stories for the story bank, the STAR way, from what the CV says the person did. */
+	WRITE_STORIES;
 
 	/**
 	 * @return whether it says what to look for: titles, locations, skills...
@@ -69,7 +88,8 @@ public enum AiRequestKind {
 	 * @return whether it's about one job, which the request then names
 	 */
 	public boolean isAboutAJob() {
-		return this == TAILOR_CV || this == PREPARE_INTERVIEW || this == SCORE_JOB;
+		return this == TAILOR_CV || this == PREPARE_INTERVIEW || this == SCORE_JOB || this == WRITE_COVER_LETTER
+				|| this == WRITE_OUTREACH || this == NEGOTIATE_OFFER;
 	}
 
 	/**

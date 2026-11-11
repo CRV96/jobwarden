@@ -4,6 +4,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
+import com.jobwarden.cv.dto.Story;
+import com.jobwarden.cv.service.StoryService;
 import com.jobwarden.discover.dto.AiRequest;
 import com.jobwarden.discover.dto.AiRequirements;
 import com.jobwarden.discover.enums.AiRequestKind;
@@ -45,6 +47,9 @@ class InterviewBriefControllerTests {
 
 	@MockitoBean
 	private DiscoveryService discovery;
+
+	@MockitoBean
+	private StoryService stories;
 
 	@MockitoBean
 	private CurrentUser currentUser;
@@ -113,6 +118,25 @@ class InterviewBriefControllerTests {
 					"href=\"https://acme.example.com/about\"", "Prepare it again")
 			// Only web addresses are links
 			.doesNotContain("href=\"javascript:");
+	}
+
+	@Test
+	void showsTheStoryBanksStoriesTheBriefDrawsOn() {
+		given(this.briefs.find(1, 7)).willReturn(Optional.of(InterviewBrief.builder()
+			.company("Acme makes payment terminals.")
+			.storyIds(List.of(3L, 99L))
+			.updatedAt(Instant.now())
+			.build()));
+		given(this.stories.findAll(1, List.of(3L, 99L))).willReturn(List.of(Story.builder()
+			.id(3)
+			.title("The Kafka migration")
+			.situation("Orders were lost at peaks.")
+			.result("No order lost since.")
+			.build()));
+
+		assertThat(this.mvc.get().uri("/applications/7/prep").header("HX-Request", "true")).hasStatusOk()
+			.bodyText()
+			.contains("From your story bank", "The Kafka migration", "Orders were lost at peaks.", "No order lost since.");
 	}
 
 }

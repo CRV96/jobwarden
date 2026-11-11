@@ -6,9 +6,12 @@
 </head>
 <body>
 <main class="flex flex-col gap-4">
-    <header>
-        <h1 class="page-title mb-1" th:text="#{settings.title}">Settings</h1>
-        <p class="text-[13px] text-ink/60" th:text="#{settings.subtitle}">Appearance, language and the browser extension</p>
+    <header class="flex flex-wrap items-end gap-3">
+        <div class="min-w-[240px] flex-1">
+            <h1 class="page-title mb-1" th:text="#{settings.title}">Settings</h1>
+            <p class="text-[13px] text-ink/60" th:text="#{settings.subtitle}">Appearance, language and the browser extension</p>
+        </div>
+        <th:block th:replace="~{help/help :: how-it-works('settings')}"></th:block>
     </header>
 
     <div class="grid items-start gap-x-12 gap-y-6 xl:grid-cols-2">
@@ -121,6 +124,11 @@
                     <a class="link text-xs" th:href="@{/applications}" th:text="#{nav.jobs}">Jobs</a>
                 </div>
             </div>
+            <p class="card flex items-center gap-2 p-3" role="status" th:if="${archivedByDate != null}">
+                <i class="ph ph-archive text-lg text-accent"></i>
+                <span class="flex-1" th:text="#{jobs.archiveByDate.done(${archivedByDate})}">Archived 12 jobs.</span>
+                <a class="link text-xs" th:href="@{/applications(archived=true)}" th:text="#{jobs.archived}">Archived</a>
+            </p>
             <p class="card flex items-center gap-2 p-3 text-danger" role="alert" th:if="${csvImportError}">
                 <i class="ph ph-warning-circle text-lg"></i><span th:text="${csvImportError}">The file has no title column.</span>
             </p>
@@ -155,6 +163,31 @@
                                    accept=".csv,.tsv,.txt,text/csv,text/plain" th:aria-label="#{jobs.import.file}" th:title="#{jobs.import.file}">
                             <button class="btn btn-primary" type="submit">
                                 <i class="ph ph-upload-simple"></i><span th:text="#{jobs.import.submit}">Import</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                <div class="border-t border-line"></div>
+                <!--/* Archives the jobs nothing happened on since a day: by default the ones that ended */-->
+                <form class="flex items-start gap-3" method="post" th:action="@{/applications/archive-unchanged}">
+                    <i class="ph ph-archive text-[22px] text-accent"></i>
+                    <div class="flex min-w-0 flex-1 flex-col gap-2">
+                        <div>
+                            <div class="font-medium" th:text="#{jobs.archiveByDate.title}">Archive old jobs</div>
+                            <div class="text-xs text-pretty text-ink/60" th:text="#{jobs.archiveByDate.body}">Jobs nothing changed on since a day…</div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+                            <label class="flex items-center gap-2">
+                                <span class="text-xs text-ink/60" th:text="#{jobs.archiveByDate.since}">Unchanged since</span>
+                                <input class="input w-auto" type="date" name="before" required th:max="${today}"
+                                       th:value="${today.minusMonths(3)}">
+                            </label>
+                            <label class="flex items-center gap-2 text-[13px]">
+                                <input class="check" type="checkbox" name="endedOnly" value="true" checked>
+                                <span th:text="#{jobs.archiveByDate.endedOnly}">Only those that ended</span>
+                            </label>
+                            <button class="btn btn-secondary" type="submit">
+                                <i class="ph ph-archive"></i><span th:text="#{jobs.archive}">Archive</span>
                             </button>
                         </div>
                     </div>

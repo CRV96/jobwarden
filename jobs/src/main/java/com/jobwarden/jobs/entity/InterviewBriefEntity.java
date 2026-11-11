@@ -44,6 +44,10 @@ public class InterviewBriefEntity {
 	@JdbcTypeCode(SqlTypes.ARRAY)
 	private List<String> stories = new ArrayList<>();
 
+	/** Ids of the cv module's stories: no foreign key across the modules. */
+	@JdbcTypeCode(SqlTypes.ARRAY)
+	private List<Long> storyIds = new ArrayList<>();
+
 	@JdbcTypeCode(SqlTypes.ARRAY)
 	private List<String> askThem = new ArrayList<>();
 
@@ -67,6 +71,7 @@ public class InterviewBriefEntity {
 		this.role = brief.role();
 		this.questions = new ArrayList<>(brief.questions());
 		this.stories = new ArrayList<>(brief.stories());
+		this.storyIds = new ArrayList<>(brief.storyIds());
 		this.askThem = new ArrayList<>(brief.askThem());
 		this.watchOut = brief.watchOut();
 		this.sources = new ArrayList<>(brief.sources());

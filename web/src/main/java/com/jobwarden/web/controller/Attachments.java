@@ -46,7 +46,18 @@ final class Attachments {
 	 * A CV's PDF name: "CV Ana Pop - Acme.pdf" for a job at Acme, "CV Ana Pop.pdf" for none.
 	 */
 	static String cvName(@Nullable String fullName, @Nullable String company) {
-		StringBuilder name = new StringBuilder("CV");
+		return documentName("CV", fullName, company);
+	}
+
+	/**
+	 * A cover letter's PDF name: "Cover letter Ana Pop - Acme.pdf".
+	 */
+	static String letterName(@Nullable String fullName, @Nullable String company) {
+		return documentName("Cover letter", fullName, company);
+	}
+
+	private static String documentName(String what, @Nullable String fullName, @Nullable String company) {
+		StringBuilder name = new StringBuilder(what);
 		if (fullName != null) {
 			name.append(' ').append(fullName);
 		}

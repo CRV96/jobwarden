@@ -86,7 +86,7 @@ class SearchControllerTests {
 			.bodyText()
 			.contains("name=\"sites\" value=\"jobs.lever.co\"", "name=\"platform\" value=\"GOOGLE\"")
 			// They're in the Google query once there's something to search for
-			.contains("Your queries show here");
+			.contains("Your Warden Queries show here");
 		assertThat(this.mvc.get().uri("/search?titles=Java Developer")).bodyText()
 			.contains("<span class=\"q-paren\">(</span><span class=\"q-field\">site:jobs.lever.co</span>",
 					"<span class=\"q-operator\">OR</span>", "<span class=\"q-phrase\">&quot;Java Developer&quot;</span>",
@@ -109,7 +109,7 @@ class SearchControllerTests {
 			// Every platform's query at once
 			.contains("id=\"query-GOOGLE\"", "id=\"query-LINKEDIN\"", "id=\"query-REDDIT\"", "id=\"query-X\"",
 					"id=\"query-REMOTE_BOARDS\"")
-			.doesNotContain("Your queries show here");
+			.doesNotContain("Your Warden Queries show here");
 	}
 
 	@Test
@@ -130,7 +130,7 @@ class SearchControllerTests {
 	@Test
 	void saysWhereTheQueriesGoWhenThereAreNone() {
 		assertThat(this.mvc.get().uri("/search?locations=Europe&workTypes=REMOTE&platform=GOOGLE")).bodyText()
-			.contains("Your queries show here")
+			.contains("Your Warden Queries show here")
 			.doesNotContain("id=\"query-GOOGLE\"");
 	}
 
@@ -153,7 +153,7 @@ class SearchControllerTests {
 			.hasStatusOk()
 			.bodyText()
 			// The whole page: HTMX swaps the filters, and the queries out of band
-			.contains("id=\"boolean-search\"", "id=\"search-output\"", "value=\"Backend Engineer\"", "value=\"Europe\"",
+			.contains("id=\"warden-query\"", "id=\"search-output\"", "value=\"Backend Engineer\"", "value=\"Europe\"",
 					"name=\"workTypes\" value=\"REMOTE\" checked", "value=\"junior\"",
 					"<span class=\"q-field\">site:apply.workable.com</span>", "<span class=\"q-exclude\">-junior</span>")
 			.doesNotContain("site:jobs.lever.co");

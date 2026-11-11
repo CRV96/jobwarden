@@ -5,11 +5,13 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
+import com.jobwarden.cv.dto.CoverLetter;
 import com.jobwarden.cv.dto.Cv;
 import com.jobwarden.cv.dto.CvDetails;
 import com.jobwarden.cv.dto.CvFile;
 import com.jobwarden.cv.dto.CvFileContent;
 import com.jobwarden.cv.dto.TailoredCv;
+import com.jobwarden.cv.service.CoverLetterService;
 import com.jobwarden.cv.service.CvService;
 import com.jobwarden.discover.dto.AiRequest;
 import com.jobwarden.discover.dto.AiRequirements;
@@ -20,6 +22,7 @@ import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.web.view.CvPdf;
+import com.jobwarden.web.view.LetterPdf;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -37,7 +40,7 @@ import static org.mockito.BDDMockito.given;
  * With the real PDF renderer. No session: Claude downloads it.
  */
 @WebMvcTest(ClaudeFilesController.class)
-@Import(CvPdf.class)
+@Import({ CvPdf.class, LetterPdf.class })
 class ClaudeFilesControllerTests {
 
 	private static final CvDetails DETAILS = CvDetails.builder()
@@ -57,6 +60,9 @@ class ClaudeFilesControllerTests {
 
 	@MockitoBean
 	private DiscoveryService discovery;
+
+	@MockitoBean
+	private CoverLetterService letters;
 
 	@BeforeEach
 	void aJob() {
@@ -120,6 +126,22 @@ class ClaudeFilesControllerTests {
 
 		given(this.cvs.find(1)).willReturn(new Cv(null, CvDetails.NONE));
 		assertThat(this.mvc.get().uri("/claude/cv?profile=1&job=7")).hasStatus(HttpStatus.NOT_FOUND);
+	}
+
+	@Test
+	void givesTheJobsCoverLetterAsAPdfOrNothingWithoutOne() {
+		assertThat(this.mvc.get().uri("/claude/cover-letter?profile=1&job=7")).hasStatus(HttpStatus.NOT_FOUND);
+
+		given(this.letters.findLetter(1, 7)).willReturn(Optional.of(new CoverLetter(7,
+				"Dear hiring team,\n\nI build payment systems.\n\nKind regards,", null, Instant.now())));
+		assertThat(this.mvc.get().uri("/claude/cover-letter?profile=1&job=7")).hasStatusOk()
+			.hasContentType("application/pdf")
+			.satisfies(result -> assertThat(result.getResponse().getContentAsByteArray())
+				.startsWith("%PDF".getBytes(StandardCharsets.US_ASCII)))
+			.headers()
+			.hasValue("Content-Disposition", "attachment; filename=\"Cover letter Robert Ciapa - Acme.pdf\"; "
+					+ "filename*=UTF-8''Cover%20letter%20Robert%20Ciap%C4%83%20-%20Acme.pdf");
+		assertThat(this.mvc.get().uri("/claude/cover-letter?profile=2&job=7")).hasStatus(HttpStatus.NOT_FOUND);
 	}
 
 	private static AiRequest request(long id, AiRequestKind kind, AiRequestStatus status) {

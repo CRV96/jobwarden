@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<!--/* A job's offer, on its page and in the side panel while it's at Offer (JobOfferController): its terms, saved as
+       they're typed, which the offers page compares; and the brief Claude writes to negotiate it. The loaders ask for
+       the cards after the rest. Inside the job's own HTMX element, so every request here names its own target. */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <!--/* Only fragments are taken from this file: the title is never shown */-->
+    <title>Offer · JobWarden</title>
+</head>
+<body>
+
+<section th:fragment="terms-loader(jobId)" class="flex flex-col gap-2" data-collapse="offer" th:hx-get="@{/applications/{id}/offer(id=${jobId})}"
+         hx-trigger="load" hx-target="this" hx-swap="outerHTML">
+    <h2 class="section-title flex items-center gap-1.5">
+        <i class="ph ph-handshake text-accent"></i><span th:text="#{offer.title}">The offer</span>
+    </h2>
+</section>
+
+<!--/* jobOffer is the job's terms (a JobOffer, NONE without any). Saved as each field changes, like the contact and
+       follow-up: the status next to the title says it's saved, or why not. */-->
+<form id="offer-terms" th:fragment="terms" class="flex flex-col gap-2" data-collapse="offer" th:with="offer=${jobOffer}"
+      th:hx-put="@{/applications/{id}/offer(id=${offerJobId})}" hx-trigger="change" hx-target="find .offer-status" hx-swap="innerHTML">
+    <div class="flex items-center gap-2">
+        <h2 class="section-title flex flex-1 items-center gap-1.5">
+            <i class="ph ph-handshake text-accent"></i><span th:text="#{offer.title}">The offer</span>
+        </h2>
+        <span class="offer-status text-[11px] text-ink/50" aria-live="polite"></span>
+        <a class="btn btn-ghost px-1.5 py-1 text-xs" th:href="@{/offers}">
+            <i class="ph ph-columns"></i><span th:text="#{offer.compare}">Compare offers</span>
+        </a>
+    </div>
+    <p class="text-[13px] text-pretty text-ink/65" th:if="${offer.isEmpty()}" th:text="#{offer.hint}">
+        Type in what they offer: the offers page puts it beside your other offers and what the market pays.</p>
+    <div class="grid grid-cols-2 gap-1.5">
+        <label class="col-span-2 flex min-w-0 flex-col gap-1">
+            <span class="text-xs text-ink/60" th:text="#{offer.baseSalary}">Base salary</span>
+            <input class="input" type="text" name="baseSalary" maxlength="200" autocomplete="off" th:value="${offer.baseSalary}"
+                   th:placeholder="#{offer.baseSalary.placeholder}">
+        </label>
+        <input class="input" type="text" name="bonus" maxlength="200" autocomplete="off" th:value="${offer.bonus}"
+               th:aria-label="#{offer.bonus}" th:placeholder="#{offer.bonus}">
+        <input class="input" type="text" name="signingBonus" maxlength="200" autocomplete="off" th:value="${offer.signingBonus}"
+               th:aria-label="#{offer.signingBonus}" th:placeholder="#{offer.signingBonus}">
+        <input class="input" type="text" name="equity" maxlength="200" autocomplete="off" th:value="${offer.equity}"
+               th:aria-label="#{offer.equity}" th:placeholder="#{offer.equity}">
+        <input class="input" type="text" name="timeOff" maxlength="200" autocomplete="off" th:value="${offer.timeOff}"
+               th:aria-label="#{offer.timeOff}" th:placeholder="#{offer.timeOff.placeholder}">
+        <textarea class="input col-span-2" name="benefits" rows="2" maxlength="2000" th:aria-label="#{offer.benefits}"
+                  th:placeholder="#{offer.benefits.placeholder}" th:text="${offer.benefits}"></textarea>
+        <label class="flex min-w-0 flex-col gap-1">
+            <span class="text-xs text-ink/60" th:text="#{offer.startDate}">Starts on</span>
+            <input class="input" type="date" name="startDate" th:value="${offer.startDate}">
+        </label>
+        <label class="flex min-w-0 flex-col gap-1">
+            <span class="text-xs text-ink/60" th:text="#{offer.respondBy}">Answer by</span>
+            <input class="input" type="date" name="respondBy" th:value="${offer.respondBy}">
+        </label>
+        <textarea class="input col-span-2" name="notes" rows="2" maxlength="2000" th:aria-label="#{offer.notes}"
+                  th:placeholder="#{offer.notes.placeholder}" th:text="${offer.notes}"></textarea>
+    </div>
+</form>
+
+<span th:fragment="terms-status">
+    <span class="text-danger" th:if="${fieldErrors != null and !fieldErrors.isEmpty()}"
+          th:text="${fieldErrors.values().iterator().next()}">A field can be at most 200 characters long.</span>
+    <th:block th:unless="${fieldErrors != null and !fieldErrors.isEmpty()}" th:text="#{application.notes.saved}">Saved</th:block>
+</span>
+
+<section th:fragment="negotiation-loader(jobId)" class="flex flex-col gap-2" data-collapse="negotiation"
+         th:hx-get="@{/applications/{id}/negotiation(id=${jobId})}" hx-trigger="load" hx-target="this" hx-swap="outerHTML">
+    <h2 class="section-title flex items-center gap-1.5">
+        <i class="ph ph-scales text-accent"></i><span th:text="#{negotiation.title}">Negotiation</span>
+    </h2>
+</section>
+
+<!--/* negotiationBrief is the brief, or null; negotiationRequest the latest request for one, or null; negotiationPrompt
+       what to paste into Claude Code while it waits. While it's open, the card asks again every few seconds, and shows
+       the brief once Claude saves it. */-->
+<section id="negotiation" th:fragment="negotiation" class="flex flex-col gap-3" data-collapse="negotiation"
+         th:with="request=${negotiationRequest}, status=${request != null} ? ${request.status.name()},
+                  open=${request != null and request.status.isOpen()}, brief=${negotiationBrief},
+                  cardUrl=@{/applications/{id}/negotiation(id=${offerJobId})}"
+         th:hx-get="${open} ? ${cardUrl}" th:hx-trigger="${open} ? 'every 5s'" hx-target="this" hx-swap="outerHTML">
+    <div class="flex items-center gap-2">
+        <h2 class="section-title flex flex-1 items-center gap-1.5">
+            <i class="ph ph-scales text-accent"></i><span th:text="#{negotiation.title}">Negotiation</span>
+        </h2>
+        <span class="text-xs text-ink/55" th:if="${brief != null and brief.updatedAt != null}"
+              th:text="#{negotiation.updated(${@dates.relativeDay(brief.updatedAt)})}">Written: Today</span>
+    </div>
+
+    <p class="text-[13px] text-pretty text-ink/65" th:if="${brief == null and !open}" th:text="#{negotiation.hint}">
+        Claude compares the offer with what the market pays…</p>
+
+    <th:block th:if="${open}">
+        <th:block th:replace="~{applications/claude :: waiting(${request}, ${negotiationPrompt},
+                  @{/applications/{id}/negotiation/cancel(id=${offerJobId})}, '#negotiation')}"></th:block>
+    </th:block>
+    <p class="text-[13px] text-danger" role="alert" th:if="${status == 'FAILED'}"
+       th:text="#{negotiation.failed(${request.summary} ?: '')}">Claude couldn’t write it: …</p>
+
+    <!--/* The brief: each part only when Claude wrote it */-->
+    <th:block th:if="${brief}">
+        <div class="flex flex-col gap-1">
+            <h3 class="text-xs text-ink/60" th:text="#{negotiation.position}">Where the offer stands</h3>
+            <p class="text-[13px] whitespace-pre-line text-pretty text-ink/85" th:text="${brief.position}">The offer is 8% under the median…</p>
+        </div>
+        <div class="grid gap-2 sm:grid-cols-2" th:if="${brief.target != null or brief.walkAway != null}">
+            <div class="rounded-lg bg-[color-mix(in_srgb,var(--jw-green)_12%,transparent)] p-2.5" th:if="${brief.target}">
+                <h3 class="text-xs font-medium" th:text="#{negotiation.target}">Ask for</h3>
+                <p class="text-[13px] whitespace-pre-line text-pretty text-ink/85" th:text="${brief.target}">95,000 EUR…</p>
+            </div>
+            <div class="rounded-lg bg-ink/4 p-2.5" th:if="${brief.walkAway}">
+                <h3 class="text-xs font-medium" th:text="#{negotiation.walkAway}">The least to accept</h3>
+                <p class="text-[13px] whitespace-pre-line text-pretty text-ink/85" th:text="${brief.walkAway}">88,000 EUR…</p>
+            </div>
+        </div>
+        <div class="flex flex-col gap-1" th:unless="${brief.leverage.isEmpty()}">
+            <h3 class="text-xs text-ink/60" th:text="#{negotiation.leverage}">Why it’s fair</h3>
+            <ul class="list-disc space-y-1 pl-5 text-[13px] text-ink/85">
+                <li th:each="point : ${brief.leverage}" th:text="${point}">The median in Germany is 92,000 EUR.</li>
+            </ul>
+        </div>
+        <div class="flex flex-col gap-1" th:unless="${brief.asks.isEmpty()}">
+            <h3 class="text-xs text-ink/60" th:text="#{negotiation.asks}">If the salary won’t move, ask for</h3>
+            <ul class="list-disc space-y-1 pl-5 text-[13px] text-ink/85">
+                <li th:each="ask : ${brief.asks}" th:text="${ask}">A signing bonus of 5,000 EUR</li>
+            </ul>
+        </div>
+        <th:block th:if="${brief.script}">
+            <div th:replace="~{applications/claude :: copyable(#{negotiation.script}, ${brief.script})}"></div>
+        </th:block>
+        <th:block th:if="${brief.email}">
+            <div th:replace="~{applications/claude :: copyable(#{negotiation.email}, ${brief.email})}"></div>
+        </th:block>
+        <div class="flex items-start gap-2 rounded-lg bg-[color-mix(in_srgb,var(--jw-orange)_12%,transparent)] p-2.5" th:if="${brief.watchOut}">
+            <i class="ph ph-warning mt-0.5 text-[15px] text-[var(--jw-orange)]"></i>
+            <div class="flex flex-col gap-0.5">
+                <h3 class="text-xs font-medium" th:text="#{negotiation.watchOut}">Watch out</h3>
+                <p class="text-[13px] whitespace-pre-line text-pretty text-ink/85" th:text="${brief.watchOut}">They want an answer by Friday…</p>
+            </div>
+        </div>
+        <div class="flex flex-col gap-1" th:unless="${brief.sources.isEmpty()}">
+            <h3 class="text-xs text-ink/60" th:text="#{negotiation.sources}">Where the figures come from</h3>
+            <ul class="flex flex-col gap-0.5 text-xs">
+                <!--/* Only http(s) links: Claude wrote them, from pages it read */-->
+                <li class="truncate" th:each="source : ${brief.sources}">
+                    <a class="link" th:if="${#strings.startsWith(source, 'https://') or #strings.startsWith(source, 'http://')}"
+                       th:href="${source}" target="_blank" rel="noopener noreferrer" th:text="${source}">https://levels.fyi/…</a>
+                    <span class="text-ink/60" th:unless="${#strings.startsWith(source, 'https://') or #strings.startsWith(source, 'http://')}"
+                          th:text="${source}">Stack Overflow survey 2025</span>
+                </li>
+            </ul>
+        </div>
+        <button class="btn btn-ghost self-start" type="button" th:hx-post="@{/applications/{id}/negotiation/delete(id=${offerJobId})}"
+                th:hx-confirm="#{negotiation.deleteConfirm}" hx-target="#negotiation" hx-swap="outerHTML">
+            <i class="ph ph-trash"></i><span th:text="#{action.delete}">Delete</span>
+        </button>
+    </th:block>
+
+    <button class="btn btn-secondary self-start" type="button" th:unless="${open}"
+            th:hx-post="@{/applications/{id}/negotiation/request(id=${offerJobId})}" hx-target="#negotiation" hx-swap="outerHTML">
+        <i class="ph ph-sparkle"></i><span th:text="${brief} ? #{negotiation.again} : #{negotiation.ask}">Ask Claude how to negotiate</span>
+    </button>
+</section>
+
+</body>
+</html>

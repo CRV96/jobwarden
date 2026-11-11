@@ -313,12 +313,19 @@ class DefaultInboxService implements InboxService {
 		EmailUpdateEntity update = pending(userId, updateId);
 		LocalDateTime received = LocalDateTime.ofInstant(update.getReceivedAt(), ZoneId.systemDefault())
 			.truncatedTo(ChronoUnit.MINUTES);
-		this.applications.addEvent(userId, applicationId, NewTimelineEvent.builder()
+		NewTimelineEvent event = NewTimelineEvent.builder()
 			.eventDate(received.toLocalDate())
 			.eventTime(received.toLocalTime())
 			.stageCategory(status)
 			.note((note != null) ? note : emailNote(update))
-			.build());
+			.build();
+		// The job may say so already, e.g. an application confirmed after it was marked applied: nothing new to add
+		if (this.applications.wouldRepeat(userId, applicationId, event)) {
+			log.info("Email update {} says application {} of profile {} is {}, as its timeline does already", updateId,
+					applicationId, userId, status);
+		} else {
+			this.applications.addEvent(userId, applicationId, event);
+		}
 		update.applyTo(applicationId, by);
 		log.info("Applied email update {} to application {} of profile {} as {} ({})", updateId, applicationId, userId,
 				status, by);

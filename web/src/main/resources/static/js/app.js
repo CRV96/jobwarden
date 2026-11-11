@@ -179,10 +179,14 @@ document.addEventListener('click', (event) => {
 		return;
 	}
 
-	// data-copy-text: copies the text, and says so for a moment
-	const copier = target.closest('[data-copy-text]');
+	// data-copy-text: copies the text, and says so for a moment. data-copy-from="<ids>": copies what the fields with
+	// those ids hold now, as they're being changed, a blank line between them
+	const copier = target.closest('[data-copy-text], [data-copy-from]');
 	if (copier) {
-		copyText(copier.dataset.copyText).then(() => {
+		const text = copier.dataset.copyFrom
+			? copier.dataset.copyFrom.split(' ').map((id) => document.getElementById(id)?.value ?? '').filter((value) => value.trim() !== '').join('\n\n')
+			: copier.dataset.copyText;
+		copyText(text).then(() => {
 			copier.querySelector('[data-copy-idle]').hidden = true;
 			copier.querySelector('[data-copy-done]').hidden = false;
 			setTimeout(() => {
@@ -226,6 +230,18 @@ document.addEventListener('click', (event) => {
 		row.classList.add('is-open');
 	}
 });
+
+/**
+ * Shows how many characters the field has, of the most it takes: "212/300", in red past it.
+ */
+function countCharacters(field) {
+	const counter = document.getElementById(field.dataset.count);
+	if (counter) {
+		const length = [...field.value].length;
+		counter.textContent = `${length}/${field.maxLength}`;
+		counter.classList.toggle('text-danger', field.maxLength > 0 && length > field.maxLength);
+	}
+}
 
 /**
  * Copies the text to the clipboard. Where the page may not write to it (an embedded browser, an older one), it copies
@@ -544,6 +560,11 @@ document.addEventListener('keydown', (event) => {
 
 document.addEventListener('input', (event) => {
 	const input = event.target;
+	// data-count="<id>": the element with that id counts the field's characters, as LinkedIn does, against its maxlength
+	if (input instanceof HTMLTextAreaElement && input.dataset.count) {
+		countCharacters(input);
+		return;
+	}
 	if (!(input instanceof HTMLInputElement)) {
 		return;
 	}

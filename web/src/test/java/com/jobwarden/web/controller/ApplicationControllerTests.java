@@ -166,7 +166,7 @@ class ApplicationControllerTests {
 	@Test
 	void listsTheApplicationsTheAddressAsksFor() {
 		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of(SUMMARY), PageRequest.of(1, 50), 51));
-		given(this.applications.countByStatus(1, "engineer")).willReturn(counts(ApplicationStatus.INTERVIEWING, 51));
+		given(this.applications.countByStatus(1, "engineer", false)).willReturn(counts(ApplicationStatus.INTERVIEWING, 51));
 
 		assertThat(this.mvc.get()
 			.uri("/applications")
@@ -199,7 +199,7 @@ class ApplicationControllerTests {
 			.appliedBy(AppliedBy.CLAUDE)
 			.capturedAt(Instant.now())
 			.build(), SUMMARY)));
-		given(this.applications.countByStatus(1, null)).willReturn(counts(ApplicationStatus.APPLIED, 2));
+		given(this.applications.countByStatus(1, null, false)).willReturn(counts(ApplicationStatus.APPLIED, 2));
 
 		assertThat(this.mvc.get().uri("/applications")).bodyText()
 			.containsOnlyOnce("title=\"Claude applied to it for you, from the Auto-apply page\"");
@@ -214,7 +214,7 @@ class ApplicationControllerTests {
 			.appliedBy(AppliedBy.EXTENSION)
 			.capturedAt(Instant.now())
 			.build(), SUMMARY)));
-		given(this.applications.countByStatus(1, null)).willReturn(counts(ApplicationStatus.APPLIED, 2));
+		given(this.applications.countByStatus(1, null, false)).willReturn(counts(ApplicationStatus.APPLIED, 2));
 
 		assertThat(this.mvc.get().uri("/applications")).bodyText()
 			.containsOnlyOnce("title=\"The extension’s Easy Apply run sent it on LinkedIn\"")
@@ -225,7 +225,7 @@ class ApplicationControllerTests {
 	@Test
 	void showsTheSitesIconWhereTheProfileHasOne() {
 		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of(SUMMARY)));
-		given(this.applications.countByStatus(1, null)).willReturn(counts(ApplicationStatus.INTERVIEWING, 1));
+		given(this.applications.countByStatus(1, null, false)).willReturn(counts(ApplicationStatus.INTERVIEWING, 1));
 
 		assertThat(this.mvc.get().uri("/applications")).bodyText()
 			.contains("ph-globe-simple")
@@ -240,7 +240,7 @@ class ApplicationControllerTests {
 	@Test
 	void showsTheCompanysLogoOrItsInitials() {
 		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of(SUMMARY)));
-		given(this.applications.countByStatus(1, null)).willReturn(counts(ApplicationStatus.INTERVIEWING, 1));
+		given(this.applications.countByStatus(1, null, false)).willReturn(counts(ApplicationStatus.INTERVIEWING, 1));
 
 		assertThat(this.mvc.get().uri("/applications")).bodyText()
 			.containsPattern("class=\"company-logo[^\"]*\"[^>]*>\\s*A\\s*</span>")
@@ -261,7 +261,7 @@ class ApplicationControllerTests {
 	@Test
 	void listsTheNewestFirstByDefault() {
 		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of(SUMMARY)));
-		given(this.applications.countByStatus(1, null)).willReturn(counts(ApplicationStatus.INTERVIEWING, 1));
+		given(this.applications.countByStatus(1, null, false)).willReturn(counts(ApplicationStatus.INTERVIEWING, 1));
 
 		assertThat(this.mvc.get().uri("/applications")).hasStatusOk();
 
@@ -286,7 +286,7 @@ class ApplicationControllerTests {
 	@Test
 	void saysSoWhenTheSearchFindsNothing() {
 		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of()));
-		given(this.applications.countByStatus(1, "nothing")).willReturn(counts(ApplicationStatus.APPLIED, 0));
+		given(this.applications.countByStatus(1, "nothing", false)).willReturn(counts(ApplicationStatus.APPLIED, 0));
 
 		assertThat(this.mvc.get().uri("/applications").param("q", "nothing")).hasStatusOk()
 			.bodyText()
@@ -301,6 +301,89 @@ class ApplicationControllerTests {
 					"25 Sep 2026, 14:30", "21 Sep 2026", "Clear time",
 					"hx-post=\"/applications/7/events\"", "id=\"request-error\"")
 			.doesNotContain("21 Sep 2026, ");
+	}
+
+	@Test
+	void linksThePostingAndTheAddressesInItsTextAndExplainsThePage() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(APPLICATION.toBuilder()
+			.description("Apply at https://jobs.example.com/7. <b>Not bold</b>")
+			.build()));
+
+		assertThat(this.mvc.get().uri("/applications/7")).hasStatusOk()
+			.bodyText()
+			.contains("href=\"https://example.com/jobs/7\" target=\"_blank\"", ">example.com/jobs/7</a>",
+					"href=\"https://jobs.example.com/7\"", "&lt;b&gt;Not bold&lt;/b&gt;", "How it works", "id=\"how-job\"",
+					"A status is said once")
+			.doesNotContain("<b>Not bold</b>");
+	}
+
+	@Test
+	void offersNoRepeatOfAStatusThatCantRepeatAndReopensOnlyAClosedJob() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(APPLICATION.toBuilder()
+			.status(ApplicationStatus.POSITION_CLOSED)
+			.build()));
+
+		assertThat(this.mvc.get().uri("/applications/7")).hasStatusOk()
+			.bodyText()
+			.contains("<option value=\"POSITION_CLOSED\" disabled=\"disabled\">Position closed</option>",
+					"value=\"POSITION_REOPENED\"", ">Position re-opened</button>");
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(APPLICATION));
+		assertThat(this.mvc.get().uri("/applications/7")).hasStatusOk()
+			.bodyText()
+			.doesNotContain(">Position re-opened</button>")
+			// An interview can follow an interview: another round
+			.contains("<option value=\"INTERVIEWING\" selected=\"selected\">");
+	}
+
+	@Test
+	void archivesTheJobsTickedAndBringsThemBack() {
+		assertThat(this.mvc.post().uri("/applications/archive").param("ids", "7", "8").header("HX-Request", "true"))
+			.hasStatus(HttpStatus.NO_CONTENT)
+			.headers()
+			.hasValue("HX-Refresh", "true");
+		then(this.applications).should().archive(1, List.of(7L, 8L));
+
+		this.mvc.post().uri("/applications/restore").param("ids", "7").header("HX-Request", "true").exchange();
+		then(this.applications).should().restore(1, List.of(7L));
+	}
+
+	@Test
+	void archivesAJobFromItsPageAndSaysSo() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(APPLICATION.toBuilder()
+			.archivedAt(Instant.now())
+			.build()));
+
+		assertThat(this.mvc.post().uri("/applications/7/archive").header("HX-Request", "true")).hasStatusOk()
+			.hasHeader("HX-Trigger", "applications-changed")
+			.bodyText()
+			.contains("Archived: Today", "restore=true", "Bring back");
+		then(this.applications).should().archive(1, List.of(7L));
+	}
+
+	@Test
+	void listsTheArchivedJobs() {
+		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of(SUMMARY)));
+		given(this.applications.countByStatus(1, null, true)).willReturn(counts(ApplicationStatus.REJECTED, 1));
+		given(this.applications.countArchived(1)).willReturn(1L);
+
+		assertThat(this.mvc.get().uri("/applications?archived=true")).hasStatusOk()
+			.bodyText()
+			.contains("All archived", "/applications/restore", "Bring back")
+			.doesNotContain("hx-post=\"/applications/archive\"");
+		ArgumentCaptor<ApplicationQuery> query = ArgumentCaptor.forClass(ApplicationQuery.class);
+		then(this.applications).should().find(eq(1L), query.capture());
+		assertThat(query.getValue().archived()).isTrue();
+	}
+
+	@Test
+	void archivesTheJobsUnchangedSinceADayFromTheSettings() {
+		given(this.applications.archiveUnchangedSince(1, LocalDate.of(2026, 8, 1), true)).willReturn(12);
+
+		assertThat(this.mvc.post().uri("/applications/archive-unchanged").param("before", "2026-08-01").param("endedOnly", "true"))
+			.hasStatus(HttpStatus.FOUND)
+			.hasRedirectedUrl("/settings#jobs-data")
+			.flash()
+			.containsEntry("archivedByDate", 12);
 	}
 
 	@Test

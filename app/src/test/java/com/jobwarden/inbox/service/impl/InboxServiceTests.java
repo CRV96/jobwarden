@@ -354,6 +354,18 @@ class InboxServiceTests {
 	}
 
 	@Test
+	void appliesAnUpdateTheJobsTimelineSaysAlreadyWithoutRepeatingIt() {
+		long update = pendingRejection();
+
+		// The job is Applied: an email confirming the application adds nothing to its timeline
+		this.inbox.apply(this.userId, update, this.acme, ApplicationStatus.APPLIED, null, UpdateDecider.CLAUDE);
+
+		assertThat(this.applications.findById(this.userId, this.acme).orElseThrow().timeline()).singleElement()
+			.satisfies(event -> assertThat(event.stageCategory()).isEqualTo(ApplicationStatus.APPLIED));
+		assertThat(this.inbox.findPending(this.userId)).isEmpty();
+	}
+
+	@Test
 	void dismissesAnUpdateForGood() {
 		long update = pendingRejection();
 

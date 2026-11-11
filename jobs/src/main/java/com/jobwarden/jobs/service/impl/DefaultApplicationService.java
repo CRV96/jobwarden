@@ -3,7 +3,9 @@ package com.jobwarden.jobs.service.impl;
 import java.net.URI;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumMap;
 import java.util.List;
@@ -103,6 +105,11 @@ class DefaultApplicationService implements ApplicationService {
 		saveSourceIcon(application.userId(), tracked.getSource(), application.sourceIcon());
 		saveCompanyLogo(tracked.getId(), application.companyLogo());
 
+		if (tracked.getArchivedAt() != null) {
+			// Saved again from its posting: it's in use again
+			tracked.restore();
+			log.info("Application {} captured again, brought back from the archive", tracked.getId());
+		}
 		if (tracked.getCurrentStatus() == ApplicationStatus.SAVED
 				&& application.initialStatus() != ApplicationStatus.SAVED) {
 			tracked.addEvent(initialStatusEvent(application));
@@ -153,18 +160,59 @@ class DefaultApplicationService implements ApplicationService {
 	}
 
 	@Override
-	public Map<ApplicationStatus, Long> countByStatus(long userId, @Nullable String search) {
+	public Map<ApplicationStatus, Long> countByStatus(long userId, @Nullable String search, boolean archived) {
 		Map<ApplicationStatus, Long> counts = new EnumMap<>(ApplicationStatus.class);
 		for (ApplicationStatus status : ApplicationStatus.values()) {
 			counts.put(status, 0L);
 		}
-		counts.putAll(this.applications.countByStatus(userId, search));
+		counts.putAll(this.applications.countByStatus(userId, search, archived));
 		return counts;
 	}
 
 	@Override
 	public long count(long userId) {
-		return this.applications.countByUserId(userId);
+		return this.applications.countByUserIdAndArchivedAtIsNull(userId);
+	}
+
+	@Override
+	public long countArchived(long userId) {
+		return this.applications.countByUserIdAndArchivedAtIsNotNull(userId);
+	}
+
+	@Override
+	@Transactional
+	public int archive(long userId, Collection<Long> applicationIds) {
+		if (applicationIds.isEmpty()) {
+			return 0;
+		}
+		int archived = this.applications.archiveOwned(userId, applicationIds, Instant.now());
+		log.info("Archived {} of the {} applications asked for by profile {}", archived, applicationIds.size(), userId);
+		return archived;
+	}
+
+	@Override
+	@Transactional
+	public int restore(long userId, Collection<Long> applicationIds) {
+		if (applicationIds.isEmpty()) {
+			return 0;
+		}
+		int restored = this.applications.restoreOwned(userId, applicationIds);
+		log.info("Brought back {} of the {} applications asked for by profile {}", restored, applicationIds.size(), userId);
+		return restored;
+	}
+
+	@Override
+	@Transactional
+	public int archiveUnchangedSince(long userId, LocalDate day, boolean endedOnly) {
+		Collection<ApplicationStatus> statuses = Arrays.stream(ApplicationStatus.values())
+			.filter(status -> !endedOnly || status.hasEnded())
+			.toList();
+		List<Long> unchanged = this.applications.findUnchangedSince(userId,
+				day.atStartOfDay(ZoneId.systemDefault()).toInstant(), statuses);
+		int archived = unchanged.isEmpty() ? 0 : this.applications.archiveOwned(userId, unchanged, Instant.now());
+		log.info("Archived {} applications of profile {} unchanged since {}{}", archived, userId, day,
+				endedOnly ? ", that had ended" : "");
+		return archived;
 	}
 
 	@Override
@@ -195,6 +243,10 @@ class DefaultApplicationService implements ApplicationService {
 		ApplicationEntity application = getOwnedApplication(userId, applicationId);
 		requireRejectionReasonOnlyOnRejection(event);
 		requireInterviewDetailsOnlyOnInterviews(event);
+		if (application.wouldRepeat(event)) {
+			throw new BusinessRuleException(JobsErrorCode.STATUS_REPEATED,
+					"Application " + applicationId + " is " + event.stageCategory() + " already, from the event before");
+		}
 		ApplicationStatus previousStatus = application.getCurrentStatus();
 		application.addEvent(event);
 		if (application.getCurrentStatus() != previousStatus) {
@@ -204,6 +256,15 @@ class DefaultApplicationService implements ApplicationService {
 			log.debug("Added a {} event to application {}; its status stays {}", event.stageCategory(),
 					applicationId, previousStatus);
 		}
+	}
+
+	/**
+	 * @throws ApplicationNotFoundException if the user has no such application
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public boolean wouldRepeat(long userId, long applicationId, NewTimelineEvent event) {
+		return getOwnedApplication(userId, applicationId).wouldRepeat(event);
 	}
 
 	/**

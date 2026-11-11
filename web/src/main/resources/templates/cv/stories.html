@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<!--/* The CV page's story bank (StoryController): what the profile did, told the STAR way, for interviews. The loader asks
+       for the card after the page; each change swaps it. */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <!--/* Only fragments are taken from this file: the title is never shown */-->
+    <title>Story bank · JobWarden</title>
+</head>
+<body>
+
+<section th:fragment="loader" class="card flex flex-col gap-2 p-4" th:hx-get="@{/cv/stories}" hx-trigger="load" hx-target="this"
+         hx-swap="outerHTML">
+    <h2 class="flex items-center gap-1.5 font-semibold">
+        <i class="ph ph-books text-accent"></i><span th:text="#{stories.title}">Story bank</span>
+    </h2>
+</section>
+
+<!--/* stories are the profile's stories; storyForm the one being written or changed (a StoryForm), or null, and
+       storyError why it wasn't saved; storyRequest Claude drafting stories, or null, with storyPrompt. While Claude's on
+       it, the card asks again every few seconds, unless a story is being written: that would be lost. */-->
+<section id="stories" th:fragment="card" class="card flex flex-col gap-3 p-4" aria-labelledby="stories-title"
+         th:with="request=${storyRequest}, status=${request != null} ? ${request.status.name()},
+                  open=${request != null and request.status.isOpen()}, poll=${open and storyForm == null}"
+         th:hx-get="${poll} ? @{/cv/stories}" th:hx-trigger="${poll} ? 'every 5s'" hx-target="this" hx-swap="outerHTML">
+    <div class="flex items-start gap-2">
+        <div class="flex-1">
+            <h2 id="stories-title" class="flex items-center gap-1.5 font-semibold">
+                <i class="ph ph-books text-accent"></i><span th:text="#{stories.title}">Story bank</span>
+            </h2>
+            <p class="text-xs text-pretty text-ink/60" th:text="#{stories.hint}">Your stories for interviews, the STAR way…</p>
+        </div>
+        <span class="text-xs text-ink/55 tabular-nums" th:unless="${stories.isEmpty()}"
+              th:text="#{stories.count(${stories.size()}, ${maxStories})}">3 of 40</span>
+    </div>
+
+    <th:block th:if="${open}">
+        <th:block th:replace="~{applications/claude :: waiting(${request}, ${storyPrompt}, @{/cv/stories/cancel}, '#stories')}"></th:block>
+    </th:block>
+    <p class="text-[13px] text-danger" role="alert" th:if="${status == 'FAILED'}"
+       th:text="#{stories.failed(${request.summary} ?: '')}">Claude couldn’t draft them: …</p>
+
+    <!--/* Each story folds to its title; parts Claude couldn't fill from the CV are questions in brackets, to finish */-->
+    <div class="flex flex-col gap-1.5" th:unless="${stories.isEmpty()}">
+        <details class="rounded-lg border border-line px-3 py-2" th:each="story : ${stories}" th:with="toFinish=${story.needsFinishing()}">
+            <summary class="flex cursor-pointer flex-wrap items-center gap-1.5">
+                <span class="font-medium" th:text="${story.title}">Cutting checkout latency in half</span>
+                <span class="tag st-interviewing" th:if="${toFinish}" th:text="#{stories.toFinish}">To finish</span>
+                <span class="tag" th:each="skill : ${story.skills}" th:text="${skill}">Kafka</span>
+            </summary>
+            <dl th:replace="~{cv/stories :: star(${story})}"></dl>
+            <div class="mt-2 flex items-center gap-1.5">
+                <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button" th:hx-get="@{/cv/stories/{id}/edit(id=${story.id})}"
+                        hx-target="#stories" hx-swap="outerHTML">
+                    <i class="ph ph-pencil-simple"></i><span th:text="#{stories.edit}">Change it</span>
+                </button>
+                <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button" th:hx-post="@{/cv/stories/{id}/delete(id=${story.id})}"
+                        th:hx-confirm="#{stories.deleteConfirm}" hx-target="#stories" hx-swap="outerHTML">
+                    <i class="ph ph-trash"></i><span th:text="#{action.delete}">Delete</span>
+                </button>
+            </div>
+        </details>
+    </div>
+
+    <!--/* Writing a story, or changing one */-->
+    <form class="flex flex-col gap-2 rounded-lg border border-accent/40 p-3" th:if="${storyForm}" th:hx-post="@{/cv/stories}"
+          hx-target="#stories" hx-swap="outerHTML" th:with="form=${storyForm}">
+        <input type="hidden" name="id" th:value="${form.id}">
+        <label class="flex flex-col gap-1">
+            <span class="text-xs text-ink/60" th:text="#{stories.storyTitle}">What it’s about</span>
+            <input class="input" type="text" name="title" maxlength="200" required th:value="${form.title}"
+                   th:placeholder="#{stories.storyTitle.placeholder}">
+        </label>
+        <label class="flex flex-col gap-1">
+            <span class="text-xs text-ink/60" th:text="#{stories.situation}">Situation</span>
+            <textarea class="input" name="situation" rows="2" maxlength="2000" th:placeholder="#{stories.situation.placeholder}"
+                      th:text="${form.situation}"></textarea>
+        </label>
+        <label class="flex flex-col gap-1">
+            <span class="text-xs text-ink/60" th:text="#{stories.task}">Task</span>
+            <textarea class="input" name="task" rows="2" maxlength="2000" th:placeholder="#{stories.task.placeholder}"
+                      th:text="${form.task}"></textarea>
+        </label>
+        <label class="flex flex-col gap-1">
+            <span class="text-xs text-ink/60" th:text="#{stories.action}">Action</span>
+            <textarea class="input" name="action" rows="3" maxlength="2000" th:placeholder="#{stories.action.placeholder}"
+                      th:text="${form.action}"></textarea>
+        </label>
+        <label class="flex flex-col gap-1">
+            <span class="text-xs text-ink/60" th:text="#{stories.result}">Result</span>
+            <textarea class="input" name="result" rows="2" maxlength="2000" th:placeholder="#{stories.result.placeholder}"
+                      th:text="${form.result}"></textarea>
+        </label>
+        <label class="flex flex-col gap-1">
+            <span class="text-xs text-ink/60" th:text="#{stories.skills}">What it shows</span>
+            <input class="input" type="text" name="skills" maxlength="200" th:value="${form.skills}"
+                   th:placeholder="#{stories.skills.placeholder}">
+        </label>
+        <p class="text-[13px] text-danger" role="alert" th:if="${storyError}" th:text="${storyError}">A story needs a title.</p>
+        <div class="flex items-center gap-1.5">
+            <button class="btn btn-primary" type="submit"><i class="ph ph-floppy-disk"></i><span th:text="#{cv.save}">Save</span></button>
+            <button class="btn btn-ghost" type="button" th:hx-get="@{/cv/stories}" hx-target="#stories" hx-swap="outerHTML"
+                    th:text="#{ai.cancel}">Cancel</button>
+        </div>
+    </form>
+
+    <div class="flex flex-wrap items-center gap-1.5" th:if="${storyForm == null}">
+        <button class="btn btn-secondary" type="button" th:if="${stories.size() < maxStories}" th:hx-get="@{/cv/stories/new}"
+                hx-target="#stories" hx-swap="outerHTML">
+            <i class="ph ph-plus"></i><span th:text="#{stories.add}">Add a story</span>
+        </button>
+        <button class="btn btn-ghost" type="button" th:if="${hasCv and !open and stories.size() < maxStories}"
+                th:hx-post="@{/cv/stories/request}" hx-target="#stories" hx-swap="outerHTML">
+            <i class="ph ph-sparkle"></i><span th:text="#{stories.ask}">Ask Claude to draft them from my CV</span>
+        </button>
+    </div>
+</section>
+
+<!--/* A story's STAR parts (story, a Story), each only when it's told */-->
+<dl th:fragment="star(story)" class="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[13px]">
+    <th:block th:if="${story.situation}">
+        <dt class="text-xs font-medium text-ink/60" th:text="#{stories.situation}">Situation</dt>
+        <dd class="whitespace-pre-line text-pretty text-ink/85" th:text="${story.situation}">Checkout took 4 seconds…</dd>
+    </th:block>
+    <th:block th:if="${story.task}">
+        <dt class="text-xs font-medium text-ink/60" th:text="#{stories.task}">Task</dt>
+        <dd class="whitespace-pre-line text-pretty text-ink/85" th:text="${story.task}">Halve it before Black Friday.</dd>
+    </th:block>
+    <th:block th:if="${story.action}">
+        <dt class="text-xs font-medium text-ink/60" th:text="#{stories.action}">Action</dt>
+        <dd class="whitespace-pre-line text-pretty text-ink/85" th:text="${story.action}">Profiled the calls, cached the prices…</dd>
+    </th:block>
+    <th:block th:if="${story.result}">
+        <dt class="text-xs font-medium text-ink/60" th:text="#{stories.result}">Result</dt>
+        <dd class="whitespace-pre-line text-pretty text-ink/85" th:text="${story.result}">1.8 seconds; 6% more orders.</dd>
+    </th:block>
+</dl>
+
+</body>
+</html>

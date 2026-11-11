@@ -1,5 +1,6 @@
 package com.jobwarden.jobs;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
@@ -169,6 +170,109 @@ class ApplicationServiceTests {
 	}
 
 	@Test
+	void refusesAStatusThatSaysAgainWhatTheEventBeforeItSays() {
+		long id = create(this.userId, "Backend engineer", ApplicationStatus.APPLIED);
+		this.applications.addEvent(this.userId, id, event(TODAY.plusDays(1), ApplicationStatus.POSITION_CLOSED));
+
+		NewTimelineEvent closedAgain = event(TODAY.plusDays(2), ApplicationStatus.POSITION_CLOSED);
+		assertThat(this.applications.wouldRepeat(this.userId, id, closedAgain)).isTrue();
+		assertThatExceptionOfType(BusinessRuleException.class)
+			.isThrownBy(() -> this.applications.addEvent(this.userId, id, closedAgain))
+			.satisfies(refused -> assertThat(refused.getErrorCode()).isEqualTo(JobsErrorCode.STATUS_REPEATED));
+		// Nor slipped in before, right after the Applied it would repeat
+		assertThatExceptionOfType(BusinessRuleException.class)
+			.isThrownBy(() -> this.applications.addEvent(this.userId, id, event(TODAY, LocalTime.NOON, ApplicationStatus.APPLIED)));
+
+		// Reopened, it can close again; interviews can follow each other, round after round
+		this.applications.addEvent(this.userId, id,
+				event(TODAY.plusDays(3), LocalTime.of(14, 0), ApplicationStatus.POSITION_REOPENED));
+		// Nor slipped in right before the same status, on the same day without a time
+		assertThatExceptionOfType(BusinessRuleException.class).isThrownBy(
+				() -> this.applications.addEvent(this.userId, id, event(TODAY.plusDays(3), ApplicationStatus.POSITION_REOPENED)));
+		this.applications.addEvent(this.userId, id, event(TODAY.plusDays(4), ApplicationStatus.INTERVIEWING));
+		this.applications.addEvent(this.userId, id, event(TODAY.plusDays(5), ApplicationStatus.INTERVIEWING));
+		this.applications.addEvent(this.userId, id, event(TODAY.plusDays(6), ApplicationStatus.POSITION_CLOSED));
+
+		assertThat(this.applications.findById(this.userId, id).orElseThrow().timeline())
+			.extracting(TimelineEvent::stageCategory)
+			.containsExactly(ApplicationStatus.APPLIED, ApplicationStatus.POSITION_CLOSED,
+					ApplicationStatus.POSITION_REOPENED, ApplicationStatus.INTERVIEWING, ApplicationStatus.INTERVIEWING,
+					ApplicationStatus.POSITION_CLOSED);
+	}
+
+	@Test
+	void archivesAndBringsBackWithoutChangingAnythingElse() {
+		long archived = create(this.userId, "Backend engineer", ApplicationStatus.APPLIED);
+		long inUse = create(this.userId, "Data engineer", ApplicationStatus.APPLIED);
+		long others = create(this.otherUserId, "Designer", ApplicationStatus.APPLIED);
+		this.applications.updateFollowUp(this.userId, archived, FollowUp.builder().followUpOn(TODAY.plusDays(2)).build());
+		Instant changed = this.applications.find(this.userId, query().build())
+			.getContent()
+			.stream()
+			.filter(job -> job.id() == archived)
+			.findFirst()
+			.orElseThrow()
+			.lastModified();
+
+		assertThat(this.applications.archive(this.userId, List.of(archived, others, archived + 1000))).isEqualTo(1);
+
+		assertThat(this.applications.find(this.userId, query().build()).getContent()).extracting(ApplicationSummary::id)
+			.containsExactly(inUse);
+		assertThat(this.applications.find(this.userId, query().archived(true).build()).getContent())
+			.singleElement()
+			.satisfies(job -> {
+				assertThat(job.id()).isEqualTo(archived);
+				assertThat(job.lastModified()).isEqualTo(changed);
+			});
+		assertThat(this.applications.count(this.userId)).isEqualTo(1);
+		assertThat(this.applications.countArchived(this.userId)).isEqualTo(1);
+		assertThat(this.applications.countByStatus(this.userId, null, true)).containsEntry(ApplicationStatus.APPLIED, 1L);
+		assertThat(this.applications.findAll(this.userId, ApplicationStatus.APPLIED)).extracting(ApplicationSummary::id)
+			.containsExactly(inUse);
+		// Off the calendar, still in the history
+		assertThat(this.applications.findCalendar(this.userId, TODAY, TODAY.plusDays(7)))
+			.noneMatch(entry -> entry.applicationId() == archived);
+		assertThat(this.applications.findAll(this.userId, null)).extracting(ApplicationSummary::id).contains(archived);
+		assertThat(this.applications.findById(this.userId, archived).orElseThrow().isArchived()).isTrue();
+		assertThat(this.applications.findById(this.otherUserId, others).orElseThrow().isArchived()).isFalse();
+
+		assertThat(this.applications.restore(this.userId, List.of(archived))).isEqualTo(1);
+		assertThat(this.applications.count(this.userId)).isEqualTo(2);
+		assertThat(this.applications.findById(this.userId, archived).orElseThrow().archivedAt()).isNull();
+	}
+
+	@Test
+	void archivesTheJobsUnchangedSinceADay() {
+		long old = create(this.userId, "Old", ApplicationStatus.APPLIED);
+		long oldRejected = create(this.userId, "Old rejected", ApplicationStatus.REJECTED);
+		long recent = create(this.userId, "Recent", ApplicationStatus.REJECTED);
+		this.jdbc.sql("UPDATE applications SET updated_at = now() - interval '100 days' WHERE id IN (?, ?)")
+			.param(old)
+			.param(oldRejected)
+			.update();
+
+		assertThat(this.applications.archiveUnchangedSince(this.userId, TODAY.minusDays(30), true)).isEqualTo(1);
+		assertThat(this.applications.findById(this.userId, oldRejected).orElseThrow().isArchived()).isTrue();
+		assertThat(this.applications.findById(this.userId, old).orElseThrow().isArchived()).isFalse();
+
+		assertThat(this.applications.archiveUnchangedSince(this.userId, TODAY.minusDays(30), false)).isEqualTo(1);
+		assertThat(this.applications.findById(this.userId, old).orElseThrow().isArchived()).isTrue();
+		assertThat(this.applications.findById(this.userId, recent).orElseThrow().isArchived()).isFalse();
+	}
+
+	@Test
+	void bringsBackAnArchivedJobSavedAgainFromItsPosting() {
+		long id = this.applications.track(newApplication(this.userId, "Backend engineer", ApplicationStatus.SAVED)).id();
+		this.applications.archive(this.userId, List.of(id));
+
+		assertThat(this.applications.track(newApplication(this.userId, "Backend engineer", ApplicationStatus.APPLIED)).id())
+			.isEqualTo(id);
+		ApplicationDetails application = this.applications.findById(this.userId, id).orElseThrow();
+		assertThat(application.isArchived()).isFalse();
+		assertThat(application.status()).isEqualTo(ApplicationStatus.APPLIED);
+	}
+
+	@Test
 	void eventAddedLastAtTheSameMomentIsTheLatest() {
 		long id = create(this.userId, "Backend engineer", ApplicationStatus.SAVED);
 
@@ -311,9 +415,10 @@ class ApplicationServiceTests {
 			.stageCategory(ApplicationStatus.APPLIED)
 			.appliedBy(AppliedBy.YOU)
 			.build());
-		// A later Applied event doesn't change who sent it
+		// Applying again later, after no response, doesn't change who sent it first
+		this.applications.addEvent(this.userId, byClaude, event(TODAY.plusDays(1), ApplicationStatus.NO_RESPONSE));
 		this.applications.addEvent(this.userId, byClaude, NewTimelineEvent.builder()
-			.eventDate(TODAY)
+			.eventDate(TODAY.plusDays(2))
 			.stageCategory(ApplicationStatus.APPLIED)
 			.appliedBy(AppliedBy.YOU)
 			.build());
@@ -427,7 +532,8 @@ class ApplicationServiceTests {
 		assertThat(this.applications.countByStatus(this.userId, "backend")).containsExactly(
 				entry(ApplicationStatus.SAVED, 1L), entry(ApplicationStatus.APPLIED, 1L),
 				entry(ApplicationStatus.INTERVIEWING, 0L), entry(ApplicationStatus.OFFER, 0L),
-				entry(ApplicationStatus.REJECTED, 0L), entry(ApplicationStatus.NO_RESPONSE, 0L),
+				entry(ApplicationStatus.POSITION_REOPENED, 0L), entry(ApplicationStatus.REJECTED, 0L),
+				entry(ApplicationStatus.NO_RESPONSE, 0L),
 				entry(ApplicationStatus.POSITION_CLOSED, 0L), entry(ApplicationStatus.WITHDRAWN, 0L));
 	}
 
@@ -451,9 +557,9 @@ class ApplicationServiceTests {
 	void sortsByWhenTheTimelineLastChanged() {
 		long older = create(this.userId, "Older", ApplicationStatus.APPLIED);
 		long newer = create(this.userId, "Newer", ApplicationStatus.APPLIED);
-		// An event that keeps the older application APPLIED still counts as a change
+		// A new event on the older application counts as a change
 		this.applications.addEvent(this.userId, older,
-				NewTimelineEvent.builder().eventDate(TODAY).stageCategory(ApplicationStatus.APPLIED).build());
+				NewTimelineEvent.builder().eventDate(TODAY).stageCategory(ApplicationStatus.INTERVIEWING).build());
 
 		List<ApplicationSummary> found = this.applications.find(this.userId,
 				query().sort(ApplicationSort.MODIFIED).direction(Sort.Direction.DESC).build()).getContent();

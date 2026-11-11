@@ -1,11 +1,14 @@
 package com.jobwarden.mcp.controller;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 
+import com.jobwarden.cv.dto.OutreachDraft;
 import com.jobwarden.discover.dto.AiRequest;
 import com.jobwarden.discover.dto.AiRequirements;
 import com.jobwarden.discover.dto.FoundJob;
@@ -13,10 +16,13 @@ import com.jobwarden.discover.enums.AiRequestKind;
 import com.jobwarden.discover.enums.AiRequestStatus;
 import com.jobwarden.discover.enums.Decision;
 import com.jobwarden.discover.service.DiscoveryService;
+import com.jobwarden.hiring.dto.HiringPostQuery;
 import com.jobwarden.hiring.dto.Recruiter;
 import com.jobwarden.hiring.service.HiringService;
+import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.ApplicationQuery;
 import com.jobwarden.jobs.dto.ApplicationSummary;
+import com.jobwarden.jobs.dto.FollowUp;
 import com.jobwarden.jobs.enums.ApplicationSort;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.service.ApplicationService;
@@ -63,6 +69,9 @@ class RequestTools implements McpToolSet {
 
 	private static final int WATCHED_COMPANIES = 50;
 
+	/** The most people a job's messages are written to: a few, well chosen. */
+	private static final int RECIPIENTS = 5;
+
 	/**
 	 * What the steps of finding jobs say about the watchlist, which JobWarden reads for the saved searches with no
 	 * tokens.
@@ -93,8 +102,9 @@ class RequestTools implements McpToolSet {
 		return new McpTool("list_requests", "List requests",
 				"What the profile asked Claude to do from JobWarden and is still waiting for, the oldest first: find jobs for "
 						+ "the CV or for requirements, run the saved searches, check the postings, tidy up applications with no "
-						+ "answer, tailor the CV to a job, find hiring posts or recruiters, apply to jobs, sort the inbox, write "
-						+ "the CV's projects. Do each with get_request, which says how.",
+						+ "answer, tailor the CV to a job, write a job's cover letter or messages to its recruiters, prepare "
+						+ "an interview, negotiate an offer, find hiring posts or recruiters, apply to jobs, sort the inbox, "
+						+ "write the CV's projects or the story bank's stories. Do each with get_request, which says how.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
 						"all", bool("Also the finished ones, the latest first; only those waiting or being done if left out"))),
 				true, false, call -> {
@@ -221,6 +231,10 @@ class RequestTools implements McpToolSet {
 					""".formatted(SCORE_AT_ONCE) + SCORING_STEPS + "In the summary: how many you scored, and the best fits.\n";
 			case SORT_INBOX -> SORT_INBOX_STEPS;
 			case WRITE_PROJECTS -> WRITE_PROJECTS_STEPS;
+			case WRITE_COVER_LETTER -> writeCoverLetter(request.applicationId());
+			case WRITE_OUTREACH -> writeOutreach(request.applicationId());
+			case NEGOTIATE_OFFER -> negotiateOffer(request.applicationId());
+			case WRITE_STORIES -> WRITE_STORIES_STEPS;
 		};
 		return "Request " + id + " from JobWarden: " + describe(request.kind()) + ".\n" + steps + finish;
 	}
@@ -242,13 +256,16 @@ class RequestTools implements McpToolSet {
 			.map(recruiter -> new RecruiterRef(recruiter.name(), recruiter.profileUrl()))
 			.toList() : List.of();
 		List<String> companies = (request.kind() == AiRequestKind.FIND_RECRUITERS) ? companies(userId) : List.of();
+		List<RecipientRef> recipients = (request.kind() == AiRequestKind.WRITE_OUTREACH && request.applicationId() != null)
+				? recipients(userId, request.applicationId()) : List.of();
 		List<String> watched = (taste != null) ? this.watchlist.findCompanies(userId)
 			.stream()
 			.limit(WATCHED_COMPANIES)
 			.map(company -> company.name() + " (" + company.boardUrl() + ")")
 			.toList() : List.of();
 		return new RequestDetails(request.id(), request.kind(), request.status(), request.applicationId(),
-				requirements(request), instructions(request), taste, followed, companies, watched, request.createdAt());
+				requirements(request), instructions(request), taste, followed, companies, watched, recipients,
+				request.createdAt());
 	}
 
 	/** The jobs found for the profile that it decided on last: those it saved or applied to, and those it discarded. */
@@ -257,6 +274,46 @@ class RequestTools implements McpToolSet {
 		return new Taste(
 				decided.stream().filter(job -> job.decision() != Decision.DISCARDED).limit(TASTE).map(RequestTools::name).toList(),
 				decided.stream().filter(job -> job.decision() == Decision.DISCARDED).limit(TASTE).map(RequestTools::name).toList());
+	}
+
+	/**
+	 * The people to write to about a job, each once, with why: its contact, the recruiters the profile has for it or
+	 * at its company, and the authors of the posts it came from, or about its company.
+	 */
+	private List<RecipientRef> recipients(long userId, long jobId) {
+		ApplicationDetails job = this.applications.findById(userId, jobId).orElse(null);
+		if (job == null) {
+			return List.of();
+		}
+		Map<String, RecipientRef> found = new LinkedHashMap<>();
+		FollowUp contact = job.followUp();
+		if (contact.contactName() != null) {
+			add(found, new RecipientRef(contact.contactName(), contact.contactRole(), contact.contactLink(),
+					contact.contactEmail(), "the job's contact"));
+		}
+		String company = job.company();
+		for (Recruiter recruiter : this.hiring.findRecruiters(userId)) {
+			boolean forTheJob = recruiter.contactFor().stream().anyMatch(contactJob -> contactJob.applicationId() == jobId);
+			if (forTheJob || (company != null && company.equalsIgnoreCase(recruiter.company()))) {
+				add(found, new RecipientRef(recruiter.name(), recruiter.headline(), recruiter.profileUrl(), null,
+						forTheJob ? "the job's contact on the Who's hiring page" : "recruits at " + company));
+			}
+		}
+		if (company != null) {
+			this.hiring.findPosts(userId, HiringPostQuery.builder().search(company).build())
+				.stream()
+				.filter(post -> Objects.equals(post.applicationId(), jobId) || company.equalsIgnoreCase(post.company()))
+				.forEach(post -> add(found, new RecipientRef(post.recruiter().name(), post.recruiter().headline(),
+						post.recruiter().profileUrl(), null, "posted that " + company + " is hiring: " + post.link())));
+		}
+		return found.values().stream().limit(RECIPIENTS).toList();
+	}
+
+	/** Each person once: by their profile, or else their name. The first reason stays. */
+	private static void add(Map<String, RecipientRef> found, RecipientRef recipient) {
+		String key = (recipient.profileLink() != null) ? recipient.profileLink().toLowerCase(Locale.ROOT)
+				: recipient.name().toLowerCase(Locale.ROOT);
+		found.putIfAbsent(key, recipient);
 	}
 
 	private static String name(FoundJob job) {
@@ -296,6 +353,10 @@ class RequestTools implements McpToolSet {
 			case SCORE_JOBS -> "score how well the profile fits the jobs with no score yet";
 			case SORT_INBOX -> "sort the updates found in the profile's emails, waiting on the Inbox page";
 			case WRITE_PROJECTS -> "write the CV's personal projects from the profile's GitHub repositories";
+			case WRITE_COVER_LETTER -> "write a cover letter for one job";
+			case WRITE_OUTREACH -> "write a LinkedIn note and an email about one job to the people who hire for it";
+			case NEGOTIATE_OFFER -> "write a brief to negotiate one job's offer, with the market salaries JobWarden has";
+			case WRITE_STORIES -> "draft stories for the profile's story bank, the STAR way, from its CV";
 		};
 	}
 
@@ -337,6 +398,110 @@ class RequestTools implements McpToolSet {
 			In the summary: the projects you wrote, and those you left out and why.
 			""".formatted(PROJECTS_MAX);
 
+	/**
+	 * A cover letter a person would write: specific to the job and the company, from what the CV says, short enough
+	 * to be read.
+	 */
+	private static String writeCoverLetter(@Nullable Long jobId) {
+		return """
+				Call get_job with job_id %1$d for the posting and its contact; when it has no description, read its link \
+				with WebFetch, asking for the role, the duties and the requirements. Call get_cv with full true for what \
+				the person did.
+				When the posting doesn't say what the company makes, find out with one web search, to say in a line why \
+				this company.
+				Write the cover letter in the posting's language, 250 to 400 words, in four short paragraphs:
+				- why the person writes: the role by its title, and what draws them to this company, specific, never \
+				flattery;
+				- two or three of the posting's must-haves, each met by something the person did, from the CV, with its \
+				result and numbers;
+				- what else they bring that the posting values: a tool, a domain, a language, how they work;
+				- the close: glad to talk, and thanks.
+				Start with the greeting, Dear and the name of the job's contact or of the hiring manager when the posting \
+				gives it, else Dear hiring team; end with the sign-off, e.g. Kind regards, without the name: JobWarden adds \
+				the CV page's name and contact details.
+				Plain and specific: no clichés (I am writing to express my interest, passionate, team player), nothing \
+				the CV doesn't support, nothing made up about the company.
+				Save it with save_cover_letter and job_id %1$d, with notes: what you highlighted, and what the person \
+				should check or add before sending it.
+				""".formatted(jobId);
+	}
+
+	/**
+	 * Short messages a recruiter answers: who the person is, the role, one fact that fits, a light ask. The profile
+	 * sends them itself.
+	 */
+	private static String writeOutreach(@Nullable Long jobId) {
+		return """
+				Call get_job with job_id %1$d for the posting, and get_cv for who the person is: the headline, the latest \
+				jobs, the skills.
+				recipients lists the people to write to about this job, each with why. Write to each, at most three, the \
+				job's contact first.
+				With nobody listed, find one, with two web searches at most: the company's recruiter or the hiring \
+				manager for this role, e.g. site:linkedin.com/in "Acme" ("Technical Recruiter" OR "Talent Acquisition"); \
+				judge from the results' titles and snippets, write to the most likely one, and add them with \
+				add_recruiters so they show on the Who's hiring page. With no one found, write to the hiring team, with \
+				no profile link.
+				For each, call save_outreach_draft with job_id %1$d, their name, role, profile link and email when known:
+				- linkedin_note: a connection request's note, at most %2$d characters with the spaces: the person's \
+				first name, who you are in a few words, the role by its title, one fact from the CV that fits it, and a \
+				light ask (a short chat, or sending the CV). No flattery, no links. A note that's too long is refused: \
+				shorten it and save it again;
+				- email_subject and email_body: four to six sentences: why you write, the role, two facts from the CV \
+				that match the posting, the ask, and the sign-off with the person's name from the CV.
+				Never claim what the CV doesn't support. Never send anything: the profile sends them itself.
+				In the summary: whom you wrote to, and why them.
+				""".formatted(jobId, OutreachDraft.LINKEDIN_NOTE_MAX_LENGTH);
+	}
+
+	/**
+	 * A brief read before the call with the recruiter: where the offer stands, with JobWarden's market figures and
+	 * the profile's other offers, what to ask for and how. Never a figure or an offer made up.
+	 */
+	private static String negotiateOffer(@Nullable Long jobId) {
+		return """
+				Call get_job with job_id %1$d for the posting, its location and its salary. Call list_offers for the \
+				profile's offers, their terms and their salaries per year in one currency: the others are leverage. Call \
+				get_cv for the person's level: the headline, the jobs and their years, the skills.
+				Call get_market_salaries with the role as the survey names it (it gives back the roles it knows when it \
+				doesn't know yours), the job's main programming language as skill, the job's country and those of the \
+				other offers, in the offer's currency. survey_imported false means the Stack Overflow figures aren't in \
+				JobWarden yet: say so in the brief (the salaries page imports them), and lean on the other sources.
+				When the figures are thin, search the web for what the company pays the role (Levels.fyi, Glassdoor, \
+				the company's own salary bands), and read two or three results with WebFetch and a short question.
+				Write the brief for someone about to call the recruiter, short, with the figures:
+				- position: where the offer stands against the market in its country (under the median, in the middle \
+				half, over the upper quartile, by how much) and against the other offers;
+				- target: what to ask for, a figure in the offer's currency and period, and why it's fair; no more than \
+				the evidence carries;
+				- walk_away: the least worth accepting, and why;
+				- leverage: the figures and facts that make the ask fair, each with its source;
+				- asks: what else to ask for, should the salary not move;
+				- script: what to say on the call, a few lines, warm and firm: thanks, the enthusiasm, the ask with its \
+				reason;
+				- email: an email asking for it, from the greeting to the sign-off with the person's name;
+				- watch_out: e.g. an answer due soon (respond_by), a salary already over the market;
+				- sources: the sources with their years, and the addresses read.
+				Never invent an offer or a figure: only list_offers' offers, get_market_salaries' figures, and what the \
+				pages you read say. Save it with save_negotiation_brief and job_id %1$d.
+				""".formatted(jobId);
+	}
+
+	/** Stories the profile tells again and again, drafted from the CV and finished by the profile. */
+	private static final String WRITE_STORIES_STEPS = """
+			Call get_cv with full true for what the person did: each job's points, the projects. Call list_stories for \
+			the stories the bank has: don't write those again.
+			Draft up to %d stories the STAR way, the strongest first: those with results and numbers, and those that \
+			show what interviews ask about: a hard technical problem, leading or mentoring, a disagreement, a failure \
+			and what it taught, a deadline, an improvement the person pushed for.
+			For each: a title in a few words; situation (the team, the product, what was wrong), task (what the person \
+			had to do), action (what they did themselves, step by step), result (what came of it, with the CV's \
+			numbers); and skills, what it shows.
+			Only what the CV says: where it leaves a part out, write the question for the person in brackets, e.g. \
+			[How many users did it reach?], never a number made up. The person checks and finishes them on the CV page.
+			Save them with save_stories.
+			In the summary: the stories you drafted, and what the person should fill in.
+			""".formatted(StoryTools.DRAFT_MAX);
+
 	/** How many jobs one request scores: the CV is read once for them all. */
 	static final int SCORE_AT_ONCE = 15;
 
@@ -376,8 +541,10 @@ class RequestTools implements McpToolSet {
 			Spare the context in the browser: find the form's fields with find and read_page (interactive elements \
 			only), fill them with form_input, and take a screenshot only to see a step that went wrong.
 			Fill the form in: the contact details and the CV from JobWarden; every question from the answers, as they \
-			are; a cover letter only when cover_letter is WRITE or the form needs one, short, for this job, from the CV; \
-			the voluntary questions (gender, ethnicity, disability, veteran) declined when decline_voluntary is true. \
+			are; a cover letter only when cover_letter is WRITE or the form needs one: the job's own when \
+			has_cover_letter is true (get_cover_letter for its text, cover_letter_url for its PDF), else write one, short, \
+			for this job, from the CV, and keep it with save_cover_letter before using it, so the profile sees what was \
+			sent; the voluntary questions (gender, ethnicity, disability, veteran) declined when decline_voluntary is true. \
 			Write answers to open questions, e.g. why this company, from the CV and the posting. Never make up a fact: a \
 			question about the person that neither the answers nor the CV answers, e.g. a number, a date, a yes or no, \
 			stops the job: leave the form, and report NEEDS_ANSWER with the question word for word.
@@ -423,7 +590,8 @@ class RequestTools implements McpToolSet {
 	 */
 	private static String prepareInterview(@Nullable Long jobId) {
 		return """
-				Call get_job with job_id %1$d for the posting, and get_cv with full true for what the person did.
+				Call get_job with job_id %1$d for the posting, get_cv with full true for what the person did, and \
+				list_stories for the person's story bank: their own stories, told the STAR way.
 				Find out about the company: search the web for its name with about, news, engineering blog and interview \
 				questions (Glassdoor, Reddit, Blind). Read the three to six most useful results with WebFetch and a short \
 				question each, not whole pages.
@@ -432,8 +600,9 @@ class RequestTools implements McpToolSet {
 				- role: what the job is really about, and what they'll look for, from the posting;
 				- questions: eight to twelve questions likely asked, about the posting's tools and about the person, \
 				those candidates report first;
-				- stories: for what they'll look for, a story each from the CV, in a line or two, with the result; never \
-				one the CV doesn't support;
+				- stories: for what they'll look for, a story each, in a line or two, with the result: from the story \
+				bank first, then from the CV; never one neither supports;
+				- story_ids: the ids of the story bank's stories that answer what they'll look for, the best first;
 				- ask_them: four to six good questions to ask them;
 				- watch_out: what to look into before saying yes, e.g. layoffs, reviews, a vague salary; left out when \
 				there's nothing;
@@ -468,10 +637,20 @@ class RequestTools implements McpToolSet {
 	 * @param followed for hiring posts: the recruiters the profile follows
 	 * @param companies for recruiters: the companies of the profile's jobs still in play
 	 * @param watchedCompanies for finding jobs: the companies whose boards JobWarden reads itself, with their boards
+	 * @param recipients for a job's messages: the people to write to, with why
 	 */
 	record RequestDetails(long requestId, AiRequestKind kind, AiRequestStatus status, @Nullable Long jobId,
 			@Nullable RequirementsView requirements, String instructions, @Nullable Taste taste,
-			List<RecruiterRef> followed, List<String> companies, List<String> watchedCompanies, Instant createdAt) {
+			List<RecruiterRef> followed, List<String> companies, List<String> watchedCompanies,
+			List<RecipientRef> recipients, Instant createdAt) {
+	}
+
+	/**
+	 * @param role what they do, e.g. Technical Recruiter at Acme
+	 * @param why how they're tied to the job, e.g. the job's contact
+	 */
+	record RecipientRef(String name, @Nullable String role, @Nullable String profileLink, @Nullable String email,
+			String why) {
 	}
 
 	/**
