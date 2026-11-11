@@ -334,13 +334,18 @@ class RequestTools implements McpToolSet {
 			boolean sameName = (kept.profileLink() == null || recipient.profileLink() == null)
 					&& nameKey(kept.name()).equals(nameKey(recipient.name()));
 			if (sameProfile || sameName) {
-				known.setValue(new RecipientRef(kept.name(), Objects.requireNonNullElse(kept.role(), recipient.role()),
-						Objects.requireNonNullElse(kept.profileLink(), recipient.profileLink()),
-						Objects.requireNonNullElse(kept.email(), recipient.email()), kept.why()));
+				known.setValue(new RecipientRef(kept.name(), either(kept.role(), recipient.role()),
+						either(kept.profileLink(), recipient.profileLink()), either(kept.email(), recipient.email()),
+						kept.why()));
 				return;
 			}
 		}
 		found.put(String.valueOf(found.size()), recipient);
+	}
+
+	/** The first value, or else the second: either may be missing, both too. */
+	private static @Nullable String either(@Nullable String first, @Nullable String second) {
+		return (first != null) ? first : second;
 	}
 
 	/** A name as written in either record: whatever the case and the spaces. */

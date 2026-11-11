@@ -1039,6 +1039,40 @@ class McpControllerTests {
 	}
 
 	@Test
+	void writesOnceToSomeoneWhomNeitherRecordGivesAnEmailOrARole() {
+		given(this.discovery.startRequest(1, 38)).willReturn(AiRequest.builder()
+			.id(38)
+			.kind(AiRequestKind.WRITE_OUTREACH)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(ApplicationDetails.builder()
+			.id(7)
+			.title("Java Developer")
+			.company("Acme")
+			.status(ApplicationStatus.APPLIED)
+			.followUp(FollowUp.builder().contactName("Ana Pop").build())
+			.capturedAt(Instant.now())
+			.timeline(List.of())
+			.build()));
+		given(this.hiring.findRecruiters(1)).willReturn(List.of(Recruiter.builder()
+			.id(4)
+			.name("Ana Pop")
+			.profileUrl("https://www.linkedin.com/in/anapop")
+			.company("Acme")
+			.origin(RecruiterOrigin.FOUND)
+			.build()));
+
+		assertThat(callTool("get_request", "{\"request_id\": 38}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.recipients").asArray().hasSize(1);
+			assertThat(result(body)).extractingPath("$.recipients[0].profile_link").isEqualTo("https://www.linkedin.com/in/anapop");
+			assertThat(result(body)).extractingPath("$.recipients[0]").asMap().doesNotContainKeys("email", "role");
+		});
+	}
+
+	@Test
 	void neverReplacesALetterChangedByHandAfterItsRequestWasTakenBack() {
 		Instant asked = Instant.now().minusSeconds(600);
 		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.SAVED)));

@@ -1,5 +1,6 @@
 package com.jobwarden.web.controller;
 
+import java.util.List;
 import java.util.Optional;
 
 import com.jobwarden.common.exception.BusinessRuleException;
@@ -63,20 +64,30 @@ class OutreachController extends BaseController {
 
 	/**
 	 * Called by HTMX every few seconds while the request is open: its status and what to paste into Claude Code, as
-	 * long as it's open; then the whole card, in place of the card, with the messages Claude wrote. Only the status
-	 * swaps till then, so a message being changed meanwhile stays as it's typed.
+	 * long as it's open. Only the status swaps, so a message being changed meanwhile stays as it's typed. Once it's
+	 * done, the whole card, in place of the card, when it showed no message to change; else that it's done, with a
+	 * button to show what Claude wrote, for the profile to press once it saved what it was changing.
+	 *
+	 * @param shown how many messages the card showed
 	 */
 	@GetMapping("/waiting")
-	String waiting(@PathVariable long id, Model model, HttpServletResponse response) {
+	String waiting(@PathVariable long id, @RequestParam(defaultValue = "0") int shown, Model model,
+			HttpServletResponse response) {
 		long userId = requireProfile(model).id();
 		requireApplication(userId, id);
-		Optional<AiRequest> request = latestRequest(userId, id).filter(asked -> asked.status().isOpen());
-		if (request.isEmpty()) {
+		Optional<AiRequest> latest = latestRequest(userId, id);
+		Optional<AiRequest> request = latest.filter(asked -> asked.status().isOpen());
+		if (request.isEmpty() && shown == 0) {
 			response.setHeader(HtmxHeaders.RETARGET, "#outreach");
 			response.setHeader(HtmxHeaders.RESWAP, "outerHTML");
 			return showCard(model, userId, id);
 		}
 		model.addAttribute(ModelAttributes.OUTREACH_JOB_ID, id);
+		model.addAttribute(ModelAttributes.OUTREACH_SHOWN, shown);
+		if (request.isEmpty()) {
+			model.addAttribute(ModelAttributes.OUTREACH_REQUEST, latest.orElse(null));
+			return Views.OUTREACH_DONE_FRAGMENT;
+		}
 		model.addAttribute(ModelAttributes.OUTREACH_REQUEST, request.get());
 		model.addAttribute(ModelAttributes.OUTREACH_PROMPT, ClaudePrompts.forRequest(request.get().id(), userId));
 		return Views.OUTREACH_WAITING_FRAGMENT;
@@ -137,9 +148,11 @@ class OutreachController extends BaseController {
 	private String showCard(Model model, long userId, long applicationId) {
 		Cv cv = this.cvs.find(userId);
 		Optional<AiRequest> request = latestRequest(userId, applicationId);
+		List<OutreachDraft> drafts = this.letters.findDrafts(userId, applicationId);
 		model.addAttribute(ModelAttributes.OUTREACH_JOB_ID, applicationId);
 		model.addAttribute(ModelAttributes.HAS_CV, cv.file() != null || cv.details().isFilledIn());
-		model.addAttribute(ModelAttributes.OUTREACH_DRAFTS, this.letters.findDrafts(userId, applicationId));
+		model.addAttribute(ModelAttributes.OUTREACH_DRAFTS, drafts);
+		model.addAttribute(ModelAttributes.OUTREACH_SHOWN, drafts.size());
 		model.addAttribute(ModelAttributes.OUTREACH_REQUEST, request.orElse(null));
 		model.addAttribute(ModelAttributes.OUTREACH_PROMPT,
 				request.map(asked -> ClaudePrompts.forRequest(asked.id(), userId)).orElse(null));

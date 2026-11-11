@@ -54,13 +54,23 @@
 </section>
 
 <!--/* The request while it's open (outreachRequest, with outreachPrompt), asking for itself again every few seconds: as
-       long as it's open, the server answers with it; once it isn't, with the whole card, in place of this card
-       (OutreachController.waiting). */-->
+       long as it's open, the server answers with it. Once it isn't: with the whole card, in place of this card, when the
+       card shows no message (outreachShown); else with done, as one may be being changed (OutreachController.waiting). */-->
 <div id="outreach-waiting" th:fragment="waiting" class="flex flex-col gap-2"
-     th:hx-get="@{/applications/{id}/outreach/waiting(id=${outreachJobId})}" hx-trigger="every 5s" hx-target="this"
-     hx-swap="outerHTML">
+     th:hx-get="@{/applications/{id}/outreach/waiting(id=${outreachJobId}, shown=${outreachShown})}" hx-trigger="every 5s"
+     hx-target="this" hx-swap="outerHTML">
     <th:block th:replace="~{applications/claude :: waiting(${outreachRequest}, ${outreachPrompt},
               @{/applications/{id}/outreach/cancel(id=${outreachJobId})}, '#outreach')}"></th:block>
+</div>
+
+<!--/* The request is done (outreachRequest, or null): the card shows Claude's messages at the press of a button, once
+       what's being typed is saved, as loading it again would lose that. */-->
+<div id="outreach-waiting" th:fragment="done" class="flex flex-wrap items-center gap-2 rounded-lg bg-ink/4 p-2.5"
+     role="status" th:with="status=${outreachRequest != null} ? ${outreachRequest.status.name()} : 'DONE'">
+    <span class="tag" th:text="#{|ai.status.${status}|}">Done</span>
+    <span class="min-w-[12rem] flex-1 text-[13px] text-pretty text-ink/70" th:text="#{outreach.done}">Save what you’re changing first, then show Claude’s messages.</span>
+    <button class="btn btn-secondary px-2 py-1 text-xs" type="button" th:hx-get="@{/applications/{id}/outreach(id=${outreachJobId})}"
+            hx-target="#outreach" hx-swap="outerHTML" th:text="#{outreach.show}">Show them</button>
 </div>
 
 <!--/* One person's messages (draft, an OutreachDraft): who, the note with its count of LinkedIn's 300 characters, and

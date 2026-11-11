@@ -111,6 +111,8 @@ public final class AppConstants {
 		public static final String OUTREACH_DRAFT_FRAGMENT = "applications/outreach :: draft";
 		/** The request for a job's messages while it's open, which HTMX asks for again until it isn't. */
 		public static final String OUTREACH_WAITING_FRAGMENT = "applications/outreach :: waiting";
+		/** That the request is done, with a button to show what Claude wrote: messages typed in meanwhile stay. */
+		public static final String OUTREACH_DONE_FRAGMENT = "applications/outreach :: done";
 		public static final String LETTERS = "letters/letters";
 		/** The Cover letters page's base letter, which HTMX swaps as it's changed. */
 		public static final String BASE_LETTER_FRAGMENT = LETTERS + " :: base";
@@ -421,6 +423,8 @@ public final class AppConstants {
 		public static final String OUTREACH_PROMPT = "outreachPrompt";
 		public static final String OUTREACH_DRAFT = "draft";
 		public static final String OUTREACH_ERROR = "outreachError";
+		/** How many messages the card showed as it asked Claude: ones that could be being changed when Claude is done. */
+		public static final String OUTREACH_SHOWN = "outreachShown";
 		/** Whether the job's letter being written starts from the profile's base letter, filled in for the job. */
 		public static final String LETTER_FROM_BASE = "letterFromBase";
 		/**

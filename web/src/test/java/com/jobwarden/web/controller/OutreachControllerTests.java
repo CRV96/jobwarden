@@ -124,7 +124,7 @@ class OutreachControllerTests {
 		// The card itself never asks again: a message being changed stays
 		assertThat(this.mvc.get().uri("/applications/7/outreach").header("HX-Request", "true")).hasStatusOk()
 			.bodyText()
-			.contains("id=\"outreach-waiting\"", "/applications/7/outreach/waiting")
+			.contains("id=\"outreach-waiting\"", "/applications/7/outreach/waiting?shown=1")
 			.doesNotContain("hx-get=\"/applications/7/outreach\"");
 		assertThat(this.mvc.get().uri("/applications/7/outreach/waiting").header("HX-Request", "true")).hasStatusOk()
 			.satisfies(result -> assertThat(result).doesNotContainHeader("HX-Retarget"))
@@ -141,10 +141,19 @@ class OutreachControllerTests {
 				.status(AiRequestStatus.DONE)
 				.createdAt(Instant.now())
 				.build()));
+		// With no message on the card, nothing typed can be lost: the card comes with Claude's
 		assertThat(this.mvc.get().uri("/applications/7/outreach/waiting").header("HX-Request", "true")).hasStatusOk()
 			.satisfies(result -> assertThat(result).headers().hasValue("HX-Retarget", "#outreach"))
 			.bodyText()
 			.contains("id=\"outreach\"", "Ana Pop");
+		// With one, it may be being changed: it stays till the profile asks for Claude's
+		assertThat(this.mvc.get().uri("/applications/7/outreach/waiting").param("shown", "1").header("HX-Request", "true"))
+			.hasStatusOk()
+			.satisfies(result -> assertThat(result).doesNotContainHeader("HX-Retarget"))
+			.bodyText()
+			.contains("id=\"outreach-waiting\"", "Done", "Save what you’re changing first", "Show them",
+					"hx-get=\"/applications/7/outreach\"")
+			.doesNotContain("Ana Pop", "every 5s");
 	}
 
 	@Test
