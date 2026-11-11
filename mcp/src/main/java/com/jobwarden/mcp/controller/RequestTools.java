@@ -9,6 +9,7 @@ import java.util.Objects;
 import java.util.stream.Stream;
 
 import com.jobwarden.cv.dto.OutreachDraft;
+import com.jobwarden.cv.service.CoverLetterService;
 import com.jobwarden.discover.dto.AiRequest;
 import com.jobwarden.discover.dto.AiRequirements;
 import com.jobwarden.discover.dto.FoundJob;
@@ -92,6 +93,8 @@ class RequestTools implements McpToolSet {
 	private final ApplicationService applications;
 
 	private final WatchlistService watchlist;
+
+	private final CoverLetterService letters;
 
 	@Override
 	public List<McpTool> tools() {
@@ -258,14 +261,24 @@ class RequestTools implements McpToolSet {
 		List<String> companies = (request.kind() == AiRequestKind.FIND_RECRUITERS) ? companies(userId) : List.of();
 		List<RecipientRef> recipients = (request.kind() == AiRequestKind.WRITE_OUTREACH && request.applicationId() != null)
 				? recipients(userId, request.applicationId()) : List.of();
+		String baseLetter = (request.kind() == AiRequestKind.WRITE_COVER_LETTER && request.applicationId() != null)
+				? baseLetter(userId, request.applicationId()) : null;
 		List<String> watched = (taste != null) ? this.watchlist.findCompanies(userId)
 			.stream()
 			.limit(WATCHED_COMPANIES)
 			.map(company -> company.name() + " (" + company.boardUrl() + ")")
 			.toList() : List.of();
 		return new RequestDetails(request.id(), request.kind(), request.status(), request.applicationId(),
-				requirements(request), instructions(request), taste, followed, companies, watched, recipients,
+				requirements(request), instructions(request), taste, followed, companies, watched, recipients, baseLetter,
 				request.createdAt());
+	}
+
+	/** The profile's base letter, filled in for the job: the letter Claude starts from. */
+	private @Nullable String baseLetter(long userId, long jobId) {
+		ApplicationDetails job = this.applications.findById(userId, jobId).orElse(null);
+		return this.letters.findBaseLetter(userId)
+			.map(base -> (job == null) ? base.body() : base.fillIn(job.company(), job.title()))
+			.orElse(null);
 	}
 
 	/** The jobs found for the profile that it decided on last: those it saved or applied to, and those it discarded. */
@@ -409,6 +422,9 @@ class RequestTools implements McpToolSet {
 				the person did.
 				When the posting doesn't say what the company makes, find out with one web search, to say in a line why \
 				this company.
+				base_letter, when there is one, is the person's own letter that every letter starts from: keep its voice, \
+				its structure and the paragraphs it always uses, change only what this job needs, and write it in the \
+				posting's language when that's another; fill in anything left in braces, like {company}. Without one:
 				Write the cover letter in the posting's language, 250 to 400 words, in four short paragraphs:
 				- why the person writes: the role by its title, and what draws them to this company, specific, never \
 				flattery;
@@ -642,7 +658,7 @@ class RequestTools implements McpToolSet {
 	record RequestDetails(long requestId, AiRequestKind kind, AiRequestStatus status, @Nullable Long jobId,
 			@Nullable RequirementsView requirements, String instructions, @Nullable Taste taste,
 			List<RecruiterRef> followed, List<String> companies, List<String> watchedCompanies,
-			List<RecipientRef> recipients, Instant createdAt) {
+			List<RecipientRef> recipients, @Nullable String baseLetter, Instant createdAt) {
 	}
 
 	/**

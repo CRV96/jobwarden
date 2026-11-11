@@ -1,5 +1,8 @@
 package com.jobwarden.web.view;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
@@ -39,6 +42,25 @@ public final class ClaudePrompts {
 	public static Prompt forRequest(long requestId, long profileId) {
 		String text = "Do JobWarden request " + requestId + ": call get_request with request_id " + requestId
 				+ " and profile_id " + profileId + ", follow its instructions, and end with finish_request.";
+		return new Prompt(text, "claude \"" + text + "\"");
+	}
+
+	/**
+	 * Several requests at once, e.g. the cover letters asked for on the Cover letters page: done one after the other, in
+	 * one Claude Code session.
+	 *
+	 * @throws IllegalArgumentException without a request
+	 */
+	public static Prompt forRequests(List<Long> requestIds, long profileId) {
+		if (requestIds.isEmpty()) {
+			throw new IllegalArgumentException("No request to do");
+		}
+		if (requestIds.size() == 1) {
+			return forRequest(requestIds.getFirst(), profileId);
+		}
+		String ids = requestIds.stream().map(String::valueOf).collect(Collectors.joining(", "));
+		String text = "Do JobWarden requests " + ids + ", one after the other: for each, call get_request with its "
+				+ "request_id and profile_id " + profileId + ", follow its instructions, and end with finish_request.";
 		return new Prompt(text, "claude \"" + text + "\"");
 	}
 

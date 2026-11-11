@@ -14,6 +14,8 @@ public interface CoverLetterRepository extends JpaRepository<CoverLetterEntity, 
 
 	Optional<CoverLetterEntity> findByUserIdAndApplicationId(long userId, long applicationId);
 
+	List<CoverLetterEntity> findByUserIdAndApplicationIdIn(long userId, Collection<Long> applicationIds);
+
 	/**
 	 * @return which of the jobs have a cover letter
 	 */

@@ -56,16 +56,21 @@ class LetterTools implements McpToolSet {
 		return new McpTool("get_cover_letter", "Get a job's cover letter",
 				"The cover letter kept for one of the profile's jobs, as the profile last left it: its text, to paste into "
 						+ "a form's field, and the address of its PDF, to download and upload. has_letter is false when "
-						+ "the job has none.",
+						+ "the job has none; then base_letter, when there is one, is the person's own letter filled in for "
+						+ "the job, to start one from.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
 						"job_id", integer("The job, from get_request, list_jobs or list_apply_queue")),
 						"job_id"),
 				true, false, call -> {
 					long userId = this.profiles.of(call);
-					long jobId = requireJob(userId, call.requiredNumber("job_id")).id();
+					ApplicationDetails job = requireJob(userId, call.requiredNumber("job_id"));
+					long jobId = job.id();
 					return this.letters.findLetter(userId, jobId)
-						.map(letter -> new LetterView(jobId, true, letter.body(), pdfUrl(userId, jobId), letter.updatedAt()))
-						.orElseGet(() -> new LetterView(jobId, false, null, null, null));
+						.map(letter -> new LetterView(jobId, true, letter.body(), pdfUrl(userId, jobId), letter.updatedAt(),
+								null))
+						.orElseGet(() -> new LetterView(jobId, false, null, null, null, this.letters.findBaseLetter(userId)
+							.map(base -> base.fillIn(job.company(), job.title()))
+							.orElse(null)));
 				});
 	}
 
@@ -141,9 +146,10 @@ class LetterTools implements McpToolSet {
 	/**
 	 * @param hasLetter whether the job has one
 	 * @param pdfUrl the letter as a PDF, to download and upload
+	 * @param baseLetter without a letter, the profile's base letter filled in for the job, to start one from
 	 */
 	record LetterView(long jobId, boolean hasLetter, @Nullable String body, @Nullable String pdfUrl,
-			@Nullable Instant updatedAt) {
+			@Nullable Instant updatedAt, @Nullable String baseLetter) {
 	}
 
 }

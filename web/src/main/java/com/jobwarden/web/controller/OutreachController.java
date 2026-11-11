@@ -14,9 +14,12 @@ import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.web.constants.AppConstants.ControllerConstants;
+import com.jobwarden.web.constants.AppConstants.HtmxEvents;
+import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.constants.AppConstants.Views;
 import com.jobwarden.web.view.ClaudePrompts;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
@@ -102,10 +105,11 @@ class OutreachController extends BaseController {
 	}
 
 	@PostMapping("/{draftId}/delete")
-	String delete(@PathVariable long id, @PathVariable long draftId, Model model) {
+	String delete(@PathVariable long id, @PathVariable long draftId, Model model, HttpServletResponse response) {
 		long userId = requireProfile(model).id();
 		requireApplication(userId, id);
 		this.letters.deleteDraft(userId, draftId);
+		response.setHeader(HtmxHeaders.TRIGGER, HtmxEvents.LETTERS_CHANGED);
 		return showCard(model, userId, id);
 	}
 

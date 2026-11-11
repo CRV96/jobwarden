@@ -16,10 +16,13 @@ import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.web.constants.AppConstants.ControllerConstants;
+import com.jobwarden.web.constants.AppConstants.HtmxEvents;
+import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.constants.AppConstants.Views;
 import com.jobwarden.web.view.ClaudePrompts;
 import com.jobwarden.web.view.LetterPdf;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 
@@ -37,7 +40,8 @@ import org.springframework.web.bind.annotation.RequestParam;
  * A job's cover letter: written by Claude from the CV and the posting, changed by the profile on the job's page, and
  * downloaded as a PDF with the CV page's name and contact details. The page asks Claude for it with a request, which
  * Claude Code does through the MCP server (save_cover_letter); the card shows the letter once it's saved. A letter can
- * also be written there without Claude.
+ * also be written there without Claude, starting from the profile's base letter (the Cover letters page,
+ * LettersController) when it has one. The same card shows on that page, beside its list of jobs.
  */
 @Controller
 @RequestMapping(ControllerConstants.APPLICATIONS + "/{id}/letter")
@@ -80,7 +84,8 @@ class CoverLetterController extends BaseController {
 	 * saying why.
 	 */
 	@PostMapping
-	String save(@PathVariable long id, @RequestParam(defaultValue = "") String body, Model model) {
+	String save(@PathVariable long id, @RequestParam(defaultValue = "") String body, Model model,
+			HttpServletResponse response) {
 		long userId = requireProfile(model).id();
 		requireApplication(userId, id);
 		try {
@@ -91,28 +96,32 @@ class CoverLetterController extends BaseController {
 			model.addAttribute(ModelAttributes.LETTER_DRAFT, body);
 			return showCard(model, userId, id, true);
 		}
+		response.setHeader(HtmxHeaders.TRIGGER, HtmxEvents.LETTERS_CHANGED);
 		return showCard(model, userId, id, false);
 	}
 
 	@PostMapping("/request")
-	String ask(@PathVariable long id, Model model) {
+	String ask(@PathVariable long id, Model model, HttpServletResponse response) {
 		long userId = requireProfile(model).id();
 		this.discovery.createRequest(userId, AiRequestKind.WRITE_COVER_LETTER, id);
+		response.setHeader(HtmxHeaders.TRIGGER, HtmxEvents.LETTERS_CHANGED);
 		return showCard(model, userId, id, false);
 	}
 
 	@PostMapping("/cancel")
-	String cancel(@PathVariable long id, Model model) {
+	String cancel(@PathVariable long id, Model model, HttpServletResponse response) {
 		long userId = requireProfile(model).id();
 		latestRequest(userId, id).filter(request -> request.status().isOpen())
 			.ifPresent(request -> this.discovery.cancelRequest(userId, request.id()));
+		response.setHeader(HtmxHeaders.TRIGGER, HtmxEvents.LETTERS_CHANGED);
 		return showCard(model, userId, id, false);
 	}
 
 	@PostMapping("/delete")
-	String delete(@PathVariable long id, Model model) {
+	String delete(@PathVariable long id, Model model, HttpServletResponse response) {
 		long userId = requireProfile(model).id();
 		this.letters.deleteLetter(userId, id);
+		response.setHeader(HtmxHeaders.TRIGGER, HtmxEvents.LETTERS_CHANGED);
 		return showCard(model, userId, id, false);
 	}
 
@@ -142,9 +151,18 @@ class CoverLetterController extends BaseController {
 	private String showCard(Model model, long userId, long applicationId, boolean editing) {
 		Cv cv = this.cvs.find(userId);
 		Optional<AiRequest> request = latestRequest(userId, applicationId);
+		Optional<CoverLetter> letter = this.letters.findLetter(userId, applicationId);
 		model.addAttribute(ModelAttributes.LETTER_JOB_ID, applicationId);
 		model.addAttribute(ModelAttributes.HAS_CV, cv.file() != null || cv.details().isFilledIn());
-		model.addAttribute(ModelAttributes.COVER_LETTER, this.letters.findLetter(userId, applicationId).orElse(null));
+		model.addAttribute(ModelAttributes.COVER_LETTER, letter.orElse(null));
+		// A letter written without Claude starts from the profile's base letter, filled in for the job
+		if (editing && letter.isEmpty() && !model.containsAttribute(ModelAttributes.LETTER_DRAFT)) {
+			ApplicationDetails job = requireApplication(userId, applicationId);
+			this.letters.findBaseLetter(userId).ifPresent(base -> {
+				model.addAttribute(ModelAttributes.LETTER_DRAFT, base.fillIn(job.company(), job.title()));
+				model.addAttribute(ModelAttributes.LETTER_FROM_BASE, true);
+			});
+		}
 		model.addAttribute(ModelAttributes.LETTER_REQUEST, request.orElse(null));
 		model.addAttribute(ModelAttributes.LETTER_PROMPT,
 				request.map(asked -> ClaudePrompts.forRequest(asked.id(), userId)).orElse(null));

@@ -18,7 +18,8 @@
 
 <!--/* coverLetter is the letter, or null; letterRequest the latest request for one, or null; letterPrompt what to paste
        into Claude Code while it waits; letterEditing whether the letter shows in a field to change, letterError why it
-       wasn't saved and letterDraft what was typed. While the request is open, the card asks again every few seconds. */-->
+       wasn't saved and letterDraft what was typed, or the base letter filled in for the job (letterFromBase). While the
+       request is open, the card asks again every few seconds. */-->
 <section id="cover-letter" th:fragment="card" class="flex flex-col gap-3" data-collapse="letter"
          th:with="request=${letterRequest}, status=${request != null} ? ${request.status.name()},
                   open=${request != null and request.status.isOpen()}, letter=${coverLetter},
@@ -54,6 +55,9 @@
             <textarea class="input min-h-[16rem] text-[13px] leading-relaxed" name="body" rows="14" maxlength="6000"
                       th:placeholder="#{letter.placeholder}" th:text="${letterDraft} ?: ${letter?.body}"></textarea>
         </label>
+        <p class="flex items-center gap-1.5 text-xs text-ink/60" th:if="${letterFromBase}">
+            <i class="ph ph-signature text-accent"></i><span th:text="#{letter.fromBase}">Started from your base letter: change what this job needs.</span>
+        </p>
         <p class="text-[13px] text-danger" role="alert" th:if="${letterError}" th:text="${letterError}">The letter is empty.</p>
         <div class="flex items-center gap-1.5">
             <button class="btn btn-primary" type="submit"><i class="ph ph-floppy-disk"></i><span th:text="#{cv.save}">Save</span></button>

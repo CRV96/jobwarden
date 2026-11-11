@@ -1,19 +1,24 @@
 package com.jobwarden.cv.service.impl;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
 import com.jobwarden.common.exception.BusinessRuleException;
+import com.jobwarden.cv.dto.BaseLetter;
 import com.jobwarden.cv.dto.CoverLetter;
 import com.jobwarden.cv.dto.OutreachDraft;
+import com.jobwarden.cv.entity.BaseLetterEntity;
 import com.jobwarden.cv.entity.CoverLetterEntity;
 import com.jobwarden.cv.entity.OutreachDraftEntity;
 import com.jobwarden.cv.exception.CvErrorCode;
 import com.jobwarden.cv.exception.OutreachDraftNotFoundException;
+import com.jobwarden.cv.repository.BaseLetterRepository;
 import com.jobwarden.cv.repository.CoverLetterRepository;
 import com.jobwarden.cv.repository.OutreachDraftRepository;
 import com.jobwarden.cv.service.CoverLetterService;
@@ -33,6 +38,8 @@ class DefaultCoverLetterService implements CoverLetterService {
 	private final CoverLetterRepository letters;
 
 	private final OutreachDraftRepository drafts;
+
+	private final BaseLetterRepository baseLetters;
 
 	@Override
 	public Optional<CoverLetter> findLetter(long userId, long applicationId) {
@@ -77,6 +84,52 @@ class DefaultCoverLetterService implements CoverLetterService {
 	public Set<Long> findJobsWithLetter(long userId, Collection<Long> applicationIds) {
 		return applicationIds.isEmpty() ? Set.of()
 				: new HashSet<>(this.letters.findApplicationIdsWithLetter(userId, applicationIds));
+	}
+
+	@Override
+	public Map<Long, CoverLetter> findLetters(long userId, Collection<Long> applicationIds) {
+		Map<Long, CoverLetter> found = new HashMap<>();
+		if (!applicationIds.isEmpty()) {
+			this.letters.findByUserIdAndApplicationIdIn(userId, applicationIds)
+				.forEach(letter -> found.put(letter.getApplicationId(), toLetter(letter)));
+		}
+		return found;
+	}
+
+	@Override
+	public Optional<BaseLetter> findBaseLetter(long userId) {
+		return this.baseLetters.findById(userId).map(letter -> new BaseLetter(letter.getBody(), letter.getUpdatedAt()));
+	}
+
+	@Override
+	@Transactional
+	public BaseLetter saveBaseLetter(long userId, String body) {
+		String checked = checkedBody(body);
+		BaseLetterEntity entity = this.baseLetters.findById(userId).orElseGet(() -> new BaseLetterEntity(userId));
+		entity.changeBody(checked);
+		BaseLetterEntity saved = this.baseLetters.saveAndFlush(entity);
+		log.info("Saved the base letter of profile {}", userId);
+		return new BaseLetter(saved.getBody(), saved.getUpdatedAt());
+	}
+
+	@Override
+	@Transactional
+	public void deleteBaseLetter(long userId) {
+		if (this.baseLetters.existsById(userId)) {
+			this.baseLetters.deleteById(userId);
+			log.info("Deleted the base letter of profile {}", userId);
+		}
+	}
+
+	@Override
+	public Map<Long, Integer> countDrafts(long userId, Collection<Long> applicationIds) {
+		Map<Long, Integer> counts = new HashMap<>();
+		if (!applicationIds.isEmpty()) {
+			for (Object[] row : this.drafts.countByApplication(userId, applicationIds)) {
+				counts.put((Long) row[0], ((Long) row[1]).intValue());
+			}
+		}
+		return counts;
 	}
 
 	@Override

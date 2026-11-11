@@ -2,9 +2,11 @@ package com.jobwarden.cv.service;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import com.jobwarden.cv.dto.BaseLetter;
 import com.jobwarden.cv.dto.CoverLetter;
 import com.jobwarden.cv.dto.OutreachDraft;
 import org.jspecify.annotations.Nullable;
@@ -42,9 +44,34 @@ public interface CoverLetterService {
 	Set<Long> findJobsWithLetter(long userId, Collection<Long> applicationIds);
 
 	/**
+	 * @return the cover letters of those of the jobs that have one, by the job's id
+	 */
+	Map<Long, CoverLetter> findLetters(long userId, Collection<Long> applicationIds);
+
+	/**
+	 * @return the profile's base letter, that each job's letter starts from, if it wrote one
+	 */
+	Optional<BaseLetter> findBaseLetter(long userId);
+
+	/**
+	 * Keeps the profile's base letter, replacing the one it had.
+	 *
+	 * @throws com.jobwarden.common.exception.BusinessRuleException if it's empty or longer than
+	 * {@link CoverLetter#BODY_MAX_LENGTH}
+	 */
+	BaseLetter saveBaseLetter(long userId, String body);
+
+	void deleteBaseLetter(long userId);
+
+	/**
 	 * @return the messages about the job, to each person, in the order they were first written
 	 */
 	List<OutreachDraft> findDrafts(long userId, long applicationId);
+
+	/**
+	 * @return how many people the messages about each of the jobs are to, for those that have any, by the job's id
+	 */
+	Map<Long, Integer> countDrafts(long userId, Collection<Long> applicationIds);
 
 	/**
 	 * Keeps the messages Claude wrote to someone about a job: they replace those to the same person (the same profile

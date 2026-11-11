@@ -1015,7 +1015,39 @@ class McpControllerTests {
 		assertThat(callTool("get_request", "{\"request_id\": 34}")).bodyJson()
 			.extractingPath("$.result.content[0].text")
 			.asString()
-			.contains("get_job with job_id 7", "get_cv with full true", "save_cover_letter and job_id 7", "no clichés");
+			.contains("get_job with job_id 7", "get_cv with full true", "save_cover_letter and job_id 7", "no clichés",
+					"base_letter");
+	}
+
+	@Test
+	void givesClaudeTheBaseLetterFilledInForTheJob() {
+		given(this.discovery.startRequest(1, 36)).willReturn(AiRequest.builder()
+			.id(36)
+			.kind(AiRequestKind.WRITE_COVER_LETTER)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(ApplicationDetails.builder()
+			.id(7)
+			.title("Java Developer")
+			.company("Acme")
+			.status(ApplicationStatus.SAVED)
+			.capturedAt(Instant.now())
+			.timeline(List.of())
+			.build()));
+		given(this.letters.findBaseLetter(1)).willReturn(Optional.of(new com.jobwarden.cv.dto.BaseLetter(
+				"Dear hiring team,\n\nI'd like to join {company} as {role}.", Instant.now())));
+
+		assertThat(callTool("get_request", "{\"request_id\": 36}")).bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.base_letter")
+				.isEqualTo("Dear hiring team,\n\nI'd like to join Acme as Java Developer."));
+		assertThat(callTool("get_cover_letter", "{\"job_id\": 7}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.has_letter").isEqualTo(false);
+			assertThat(result(body)).extractingPath("$.base_letter")
+				.isEqualTo("Dear hiring team,\n\nI'd like to join Acme as Java Developer.");
+		});
 	}
 
 	@Test

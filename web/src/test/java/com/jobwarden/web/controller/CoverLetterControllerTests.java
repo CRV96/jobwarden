@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 
 import com.jobwarden.common.exception.BusinessRuleException;
+import com.jobwarden.cv.dto.BaseLetter;
 import com.jobwarden.cv.dto.CoverLetter;
 import com.jobwarden.cv.dto.Cv;
 import com.jobwarden.cv.dto.CvDetails;
@@ -91,8 +92,27 @@ class CoverLetterControllerTests {
 	}
 
 	@Test
+	void startsALetterWrittenWithoutClaudeFromTheBaseLetter() {
+		given(this.letters.findBaseLetter(1)).willReturn(Optional.of(
+				new BaseLetter("Dear hiring team,\n\nI'd like to join {company} as {role}.", Instant.now())));
+
+		assertThat(this.mvc.get().uri("/applications/7/letter/edit").header("HX-Request", "true")).hasStatusOk()
+			.bodyText()
+			.contains("I&#39;d like to join Acme as Backend engineer.", "Started from your base letter");
+
+		// A letter it has stays as it is
+		given(this.letters.findLetter(1, 7)).willReturn(Optional.of(LETTER));
+		assertThat(this.mvc.get().uri("/applications/7/letter/edit").header("HX-Request", "true")).hasStatusOk()
+			.bodyText()
+			.contains("I build payment systems at Globex.")
+			.doesNotContain("join Acme", "Started from your base letter");
+	}
+
+	@Test
 	void handsTheRequestToClaudeCode() {
-		this.mvc.post().uri("/applications/7/letter/request").header("HX-Request", "true").exchange();
+		// The Cover letters page's row of the job loads again
+		assertThat(this.mvc.post().uri("/applications/7/letter/request").header("HX-Request", "true")).headers()
+			.hasValue("HX-Trigger", "letters-changed");
 
 		then(this.discovery).should().createRequest(1, AiRequestKind.WRITE_COVER_LETTER, 7);
 	}

@@ -83,6 +83,7 @@
             <div class="flex flex-col gap-0.5" role="group" aria-labelledby="nav-group-apply">
                 <th:block th:replace="~{layout :: nav-heading('apply', true)}"></th:block>
                 <th:block th:replace="~{layout :: nav-link(@{/cv}, #{nav.cv}, 'ph-identification-card', ${section == 'cv'}, null, null)}"></th:block>
+                <th:block th:replace="~{layout :: nav-link(@{/letters}, #{nav.letters}, 'ph-envelope-open', ${section == 'letters'}, null, null)}"></th:block>
                 <th:block th:replace="~{layout :: nav-link(@{/apply}, #{nav.apply}, 'ph-paper-plane-tilt', ${section == 'apply'}, null, null)}"></th:block>
             </div>
             <div class="flex flex-col gap-0.5" role="group" aria-labelledby="nav-group-decide">

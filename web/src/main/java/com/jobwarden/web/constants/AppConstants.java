@@ -25,6 +25,8 @@ public final class AppConstants {
 		public static final String SALARIES = "/salaries";
 		/** The profile's offers side by side, with what the market pays. */
 		public static final String OFFERS = "/offers";
+		/** Every job's cover letter and messages in one place, and the base letter they start from. */
+		public static final String LETTERS = "/letters";
 
 		public static final String STATISTICS = "/statistics";
 		public static final String SEARCH = "/search";
@@ -60,6 +62,11 @@ public final class AppConstants {
 		public static final String FOUND_JOBS_CHANGED = "found-jobs-changed";
 		/** A job's contact and follow-up were saved, so its reminders, which list its follow-up dates, load again. */
 		public static final String FOLLOW_UP_CHANGED = "follow-up-changed";
+		/**
+		 * A job's cover letter or messages changed, asking Claude for the letter included, so the Cover letters page's
+		 * row of the job loads again.
+		 */
+		public static final String LETTERS_CHANGED = "letters-changed";
 	}
 
 	/**
@@ -98,6 +105,17 @@ public final class AppConstants {
 		public static final String OUTREACH_FRAGMENT = "applications/outreach :: card";
 		/** One message, which HTMX swaps once it's saved. */
 		public static final String OUTREACH_DRAFT_FRAGMENT = "applications/outreach :: draft";
+		public static final String LETTERS = "letters/letters";
+		/** The Cover letters page's base letter, which HTMX swaps as it's changed. */
+		public static final String BASE_LETTER_FRAGMENT = LETTERS + " :: base";
+		/** One job's letter and messages, beside the list, which HTMX loads as a job is picked. */
+		public static final String LETTERS_PANEL_FRAGMENT = LETTERS + " :: panel";
+		/** One job of the list, which HTMX asks for again while Claude writes its letter. */
+		public static final String LETTERS_ROW_FRAGMENT = LETTERS + " :: row(oob=false)";
+		/** The letters Claude has to write, with what to paste into Claude Code, asked for again while there are any. */
+		public static final String LETTERS_WAITING_FRAGMENT = LETTERS + " :: waiting";
+		/** What asking Claude for letters, or cancelling them, answers: the letters waiting, and the jobs' rows. */
+		public static final String LETTERS_ASKED_FRAGMENT = LETTERS + " :: asked";
 		public static final String CALENDAR = "calendar/calendar";
 		/** The Subscribe menu's content, which HTMX swaps once there's a new address. */
 		public static final String CALENDAR_FEED_FRAGMENT = CALENDAR + " :: feed";
@@ -397,6 +415,36 @@ public final class AppConstants {
 		public static final String OUTREACH_PROMPT = "outreachPrompt";
 		public static final String OUTREACH_DRAFT = "draft";
 		public static final String OUTREACH_ERROR = "outreachError";
+		/** Whether the job's letter being written starts from the profile's base letter, filled in for the job. */
+		public static final String LETTER_FROM_BASE = "letterFromBase";
+		/**
+		 * The Cover letters page: its jobs (each a {@code LetterRow}), the one a fragment shows, which of them it lists
+		 * (a {@code LetterFilter}), each filter's count, the job picked and its details, and the jobs a request was just
+		 * made or cancelled for.
+		 */
+		public static final String LETTER_ROWS = "letterRows";
+		public static final String LETTER_ROW = "row";
+		public static final String LETTER_FILTER = "letterFilter";
+		public static final String LETTER_FILTERS = "letterFilters";
+		public static final String LETTER_COUNTS = "letterCounts";
+		public static final String LETTER_TOTAL = "letterTotal";
+		public static final String LETTERS_SELECTED = "lettersSelected";
+		public static final String LETTERS_JOB = "lettersJob";
+		public static final String LETTERS_ASKED = "lettersAsked";
+		/**
+		 * The letters Claude has to write, or is writing; those waiting, and what to paste into Claude Code for them, or
+		 * {@code null}.
+		 */
+		public static final String LETTERS_OPEN = "lettersOpen";
+		public static final String LETTERS_WAITING = "lettersWaiting";
+		public static final String LETTERS_PROMPT = "lettersPrompt";
+		/** The most letters asked of Claude at once: one session writes them all. */
+		public static final String LETTERS_MAX_ASKED = "lettersMaxAsked";
+		/** The profile's base letter or {@code null}, whether it's being changed, why a change wasn't kept, and what was typed. */
+		public static final String BASE_LETTER = "baseLetter";
+		public static final String BASE_LETTER_EDITING = "baseLetterEditing";
+		public static final String BASE_LETTER_ERROR = "baseLetterError";
+		public static final String BASE_LETTER_DRAFT = "baseLetterDraft";
 		/**
 		 * The CV page's story bank: the stories (a list of {@code Story}), the one being written or changed (a
 		 * {@code Story}) or {@code null}, why it wasn't saved, and Claude drafting stories: its latest request and prompt.

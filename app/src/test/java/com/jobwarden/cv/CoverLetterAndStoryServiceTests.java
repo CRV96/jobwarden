@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.jobwarden.TestcontainersConfiguration;
 import com.jobwarden.common.exception.BusinessRuleException;
+import com.jobwarden.cv.dto.BaseLetter;
 import com.jobwarden.cv.dto.CoverLetter;
 import com.jobwarden.cv.dto.OutreachDraft;
 import com.jobwarden.cv.dto.Story;
@@ -83,6 +84,45 @@ class CoverLetterAndStoryServiceTests {
 		assertThat(this.letters.findLetter(this.userId, job)).isPresent();
 		this.letters.deleteLetter(this.userId, job);
 		assertThat(this.letters.findLetter(this.userId, job)).isEmpty();
+	}
+
+	@Test
+	void keepsOneBaseLetterPerProfileAndFillsItInForAJob() {
+		assertThat(this.letters.findBaseLetter(this.userId)).isEmpty();
+
+		this.letters.saveBaseLetter(this.userId, " Dear hiring team,\n\nI'd like to join {company} as {role}. ");
+		BaseLetter base = this.letters.saveBaseLetter(this.userId, "Dear hiring team,\n\nI'd like to join {company} as {role}.");
+		assertThat(this.letters.findBaseLetter(this.userId)).contains(base);
+		assertThat(base.fillIn("Acme", " Backend engineer ")).isEqualTo("Dear hiring team,\n\nI'd like to join Acme as Backend engineer.");
+		// What the job doesn't say stays to fill in
+		assertThat(base.fillIn(null, "Backend engineer")).isEqualTo("Dear hiring team,\n\nI'd like to join {company} as Backend engineer.");
+		assertThat(this.letters.findBaseLetter(this.otherUserId)).isEmpty();
+		assertThatExceptionOfType(BusinessRuleException.class).isThrownBy(() -> this.letters.saveBaseLetter(this.userId, " "))
+			.satisfies(refused -> assertThat(refused.getErrorCode()).isEqualTo(CvErrorCode.COVER_LETTER_EMPTY));
+
+		this.letters.deleteBaseLetter(this.otherUserId);
+		assertThat(this.letters.findBaseLetter(this.userId)).isPresent();
+		this.letters.deleteBaseLetter(this.userId);
+		assertThat(this.letters.findBaseLetter(this.userId)).isEmpty();
+	}
+
+	@Test
+	void findsTheLettersAndCountsTheMessagesOfManyJobsAtOnce() {
+		long acme = insertJob(this.userId, "Backend engineer");
+		long globex = insertJob(this.userId, "Java developer");
+		long others = insertJob(this.otherUserId, "Someone else's job");
+		this.letters.changeLetter(this.userId, acme, "Dear Ana,");
+		this.letters.changeLetter(this.otherUserId, others, "Dear Ion,");
+		this.letters.saveDraft(this.userId, OutreachDraft.builder().applicationId(globex).recipientName("Ana Pop").build());
+		this.letters.saveDraft(this.userId, OutreachDraft.builder().applicationId(globex).recipientName("Ion Ionescu").build());
+
+		assertThat(this.letters.findLetters(this.userId, List.of(acme, globex, others))).containsOnlyKeys(acme)
+			.extractingByKey(acme)
+			.extracting(CoverLetter::body)
+			.isEqualTo("Dear Ana,");
+		assertThat(this.letters.countDrafts(this.userId, List.of(acme, globex))).containsExactlyEntriesOf(java.util.Map.of(globex, 2));
+		assertThat(this.letters.findLetters(this.userId, List.of())).isEmpty();
+		assertThat(this.letters.countDrafts(this.userId, List.of())).isEmpty();
 	}
 
 	@Test
