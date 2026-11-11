@@ -193,6 +193,8 @@ document.addEventListener('click', (event) => {
 				copier.querySelector('[data-copy-idle]').hidden = false;
 				copier.querySelector('[data-copy-done]').hidden = true;
 			}, 1500);
+		}).catch(() => {
+			// Nothing copied: the button stays as it was
 		});
 		return;
 	}

@@ -146,7 +146,7 @@ public final class AppConstants {
 		public static final String SALARIES = "salaries/salaries";
 		public static final String OFFERS = "offers/offers";
 		/** The offers page's row of market salaries, which HTMX loads after the page. */
-		public static final String OFFERS_MARKET_FRAGMENT = OFFERS + " :: market";
+		public static final String OFFERS_MARKET_FRAGMENT = "offers/market :: market";
 
 		public static final String STATISTICS = "statistics/statistics";
 		/** The salaries page's market section, which HTMX loads after the page and swaps as its choices change. */

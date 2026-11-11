@@ -99,10 +99,16 @@
             <i class="ph ph-envelope-simple"></i><span th:text="#{outreach.email}">Email</span>
             <span class="truncate text-ink/50" th:if="${draft.recipientEmail}" th:text="|· ${draft.recipientEmail}|">· ana@acme.com</span>
         </span>
-        <input class="input text-[13px]" type="text" name="emailSubject" maxlength="300" th:id="|subject-${draft.id}|"
-               th:value="${draft.emailSubject}" th:aria-label="#{outreach.subject}" th:placeholder="#{outreach.subject}">
-        <textarea class="input text-[13px]" name="emailBody" rows="7" maxlength="5000" th:id="|body-${draft.id}|"
-                  th:aria-label="#{outreach.email}" th:text="${draft.emailBody}">Dear Ana, …</textarea>
+        <label class="contents">
+            <span class="sr-only" th:text="#{outreach.subject}">Subject</span>
+            <input class="input text-[13px]" type="text" name="emailSubject" maxlength="300" th:id="|subject-${draft.id}|"
+                   th:value="${draft.emailSubject}" th:placeholder="#{outreach.subject}">
+        </label>
+        <label class="contents">
+            <span class="sr-only" th:text="#{outreach.email}">Email</span>
+            <textarea class="input text-[13px]" name="emailBody" rows="7" maxlength="5000" th:id="|body-${draft.id}|"
+                      th:text="${draft.emailBody}">Dear Ana, …</textarea>
+        </label>
     </div>
     <p class="text-[13px] text-danger" role="alert" th:if="${outreachError}" th:text="${outreachError}">A LinkedIn note can have at most 300 characters.</p>
     <div class="flex flex-wrap items-center gap-1.5">

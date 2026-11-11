@@ -3,6 +3,10 @@
        while it waits, what to paste into Claude Code or run in a terminal. request is the AiRequest, prompt its
        ClaudePrompts.Prompt, cancelUrl where to take it back, target the card HTMX swaps with the answer. */-->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <!--/* Only fragments are taken from this file: the title is never shown */-->
+    <title>Claude · JobWarden</title>
+</head>
 <body>
 
 <th:block th:fragment="waiting(request, prompt, cancelUrl, target)" th:with="status=${request.status.name()}">

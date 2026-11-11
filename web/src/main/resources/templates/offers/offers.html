@@ -187,30 +187,5 @@
     <td class="p-3 align-top whitespace-pre-line text-pretty" th:each="offer : ${offerComparison.offers}"
         th:with="value=${offer.terms.__${property}__}" th:text="${value} ?: '—'">10% yearly</td>
 </tr>
-
-<!--/* What the market pays beside each offer (OfferController.market): the source's middle figure for the role in the
-       job's country, its middle half when it has one, and how far the offer is from the middle. offerMarkets maps each
-       job to its OfferMarket; a job without one names no single country, or one the sources lack. */-->
-<tr id="offers-market" th:fragment="market" th:with="currency=${offerComparison.currency}">
-    <th class="sticky left-0 bg-surface p-3 text-left align-top text-xs font-normal text-ink/60" scope="row"
-        th:text="#{offers.market}">The market</th>
-    <td class="p-3 align-top" th:each="offer : ${offerComparison.offers}" th:with="beside=${offerMarkets.get(offer.application.id)}">
-        <th:block th:if="${beside}" th:with="figure=${beside.figure}, band=${beside.band(offer.salary?.midpoint())}">
-            <div class="flex items-center gap-1.5 text-xs text-ink/60">
-                <span class="fi rounded-[2px]" th:classappend="|fi-${#strings.toLowerCase(beside.country)}|"></span>
-                <span th:text="${@countries.name(beside.country)}">Germany</span>
-            </div>
-            <div class="mt-0.5 font-medium tabular-nums"
-                 th:text="${figure.hasRange()} ? #{market.tip.range(${@money.range(figure.lowerQuartile, figure.upperQuartile, currency)}, ${@money.compact(figure.middle, currency)})} : #{market.tip.mean(${@money.compact(figure.middle, currency)})}">Middle half €60K – €90K, median €75K</div>
-            <div class="mt-1 flex flex-wrap items-center gap-1" th:if="${beside.percentFromMiddle != null}">
-                <span class="tag tabular-nums" th:classappend="${beside.percentFromMiddle >= 0} ? 'st-offer' : 'st-rejected'"
-                      th:text="${beside.percentFromMiddle >= 0} ? #{offers.market.above(${beside.percentFromMiddle})} : #{offers.market.below(${-beside.percentFromMiddle})}">+12% vs the middle</span>
-                <span class="text-xs text-ink/55" th:if="${band}" th:text="#{|offers.market.band.${band}|}">In the middle half</span>
-            </div>
-            <div class="mt-1 text-[11px] text-ink/45" th:text="|#{|market.source.${figure.source}|} ${figure.year}|">Stack Overflow survey 2025</div>
-        </th:block>
-        <span class="text-xs text-ink/50" th:unless="${beside}" th:text="#{offers.market.none}">No country to compare with</span>
-    </td>
-</tr>
 </body>
 </html>

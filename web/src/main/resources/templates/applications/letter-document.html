@@ -54,7 +54,8 @@
 </div>
 
 <div class="meta">
-    <table>
+    <!--/* A layout table (openhtmltopdf has no flex): the company and the role on the left, the date on the right */-->
+    <table role="presentation">
         <tr>
             <td>
                 <div class="to" th:text="${job.company} ?: #{letter.doc.hiringTeam}">Acme</div>

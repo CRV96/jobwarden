@@ -31,22 +31,38 @@
     </div>
     <p class="text-[13px] text-pretty text-ink/65" th:if="${offer.isEmpty()}" th:text="#{offer.hint}">
         Type in what they offer: the offers page puts it beside your other offers and what the market pays.</p>
+    <!--/* The fields without a visible label have one for screen readers, which keeps them the grid's items (contents) */-->
     <div class="grid grid-cols-2 gap-1.5">
         <label class="col-span-2 flex min-w-0 flex-col gap-1">
             <span class="text-xs text-ink/60" th:text="#{offer.baseSalary}">Base salary</span>
             <input class="input" type="text" name="baseSalary" maxlength="200" autocomplete="off" th:value="${offer.baseSalary}"
                    th:placeholder="#{offer.baseSalary.placeholder}">
         </label>
-        <input class="input" type="text" name="bonus" maxlength="200" autocomplete="off" th:value="${offer.bonus}"
-               th:aria-label="#{offer.bonus}" th:placeholder="#{offer.bonus}">
-        <input class="input" type="text" name="signingBonus" maxlength="200" autocomplete="off" th:value="${offer.signingBonus}"
-               th:aria-label="#{offer.signingBonus}" th:placeholder="#{offer.signingBonus}">
-        <input class="input" type="text" name="equity" maxlength="200" autocomplete="off" th:value="${offer.equity}"
-               th:aria-label="#{offer.equity}" th:placeholder="#{offer.equity}">
-        <input class="input" type="text" name="timeOff" maxlength="200" autocomplete="off" th:value="${offer.timeOff}"
-               th:aria-label="#{offer.timeOff}" th:placeholder="#{offer.timeOff.placeholder}">
-        <textarea class="input col-span-2" name="benefits" rows="2" maxlength="2000" th:aria-label="#{offer.benefits}"
-                  th:placeholder="#{offer.benefits.placeholder}" th:text="${offer.benefits}"></textarea>
+        <label class="contents">
+            <span class="sr-only" th:text="#{offer.bonus}">Label</span>
+            <input class="input" type="text" name="bonus" maxlength="200" autocomplete="off" th:value="${offer.bonus}"
+                   th:placeholder="#{offer.bonus}">
+        </label>
+        <label class="contents">
+            <span class="sr-only" th:text="#{offer.signingBonus}">Label</span>
+            <input class="input" type="text" name="signingBonus" maxlength="200" autocomplete="off" th:value="${offer.signingBonus}"
+                   th:placeholder="#{offer.signingBonus}">
+        </label>
+        <label class="contents">
+            <span class="sr-only" th:text="#{offer.equity}">Label</span>
+            <input class="input" type="text" name="equity" maxlength="200" autocomplete="off" th:value="${offer.equity}"
+                   th:placeholder="#{offer.equity}">
+        </label>
+        <label class="contents">
+            <span class="sr-only" th:text="#{offer.timeOff}">Label</span>
+            <input class="input" type="text" name="timeOff" maxlength="200" autocomplete="off" th:value="${offer.timeOff}"
+                   th:placeholder="#{offer.timeOff.placeholder}">
+        </label>
+        <label class="contents">
+            <span class="sr-only" th:text="#{offer.benefits}">Label</span>
+            <textarea class="input col-span-2" name="benefits" rows="2" maxlength="2000"
+                      th:placeholder="#{offer.benefits.placeholder}" th:text="${offer.benefits}"></textarea>
+        </label>
         <label class="flex min-w-0 flex-col gap-1">
             <span class="text-xs text-ink/60" th:text="#{offer.startDate}">Starts on</span>
             <input class="input" type="date" name="startDate" th:value="${offer.startDate}">
@@ -55,8 +71,11 @@
             <span class="text-xs text-ink/60" th:text="#{offer.respondBy}">Answer by</span>
             <input class="input" type="date" name="respondBy" th:value="${offer.respondBy}">
         </label>
-        <textarea class="input col-span-2" name="notes" rows="2" maxlength="2000" th:aria-label="#{offer.notes}"
-                  th:placeholder="#{offer.notes.placeholder}" th:text="${offer.notes}"></textarea>
+        <label class="contents">
+            <span class="sr-only" th:text="#{offer.notes}">Label</span>
+            <textarea class="input col-span-2" name="notes" rows="2" maxlength="2000"
+                      th:placeholder="#{offer.notes.placeholder}" th:text="${offer.notes}"></textarea>
+        </label>
     </div>
 </form>
 

@@ -49,9 +49,11 @@
     <!--/* Changing it, or writing one without Claude: saved with the button, the field stays open when it can't be */-->
     <form class="flex flex-col gap-2" th:if="${letterEditing}" th:hx-post="@{/applications/{id}/letter(id=${letterJobId})}"
           hx-target="#cover-letter" hx-swap="outerHTML">
-        <textarea class="input min-h-[16rem] text-[13px] leading-relaxed" name="body" rows="14" maxlength="6000"
-                  th:aria-label="#{letter.title}" th:placeholder="#{letter.placeholder}"
-                  th:text="${letterDraft} ?: ${letter?.body}"></textarea>
+        <label class="contents">
+            <span class="sr-only" th:text="#{letter.title}">Cover letter</span>
+            <textarea class="input min-h-[16rem] text-[13px] leading-relaxed" name="body" rows="14" maxlength="6000"
+                      th:placeholder="#{letter.placeholder}" th:text="${letterDraft} ?: ${letter?.body}"></textarea>
+        </label>
         <p class="text-[13px] text-danger" role="alert" th:if="${letterError}" th:text="${letterError}">The letter is empty.</p>
         <div class="flex items-center gap-1.5">
             <button class="btn btn-primary" type="submit"><i class="ph ph-floppy-disk"></i><span th:text="#{cv.save}">Save</span></button>

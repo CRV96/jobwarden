@@ -1,6 +1,7 @@
 package com.jobwarden.web.controller;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Optional;
@@ -63,7 +64,7 @@ class SettingsController extends BaseController {
 
 	@GetMapping
 	String settings(Model model, Locale locale) {
-		model.addAttribute(ModelAttributes.TODAY, LocalDate.now());
+		model.addAttribute(ModelAttributes.TODAY, LocalDate.now(ZoneId.systemDefault()));
 		model.addAttribute(ModelAttributes.LANGUAGES, Language.values());
 		model.addAttribute(ModelAttributes.CURRENT_LANGUAGE,
 				Language.fromTag(locale.toLanguageTag()).orElse(Language.DEFAULT));

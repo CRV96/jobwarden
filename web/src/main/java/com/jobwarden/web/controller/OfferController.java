@@ -1,6 +1,7 @@
 package com.jobwarden.web.controller;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,7 +75,7 @@ class OfferController extends BaseController {
 			.encode()
 			.build()
 			.toUriString());
-		model.addAttribute(ModelAttributes.TODAY, LocalDate.now());
+		model.addAttribute(ModelAttributes.TODAY, LocalDate.now(ZoneId.systemDefault()));
 		addImages(model, userId);
 		return Views.OFFERS;
 	}

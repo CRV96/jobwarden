@@ -67,29 +67,29 @@
                its own when the window is too short for it. */-->
         <nav class="-mx-1 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-1" th:aria-label="#{nav.label}">
             <div class="flex flex-col gap-0.5" role="group" aria-labelledby="nav-group-track">
-                <h2 th:replace="~{layout :: nav-heading('track', false)}"></h2>
-                <a th:replace="~{layout :: nav-link(@{/applications}, #{nav.jobs}, 'ph-briefcase', ${section == 'jobs'}, ${applicationCount}, 'count')}"></a>
-                <a th:replace="~{layout :: nav-link(@{/pipeline}, #{nav.pipeline}, 'ph-kanban', ${section == 'pipeline'}, null, null)}"></a>
-                <a th:replace="~{layout :: nav-link(@{/calendar}, #{nav.calendar}, 'ph-calendar-dots', ${section == 'calendar'}, null, null)}"></a>
-                <a th:replace="~{layout :: nav-link(@{/inbox}, #{nav.inbox}, 'ph-envelope-simple', ${section == 'inbox'}, ${inboxCount}, 'pill')}"></a>
+                <th:block th:replace="~{layout :: nav-heading('track', false)}"></th:block>
+                <th:block th:replace="~{layout :: nav-link(@{/applications}, #{nav.jobs}, 'ph-briefcase', ${section == 'jobs'}, ${applicationCount}, 'count')}"></th:block>
+                <th:block th:replace="~{layout :: nav-link(@{/pipeline}, #{nav.pipeline}, 'ph-kanban', ${section == 'pipeline'}, null, null)}"></th:block>
+                <th:block th:replace="~{layout :: nav-link(@{/calendar}, #{nav.calendar}, 'ph-calendar-dots', ${section == 'calendar'}, null, null)}"></th:block>
+                <th:block th:replace="~{layout :: nav-link(@{/inbox}, #{nav.inbox}, 'ph-envelope-simple', ${section == 'inbox'}, ${inboxCount}, 'pill')}"></th:block>
             </div>
             <div class="flex flex-col gap-0.5" role="group" aria-labelledby="nav-group-find">
-                <h2 th:replace="~{layout :: nav-heading('find', true)}"></h2>
-                <a th:replace="~{layout :: nav-link(@{/discover}, #{nav.discover}, 'ph-sparkle', ${section == 'discover'}, ${discoverCount}, 'pill')}"></a>
-                <a th:replace="~{layout :: nav-link(@{/search}, #{nav.search}, 'ph-list-magnifying-glass', ${section == 'search'}, null, null)}"></a>
-                <a th:replace="~{layout :: nav-link(@{/watchlist}, #{nav.watchlist}, 'ph-binoculars', ${section == 'watchlist'}, null, null)}"></a>
-                <a th:replace="~{layout :: nav-link(@{/hiring}, #{nav.hiring}, 'ph-megaphone-simple', ${section == 'hiring'}, null, null)}"></a>
+                <th:block th:replace="~{layout :: nav-heading('find', true)}"></th:block>
+                <th:block th:replace="~{layout :: nav-link(@{/discover}, #{nav.discover}, 'ph-sparkle', ${section == 'discover'}, ${discoverCount}, 'pill')}"></th:block>
+                <th:block th:replace="~{layout :: nav-link(@{/search}, #{nav.search}, 'ph-list-magnifying-glass', ${section == 'search'}, null, null)}"></th:block>
+                <th:block th:replace="~{layout :: nav-link(@{/watchlist}, #{nav.watchlist}, 'ph-binoculars', ${section == 'watchlist'}, null, null)}"></th:block>
+                <th:block th:replace="~{layout :: nav-link(@{/hiring}, #{nav.hiring}, 'ph-megaphone-simple', ${section == 'hiring'}, null, null)}"></th:block>
             </div>
             <div class="flex flex-col gap-0.5" role="group" aria-labelledby="nav-group-apply">
-                <h2 th:replace="~{layout :: nav-heading('apply', true)}"></h2>
-                <a th:replace="~{layout :: nav-link(@{/cv}, #{nav.cv}, 'ph-identification-card', ${section == 'cv'}, null, null)}"></a>
-                <a th:replace="~{layout :: nav-link(@{/apply}, #{nav.apply}, 'ph-paper-plane-tilt', ${section == 'apply'}, null, null)}"></a>
+                <th:block th:replace="~{layout :: nav-heading('apply', true)}"></th:block>
+                <th:block th:replace="~{layout :: nav-link(@{/cv}, #{nav.cv}, 'ph-identification-card', ${section == 'cv'}, null, null)}"></th:block>
+                <th:block th:replace="~{layout :: nav-link(@{/apply}, #{nav.apply}, 'ph-paper-plane-tilt', ${section == 'apply'}, null, null)}"></th:block>
             </div>
             <div class="flex flex-col gap-0.5" role="group" aria-labelledby="nav-group-decide">
-                <h2 th:replace="~{layout :: nav-heading('decide', true)}"></h2>
-                <a th:replace="~{layout :: nav-link(@{/offers}, #{nav.offers}, 'ph-handshake', ${section == 'offers'}, null, null)}"></a>
-                <a th:replace="~{layout :: nav-link(@{/salaries}, #{nav.salaries}, 'ph-coins', ${section == 'salaries'}, null, null)}"></a>
-                <a th:replace="~{layout :: nav-link(@{/statistics}, #{nav.statistics}, 'ph-chart-bar', ${section == 'statistics'}, null, null)}"></a>
+                <th:block th:replace="~{layout :: nav-heading('decide', true)}"></th:block>
+                <th:block th:replace="~{layout :: nav-link(@{/offers}, #{nav.offers}, 'ph-handshake', ${section == 'offers'}, null, null)}"></th:block>
+                <th:block th:replace="~{layout :: nav-link(@{/salaries}, #{nav.salaries}, 'ph-coins', ${section == 'salaries'}, null, null)}"></th:block>
+                <th:block th:replace="~{layout :: nav-link(@{/statistics}, #{nav.statistics}, 'ph-chart-bar', ${section == 'statistics'}, null, null)}"></th:block>
             </div>
         </nav>
 
