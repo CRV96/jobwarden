@@ -555,7 +555,7 @@ class RequestTools implements McpToolSet {
 	private static String writeCoverLetter(@Nullable Long jobId) {
 		return """
 				job is the posting and its contact (without a description, read its link, asking for the role, the duties \
-				and the requirements); cv is the full CV.
+				and the requirements; cut short, read the rest where description_with says); cv is the full CV.
 				When the posting doesn't say what the company makes, find out with one web search.
 				base_letter, when there is one, is the person's own letter: keep its voice, its structure and the \
 				paragraphs it always has, change only what this job needs, write it in the posting's language, and fill \
@@ -654,7 +654,8 @@ class RequestTools implements McpToolSet {
 	 * with how the applications went.
 	 */
 	private static final String SCORING_STEPS = """
-			For a job without a description, read its link, asking for the requirements alone.
+			For a job without a description, read its link, asking for the requirements alone; for one cut short, read \
+			the rest where description_with says.
 			List %d to %d of the posting's requirements, short, in its words: the skills, tools, years, languages and \
 			duties that matter, and the place, the level and the work type when it sets them. MUST when required \
 			(required, must, you have, you are), NICE when a plus (nice to have, bonus, preferred, ideally).
@@ -701,8 +702,8 @@ class RequestTools implements McpToolSet {
 	 */
 	private static String tailorCv(@Nullable Long jobId) {
 		return """
-				job is the posting (without a description, read its link); cv is the full CV: the fields, and the text \
-				of the file uploaded.
+				job is the posting (without a description, read its link; cut short, the rest where description_with \
+				says); cv is the full CV: the fields, and the text of the file uploaded.
 				List what the posting asks for: skills, tools, certifications and duties, must-haves first, in its own \
 				words, e.g. Spring Boot rather than Spring, and Amazon Web Services (AWS) spelled out once.
 				Rewrite the CV for this job, truthfully: never add a skill, an employer, a title, a date, a degree or a \

@@ -440,6 +440,19 @@ class McpControllerTests {
 	}
 
 	@Test
+	void saysWhereTheRestOfABriefCvFilesTextIs() {
+		given(this.cvs.find(1)).willReturn(new Cv(new CvFile("cv.pdf", "application/pdf", 40_000, 10_000, Instant.now()),
+				CvDetails.NONE));
+		given(this.cvs.fileText(1)).willReturn(Optional.of("x".repeat(10_000)), Optional.of("x".repeat(CvTools.BRIEF_TEXT_LENGTH)));
+
+		// Cut to its start, the text says get_cv full=true has the rest; whole, it says nothing
+		assertThat(callTool("get_cv", "{}")).bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.file.text_with").isEqualTo("get_cv with full=true"));
+		assertThat(callTool("get_cv", "{}")).bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.file").asMap().doesNotContainKey("text_with"));
+	}
+
+	@Test
 	void leavesTheJobsPointsOutOfABriefCv() {
 		given(this.cvs.find(1)).willReturn(new Cv(null, CvDetails.builder()
 			.headline("Senior Java Developer")
@@ -1112,6 +1125,7 @@ class McpControllerTests {
 			.build());
 		// A 15,000-character posting, a 40,000-character CV file and forty long stories
 		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.INTERVIEWING).toBuilder()
+			.link("https://example.com/jobs/7")
 			.description("We build payments. ".repeat(800))
 			.build()));
 		given(this.cvs.find(1)).willReturn(new Cv(new CvFile("cv.pdf", "application/pdf", 40_000, 40_000, Instant.now()), CvDetails.NONE));
@@ -1125,6 +1139,7 @@ class McpControllerTests {
 				assertThat(body).extractingPath("$.result.content[0].text").asString().hasSizeLessThan(25_000);
 				// What was cut says where the rest is
 				assertThat(result(body)).extractingPath("$.cv.file.text_with").isEqualTo("get_cv with full=true");
+				assertThat(result(body)).extractingPath("$.job.description_with").isEqualTo("its link");
 				assertThat(result(body)).extractingPath("$.instructions")
 					.asString()
 					.startsWith("Pass profile_id 1 to every JobWarden tool you call for it.");

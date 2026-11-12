@@ -82,6 +82,9 @@ class JobTools implements McpToolSet {
 	/** The most of a posting's description get_job returns: the rest is boilerplate, mostly, and costs tokens. */
 	static final int DESCRIPTION_MAX_LENGTH = 12_000;
 
+	/** Where the rest of a description cut short is, when the job has a link. */
+	static final String DESCRIPTION_WITH_LINK = "its link";
+
 	private final Profiles profiles;
 
 	private final ApplicationService applications;
@@ -145,10 +148,14 @@ class JobTools implements McpToolSet {
 	 * The same, with no more of the description than given: for a request whose other data leaves less room.
 	 */
 	static JobDetails details(ApplicationDetails job, int descriptionMax) {
+		int max = Math.min(descriptionMax, DESCRIPTION_MAX_LENGTH);
+		boolean cut = job.description() != null && job.description().length() > max;
+		// Cut short, it says where the rest is: the posting, or else get_job, when a request cut it shorter
+		String descriptionWith = !cut ? null
+				: (job.link() != null) ? DESCRIPTION_WITH_LINK : (max < DESCRIPTION_MAX_LENGTH) ? "get_job" : null;
 		return new JobDetails(job.id(), job.title(), job.company(), job.location(), job.salary(), job.employmentType(),
-				job.status(), job.link(), job.notes(), followUp(job.followUp()),
-				shortened(job.description(), Math.min(descriptionMax, DESCRIPTION_MAX_LENGTH)),
-				job.timeline().stream().map(JobTools::step).toList());
+				job.status(), job.link(), job.notes(), followUp(job.followUp()), shortened(job.description(), max),
+				descriptionWith, job.timeline().stream().map(JobTools::step).toList());
 	}
 
 	private McpTool checkPostings() {
@@ -471,10 +478,15 @@ class JobTools implements McpToolSet {
 			ApplicationStatus status, @Nullable String link, Instant lastModified) {
 	}
 
-	/** A job: its timeline says when it was saved, and its link the site. */
+	/**
+	 * A job: its timeline says when it was saved, and its link the site.
+	 *
+	 * @param descriptionWith where the rest of the description is, when it's cut short: its link, or get_job
+	 */
 	record JobDetails(long id, String title, @Nullable String company, @Nullable String location,
 			@Nullable String salary, @Nullable String employmentType, ApplicationStatus status, @Nullable String link,
-			@Nullable String notes, @Nullable FollowUpView followUp, @Nullable String description, List<Step> timeline) {
+			@Nullable String notes, @Nullable FollowUpView followUp, @Nullable String description,
+			@Nullable String descriptionWith, List<Step> timeline) {
 	}
 
 	record Step(LocalDate date, @Nullable LocalTime time, ApplicationStatus status, @Nullable String stage,

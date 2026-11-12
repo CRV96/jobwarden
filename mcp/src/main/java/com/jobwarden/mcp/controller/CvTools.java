@@ -121,7 +121,8 @@ class CvTools implements McpToolSet {
 				|| (depth == Depth.POINTS && details.experience().stream().allMatch(job -> job.description() == null));
 		// Left out, or cut short, the file says where its text is, for the evidence only it has
 		String text = fileText ? fileText(userId, points, fileTextMax) : null;
-		boolean cut = text != null && points && text.length() >= fileTextMax;
+		// Cut, it's a character longer than its limit: the "…"
+		boolean cut = text != null && text.length() > (points ? fileTextMax : BRIEF_TEXT_LENGTH);
 		FileView file = (cv.file() == null) ? null
 				: new FileView(cv.file().fileName(), text, (!fileText || cut) ? FILE_TEXT_WITH : null);
 		return new CvView(filledIn || file != null, filledIn ? details(details, points) : null, file);
