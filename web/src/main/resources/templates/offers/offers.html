@@ -124,6 +124,10 @@
                                  th:text="#{offer.total.once(${@money.compact(total.once, currency)})}">And €5K once</div>
                             <div class="mt-0.5 text-xs text-ink/55 tabular-nums" th:if="${total.perEvent.signum() > 0}"
                                  th:text="#{offer.total.perEvent(${@money.compact(total.perEvent, currency)})}">And €500 each event</div>
+                            <!--/* A partial figure says so, not to be compared as a whole one */-->
+                            <div class="mt-0.5 flex items-center gap-1 text-xs text-ink/60" th:if="${total.uncounted > 0}">
+                                <i class="ph ph-info"></i><span th:text="#{offers.total.uncounted(${total.uncounted})}">1 extra not counted</span>
+                            </div>
                         </th:block>
                         <span class="text-ink/40" th:unless="${total != null and total.hasExtras()}">—</span>
                     </td>

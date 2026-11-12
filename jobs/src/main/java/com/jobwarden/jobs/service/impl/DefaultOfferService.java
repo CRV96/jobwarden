@@ -96,11 +96,14 @@ class DefaultOfferService implements OfferService {
 				.filter(extra -> extra.amount() != null && extra.unit() != null && !extra.isShareOfBase())
 				.map(OfferExtra::unit)
 				.findFirst());
+		// A salary in words that says no period is read as the comparison reads it: 5,000 EUR is a month
 		return currency.flatMap(shownIn -> OfferTotals.total(offer.extras(),
 				base.map(range -> range.low()
 					.add(range.high())
 					.divide(BigDecimal.TWO)
-					.multiply(BigDecimal.valueOf(Objects.requireNonNullElse(range.period(), SalaryPeriod.YEAR).perYear())))
+					.multiply(BigDecimal.valueOf(Objects
+						.requireNonNullElseGet(range.period(), () -> DefaultSalaryService.guessedPeriod(range, rates))
+						.perYear())))
 					.orElse(null),
 				shownIn, rates));
 	}
@@ -131,12 +134,17 @@ class DefaultOfferService implements OfferService {
 			String offered = offer.baseSalaryText();
 			String text = (offered != null) ? offered : blankToNull(job.salary());
 			// The figure picked as it is; words, the offer's from before or the posting's, as they read
-			Optional<SalaryRange> range = offer.baseSalaryRange().or(() -> parser.parse(text));
+			// A figure in a currency there's no exchange rate for can't be compared: it reads as unreadable
+			Optional<SalaryRange> range = offer.baseSalaryRange()
+				.or(() -> parser.parse(text))
+				.filter(found -> rates.currencies().contains(found.currency()));
 			range.ifPresent(read::add);
 			SalaryEntry salary = range.map(found -> DefaultSalaryService.entry(job, found, rates, shownIn, period))
 				.orElse(null);
-			// All in, a year of it, in the comparison's currency
-			BigDecimal baseYearly = (salary != null) ? salary.midpoint().multiply(BigDecimal.valueOf(period.perYear())) : null;
+			// All in, a year of it, in the comparison's currency: from a year, so the period shown rounds nothing in
+			BigDecimal baseYearly = range
+				.map(found -> DefaultSalaryService.entry(job, found, rates, shownIn, SalaryPeriod.YEAR).midpoint())
+				.orElse(null);
 			OfferTotal total = OfferTotals.total(offer.extras(), baseYearly, shownIn, rates).orElse(null);
 			compared.add(new ComparedOffer(job, offer, text, salary, offered == null && text != null, total,
 					scores.get(job.id()), withBrief.contains(job.id())));

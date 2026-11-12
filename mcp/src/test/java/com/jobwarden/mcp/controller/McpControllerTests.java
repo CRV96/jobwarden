@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.LongStream;
 
 import com.jayway.jsonpath.JsonPath;
 import com.jobwarden.apply.dto.ApplicationAnswers;
@@ -116,7 +117,9 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -696,6 +699,8 @@ class McpControllerTests {
 		assertThat(callTool("get_request", "{\"request_id\": 42}")).bodyJson().satisfies(body -> {
 			assertThat(result(body)).extractingPath("$.cv.fields.experience[0].description").isEqualTo("Built the payments API");
 			assertThat(result(body)).extractingPath("$.cv.file").asMap().doesNotContainKey("text");
+			// But says where it is, for evidence only the file has
+			assertThat(result(body)).extractingPath("$.cv.file.text_with").isEqualTo("get_cv with full=true");
 		});
 		// Rewriting the CV reads both: the file may say what the fields don't
 		assertThat(callTool("get_request", "{\"request_id\": 43}")).bodyJson()
@@ -1012,6 +1017,87 @@ class McpControllerTests {
 	}
 
 	@Test
+	void endsAutoApplysRequestOnlyOnceItsQueueIsDone() {
+		given(this.discovery.findRequest(1, 60)).willReturn(AiRequest.builder()
+			.id(60)
+			.kind(AiRequestKind.AUTO_APPLY)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WORKING)
+			.createdAt(Instant.now())
+			.build());
+		given(this.autoApply.findOpenItems(1)).willReturn(List.of(ApplyItem.builder()
+			.id(3)
+			.applicationId(7)
+			.title("Backend engineer")
+			.link("https://jobs.lever.co/acme/7")
+			.mode(ApplyMode.SUBMIT)
+			.status(ApplyStatus.QUEUED)
+			.createdAt(Instant.now())
+			.build()));
+
+		// An assistant that can't apply, which read it by mistake, can't end it while jobs wait
+		assertThat(callTool("finish_request", "{\"request_id\": 60, \"summary\": \"Done.\"}")).bodyJson()
+			.satisfies(body -> assertThat(body).extractingPath("$.result.content[0].text")
+				.asString()
+				.contains("Auto-apply ends when its queue is done"));
+		then(this.discovery).should(never()).finishRequest(anyLong(), anyLong(), anyBoolean(), anyString());
+		// It may say it couldn't
+		given(this.discovery.finishRequest(1, 60, false, "Can't drive the browser.")).willReturn(AiRequest.builder()
+			.id(60)
+			.kind(AiRequestKind.AUTO_APPLY)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.FAILED)
+			.createdAt(Instant.now())
+			.build());
+		assertThat(callTool("finish_request", "{\"request_id\": 60, \"summary\": \"Can't drive the browser.\", \"done\": false}"))
+			.bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.status").isEqualTo("FAILED"));
+	}
+
+	@Test
+	void addsTheJobsOfASavedSearchsRequestToThatSearch() {
+		given(this.discovery.startRequest(1, 61)).willReturn(AiRequest.builder()
+			.id(61)
+			.kind(AiRequestKind.FIND_JOBS)
+			.requirements(AiRequirements.builder()
+				.titles(List.of("Java Developer"))
+				.notes("From the saved search Java in Bucharest (search_id 5).")
+				.build())
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+
+		assertThat(callTool("get_request", "{\"request_id\": 61}")).bodyJson()
+			.extractingPath("$.result.content[0].text")
+			.asString()
+			.contains("Pass search_id 5 to add_found_jobs too");
+	}
+
+	@Test
+	void handsOutAsMuchOfTheStoryBankAsFitsAndTheRestByTitle() {
+		given(this.discovery.startRequest(1, 62)).willReturn(AiRequest.builder()
+			.id(62)
+			.kind(AiRequestKind.PREPARE_INTERVIEW)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.INTERVIEWING)));
+		// Forty stories of about a thousand characters: far more than a request hands out
+		given(this.stories.findAll(1)).willReturn(LongStream.rangeClosed(1, 40)
+			.mapToObj(id -> Story.builder().id(id).title("Story " + id).action("x".repeat(1000)).skills(List.of()).build())
+			.toList());
+
+		assertThat(callTool("get_request", "{\"request_id\": 62}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.stories").asArray().hasSizeBetween(7, 8);
+			assertThat(result(body)).extractingPath("$.story_titles").asArray().hasSizeBetween(32, 33).contains("Story 40");
+			assertThat(result(body)).extractingPath("$.instructions").asString().contains("list_stories gives in full");
+			assertThat(body).extractingPath("$.result.content[0].text").asString().hasSizeLessThan(25_000);
+		});
+	}
+
+	@Test
 	void listsTheJobsToApplyToWithTheCvToUpload() {
 		given(this.autoApply.findOpenItems(1)).willReturn(List.of(ApplyItem.builder()
 			.id(3)
@@ -1324,7 +1410,7 @@ class McpControllerTests {
 
 	@Test
 	void refusesMoreStoriesThanABriefNames() {
-		String ids = java.util.stream.LongStream.rangeClosed(1, 21)
+		String ids = LongStream.rangeClosed(1, 21)
 			.mapToObj(String::valueOf)
 			.collect(java.util.stream.Collectors.joining(", "));
 
@@ -1344,12 +1430,16 @@ class McpControllerTests {
 			.status(AiRequestStatus.WAITING)
 			.createdAt(Instant.now())
 			.build());
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.SAVED)));
 
-		assertThat(callTool("get_request", "{\"request_id\": 34}")).bodyJson()
-			.extractingPath("$.result.content[0].text")
-			.asString()
-			.contains("job is the posting", "cv is the full CV", "save_cover_letter and job_id 7", "no clichés",
-					"base_letter");
+		assertThat(callTool("get_request", "{\"request_id\": 34}")).bodyJson().satisfies(body -> {
+			assertThat(body).extractingPath("$.result.content[0].text")
+				.asString()
+				.contains("job is the posting", "cv is the full CV", "save_cover_letter and job_id 7", "no clichés",
+						"base_letter");
+			// With the job it's about
+			assertThat(result(body)).extractingPath("$.job.id").isEqualTo(7);
+		});
 	}
 
 	@Test

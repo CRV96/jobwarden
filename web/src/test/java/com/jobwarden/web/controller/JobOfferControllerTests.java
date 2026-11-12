@@ -197,6 +197,22 @@ class JobOfferControllerTests {
 	}
 
 	@Test
+	void refusesACurrencyNotInTheList() {
+		assertThat(this.mvc.put()
+			.uri("/applications/7/offer")
+			.param("baseSalaryAmount", "90000")
+			.param("baseSalaryCurrency", "ZZZ")
+			.param("extras[0].kind", "BONUS")
+			.param("extras[0].amount", "500")
+			.param("extras[0].unit", "ABCD")
+			.param("extras[0].frequency", "YEAR")
+			.header("HX-Request", "true")).hasStatusOk()
+			.bodyText()
+			.contains("Pick a currency from the list.");
+		then(this.offers).should(never()).save(anyLong(), anyLong(), any());
+	}
+
+	@Test
 	void refusesTermsTooLong() {
 		assertThat(this.mvc.put()
 			.uri("/applications/7/offer")

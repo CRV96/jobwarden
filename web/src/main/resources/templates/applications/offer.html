@@ -112,25 +112,40 @@
        in the template, which app.js numbers. A new row's amount is in the base salary's currency (baseCurrency). */-->
 <div th:fragment="extra-row(index, extra)" class="flex flex-wrap items-center gap-1.5 rounded-lg border border-line p-1.5" data-row
      th:with="unit=${extra != null and extra.unit != null} ? ${extra.unit} : ${baseCurrency}">
-    <select class="input w-auto min-w-0 flex-[1_1_140px]" th:name="|extras[${index}].kind|" th:aria-label="#{offer.extra.kind}">
-        <option th:each="kind : ${offerExtraKinds}" th:value="${kind}" th:selected="${extra != null and extra.kind == kind}"
-                th:text="#{|offer.extra.kind.${kind}|}">Bonus</option>
-    </select>
-    <input class="input w-auto min-w-0 flex-[1_1_96px]" type="number" min="0.01" step="any" inputmode="decimal" autocomplete="off"
-           th:name="|extras[${index}].amount|" th:value="${extra?.amount?.stripTrailingZeros()?.toPlainString()}"
-           th:placeholder="#{offer.extra.amount}" th:aria-label="#{offer.extra.amount}">
-    <select class="input w-auto min-w-0 flex-[0_1_104px]" th:name="|extras[${index}].unit|" th:aria-label="#{offer.extra.unit}">
-        <option th:each="code : ${salaryCurrencies}" th:value="${code}" th:selected="${code == unit}" th:text="${code}">EUR</option>
-        <option value="%" th:selected="${unit == '%'}" th:text="#{offer.extra.unit.share}">% of base</option>
-    </select>
-    <select class="input w-auto min-w-0 flex-[1_1_140px]" th:name="|extras[${index}].frequency|" th:aria-label="#{offer.extra.frequency}">
-        <option th:each="frequency : ${payFrequencies}" th:value="${frequency}"
-                th:selected="${extra != null} ? ${extra.frequency == frequency} : ${frequency.name() == 'YEAR'}"
-                th:text="#{|offer.extra.frequency.${frequency}|}">yearly</option>
-    </select>
-    <input class="input w-auto min-w-0 flex-[3_1_200px]" type="text" maxlength="200" autocomplete="off"
-           th:name="|extras[${index}].note|" th:value="${extra?.note}"
-           th:placeholder="#{offer.extra.note}" th:aria-label="#{offer.extra.note}">
+    <!--/* Each field in a label of its own, its name for screen readers alone; contents keeps them the row's items */-->
+    <label class="contents">
+        <span class="sr-only" th:text="#{offer.extra.kind}">What it is</span>
+        <select class="input w-auto min-w-0 flex-[1_1_140px]" th:name="|extras[${index}].kind|">
+            <option th:each="kind : ${offerExtraKinds}" th:value="${kind}" th:selected="${extra != null and extra.kind == kind}"
+                    th:text="#{|offer.extra.kind.${kind}|}">Bonus</option>
+        </select>
+    </label>
+    <label class="contents">
+        <span class="sr-only" th:text="#{offer.extra.amount}">Amount</span>
+        <input class="input w-auto min-w-0 flex-[1_1_96px]" type="number" min="0.01" step="any" inputmode="decimal" autocomplete="off"
+               th:name="|extras[${index}].amount|" th:value="${extra?.amount?.stripTrailingZeros()?.toPlainString()}"
+               th:placeholder="#{offer.extra.amount}">
+    </label>
+    <label class="contents">
+        <span class="sr-only" th:text="#{offer.extra.unit}">Currency, or a share of the base salary</span>
+        <select class="input w-auto min-w-0 flex-[0_1_104px]" th:name="|extras[${index}].unit|">
+            <option th:each="code : ${salaryCurrencies}" th:value="${code}" th:selected="${code == unit}" th:text="${code}">EUR</option>
+            <option value="%" th:selected="${unit == '%'}" th:text="#{offer.extra.unit.share}">% of base</option>
+        </select>
+    </label>
+    <label class="contents">
+        <span class="sr-only" th:text="#{offer.extra.frequency}">How often</span>
+        <select class="input w-auto min-w-0 flex-[1_1_140px]" th:name="|extras[${index}].frequency|">
+            <option th:each="frequency : ${payFrequencies}" th:value="${frequency}"
+                    th:selected="${extra != null} ? ${extra.frequency == frequency} : ${frequency.name() == 'YEAR'}"
+                    th:text="#{|offer.extra.frequency.${frequency}|}">yearly</option>
+        </select>
+    </label>
+    <label class="contents">
+        <span class="sr-only" th:text="#{offer.extra.note}">What for, or where from</span>
+        <input class="input w-auto min-w-0 flex-[3_1_200px]" type="text" maxlength="200" autocomplete="off"
+               th:name="|extras[${index}].note|" th:value="${extra?.note}" th:placeholder="#{offer.extra.note}">
+    </label>
     <button class="btn btn-ghost btn-icon" type="button" data-remove-row th:title="#{offer.extras.remove}"
             th:aria-label="#{offer.extras.remove}">
         <i class="ph ph-trash"></i>

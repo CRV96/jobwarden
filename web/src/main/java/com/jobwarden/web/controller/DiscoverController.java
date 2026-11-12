@@ -230,7 +230,9 @@ class DiscoverController extends BaseController {
 			.excludes(criteria.excludes())
 			.workTypes(criteria.workTypes())
 			.recency(criteria.recency())
-			.notes(notes.isEmpty() ? null : "From the saved search " + search.name() + ". " + String.join(" ", notes))
+			// Its id, which the request's steps pass to add_found_jobs: the jobs then show under the search
+			.notes(("From the saved search " + search.name() + " (search_id " + search.id() + "). " + String.join(" ", notes))
+				.strip())
 			.build();
 	}
 
@@ -251,9 +253,11 @@ class DiscoverController extends BaseController {
 			.filter(request -> request.foundJobs() > 0)
 			.limit(REQUESTS_WITH_JOBS)
 			.collect(Collectors.toMap(AiRequest::id, request -> this.discovery.findFoundJobsOfRequest(userId, request.id()))));
+		// Auto-apply's is Claude Code's with Claude in Chrome, never run here; the others', the profile's assistant
 		model.addAttribute(ModelAttributes.AI_PROMPTS, requests.stream()
 			.filter(request -> request.status() == AiRequestStatus.WAITING)
-			.collect(Collectors.toMap(AiRequest::id, request -> prompt(model, request.id()))));
+			.collect(Collectors.toMap(AiRequest::id, request -> (request.kind() == AiRequestKind.AUTO_APPLY)
+					? connected(AssistantPrompts.forApplying(request.id(), userId)) : prompt(model, request.id()))));
 		model.addAttribute(ModelAttributes.AI_LOOP_PROMPT, AssistantPrompts.loop(requireProfile(model).assistant(), userId,
 				ServletUriComponentsBuilder.fromCurrentContextPath().path(this.requestsPath).toUriString()));
 		model.addAttribute(ModelAttributes.AI_OPEN, requests.stream().anyMatch(request -> request.status().isOpen()));

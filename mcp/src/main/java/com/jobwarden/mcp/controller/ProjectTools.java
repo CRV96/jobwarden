@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import com.jobwarden.cv.dto.CvDetails;
 import com.jobwarden.cv.dto.CvProject;
@@ -115,7 +116,9 @@ class ProjectTools implements McpToolSet {
 		String text = CODE_BLOCK.matcher(readme).replaceAll("");
 		text = IMAGE.matcher(text).replaceAll("");
 		text = HTML_TAG.matcher(text).replaceAll("");
-		text = BLANK_LINES.matcher(text.replaceAll("[ \t]+\n", "\n")).replaceAll("\n\n").strip();
+		// Each line's trailing spaces, in one pass: a regex retries a long run of them at each of its spaces
+		text = BLANK_LINES.matcher(text.lines().map(String::stripTrailing).collect(Collectors.joining("\n"))).replaceAll("\n\n")
+			.strip();
 		return text.isEmpty() ? null : shortened(text, README_MAX_LENGTH);
 	}
 

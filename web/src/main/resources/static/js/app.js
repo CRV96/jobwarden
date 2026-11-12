@@ -374,6 +374,15 @@ document.addEventListener('beforetoggle', (event) => {
 	menu.style.left = `${Math.max(8, anchor.right - width)}px`;
 }, true);
 
+// A job's AI card asked for something, took it back or deleted it: the overview under the job's facts asks again
+const ASSISTANT_CARD = /\/applications\/\d+\/(fit|cv|letter|outreach|prep|negotiation)(\/|$)/;
+document.addEventListener('htmx:afterRequest', (event) => {
+	const config = event.detail.requestConfig;
+	if (event.detail.successful && config && config.verb !== 'get' && ASSISTANT_CARD.test(config.path ?? '')) {
+		htmx.trigger(document.body, 'assistant-cards-changed');
+	}
+});
+
 // A card that asks again every few seconds (a request waiting for the assistant) waits while a popover in it is open,
 // e.g. the one saying to connect the assistant first: swapping the card would close it under the reader
 document.addEventListener('htmx:beforeRequest', (event) => {

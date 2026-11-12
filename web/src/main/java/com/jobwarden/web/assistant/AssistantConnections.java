@@ -202,8 +202,8 @@ public class AssistantConnections {
 		String headersOf = null;
 		boolean top = true;
 		for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
-			String text = line.strip();
-			if (text.isEmpty() || text.startsWith("#")) {
+			String text = withoutComment(line).strip();
+			if (text.isEmpty()) {
 				continue;
 			}
 			Matcher server = CODEX_SERVER.matcher(text);
@@ -256,6 +256,26 @@ public class AssistantConnections {
 			.findFirst()
 			.map(server -> new Connection(State.CONNECTED, null, profiles.get(server.getKey())))
 			.orElse(Connection.NOT_CONNECTED);
+	}
+
+	/** The line without a TOML comment: from a # that isn't inside a string to its end. */
+	static String withoutComment(String line) {
+		char quote = 0;
+		for (int i = 0; i < line.length(); i++) {
+			char c = line.charAt(i);
+			if (quote != 0) {
+				if (c == '\\' && quote == '"') {
+					i++;
+				} else if (c == quote) {
+					quote = 0;
+				}
+			} else if (c == '"' || c == '\'') {
+				quote = c;
+			} else if (c == '#') {
+				return line.substring(0, i);
+			}
+		}
+		return line;
 	}
 
 	/** Called jobwarden, or at this computer's /mcp, whatever the port. */

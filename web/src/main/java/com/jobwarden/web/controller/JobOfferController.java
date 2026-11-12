@@ -1,13 +1,17 @@
 package com.jobwarden.web.controller;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import com.jobwarden.discover.dto.AiRequest;
 import com.jobwarden.discover.enums.AiRequestKind;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.jobs.dto.JobOffer;
+import com.jobwarden.jobs.dto.OfferExtra;
 import com.jobwarden.jobs.dto.SalaryRange;
 import com.jobwarden.jobs.enums.OfferExtraKind;
 import com.jobwarden.jobs.enums.PayFrequency;
@@ -26,6 +30,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -101,8 +106,9 @@ class JobOfferController extends BaseController {
 	String saveTerms(@PathVariable long id, @Valid OfferForm form, BindingResult result, Model model,
 			HttpServletResponse response) {
 		long userId = requireProfile(model).id();
-		if (result.hasErrors()) {
-			Map<String, String> errors = fieldErrors(result);
+		Map<String, String> errors = fieldErrors(result);
+		errors.putAll(currencyErrors(form));
+		if (!errors.isEmpty()) {
 			log.debug("Offer terms of application {} not saved, fields with errors: {}", id, errors.keySet());
 			model.addAttribute(ModelAttributes.FIELD_ERRORS, errors);
 		} else {
@@ -112,6 +118,33 @@ class JobOfferController extends BaseController {
 			response.setHeader(HtmxHeaders.TRIGGER, HtmxEvents.APPLICATIONS_CHANGED);
 		}
 		return Views.OFFER_TERMS_STATUS_FRAGMENT;
+	}
+
+	/**
+	 * The currencies the form sends, which must be ones there's an exchange rate for, as its lists offer: the base
+	 * salary's, and each extra's (or % of the base salary). Anything else would save, then not compare.
+	 */
+	private Map<String, String> currencyErrors(OfferForm form) {
+		Set<String> currencies = Set.copyOf(this.salaries.currencies());
+		Map<String, String> errors = new LinkedHashMap<>();
+		String base = blankToNull(form.baseSalaryCurrency());
+		if (form.baseSalaryAmount() != null && base != null && !currencies.contains(base.toUpperCase(Locale.ROOT))) {
+			errors.put("baseSalaryCurrency", text("validation.offer.currency"));
+		}
+		List<OfferForm.ExtraRow> extras = (form.extras() == null) ? List.of() : form.extras();
+		for (int i = 0; i < extras.size(); i++) {
+			OfferForm.ExtraRow extra = extras.get(i);
+			String unit = (extra == null) ? null : blankToNull(extra.unit());
+			if (extra != null && extra.amount() != null && unit != null && !OfferExtra.SHARE_OF_BASE.equals(unit)
+					&& !currencies.contains(unit.toUpperCase(Locale.ROOT))) {
+				errors.put("extras[" + i + "].unit", text("validation.offer.currency"));
+			}
+		}
+		return errors;
+	}
+
+	private static @Nullable String blankToNull(@Nullable String text) {
+		return (text == null || text.isBlank()) ? null : text.strip();
 	}
 
 	/**

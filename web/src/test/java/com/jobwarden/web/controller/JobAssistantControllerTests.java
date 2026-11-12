@@ -100,7 +100,7 @@ class JobAssistantControllerTests {
 					"href=\"#tailored-cv\"", "data-jump=\"tailored-cv\"", "AI-proof CV", "Generated", "Cover letter",
 					"In progress", "Reach out", "Not generated", "Interview prep",
 					// While the assistant writes the letter, it asks again
-					"hx-trigger=\"every 5s\"")
+					"hx-trigger=\"every 5s, assistant-cards-changed from:body\"")
 			// The negotiation's card is there at Offer only
 			.doesNotContain("Negotiation");
 	}
@@ -110,7 +110,9 @@ class JobAssistantControllerTests {
 		job(ApplicationStatus.OFFER);
 
 		assertThat(this.mvc.get().uri("/applications/7/assistant").header("HX-Request", "true")).bodyText()
-			.contains("Negotiation", "href=\"#negotiation\"")
+			.contains("Negotiation", "href=\"#negotiation\"",
+					// Asked again only as a card changes
+					"hx-trigger=\"assistant-cards-changed from:body\"")
 			.doesNotContain("every 5s", "out of 5");
 	}
 

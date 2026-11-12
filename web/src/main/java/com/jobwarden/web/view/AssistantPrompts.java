@@ -182,8 +182,10 @@ public final class AssistantPrompts {
 	 * @param waitingUrl where JobWarden says how many requests wait, e.g. http://localhost:8080/claude/requests
 	 */
 	public static String loop(Assistant assistant, long profileId, String waitingUrl) {
+		// Every call names the profile, whichever one the assistant's own configuration names
 		String prompt = "Do the waiting JobWarden requests but the AUTO_APPLY ones: call list_requests with profile_id "
-				+ profileId + ", then do each one with get_request and finish_request." + UNATTENDED;
+				+ profileId + ", then do each one with get_request and finish_request, each with profile_id " + profileId + "."
+				+ UNATTENDED;
 		String run = switch (assistant) {
 			case CLAUDE_CODE -> "claude -p \"" + prompt + "\" --allowedTools '" + CLAUDE_LOOP_TOOLS + "' --disallowedTools '"
 					+ CLAUDE_LOOP_DENIED_TOOLS + "'";

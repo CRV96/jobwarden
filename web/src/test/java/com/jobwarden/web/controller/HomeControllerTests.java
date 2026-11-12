@@ -8,16 +8,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import com.jobwarden.discover.dto.AiRequest;
+import com.jobwarden.discover.dto.AiRequirements;
 import com.jobwarden.discover.dto.SavedSearch;
+import com.jobwarden.discover.enums.AiRequestKind;
+import com.jobwarden.discover.enums.AiRequestStatus;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.service.UserService;
 import com.jobwarden.jobs.dto.CalendarEntry;
-import com.jobwarden.jobs.dto.JobActivity;
 import com.jobwarden.jobs.dto.JobActivity.Day;
 import com.jobwarden.jobs.dto.JobActivity.Entry;
 import com.jobwarden.jobs.dto.JobActivity.FollowUpDue;
 import com.jobwarden.jobs.dto.JobActivity.Tally;
+import com.jobwarden.jobs.dto.JobActivity;
 import com.jobwarden.jobs.dto.JobStatistics;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.enums.CalendarEntryKind;
@@ -37,7 +41,6 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
@@ -73,7 +76,6 @@ class HomeControllerTests {
 		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
 		given(this.statistics.find(1)).willReturn(new JobStatistics(20, 10, 4, 2, 1, 9, List.of(), List.of(), List.of(),
 				List.of(), List.of()));
-		given(this.discovery.findRequests(eq(1L), anyInt())).willReturn(List.of());
 	}
 
 	@Test
@@ -108,6 +110,9 @@ class HomeControllerTests {
 				.status(ApplicationStatus.SAVED)
 				.build()));
 		given(this.discovery.countToReview(1, null)).willReturn(4L);
+		// Every open request, however old: Auto-apply's on its own page
+		given(this.discovery.findOpenRequests(1)).willReturn(List.of(openRequest(40, AiRequestKind.SCORE_JOB),
+				openRequest(41, AiRequestKind.WRITE_COVER_LETTER), openRequest(42, AiRequestKind.AUTO_APPLY)));
 		given(this.discovery.findSearches(1)).willReturn(List.of(new SavedSearch(5, "Java in Bucharest", SearchCriteria.builder()
 			.titles(List.of("Java Developer"))
 			.locations(List.of("Bucharest"))
@@ -125,6 +130,7 @@ class HomeControllerTests {
 			// What happened lately, and what waits
 			.contains("Recent activity", "href=\"/applications/7\"", "Acme · Technical interview", "Interviewing")
 			.contains("Waiting for you", "4 jobs to review", "href=\"/discover\"", "1 offer to decide on",
+					"2 requests waiting for the assistant", "1 Auto-apply run waiting for you at the browser", "href=\"/apply\"",
 					"Follow up on Backend Engineer (Today)", "href=\"/applications/8\"")
 			.contains("Coming up", "Final round", "10:00", "Your jobs", "href=\"/pipeline\"")
 			// The saved searches: again in the Search Builder, or by the assistant
@@ -144,6 +150,16 @@ class HomeControllerTests {
 			.bodyText()
 			.contains("Welcome to JobWarden", "Add a job", "Nothing in the last 30 days yet.", "All caught up.",
 					"Nothing in the next 7 days.", "No saved searches yet");
+	}
+
+	private static AiRequest openRequest(long id, AiRequestKind kind) {
+		return AiRequest.builder()
+			.id(id)
+			.kind(kind)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build();
 	}
 
 	@Test

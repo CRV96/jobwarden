@@ -355,6 +355,7 @@ public final class AppConstants {
 		public static final String MOST_IN_A_STATUS = "mostInAStatus";
 		public static final String COMING_UP = "comingUp";
 		public static final String OPEN_REQUESTS = "openRequests";
+		public static final String OPEN_APPLY_REQUESTS = "openApplyRequests";
 		public static final String OFFER_COUNT = "offerCount";
 		/**
 		 * The pipeline's columns: each status with the first page of its applications (a {@code Page}), in the order of

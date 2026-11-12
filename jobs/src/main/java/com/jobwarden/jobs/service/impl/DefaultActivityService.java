@@ -78,7 +78,7 @@ class DefaultActivityService implements ActivityService {
 	public JobActivity find(long userId, LocalDate today, ZoneId zone) {
 		LocalDate weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
 		LocalDate monthStart = today.withDayOfMonth(1);
-		LocalDate chartStart = today.minusDays(JobActivity.DAYS - 1);
+		LocalDate chartStart = today.minusDays(JobActivity.DAYS - 1L);
 		LocalDate from = Stream.of(weekStart.minusWeeks(1), monthStart.minusMonths(1), chartStart)
 			.min(LocalDate::compareTo)
 			.orElseThrow();

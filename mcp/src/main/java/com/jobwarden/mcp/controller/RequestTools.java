@@ -6,8 +6,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import com.jobwarden.apply.service.AutoApplyService;
 import com.jobwarden.cv.dto.OutreachDraft;
 import com.jobwarden.cv.service.CoverLetterService;
 import com.jobwarden.discover.dto.AiRequest;
@@ -60,6 +63,9 @@ class RequestTools implements McpToolSet {
 
 	private static final int SUMMARY_MAX_LENGTH = 2000;
 
+	/** The most of the story bank an interview's request hands out, in characters; list_stories has the rest. */
+	static final int STORIES_MAX_LENGTH = 8_000;
+
 	/** How long after applying an application with no news counts as No response, and when to follow up before. */
 	static final int NO_RESPONSE_AFTER_DAYS = 30;
 
@@ -103,6 +109,8 @@ class RequestTools implements McpToolSet {
 
 	private final FitTools fits;
 
+	private final AutoApplyService autoApply;
+
 	@Override
 	public List<McpTool> tools() {
 		return List.of(listRequests(), getRequest(), finishRequest());
@@ -132,6 +140,18 @@ class RequestTools implements McpToolSet {
 				});
 	}
 
+	/**
+	 * Auto-apply's request ends with its queue: an assistant that can't apply (the loop, Run, Codex) can't end it
+	 * while jobs wait, whatever it reads.
+	 */
+	private void requireApplied(long userId, long requestId, boolean done) {
+		if (done && this.discovery.findRequest(userId, requestId).kind() == AiRequestKind.AUTO_APPLY
+				&& !this.autoApply.findOpenItems(userId).isEmpty()) {
+			throw new ToolException("Auto-apply ends when its queue is done, in the profile's browser with Claude in Chrome: "
+					+ "leave this request");
+		}
+	}
+
 	private McpTool finishRequest() {
 		return new McpTool("finish_request", "Finish a request",
 				"Marks a request done, or failed, with a summary the profile reads.",
@@ -143,6 +163,7 @@ class RequestTools implements McpToolSet {
 				false, false, call -> {
 					long userId = this.profiles.of(call);
 					String summary = call.requiredString("summary");
+					requireApplied(userId, call.requiredNumber("request_id"), call.arguments().path("done").asBoolean(true));
 					AiRequest request = this.discovery.finishRequest(userId, call.requiredNumber("request_id"),
 							call.arguments().path("done").asBoolean(true),
 							(summary.length() <= SUMMARY_MAX_LENGTH) ? summary : summary.substring(0, SUMMARY_MAX_LENGTH - 1) + "…");
@@ -150,6 +171,20 @@ class RequestTools implements McpToolSet {
 							request.status());
 					return row(request);
 				});
+	}
+
+	/** In a request made from a saved search, its notes name it: e.g. From the saved search Java (search_id 5). */
+	private static final Pattern SAVED_SEARCH = Pattern.compile("\\(search_id (\\d+)\\)");
+
+	/**
+	 * For a request made from a saved search: the search to add the jobs to, so they show under it.
+	 */
+	private static String savedSearch(AiRequest request) {
+		String notes = request.requirements().notes();
+		Matcher search = (notes == null) ? null : SAVED_SEARCH.matcher(notes);
+		return (search != null && search.find())
+				? "\nPass search_id " + search.group(1) + " to add_found_jobs too: they then show under that saved search."
+				: "";
 	}
 
 	/**
@@ -177,7 +212,7 @@ class RequestTools implements McpToolSet {
 					they say more, decide the titles, the seniority and where to look.
 					""" + findAndAdd;
 			case FIND_JOBS -> (request.requirements().useCv() ? "Look for jobs that fit the requirements and cv.\n"
-					: "Look for jobs that fit the requirements.\n") + findAndAdd;
+					: "Look for jobs that fit the requirements.\n") + findAndAdd + savedSearch(request);
 			case RUN_SAVED_SEARCHES -> """
 					Run each of saved_searches' queries with your web search.
 					Pass the results' links to filter_links; open only the new ones that look right, with a short question.
@@ -255,18 +290,31 @@ class RequestTools implements McpToolSet {
 		List<RecipientRef> recipients = (kind == AiRequestKind.WRITE_OUTREACH && job != null) ? recipients(userId, job)
 				: List.of();
 		String baseLetter = (kind == AiRequestKind.WRITE_COVER_LETTER) ? baseLetter(userId, job) : null;
+		// An interview's stories, as many as fit, the others by title for list_stories; a draft's, the titles not to repeat
+		List<StoryTools.StoryView> stories = List.of();
+		List<String> storyTitles = List.of();
+		if (kind == AiRequestKind.PREPARE_INTERVIEW) {
+			List<StoryTools.StoryView> all = this.stories.views(userId);
+			stories = StoryTools.within(all, STORIES_MAX_LENGTH);
+			storyTitles = all.subList(stories.size(), all.size()).stream().map(StoryTools.StoryView::title).toList();
+		} else if (kind == AiRequestKind.WRITE_STORIES) {
+			storyTitles = this.stories.titles(userId);
+		}
 		// Only the names: the boards are JobWarden's to read
 		List<String> watched = (taste != null) ? this.watchlist.findCompanies(userId)
 			.stream()
 			.limit(WATCHED_COMPANIES)
 			.map(WatchedCompany::name)
 			.toList() : List.of();
-		return new RequestDetails(request.id(), kind, instructions(request), requirements(request), taste, followed,
+		// An interview's bank bigger than a request hands out: the steps say where the rest is
+		String instructions = (kind == AiRequestKind.PREPARE_INTERVIEW && !storyTitles.isEmpty())
+				? instructions(request) + "\nstory_titles are more stories, which list_stories gives in full."
+				: instructions(request);
+		return new RequestDetails(request.id(), kind, instructions, requirements(request), taste, followed,
 				companies, watched, recipients,
 				(kind == AiRequestKind.RUN_SAVED_SEARCHES) ? this.searches.searches(userId) : List.of(),
 				(kind == AiRequestKind.SCORE_JOBS) ? this.fits.unscored(userId, SCORE_AT_ONCE) : List.of(),
-				(kind == AiRequestKind.PREPARE_INTERVIEW) ? this.stories.views(userId) : List.of(),
-				(kind == AiRequestKind.WRITE_STORIES) ? this.stories.titles(userId) : List.of(), baseLetter,
+				stories, storyTitles, baseLetter,
 				(job != null) ? JobTools.details(job) : null, cv(userId, request));
 	}
 
@@ -276,11 +324,12 @@ class RequestTools implements McpToolSet {
 	 */
 	private CvTools.@Nullable CvView cv(long userId, AiRequest request) {
 		return switch (request.kind()) {
-			case TAILOR_CV -> this.cvs.view(userId, CvTools.Depth.FULL);
+			case TAILOR_CV -> this.cvs.viewForRequest(userId, CvTools.Depth.FULL);
 			case PREPARE_INTERVIEW, SCORE_JOB, SCORE_JOBS, WRITE_COVER_LETTER, WRITE_STORIES ->
-				this.cvs.view(userId, CvTools.Depth.POINTS);
-			case FIND_JOBS_FOR_CV, WRITE_PROJECTS, WRITE_OUTREACH, NEGOTIATE_OFFER -> this.cvs.view(userId, CvTools.Depth.BRIEF);
-			case FIND_JOBS -> request.requirements().useCv() ? this.cvs.view(userId, CvTools.Depth.BRIEF) : null;
+				this.cvs.viewForRequest(userId, CvTools.Depth.POINTS);
+			case FIND_JOBS_FOR_CV, WRITE_PROJECTS, WRITE_OUTREACH, NEGOTIATE_OFFER ->
+				this.cvs.viewForRequest(userId, CvTools.Depth.BRIEF);
+			case FIND_JOBS -> request.requirements().useCv() ? this.cvs.viewForRequest(userId, CvTools.Depth.BRIEF) : null;
 			default -> null;
 		};
 	}

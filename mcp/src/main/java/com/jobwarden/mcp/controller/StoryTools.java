@@ -1,7 +1,9 @@
 package com.jobwarden.mcp.controller;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import com.jobwarden.cv.dto.Story;
 import com.jobwarden.cv.service.StoryService;
@@ -51,6 +53,30 @@ class StoryTools implements McpToolSet {
 	/** The story bank as list_stories gives it, which get_request also hands out to prepare an interview. */
 	List<StoryView> views(long userId) {
 		return this.stories.findAll(userId).stream().map(StoryTools::view).toList();
+	}
+
+	/**
+	 * As many of the stories as fit in the length given, in the bank's order, for a request that hands them out with
+	 * its other data; the others are for list_stories.
+	 */
+	static List<StoryView> within(List<StoryView> stories, int maxLength) {
+		List<StoryView> fitting = new ArrayList<>();
+		int length = 0;
+		for (StoryView story : stories) {
+			length += length(story);
+			if (length > maxLength && !fitting.isEmpty()) {
+				break;
+			}
+			fitting.add(story);
+		}
+		return fitting;
+	}
+
+	private static int length(StoryView story) {
+		return story.title().length() + String.join(", ", story.skills()).length()
+				+ Stream.of(story.situation(), story.task(), story.action(), story.result())
+					.mapToInt(text -> (text == null) ? 0 : text.length())
+					.sum();
 	}
 
 	/** The story bank's titles: enough not to write a story again. */

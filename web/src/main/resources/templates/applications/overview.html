@@ -14,9 +14,12 @@
 
 <!--/* jobFit is the job's fit (a JobFit) or null; overviewCards its cards (each an AssistantCard); while the assistant is
        on one (overviewWorking), it asks again every few seconds */-->
+<!--/* It asks again as a card asks for something, or deletes it (app.js: assistant-cards-changed), and every few
+       seconds while the assistant is on one */-->
 <div th:fragment="overview" class="flex flex-col gap-2 border-t border-line pt-3"
-     th:hx-get="${overviewWorking} ? @{/applications/{id}/assistant(id=${overviewJobId})}"
-     th:hx-trigger="${overviewWorking} ? 'every 5s'" hx-target="this" hx-swap="outerHTML">
+     th:hx-get="@{/applications/{id}/assistant(id=${overviewJobId})}"
+     th:hx-trigger="${overviewWorking} ? 'every 5s, assistant-cards-changed from:body' : 'assistant-cards-changed from:body'"
+     hx-target="this" hx-swap="outerHTML">
     <h3 class="flex items-center gap-1.5 text-xs font-medium text-ink/60">
         <i class="ph ph-sparkle text-accent"></i><span th:text="#{overview.title}">From the AI Assistant</span>
     </h3>

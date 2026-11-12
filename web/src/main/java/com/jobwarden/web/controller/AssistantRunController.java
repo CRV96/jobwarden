@@ -43,6 +43,9 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @CustomLog
 class AssistantRunController extends BaseController {
 
+	/** The most requests one Run starts the assistant on. */
+	static final int MAX_REQUESTS = 20;
+
 	private final AssistantRunner runner;
 
 	private final DiscoveryService discovery;
@@ -70,10 +73,11 @@ class AssistantRunController extends BaseController {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Run is for JobWarden's own pages");
 		}
 		User profile = requireProfile(model);
-		List<Long> ids = requests.stream().distinct().toList();
-		if (ids.isEmpty()) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No request to run");
+		// A page runs one request, or a few at once (the letters waiting): never more than a page shows
+		if (requests.isEmpty() || requests.size() > MAX_REQUESTS) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Run takes 1 to " + MAX_REQUESTS + " requests");
 		}
+		List<Long> ids = requests.stream().distinct().toList();
 		for (long id : ids) {
 			AiRequest request = this.discovery.findRequest(profile.id(), id);
 			if (request.status() != AiRequestStatus.WAITING || request.kind() == AiRequestKind.AUTO_APPLY) {

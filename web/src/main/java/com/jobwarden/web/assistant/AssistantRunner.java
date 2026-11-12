@@ -11,11 +11,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -63,6 +65,9 @@ public class AssistantRunner {
 
 	/** How long it may take to say: it's quick, a tenth of a second. */
 	private static final Duration SIGN_IN_STATUS_TIMEOUT = Duration.ofSeconds(10);
+
+	/** How long a run asked to stop has before it's made to. */
+	static final Duration STOP_GRACE = Duration.ofSeconds(10);
 
 	/** How long the cards keep saying why Run refused, for a request still waiting. */
 	static final Duration REFUSAL_SHOWN = Duration.ofMinutes(10);
@@ -151,7 +156,8 @@ public class AssistantRunner {
 		Process process;
 		Path output;
 		synchronized (this.running) {
-			if (isRunning(requestIds) || this.running.size() >= MAX_RUNNING) {
+			// Runs, not requests: one run may do several
+			if (isRunning(requestIds) || new HashSet<>(this.running.values()).size() >= MAX_RUNNING) {
 				throw new RunRefusedException(RunRefusedException.Reason.BUSY);
 			}
 			try {
@@ -175,12 +181,31 @@ public class AssistantRunner {
 		process.onExit()
 			.orTimeout(this.timeout.toMillis(), TimeUnit.MILLISECONDS)
 			.whenComplete((ended, failure) -> {
-				boolean tooLong = failure instanceof TimeoutException;
-				if (tooLong) {
-					process.descendants().forEach(ProcessHandle::destroy);
-					process.destroy();
+				if (!(failure instanceof TimeoutException)) {
+					finish(assistant, userId, requestIds, process, output, process.exitValue());
+					return;
 				}
-				finish(assistant, userId, requestIds, process, output, tooLong ? null : process.exitValue());
+				// Too long: it keeps its requests until it's gone, so nothing else picks them up while it still runs
+				stopped(process, STOP_GRACE).whenComplete((gone, error) -> finish(assistant, userId, requestIds, process, output, null));
+			});
+	}
+
+	/**
+	 * Asks the run and what it started to stop, makes them after a grace period, and completes once the run is gone.
+	 */
+	static CompletableFuture<Process> stopped(Process process, Duration grace) {
+		process.descendants().forEach(ProcessHandle::destroy);
+		process.destroy();
+		return process.onExit()
+			.completeOnTimeout(process, grace.toMillis(), TimeUnit.MILLISECONDS)
+			.thenCompose(stopping -> {
+				if (!stopping.isAlive()) {
+					return CompletableFuture.completedFuture(stopping);
+				}
+				log.warn("A run didn't stop within {}: made to", grace);
+				stopping.descendants().forEach(ProcessHandle::destroyForcibly);
+				stopping.destroyForcibly();
+				return stopping.onExit();
 			});
 	}
 
@@ -254,8 +279,7 @@ public class AssistantRunner {
 			this.refusals.remove(requestId);
 			Process process = this.running.remove(requestId);
 			if (process != null) {
-				process.descendants().forEach(ProcessHandle::destroy);
-				process.destroy();
+				stopped(process, STOP_GRACE);
 				log.info("Stopped the run of request {}: its profile is deleted", requestId);
 			}
 			try {

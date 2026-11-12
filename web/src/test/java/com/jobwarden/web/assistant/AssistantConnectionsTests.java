@@ -120,6 +120,14 @@ class AssistantConnectionsTests {
 				""");
 		assertThat(connections.find(Assistant.CODEX).isMissing()).isTrue();
 
+		// A comment after the table's name, and a # inside a string
+		codex("""
+				[mcp_servers.jobwarden] # JobWarden, on this computer
+				url = "http://localhost:8080/mcp#not-a-comment"
+				""");
+		assertThat(connections.find(Assistant.CODEX).state()).isEqualTo(State.CONNECTED);
+		assertThat(AssistantConnections.withoutComment("url = \"http://x/#a\" # b")).isEqualTo("url = \"http://x/#a\" ");
+
 		// Dotted, under another name
 		codex("""
 				mcp_servers.jw.url = "http://127.0.0.1:8080/mcp" # this computer

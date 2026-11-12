@@ -8,7 +8,8 @@
 <!--/* The homepage (HomeController): how the job hunt goes lately and what waits. activity is a JobActivity (day by day,
        today, this week and this month, the latest timeline entries, the follow-ups due), statistics a JobStatistics (the
        answers), jobsByStatus the jobs by status with mostInAStatus, comingUp the next days' calendar entries,
-       openRequests how many requests wait for the assistant, offerCount the jobs at Offer; discoverCount and inboxCount come with every page. Each
+       openRequests how many requests wait for the assistant and openApplyRequests how many Auto-apply runs (done on
+       their own page), offerCount the jobs at Offer; discoverCount and inboxCount come with every page. Each
        chart is one series in the accent colour, titled, its exact counts in each bar's tooltip. */-->
 <main class="flex flex-col gap-5"
       th:with="stats=${statistics}">
@@ -111,7 +112,8 @@
             <!--/* What waits: each a link to where it's done; follow-ups due, a job each */-->
             <section class="card flex flex-col gap-2 p-4" aria-labelledby="home-waiting-title"
                      th:with="review=${discoverCount ?: 0}, inbox=${inboxCount ?: 0}, offering=${offerCount},
-                              nothing=${review == 0 and inbox == 0 and openRequests == 0 and offering == 0 and activity.followUps.isEmpty()}">
+                              nothing=${review == 0 and inbox == 0 and openRequests == 0 and openApplyRequests == 0 and offering == 0
+                                       and activity.followUps.isEmpty()}">
                 <h2 id="home-waiting-title" class="section-title flex items-center gap-1.5">
                     <i class="ph ph-tray text-accent"></i><span th:text="#{home.waiting}">Waiting for you</span>
                 </h2>
@@ -125,6 +127,8 @@
                         <a th:replace="~{home/home :: waiting(${href}, 'ph-envelope-simple', ${label})}"></a></li>
                     <li th:if="${openRequests > 0}" th:with="href=@{/discover}, label=#{home.waiting.requests(${openRequests})}">
                         <a th:replace="~{home/home :: waiting(${href}, 'ph-robot', ${label})}"></a></li>
+                    <li th:if="${openApplyRequests > 0}" th:with="href=@{/apply}, label=#{home.waiting.apply(${openApplyRequests})}">
+                        <a th:replace="~{home/home :: waiting(${href}, 'ph-paper-plane-tilt', ${label})}"></a></li>
                     <li th:if="${offering > 0}" th:with="href=@{/offers}, label=#{home.waiting.offers(${offering})}">
                         <a th:replace="~{home/home :: waiting(${href}, 'ph-handshake', ${label})}"></a></li>
                     <li th:each="due : ${activity.followUps}" th:with="href=@{/applications/{id}(id=${due.applicationId})},
@@ -193,8 +197,8 @@
                         <div class="min-w-0">
                             <div class="truncate text-[13px] font-medium" th:text="${search.name}">Java in Bucharest</div>
                             <div class="truncate text-xs text-ink/55"
-                                 th:text="${criteria.titles.isEmpty()} ? #{home.searches.any} : ${#strings.listJoin(criteria.titles, ', ')}
-                                          + (${criteria.locations.isEmpty()} ? '' : ' · ' + ${#strings.listJoin(criteria.locations, ', ')})">Java Developer · Bucharest</div>
+                                 th:with="titles=${criteria.titles.isEmpty()} ? #{home.searches.any} : ${#strings.listJoin(criteria.titles, ', ')}"
+                                 th:text="${criteria.locations.isEmpty()} ? ${titles} : |${titles} · ${#strings.listJoin(criteria.locations, ', ')}|">Java Developer · Bucharest</div>
                         </div>
                         <div class="flex flex-wrap items-center gap-1.5">
                             <a class="btn btn-secondary px-2 py-1 text-xs" th:href="@{${searchUrls.get(search.id)}}">
@@ -232,8 +236,7 @@
             <span class="text-ink/55" th:text="#{home.chart.total(${total})}">12 in 30 days</span></span>
         <span class="text-ink/50" th:if="${total > 0}" th:text="#{home.chart.most(${most})}">Most in a day: 4</span>
     </figcaption>
-    <div class="flex h-24 items-end gap-[2px] border-b border-line" role="img"
-         th:aria-label="|${title}: #{home.chart.total(${total})}|">
+    <div class="flex h-24 items-end gap-[2px] border-b border-line" aria-hidden="true">
         <div class="group relative flex h-full min-w-0 flex-1 items-end" th:each="day, iter : ${activity.days}"
              th:with="count=${day.__${kind}__}">
             <div class="w-full rounded-t-[4px] bg-accent transition-opacity group-hover:opacity-80" th:if="${count > 0}"
@@ -248,6 +251,17 @@
         <span th:text="${@dates.dayAndMonth(activity.days[0].date)}">14 Oct</span>
         <span th:text="#{date.today}">Today</span>
     </div>
+    <!--/* The same, day by day, as text: for screen readers, which can't hover the columns */-->
+    <table class="sr-only">
+        <caption th:text="${title}">Applications sent</caption>
+        <thead><tr><th scope="col" th:text="#{home.chart.date}">Day</th><th scope="col" th:text="${title}">Applications sent</th></tr></thead>
+        <tbody>
+        <tr th:each="day : ${activity.days}">
+            <td th:text="${@dates.dayAndMonth(day.date)}">12 Nov</td>
+            <td th:text="${day.__${kind}__}">3</td>
+        </tr>
+        </tbody>
+    </table>
     <p class="text-xs text-ink/55" th:if="${total == 0}" th:text="#{home.chart.empty}">Nothing in the last 30 days yet.</p>
 </figure>
 

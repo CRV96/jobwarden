@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.stream.IntStream;
 
 import com.jayway.jsonpath.JsonPath;
+import com.jobwarden.apply.dto.ApplicationAnswers;
 import com.jobwarden.apply.service.AutoApplyService;
 import com.jobwarden.cv.dto.BaseLetter;
 import com.jobwarden.cv.dto.Cv;
@@ -63,6 +64,11 @@ import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.jobs.service.InterviewBriefService;
 import com.jobwarden.jobs.service.JobFitService;
 import com.jobwarden.jobs.service.OfferService;
+import com.jobwarden.market.dto.MarketCountry;
+import com.jobwarden.market.dto.MarketFigure;
+import com.jobwarden.market.dto.MarketSalaries;
+import com.jobwarden.market.dto.SurveyStatus;
+import com.jobwarden.market.enums.MarketSource;
 import com.jobwarden.market.service.MarketSalaryService;
 import com.jobwarden.search.SearchCriteria;
 import com.jobwarden.search.WorkType;
@@ -167,6 +173,31 @@ class McpBudgetTests {
 	@BeforeEach
 	void aProfileLikeARealOne() {
 		Instant now = Instant.parse("2026-11-03T09:56:14.041461Z");
+		// Auto-apply's answers, and what the market pays, as the negotiation reads them
+		given(this.autoApply.findAnswers(1)).willReturn(ApplicationAnswers.builder()
+			.workAuthorization("EU citizen")
+			.needsSponsorship(false)
+			.noticePeriod("1 month")
+			.earliestStart("2027-01-04")
+			.salaryExpectation("90,000 EUR gross per year")
+			.willingToRelocate(false)
+			.workPreference("Remote or hybrid in Bucharest")
+			.yearsOfExperience(8)
+			.build());
+		given(this.market.roles()).willReturn(List.of("Developer, back-end", "Developer, full-stack"));
+		given(this.market.find(any(), any(), any())).willReturn(MarketSalaries.builder()
+			.role("Developer, back-end")
+			.skill("Java")
+			.currency("EUR")
+			.period(SalaryPeriod.YEAR)
+			.countries(List.of(
+					new MarketCountry("RO", List.of(new MarketFigure(MarketSource.STACK_OVERFLOW, 2025, new BigDecimal("38000"),
+							new BigDecimal("50000"), new BigDecimal("66000"), 412))),
+					new MarketCountry("DE", List.of(new MarketFigure(MarketSource.STACK_OVERFLOW, 2025, new BigDecimal("62000"),
+							new BigDecimal("75000"), new BigDecimal("90000"), 1210)))))
+			.survey(new SurveyStatus(2025, 18000, now, false, null))
+			.adzunaSearch("java developer")
+			.build());
 		given(this.users.findAll()).willReturn(List.of(new User(1, "Robert", now)));
 		given(this.users.exists(1)).willReturn(true);
 		given(this.cvs.find(1)).willReturn(new Cv(new CvFile("CV.pdf", "application/pdf", 90_000, 6000, now), cv(now)));
@@ -276,7 +307,11 @@ class McpBudgetTests {
 			reads.put(kind, List.of());
 		}
 		reads.put(AiRequestKind.WRITE_PROJECTS, List.<String[]>of(new String[] { "list_github_projects", "{}" }));
-		reads.put(AiRequestKind.NEGOTIATE_OFFER, List.<String[]>of(new String[] { "list_offers", "{}" }));
+		reads.put(AiRequestKind.NEGOTIATE_OFFER, List.<String[]>of(new String[] { "list_offers", "{}" },
+				new String[] { "get_market_salaries", "{\"role\": \"Developer, back-end\", \"skill\": \"Java\", \"countries\": [\"RO\", \"DE\"]}" }));
+		reads.put(AiRequestKind.AUTO_APPLY, List.<String[]>of(new String[] { "get_application_answers", "{}" },
+				new String[] { "list_apply_queue", "{}" }));
+		reads.put(AiRequestKind.SORT_INBOX, List.<String[]>of(new String[] { "list_email_updates", "{}" }));
 		return reads;
 	}
 
@@ -318,7 +353,7 @@ class McpBudgetTests {
 
 		assertThat(modelFacing).hasSizeLessThan(TOOLS_BUDGET);
 		assertThat(requests).allSatisfy((kind, length) -> assertThat(length).as(kind.name()).isLessThan(REQUEST_BUDGET));
-		assertThat(calls).isLessThanOrEqualTo(21);
+		assertThat(calls).isLessThanOrEqualTo(25);
 	}
 
 	/** What a client hands the model of each tool: its name, description and input schema. */
@@ -332,8 +367,10 @@ class McpBudgetTests {
 		return text.toString();
 	}
 
+	/** The tool's result: an error, which would measure its message, fails the test. */
 	private String text(String tool, String arguments) throws Exception {
 		String body = body("tools/call", "{\"name\": \"" + tool + "\", \"arguments\": " + arguments + "}");
+		assertThat(JsonPath.<Boolean>read(body, "$.result.isError")).as(tool + " " + arguments).isFalse();
 		return JsonPath.read(body, "$.result.content[0].text");
 	}
 

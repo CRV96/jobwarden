@@ -3,6 +3,8 @@ package com.jobwarden.web.controller;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 
 import com.jobwarden.discover.dto.AiRequest;
 import com.jobwarden.discover.dto.AiRequirements;
@@ -16,6 +18,7 @@ import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.web.assistant.AssistantRunner;
 import com.jobwarden.web.assistant.RunRefusedException;
 import com.jobwarden.web.user.CurrentUser;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -112,7 +115,17 @@ class AssistantRunControllerTests {
 		then(this.runner).should(never()).run(any(), anyLong(), any(), anyString());
 	}
 
-	private MvcTestResult run(String requests, String origin) {
+	@Test
+	void refusesMoreRequestsThanAPageRuns() {
+		String many = LongStream.rangeClosed(1, AssistantRunController.MAX_REQUESTS + 1L)
+			.mapToObj(Long::toString)
+			.collect(Collectors.joining(","));
+
+		assertThat(run(many, "http://localhost")).hasStatus(HttpStatus.BAD_REQUEST);
+		then(this.discovery).should(never()).findRequest(anyLong(), anyLong());
+	}
+
+	private MvcTestResult run(String requests, @Nullable String origin) {
 		var post = this.mvc.post().uri("/assistant/run").param("requests", requests.split(",")).header("HX-Request", "true");
 		if (origin != null) {
 			post = post.header(HttpHeaders.ORIGIN, origin);

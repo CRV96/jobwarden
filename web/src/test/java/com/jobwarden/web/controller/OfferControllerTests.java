@@ -99,7 +99,7 @@ class OfferControllerTests {
 
 		assertThat(this.mvc.get().uri("/offers")).hasStatusOk()
 			.bodyText()
-			.contains("Java Developer", "Globex", "90,000 EUR gross per year", "€90K", "Pays the most",
+			.contains("Java Developer", "Globex", "90,000 EUR gross per year", "€90K", "Highest base salary",
 					// What it pays on top, and all in
 					"On top of the salary", "10% of the base salary", "yearly", "On targets", "Meal vouchers", "€10",
 					"per working day", "All in, a year", "€101K", "And €5K once", "25 days", "Can’t be read as an amount", "/applications/7/drawer", "Read the brief",

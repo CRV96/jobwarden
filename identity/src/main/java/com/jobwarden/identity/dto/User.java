@@ -23,15 +23,21 @@ public record User(long id, String name, Instant createdAt, @Nullable Instant im
 	 * @param publicId the id it shows, to copy into the browser extension and an assistant's settings: made when it was
 	 * created; one made from its id when none is given
 	 */
-	public User {
-		assistant = Objects.requireNonNullElse(assistant, Assistant.DEFAULT);
-		publicId = (publicId != null) ? publicId : UUID.nameUUIDFromBytes(("profile-" + id).getBytes(StandardCharsets.UTF_8));
+	public User(long id, String name, Instant createdAt, @Nullable Instant imageChangedAt, @Nullable Assistant assistant,
+			@Nullable UUID publicId) {
+		this.id = id;
+		this.name = name;
+		this.createdAt = createdAt;
+		this.imageChangedAt = imageChangedAt;
+		this.assistant = Objects.requireNonNullElse(assistant, Assistant.DEFAULT);
+		this.publicId = (publicId != null) ? publicId
+				: UUID.nameUUIDFromBytes(("profile-" + id).getBytes(StandardCharsets.UTF_8));
 	}
 
 	/**
 	 * A profile with the public id made from its id.
 	 */
-	public User(long id, String name, Instant createdAt, @Nullable Instant imageChangedAt, Assistant assistant) {
+	public User(long id, String name, Instant createdAt, @Nullable Instant imageChangedAt, @Nullable Assistant assistant) {
 		this(id, name, createdAt, imageChangedAt, assistant, null);
 	}
 

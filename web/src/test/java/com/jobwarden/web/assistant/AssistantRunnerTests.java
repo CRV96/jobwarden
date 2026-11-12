@@ -7,6 +7,7 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 
 import com.jobwarden.discover.dto.AiRequest;
@@ -164,6 +165,17 @@ class AssistantRunnerTests {
 		assertThat(runner.isRunning(List.of(18L))).isFalse();
 		assertThat(log).doesNotExist();
 		then(this.discovery).should(never()).finishRequest(anyLong(), anyLong(), anyBoolean(), anyString());
+	}
+
+	@Test
+	void makesARunStopThatDoesntWhenAsked() throws Exception {
+		// Ignores being asked, as a stuck assistant might
+		Process stubborn = new ProcessBuilder("sh", "-c", "trap '' TERM; sleep 30").start();
+		Thread.sleep(200);
+
+		Process stopped = AssistantRunner.stopped(stubborn, Duration.ofMillis(300)).get(5, TimeUnit.SECONDS);
+
+		assertThat(stopped.isAlive()).isFalse();
 	}
 
 	@Test

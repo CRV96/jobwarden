@@ -38,6 +38,15 @@ class CvTools implements McpToolSet {
 	/** The most of the file's text it returns: a CV is far shorter, and the assistant's context is shared. */
 	static final int MAX_TEXT_LENGTH = 30_000;
 
+	/**
+	 * The most of the file's text a request hands out with its other data (a posting of up to 12,000 characters, the
+	 * fields): get_cv with full=true gives all of it. A request's result then stays well within what Codex reads whole.
+	 */
+	static final int REQUEST_TEXT_LENGTH = 15_000;
+
+	/** Where a file's text is when a CV is handed out without it. */
+	static final String FILE_TEXT_WITH = "get_cv with full=true";
+
 	/** The most of it a brief CV returns: the first pages say who the person is. */
 	static final int BRIEF_TEXT_LENGTH = 8_000;
 
@@ -84,6 +93,18 @@ class CvTools implements McpToolSet {
 	 * The CV as get_cv gives it, which get_request also hands out with the requests that need it.
 	 */
 	CvView view(long userId, Depth depth) {
+		return view(userId, depth, MAX_TEXT_LENGTH);
+	}
+
+	/**
+	 * The same for get_request, which hands it out with the request's other data: the file's text no longer than
+	 * {@link #REQUEST_TEXT_LENGTH}.
+	 */
+	CvView viewForRequest(long userId, Depth depth) {
+		return view(userId, depth, REQUEST_TEXT_LENGTH);
+	}
+
+	private CvView view(long userId, Depth depth, int fileTextMax) {
 		Cv cv = this.cvs.find(userId);
 		CvDetails details = cv.details();
 		boolean filledIn = details.isFilledIn() || !details.skills().isEmpty() || details.summary() != null;
@@ -91,8 +112,10 @@ class CvTools implements McpToolSet {
 		// The file's text says again what the fields say: only without them, unless asked
 		boolean fileText = !filledIn || depth == Depth.FULL
 				|| (depth == Depth.POINTS && details.experience().stream().allMatch(job -> job.description() == null));
+		// Left out, the file says where its text is, for the evidence only it has
 		FileView file = (cv.file() == null) ? null
-				: new FileView(cv.file().fileName(), fileText ? fileText(userId, points) : null);
+				: new FileView(cv.file().fileName(), fileText ? fileText(userId, points, fileTextMax) : null,
+						fileText ? null : FILE_TEXT_WITH);
 		return new CvView(filledIn || file != null, filledIn ? details(details, points) : null, file);
 	}
 
@@ -192,9 +215,9 @@ class CvTools implements McpToolSet {
 			.build();
 	}
 
-	/** The file's text: all of it with the points, else its start */
-	private @Nullable String fileText(long userId, boolean full) {
-		int length = full ? MAX_TEXT_LENGTH : BRIEF_TEXT_LENGTH;
+	/** The file's text: all of it with the points (up to max), else its start */
+	private @Nullable String fileText(long userId, boolean full, int max) {
+		int length = full ? max : BRIEF_TEXT_LENGTH;
 		return this.cvs.fileText(userId).map(text -> shortened(text, length)).orElse(null);
 	}
 
@@ -233,7 +256,11 @@ class CvTools implements McpToolSet {
 	/**
 	 * @param text what could be read out of it; none for a scanned PDF
 	 */
-	record FileView(String name, @Nullable String text) {
+	/**
+	 * @param text its text, or none when the fields say it already
+	 * @param textWith then, how to get it: for evidence only the file has
+	 */
+	record FileView(String name, @Nullable String text, @Nullable String textWith) {
 	}
 
 	/**

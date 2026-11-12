@@ -127,6 +127,9 @@ class OfferServiceTests {
 				assertThat(total.uncounted()).isOne();
 			});
 		assertThat(this.offers.total(JobOffer.NONE)).isEmpty();
+		// Words that say no period read as the comparison reads them: 5,000 EUR is a month
+		assertThat(this.offers.total(JobOffer.builder().baseSalary("5,000 EUR").build()))
+			.hasValueSatisfying(total -> assertThat(total.base()).isEqualByComparingTo("60000"));
 	}
 
 	@Test
@@ -153,6 +156,19 @@ class OfferServiceTests {
 		JobOffer none = this.offers.save(this.userId, job, JobOffer.builder().baseSalaryCurrency("EUR").build());
 		assertThat(none.baseSalaryCurrency()).isNull();
 		assertThat(none.baseSalaryPeriod()).isNull();
+	}
+
+	@Test
+	void comparesAFigureInACurrencyWithoutARateAsUnreadable() {
+		long job = create(this.userId, "Java Developer", ApplicationStatus.OFFER, null);
+		this.offers.save(this.userId, job, JobOffer.builder()
+			.baseSalaryAmount(new BigDecimal("90000"))
+			.baseSalaryCurrency("ZZZ")
+			.build());
+
+		ComparedOffer compared = offer(this.offers.compare(this.userId, "EUR", SalaryPeriod.YEAR), job);
+		assertThat(compared.salaryUnreadable()).isTrue();
+		assertThat(compared.total()).isNull();
 	}
 
 	@Test

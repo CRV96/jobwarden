@@ -77,17 +77,20 @@ class ProfileDeletionTests {
 		User ana = this.users.create("Ana");
 		fill(robert);
 		fill(ana);
-		Map<String, Long> anasRows = rows(ana.id());
-		assertThat(rows(robert.id())).as("Robert's rows before").containsValue(1L);
+		Map<String, Long> anasRows = rows(ana.id(), jobs(ana.id()));
+		// His jobs' ids before they go: what hung off them is counted by them after
+		List<Long> robertsJobs = jobs(robert.id());
+		assertThat(rows(robert.id(), robertsJobs)).as("Robert's rows before").containsValue(1L);
 
 		this.users.delete(robert.id());
 
 		assertThat(this.users.findById(robert.id())).isEmpty();
-		assertThat(rows(robert.id())).as("Robert's rows after").allSatisfy((table, count) -> assertThat(count).as(table).isZero());
+		assertThat(rows(robert.id(), robertsJobs)).as("Robert's rows after")
+			.allSatisfy((table, count) -> assertThat(count).as(table).isZero());
 		assertThat(this.jdbc.sql("SELECT count(*) FROM job_offer_extras").query(Long.class).single())
 			.as("Ana's offer extras alone")
 			.isEqualTo(1);
-		assertThat(rows(ana.id())).isEqualTo(anasRows);
+		assertThat(rows(ana.id(), jobs(ana.id()))).isEqualTo(anasRows);
 		assertThatExceptionOfType(UserNotFoundException.class).isThrownBy(() -> this.users.delete(robert.id()));
 	}
 
@@ -112,16 +115,26 @@ class ProfileDeletionTests {
 		this.stories.save(user.id(), Story.builder().title("Moved the payments to Kafka").skills(List.of("Kafka")).build());
 	}
 
-	/** Every table with a profile's rows, and how many of its rows it has. */
-	private Map<String, Long> rows(long userId) {
+	private List<Long> jobs(long userId) {
+		return this.jdbc.sql("SELECT id FROM applications WHERE user_id = :userId").param("userId", userId).query(Long.class).list();
+	}
+
+	/** Every table with a profile's rows, and how many of its rows it has: by its id, or by its jobs' ids. */
+	private Map<String, Long> rows(long userId, List<Long> jobs) {
 		Map<String, Long> rows = new LinkedHashMap<>();
 		List<Map<String, Object>> columns = this.jdbc.sql(TABLES_OF_A_PROFILE).query().listOfRows();
 		for (Map<String, Object> column : columns) {
 			String table = (String) column.get("table_name");
-			String sql = "user_id".equals(column.get("column_name"))
-					? "SELECT count(*) FROM " + table + " WHERE user_id = :userId"
-					: "SELECT count(*) FROM " + table + " WHERE application_id IN (SELECT id FROM applications WHERE user_id = :userId)";
-			rows.merge(table, this.jdbc.sql(sql).param("userId", userId).query(Long.class).single(), Math::max);
+			long count = "user_id".equals(column.get("column_name"))
+					? this.jdbc.sql("SELECT count(*) FROM " + table + " WHERE user_id = :userId")
+						.param("userId", userId)
+						.query(Long.class)
+						.single()
+					: jobs.isEmpty() ? 0 : this.jdbc.sql("SELECT count(*) FROM " + table + " WHERE application_id IN (:jobs)")
+						.param("jobs", jobs)
+						.query(Long.class)
+						.single();
+			rows.merge(table, count, Math::max);
 		}
 		return rows;
 	}

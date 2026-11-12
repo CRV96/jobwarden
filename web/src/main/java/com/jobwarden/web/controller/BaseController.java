@@ -254,6 +254,13 @@ abstract class BaseController {
 	}
 
 	/**
+	 * A message of the pages, in the user's language.
+	 */
+	protected String text(String code) {
+		return this.messages.getMessage(code, null, code, LocaleContextHolder.getLocale());
+	}
+
+	/**
 	 * The first error of each field, by field name, in the user's language, to show next to the form's fields.
 	 */
 	protected Map<String, String> fieldErrors(BindingResult result) {

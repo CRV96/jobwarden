@@ -8,7 +8,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.jobwarden.discover.dto.AiRequest;
 import com.jobwarden.discover.dto.SavedSearch;
+import com.jobwarden.discover.enums.AiRequestKind;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.jobs.dto.CalendarEntry;
@@ -47,9 +49,6 @@ class HomeController extends BaseController {
 	/** How many saved searches it lists, the latest first. */
 	static final int SEARCHES = 5;
 
-	/** How many of the latest requests it looks through for those open. */
-	private static final int REQUESTS = 50;
-
 	private final ActivityService activity;
 
 	private final ApplicationService applications;
@@ -87,8 +86,12 @@ class HomeController extends BaseController {
 			.limit(COMING_UP)
 			.toList();
 		model.addAttribute(ModelAttributes.COMING_UP, comingUp);
+		// Every request still open: Auto-apply's apart, as it's done on its own page, at the browser
+		List<AiRequest> open = this.discovery.findOpenRequests(userId);
 		model.addAttribute(ModelAttributes.OPEN_REQUESTS,
-				this.discovery.findRequests(userId, REQUESTS).stream().filter(request -> request.status().isOpen()).count());
+				open.stream().filter(request -> request.kind() != AiRequestKind.AUTO_APPLY).count());
+		model.addAttribute(ModelAttributes.OPEN_APPLY_REQUESTS,
+				open.stream().filter(request -> request.kind() == AiRequestKind.AUTO_APPLY).count());
 		// The searches saved in the Search Builder, the latest first, each with the address that opens it there again
 		List<SavedSearch> searches = this.discovery.findSearches(userId)
 			.stream()
