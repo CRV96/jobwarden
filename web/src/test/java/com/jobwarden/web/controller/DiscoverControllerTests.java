@@ -162,7 +162,7 @@ class DiscoverControllerTests {
 			.locations(List.of("Bucharest"))
 			.workTypes(Set.of(WorkType.REMOTE))
 			.recency(Recency.WEEK)
-			.notes("From the saved search Java in Bucharest (search_id 5). On these job boards: linkedin.com. Employment: full time.")
+			.notes("(search_id 5) From the saved search Java in Bucharest. On these job boards: linkedin.com. Employment: full time.")
 			.build());
 	}
 

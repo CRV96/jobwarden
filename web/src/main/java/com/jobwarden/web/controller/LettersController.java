@@ -276,8 +276,9 @@ class LettersController extends BaseController {
 			.toList();
 		model.addAttribute(ModelAttributes.LETTERS_OPEN, open.size());
 		model.addAttribute(ModelAttributes.LETTERS_WAITING, waiting.size());
-		model.addAttribute(ModelAttributes.LETTERS_PROMPT,
-				waiting.isEmpty() ? null : prompt(model, waiting));
+		// The oldest, as many as one Run takes: the others wait for the next, as the card asks again
+		model.addAttribute(ModelAttributes.LETTERS_PROMPT, waiting.isEmpty() ? null
+				: prompt(model, waiting.subList(0, Math.min(waiting.size(), AssistantRunController.MAX_REQUESTS))));
 	}
 
 	private void addBaseLetter(Model model, long userId, boolean editing) {

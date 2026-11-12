@@ -128,6 +128,17 @@ class AssistantConnectionsTests {
 		assertThat(connections.find(Assistant.CODEX).state()).isEqualTo(State.CONNECTED);
 		assertThat(AssistantConnections.withoutComment("url = \"http://x/#a\" # b")).isEqualTo("url = \"http://x/#a\" ");
 
+		// A table's name and its url inside a multi-line string are text, not configuration
+		codex("""
+				developer_instructions = \"\"\"
+				[mcp_servers.jobwarden]
+				url = "http://localhost:8080/mcp"
+				\"\"\"
+				notes = \'\'\'
+				[mcp_servers.jw]\'\'\'
+				""");
+		assertThat(connections.find(Assistant.CODEX).isMissing()).isTrue();
+
 		// Dotted, under another name
 		codex("""
 				mcp_servers.jw.url = "http://127.0.0.1:8080/mcp" # this computer

@@ -1061,7 +1061,8 @@ class McpControllerTests {
 			.kind(AiRequestKind.FIND_JOBS)
 			.requirements(AiRequirements.builder()
 				.titles(List.of("Java Developer"))
-				.notes("From the saved search Java in Bucharest (search_id 5).")
+				// A name that looks like an id doesn't stand for it
+				.notes("(search_id 5) From the saved search Java (search_id 6).")
 				.build())
 			.status(AiRequestStatus.WAITING)
 			.createdAt(Instant.now())
@@ -1070,7 +1071,8 @@ class McpControllerTests {
 		assertThat(callTool("get_request", "{\"request_id\": 61}")).bodyJson()
 			.extractingPath("$.result.content[0].text")
 			.asString()
-			.contains("Pass search_id 5 to add_found_jobs too");
+			.contains("Pass search_id 5 to add_found_jobs too")
+			.doesNotContain("search_id 6 to");
 	}
 
 	@Test

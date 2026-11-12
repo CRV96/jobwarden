@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.LongStream;
 
 import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.cv.dto.BaseLetter;
@@ -122,6 +123,18 @@ class LettersControllerTests {
 		assertThat(this.mvc.get().uri("/letters/jobs/9").header("HX-Request", "true")).hasStatusOk()
 			.bodyText()
 			.contains("Platform engineer", "/applications/9/letter/card", "/applications/9/outreach");
+	}
+
+	@Test
+	void runsTheOldestTwentyLettersAtOnceAndTheRestNext() {
+		given(this.discovery.findOpenRequests(1)).willReturn(LongStream.rangeClosed(101, 125)
+			.mapToObj(id -> request(id, 8))
+			.toList());
+
+		assertThat(this.mvc.get().uri("/letters")).hasStatusOk()
+			.bodyText()
+			.contains("The assistant has 25 letters to write", "Do JobWarden requests 101, 102", "120, one after the other")
+			.doesNotContain("121,", "requests=121");
 	}
 
 	@Test

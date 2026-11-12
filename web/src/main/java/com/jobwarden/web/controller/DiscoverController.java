@@ -230,8 +230,9 @@ class DiscoverController extends BaseController {
 			.excludes(criteria.excludes())
 			.workTypes(criteria.workTypes())
 			.recency(criteria.recency())
-			// Its id, which the request's steps pass to add_found_jobs: the jobs then show under the search
-			.notes(("From the saved search " + search.name() + " (search_id " + search.id() + "). " + String.join(" ", notes))
+			// Its id first, whatever its name says, which the request's steps pass to add_found_jobs: the jobs then show
+			// under the search
+			.notes(("(search_id " + search.id() + ") From the saved search " + search.name() + ". " + String.join(" ", notes))
 				.strip())
 			.build();
 	}

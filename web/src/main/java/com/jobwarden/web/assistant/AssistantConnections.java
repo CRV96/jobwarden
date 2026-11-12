@@ -7,9 +7,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -201,8 +203,8 @@ public class AssistantConnections {
 		String table = null;
 		String headersOf = null;
 		boolean top = true;
-		for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
-			String text = withoutComment(line).strip();
+		for (String line : configuration(Files.readAllLines(file, StandardCharsets.UTF_8))) {
+			String text = line.strip();
 			if (text.isEmpty()) {
 				continue;
 			}
@@ -258,24 +260,62 @@ public class AssistantConnections {
 			.orElse(Connection.NOT_CONNECTED);
 	}
 
-	/** The line without a TOML comment: from a # that isn't inside a string to its end. */
-	static String withoutComment(String line) {
-		char quote = 0;
-		for (int i = 0; i < line.length(); i++) {
-			char c = line.charAt(i);
-			if (quote != 0) {
-				if (c == '\\' && quote == '"') {
-					i++;
-				} else if (c == quote) {
-					quote = 0;
+	/**
+	 * The lines as TOML reads them: without comments, and without what's inside a multi-line string ("""...""" or
+	 * '''...''', which may hold a table's name or a key as text), which a line of its own leaves blank. One on a
+	 * single line reads as the string it is.
+	 */
+	static List<String> configuration(List<String> lines) {
+		List<String> kept = new ArrayList<>();
+		String closing = null;
+		for (String line : lines) {
+			StringBuilder text = new StringBuilder();
+			int i = 0;
+			if (closing != null) {
+				int end = line.indexOf(closing);
+				if (end < 0) {
+					kept.add("");
+					continue;
 				}
-			} else if (c == '"' || c == '\'') {
-				quote = c;
-			} else if (c == '#') {
-				return line.substring(0, i);
+				i = end + closing.length();
+				closing = null;
 			}
+			char quote = 0;
+			for (; i < line.length(); i++) {
+				char c = line.charAt(i);
+				if (quote != 0) {
+					text.append(c);
+					if (c == '\\' && quote == '"' && i + 1 < line.length()) {
+						text.append(line.charAt(++i));
+					} else if (c == quote) {
+						quote = 0;
+					}
+				} else if (line.startsWith("\"\"\"", i) || line.startsWith("'''", i)) {
+					String delimiter = line.substring(i, i + 3);
+					int end = line.indexOf(delimiter, i + 3);
+					if (end < 0) {
+						closing = delimiter;
+						break;
+					}
+					text.append('"').append(line, i + 3, end).append('"');
+					i = end + 2;
+				} else if (c == '"' || c == '\'') {
+					quote = c;
+					text.append(c);
+				} else if (c == '#') {
+					break;
+				} else {
+					text.append(c);
+				}
+			}
+			kept.add(text.toString());
 		}
-		return line;
+		return kept;
+	}
+
+	/** One line without a TOML comment: from a # that isn't inside a string to its end. */
+	static String withoutComment(String line) {
+		return configuration(List.of(line)).getFirst();
 	}
 
 	/** Called jobwarden, or at this computer's /mcp, whatever the port. */

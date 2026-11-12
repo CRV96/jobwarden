@@ -173,8 +173,8 @@ class RequestTools implements McpToolSet {
 				});
 	}
 
-	/** In a request made from a saved search, its notes name it: e.g. From the saved search Java (search_id 5). */
-	private static final Pattern SAVED_SEARCH = Pattern.compile("\\(search_id (\\d+)\\)");
+	/** In a request made from a saved search, its notes start with its id: (search_id 5) From the saved search Java. */
+	private static final Pattern SAVED_SEARCH = Pattern.compile("^\\(search_id (\\d+)\\)");
 
 	/**
 	 * For a request made from a saved search: the search to add the jobs to, so they show under it.
