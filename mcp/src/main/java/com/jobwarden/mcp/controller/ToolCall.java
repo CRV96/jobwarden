@@ -16,8 +16,14 @@ import tools.jackson.databind.JsonNode;
  *
  * @param profileHeader the {@code X-JobWarden-Profile} header: the profile to use when the arguments don't name one
  * @param client the assistant calling, as the logs name it, e.g. Codex
+ * @param unattended whether no one watches it: the loop or Run, which say so in a header, and never do Auto-apply
  */
-record ToolCall(JsonNode arguments, @Nullable String profileHeader, String client) {
+record ToolCall(JsonNode arguments, @Nullable String profileHeader, String client, boolean unattended) {
+
+	/** A call from a client someone watches. */
+	ToolCall(JsonNode arguments, @Nullable String profileHeader, String client) {
+		this(arguments, profileHeader, client, false);
+	}
 
 	/** A call from a client that didn't say who it is. */
 	ToolCall(JsonNode arguments, @Nullable String profileHeader) {
@@ -166,7 +172,7 @@ record ToolCall(JsonNode arguments, @Nullable String profileHeader, String clien
 		if (value == null || !value.isObject()) {
 			throw new ToolException(name + " is required, as an object");
 		}
-		return new ToolCall(value, this.profileHeader, this.client);
+		return new ToolCall(value, this.profileHeader, this.client, this.unattended);
 	}
 
 	/**
@@ -190,7 +196,7 @@ record ToolCall(JsonNode arguments, @Nullable String profileHeader, String clien
 		if (!item.isObject()) {
 			throw new ToolException("Each item must be an object");
 		}
-		return new ToolCall(item, this.profileHeader, this.client);
+		return new ToolCall(item, this.profileHeader, this.client, this.unattended);
 	}
 
 	private static <E extends Enum<E>> E constant(String name, String value, Class<E> type) {

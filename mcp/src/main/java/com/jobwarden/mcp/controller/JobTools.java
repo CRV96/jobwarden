@@ -138,9 +138,17 @@ class JobTools implements McpToolSet {
 	 * A job as get_job gives it, which get_request also hands out with a request about the job.
 	 */
 	static JobDetails details(ApplicationDetails job) {
+		return details(job, DESCRIPTION_MAX_LENGTH);
+	}
+
+	/**
+	 * The same, with no more of the description than given: for a request whose other data leaves less room.
+	 */
+	static JobDetails details(ApplicationDetails job, int descriptionMax) {
 		return new JobDetails(job.id(), job.title(), job.company(), job.location(), job.salary(), job.employmentType(),
 				job.status(), job.link(), job.notes(), followUp(job.followUp()),
-				shortened(job.description(), DESCRIPTION_MAX_LENGTH), job.timeline().stream().map(JobTools::step).toList());
+				shortened(job.description(), Math.min(descriptionMax, DESCRIPTION_MAX_LENGTH)),
+				job.timeline().stream().map(JobTools::step).toList());
 	}
 
 	private McpTool checkPostings() {

@@ -93,6 +93,14 @@ class DiscoverController extends BaseController {
 		this.requestsPath = requestsPath;
 	}
 
+	/** Where the MCP server is, which the loop gives the assistant itself. */
+	private String mcpPath = "/mcp";
+
+	@Autowired
+	void setMcpPath(@Value("${jobwarden.mcp.path:/mcp}") String mcpPath) {
+		this.mcpPath = mcpPath;
+	}
+
 	/**
 	 * @param search only the jobs found for this saved search
 	 */
@@ -260,7 +268,8 @@ class DiscoverController extends BaseController {
 			.collect(Collectors.toMap(AiRequest::id, request -> (request.kind() == AiRequestKind.AUTO_APPLY)
 					? connected(AssistantPrompts.forApplying(request.id(), userId)) : prompt(model, request.id()))));
 		model.addAttribute(ModelAttributes.AI_LOOP_PROMPT, AssistantPrompts.loop(requireProfile(model).assistant(), userId,
-				ServletUriComponentsBuilder.fromCurrentContextPath().path(this.requestsPath).toUriString()));
+				ServletUriComponentsBuilder.fromCurrentContextPath().path(this.requestsPath).toUriString(),
+				ServletUriComponentsBuilder.fromCurrentContextPath().path(this.mcpPath).toUriString()));
 		model.addAttribute(ModelAttributes.AI_OPEN, requests.stream().anyMatch(request -> request.status().isOpen()));
 		model.addAttribute(ModelAttributes.TO_REVIEW_ALL, this.discovery.countToReview(userId, null));
 	}

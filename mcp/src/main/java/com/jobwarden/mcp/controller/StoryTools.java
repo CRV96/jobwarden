@@ -64,7 +64,7 @@ class StoryTools implements McpToolSet {
 		int length = 0;
 		for (StoryView story : stories) {
 			length += length(story);
-			if (length > maxLength && !fitting.isEmpty()) {
+			if (length > maxLength) {
 				break;
 			}
 			fitting.add(story);
@@ -72,7 +72,7 @@ class StoryTools implements McpToolSet {
 		return fitting;
 	}
 
-	private static int length(StoryView story) {
+	static int length(StoryView story) {
 		return story.title().length() + String.join(", ", story.skills()).length()
 				+ Stream.of(story.situation(), story.task(), story.action(), story.result())
 					.mapToInt(text -> (text == null) ? 0 : text.length())

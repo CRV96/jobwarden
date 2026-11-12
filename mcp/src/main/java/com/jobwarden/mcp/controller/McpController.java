@@ -57,6 +57,12 @@ class McpController {
 	/** The profile for tools that aren't given one: set once in the client's configuration. */
 	static final String PROFILE_HEADER = "X-JobWarden-Profile";
 
+	/**
+	 * Says no one watches the client: the terminal loop and Run, which give the assistant their own configuration with
+	 * it. Auto-apply's requests are then out of its reach, as they need the profile at the browser.
+	 */
+	static final String UNATTENDED_HEADER = "X-JobWarden-Unattended";
+
 	/** Who's calling, for the logs, when the User-Agent doesn't say. */
 	static final String UNKNOWN_CLIENT = "An MCP client";
 
@@ -99,9 +105,16 @@ class McpController {
 			.collect(Collectors.toMap(McpTool::name, Function.identity(), (a, b) -> {
 				throw new IllegalStateException("Two tools named " + a.name());
 			}, LinkedHashMap::new));
-		// Results in snake_case like the arguments, without the empty fields, and times to the minute: the assistant
-		// reads every character
-		this.json = json.rebuild()
+		this.json = results(json);
+		this.version = version;
+	}
+
+	/**
+	 * How results are written, which RequestTools also measures them with: in snake_case like the arguments, without
+	 * the empty fields, and times to the minute, as the assistant reads every character.
+	 */
+	static JsonMapper results(JsonMapper json) {
+		return json.rebuild()
 			.propertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
 			.changeDefaultPropertyInclusion(inclusion -> inclusion.withValueInclusion(JsonInclude.Include.NON_EMPTY))
 			.addModule(new SimpleModule("mcp-times").addSerializer(Instant.class, new ValueSerializer<Instant>() {
@@ -113,12 +126,12 @@ class McpController {
 
 			}))
 			.build();
-		this.version = version;
 	}
 
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
 	ResponseEntity<JsonNode> call(@RequestBody String body, @RequestHeader(name = HttpHeaders.ORIGIN, required = false)
 			@Nullable String origin, @RequestHeader(name = PROFILE_HEADER, required = false) @Nullable String profile,
+			@RequestHeader(name = UNATTENDED_HEADER, required = false) @Nullable String unattended,
 			@RequestHeader(name = HttpHeaders.USER_AGENT, required = false) @Nullable String userAgent) {
 		if (!isLocal(origin)) {
 			log.warn("Refused an MCP request from {}", origin);
@@ -144,7 +157,7 @@ class McpController {
 			case "initialize" -> result(id, initialize(params));
 			case "ping" -> result(id, JsonNodeFactory.instance.objectNode());
 			case "tools/list" -> result(id, toolList());
-			case "tools/call" -> callTool(id, params, profile, client(userAgent));
+			case "tools/call" -> callTool(id, params, profile, client(userAgent), "true".equalsIgnoreCase(unattended));
 			default -> error(id, -32601, "Method not found: " + method);
 		});
 	}
@@ -194,14 +207,15 @@ class McpController {
 	 * A tool that fails because of what it was asked, such as a missing argument or a job that doesn't exist, answers
 	 * with isError and the reason, which the assistant reads; an unknown tool is a protocol error.
 	 */
-	private ObjectNode callTool(JsonNode id, JsonNode params, @Nullable String profile, String client) {
+	private ObjectNode callTool(JsonNode id, JsonNode params, @Nullable String profile, String client, boolean unattended) {
 		String name = params.path("name").asString("");
 		McpTool tool = this.tools.get(name);
 		if (tool == null) {
 			return error(id, -32602, "Unknown tool: " + name);
 		}
 		JsonNode arguments = params.path("arguments");
-		ToolCall call = new ToolCall(arguments.isObject() ? arguments : JsonNodeFactory.instance.objectNode(), profile, client);
+		ToolCall call = new ToolCall(arguments.isObject() ? arguments : JsonNodeFactory.instance.objectNode(), profile, client,
+				unattended);
 		log.debug("{} calls {}", client, name);
 		try {
 			return result(id, toolResult(this.json.writeValueAsString(tool.handler().call(call)), false));

@@ -181,20 +181,40 @@ public final class AssistantPrompts {
 	 *
 	 * @param waitingUrl where JobWarden says how many requests wait, e.g. http://localhost:8080/claude/requests
 	 */
-	public static String loop(Assistant assistant, long profileId, String waitingUrl) {
+	public static String loop(Assistant assistant, long profileId, String waitingUrl, String mcpUrl) {
 		// Every call names the profile, whichever one the assistant's own configuration names
 		String prompt = "Do the waiting JobWarden requests but the AUTO_APPLY ones: call list_requests with profile_id "
 				+ profileId + ", then do each one with get_request and finish_request, each with profile_id " + profileId + "."
 				+ UNATTENDED;
 		String run = switch (assistant) {
-			case CLAUDE_CODE -> "claude -p \"" + prompt + "\" --allowedTools '" + CLAUDE_LOOP_TOOLS + "' --disallowedTools '"
-					+ CLAUDE_LOOP_DENIED_TOOLS + "'";
-			case CODEX -> "codex exec " + CODEX_EXEC_OPTIONS.stream()
-				.map(option -> option.startsWith("-") ? option : "'" + option + "'")
-				.collect(Collectors.joining(" ")) + " \"" + prompt + "\"";
+			case CLAUDE_CODE -> "claude -p \"" + prompt + "\" " + quoted(unattendedServer(assistant, mcpUrl, profileId))
+					+ " --allowedTools '" + CLAUDE_LOOP_TOOLS + "' --disallowedTools '" + CLAUDE_LOOP_DENIED_TOOLS + "'";
+			case CODEX -> "codex exec " + quoted(Stream.concat(CODEX_EXEC_OPTIONS.stream(),
+					unattendedServer(assistant, mcpUrl, profileId).stream()).toList()) + " \"" + prompt + "\"";
 		};
 		return "while true; do n=$(curl -sf '" + waitingUrl + "?profile=" + profileId + "'); [ \"${n:-0}\" -gt 0 ] && " + run
 				+ "; sleep " + LOOP_EVERY_SECONDS + "; done";
+	}
+
+	/** Options for a shell: the flags as they are, their values in single quotes. */
+	private static String quoted(List<String> options) {
+		return options.stream().map(option -> option.startsWith("-") ? option : "'" + option + "'").collect(Collectors.joining(" "));
+	}
+
+	/**
+	 * JobWarden's MCP server as a run no one watches is given it, on the command line: at this address, for the
+	 * profile, saying it's unattended, so the server keeps Auto-apply's requests out of its reach. Claude Code takes it
+	 * in place of the servers it was told of (--strict-mcp-config); Codex over its config.toml's.
+	 */
+	private static List<String> unattendedServer(Assistant assistant, String mcpUrl, long profileId) {
+		return switch (assistant) {
+			case CLAUDE_CODE -> List.of("--mcp-config", "{\"mcpServers\":{\"jobwarden\":{\"type\":\"http\",\"url\":\"" + mcpUrl
+					+ "\",\"headers\":{\"X-JobWarden-Profile\":\"" + profileId + "\",\"X-JobWarden-Unattended\":\"true\"}}}}",
+					"--strict-mcp-config");
+			case CODEX -> List.of("-c", "mcp_servers.jobwarden.url=\"" + mcpUrl + "\"", "-c",
+					"mcp_servers.jobwarden.http_headers={\"X-JobWarden-Profile\"=\"" + profileId
+							+ "\",\"X-JobWarden-Unattended\"=\"true\"}");
+		};
 	}
 
 	/**
@@ -210,15 +230,16 @@ public final class AssistantPrompts {
 		List<String> command = new ArrayList<>();
 		command.add(assistant.command());
 		switch (assistant) {
-			case CLAUDE_CODE -> command.addAll(List.of("-p", prompt, "--mcp-config", "{\"mcpServers\":{\"jobwarden\":"
-					+ "{\"type\":\"http\",\"url\":\"" + mcpUrl + "\",\"headers\":{\"X-JobWarden-Profile\":\"" + profileId
-					+ "\"}}}}", "--strict-mcp-config", "--allowedTools", CLAUDE_LOOP_TOOLS, "--disallowedTools",
-					CLAUDE_LOOP_DENIED_TOOLS));
+			case CLAUDE_CODE -> {
+				command.addAll(List.of("-p", prompt));
+				command.addAll(unattendedServer(assistant, mcpUrl, profileId));
+				command.addAll(List.of("--allowedTools", CLAUDE_LOOP_TOOLS, "--disallowedTools", CLAUDE_LOOP_DENIED_TOOLS));
+			}
 			case CODEX -> {
 				command.add("exec");
 				command.addAll(CODEX_EXEC_OPTIONS);
-				command.addAll(List.of("-c", "mcp_servers.jobwarden.url=\"" + mcpUrl + "\"", "-c",
-						"mcp_servers.jobwarden.http_headers={\"X-JobWarden-Profile\"=\"" + profileId + "\"}", prompt));
+				command.addAll(unattendedServer(assistant, mcpUrl, profileId));
+				command.add(prompt);
 			}
 		}
 		return List.copyOf(command);
@@ -264,11 +285,13 @@ public final class AssistantPrompts {
 		if (requestIds.size() == 1) {
 			long requestId = requestIds.getFirst();
 			return "Do JobWarden request " + requestId + ": call get_request with request_id " + requestId + " and profile_id "
-					+ profileId + ", follow its instructions, and end with finish_request.";
+					+ profileId + ", follow its instructions, and end with finish_request, with profile_id " + profileId
+					+ " in every call.";
 		}
 		String ids = requestIds.stream().map(String::valueOf).collect(Collectors.joining(", "));
 		return "Do JobWarden requests " + ids + ", one after the other: for each, call get_request with its request_id and "
-				+ "profile_id " + profileId + ", follow its instructions, and end with finish_request.";
+				+ "profile_id " + profileId + ", follow its instructions, and end with finish_request, with profile_id " + profileId
+				+ " in every call.";
 	}
 
 	/**

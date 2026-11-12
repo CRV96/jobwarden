@@ -36,6 +36,7 @@ import com.jobwarden.watchlist.service.WatchlistService;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
+import tools.jackson.databind.json.JsonMapper;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
@@ -65,6 +66,15 @@ class RequestTools implements McpToolSet {
 
 	/** The most of the story bank an interview's request hands out, in characters; list_stories has the rest. */
 	static final int STORIES_MAX_LENGTH = 8_000;
+
+	/**
+	 * The most a request's result is, in characters, as the assistant reads it: well under what Codex reads of a tool's
+	 * result whole (10,000 tokens), and what McpBudgetTests checks (25,000).
+	 */
+	static final int REQUEST_MAX_LENGTH = 23_000;
+
+	/** The least of the CV file's text, and of a posting's description, a request keeps when it has to cut. */
+	static final int LEAST_TEXT = 2_000;
 
 	/** How long after applying an application with no news counts as No response, and when to follow up before. */
 	static final int NO_RESPONSE_AFTER_DAYS = 30;
@@ -111,6 +121,11 @@ class RequestTools implements McpToolSet {
 
 	private final AutoApplyService autoApply;
 
+	private final JsonMapper json;
+
+	/** Writes results as the MCP server does, to measure a request before handing it out; made once, when first needed. */
+	private @Nullable JsonMapper results;
+
 	@Override
 	public List<McpTool> tools() {
 		return List.of(listRequests(), getRequest(), finishRequest());
@@ -124,7 +139,11 @@ class RequestTools implements McpToolSet {
 					long userId = this.profiles.of(call);
 					boolean all = call.arguments().path("all").asBoolean(false);
 					List<AiRequest> requests = all ? this.discovery.findRequests(userId, 50) : this.discovery.findOpenRequests(userId);
-					return Map.of("requests", requests.stream().map(RequestTools::row).toList());
+					// Unattended, Auto-apply's aren't there: they need the profile at the browser
+					return Map.of("requests", requests.stream()
+						.filter(request -> !call.unattended() || request.kind() != AiRequestKind.AUTO_APPLY)
+						.map(RequestTools::row)
+						.toList());
 				});
 	}
 
@@ -134,10 +153,21 @@ class RequestTools implements McpToolSet {
 				object(properties(Profiles.ARGUMENT, Profiles.schema(), "request_id", integer()), "request_id"),
 				false, false, call -> {
 					long userId = this.profiles.of(call);
+					requireAttended(call, userId, call.requiredNumber("request_id"));
 					AiRequest request = this.discovery.startRequest(userId, call.requiredNumber("request_id"));
 					log.info("{} started request {} ({}) of profile {}", call.client(), request.id(), request.kind(), userId);
 					return details(userId, request);
 				});
+	}
+
+	/**
+	 * Auto-apply's requests are out of an unattended run's reach, to start or to end: they need the profile at the
+	 * browser, whatever the run reads.
+	 */
+	private void requireAttended(ToolCall call, long userId, long requestId) {
+		if (call.unattended() && this.discovery.findRequest(userId, requestId).kind() == AiRequestKind.AUTO_APPLY) {
+			throw new ToolException("Auto-apply needs the profile at the browser, with Claude in Chrome: leave this request");
+		}
 	}
 
 	/**
@@ -163,6 +193,7 @@ class RequestTools implements McpToolSet {
 				false, false, call -> {
 					long userId = this.profiles.of(call);
 					String summary = call.requiredString("summary");
+					requireAttended(call, userId, call.requiredNumber("request_id"));
 					requireApplied(userId, call.requiredNumber("request_id"), call.arguments().path("done").asBoolean(true));
 					AiRequest request = this.discovery.finishRequest(userId, call.requiredNumber("request_id"),
 							call.arguments().path("done").asBoolean(true),
@@ -290,46 +321,74 @@ class RequestTools implements McpToolSet {
 		List<RecipientRef> recipients = (kind == AiRequestKind.WRITE_OUTREACH && job != null) ? recipients(userId, job)
 				: List.of();
 		String baseLetter = (kind == AiRequestKind.WRITE_COVER_LETTER) ? baseLetter(userId, job) : null;
-		// An interview's stories, as many as fit, the others by title for list_stories; a draft's, the titles not to repeat
-		List<StoryTools.StoryView> stories = List.of();
-		List<String> storyTitles = List.of();
-		if (kind == AiRequestKind.PREPARE_INTERVIEW) {
-			List<StoryTools.StoryView> all = this.stories.views(userId);
-			stories = StoryTools.within(all, STORIES_MAX_LENGTH);
-			storyTitles = all.subList(stories.size(), all.size()).stream().map(StoryTools.StoryView::title).toList();
-		} else if (kind == AiRequestKind.WRITE_STORIES) {
-			storyTitles = this.stories.titles(userId);
-		}
+		List<StoryTools.StoryView> bank = (kind == AiRequestKind.PREPARE_INTERVIEW) ? this.stories.views(userId) : List.of();
 		// Only the names: the boards are JobWarden's to read
 		List<String> watched = (taste != null) ? this.watchlist.findCompanies(userId)
 			.stream()
 			.limit(WATCHED_COMPANIES)
 			.map(WatchedCompany::name)
 			.toList() : List.of();
-		// An interview's bank bigger than a request hands out: the steps say where the rest is
-		String instructions = (kind == AiRequestKind.PREPARE_INTERVIEW && !storyTitles.isEmpty())
-				? instructions(request) + "\nstory_titles are more stories, which list_stories gives in full."
-				: instructions(request);
-		return new RequestDetails(request.id(), kind, instructions, requirements(request), taste, followed,
-				companies, watched, recipients,
-				(kind == AiRequestKind.RUN_SAVED_SEARCHES) ? this.searches.searches(userId) : List.of(),
-				(kind == AiRequestKind.SCORE_JOBS) ? this.fits.unscored(userId, SCORE_AT_ONCE) : List.of(),
-				stories, storyTitles, baseLetter,
-				(job != null) ? JobTools.details(job) : null, cv(userId, request));
+		List<DiscoverTools.SearchView> searches = (kind == AiRequestKind.RUN_SAVED_SEARCHES) ? this.searches.searches(userId)
+				: List.of();
+		List<FitTools.JobRef> toScore = (kind == AiRequestKind.SCORE_JOBS) ? this.fits.unscored(userId, SCORE_AT_ONCE)
+				: List.of();
+		// The whole of it within what the assistant reads at once: what's long gives way, the stories first (to their
+		// titles), then the CV file's text, then the posting's description
+		int storiesMax = STORIES_MAX_LENGTH;
+		int fileTextMax = CvTools.REQUEST_TEXT_LENGTH;
+		int descriptionMax = JobTools.DESCRIPTION_MAX_LENGTH;
+		RequestDetails details = null;
+		for (int round = 0; round < 4; round++) {
+			List<StoryTools.StoryView> stories = StoryTools.within(bank, storiesMax);
+			List<String> storyTitles = (kind == AiRequestKind.WRITE_STORIES) ? this.stories.titles(userId)
+					: bank.subList(stories.size(), bank.size()).stream().map(StoryTools.StoryView::title).toList();
+			// An interview's bank bigger than a request hands out: the steps say where the rest is
+			// Every call of it names the profile: one the assistant's own configuration names may be another
+			String instructions = "Pass profile_id " + userId + " to every JobWarden tool you call for it.\n"
+					+ ((kind == AiRequestKind.PREPARE_INTERVIEW && !storyTitles.isEmpty())
+							? instructions(request) + "\nstory_titles are more stories, which list_stories gives in full."
+							: instructions(request));
+			details = new RequestDetails(request.id(), kind, instructions, requirements(request), taste, followed,
+					companies, watched, recipients, searches, toScore, stories, storyTitles, baseLetter,
+					(job != null) ? JobTools.details(job, descriptionMax) : null, cv(userId, request, fileTextMax));
+			int excess = results().writeValueAsString(details).length() - REQUEST_MAX_LENGTH;
+			if (excess <= 0) {
+				break;
+			}
+			int storyLength = stories.stream().mapToInt(StoryTools::length).sum();
+			if (storyLength > 0) {
+				storiesMax = Math.max(0, storyLength - excess);
+			} else if (fileTextMax > LEAST_TEXT) {
+				fileTextMax = Math.max(LEAST_TEXT, fileTextMax - excess);
+			} else {
+				descriptionMax = Math.max(LEAST_TEXT, descriptionMax - excess);
+			}
+		}
+		return details;
+	}
+
+	private JsonMapper results() {
+		JsonMapper mapper = this.results;
+		if (mapper == null) {
+			mapper = McpController.results(this.json);
+			this.results = mapper;
+		}
+		return mapper;
 	}
 
 	/**
 	 * The CV the steps need: full for what's written from what the person did, brief for knowing who they are; none for
 	 * requests that need none, or only Auto-apply's own reading of it.
 	 */
-	private CvTools.@Nullable CvView cv(long userId, AiRequest request) {
+	private CvTools.@Nullable CvView cv(long userId, AiRequest request, int fileTextMax) {
 		return switch (request.kind()) {
-			case TAILOR_CV -> this.cvs.viewForRequest(userId, CvTools.Depth.FULL);
+			case TAILOR_CV -> this.cvs.viewForRequest(userId, CvTools.Depth.FULL, fileTextMax);
 			case PREPARE_INTERVIEW, SCORE_JOB, SCORE_JOBS, WRITE_COVER_LETTER, WRITE_STORIES ->
-				this.cvs.viewForRequest(userId, CvTools.Depth.POINTS);
+				this.cvs.viewForRequest(userId, CvTools.Depth.POINTS, fileTextMax);
 			case FIND_JOBS_FOR_CV, WRITE_PROJECTS, WRITE_OUTREACH, NEGOTIATE_OFFER ->
-				this.cvs.viewForRequest(userId, CvTools.Depth.BRIEF);
-			case FIND_JOBS -> request.requirements().useCv() ? this.cvs.viewForRequest(userId, CvTools.Depth.BRIEF) : null;
+				this.cvs.viewForRequest(userId, CvTools.Depth.BRIEF, fileTextMax);
+			case FIND_JOBS -> request.requirements().useCv()
+					? this.cvs.viewForRequest(userId, CvTools.Depth.BRIEF, fileTextMax) : null;
 			default -> null;
 		};
 	}

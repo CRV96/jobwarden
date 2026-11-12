@@ -1055,6 +1055,84 @@ class McpControllerTests {
 	}
 
 	@Test
+	void keepsAutoApplyOutOfAnUnattendedRunsReach() {
+		AiRequest letter = AiRequest.builder()
+			.id(63)
+			.kind(AiRequestKind.WRITE_COVER_LETTER)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build();
+		AiRequest applying = AiRequest.builder()
+			.id(64)
+			.kind(AiRequestKind.AUTO_APPLY)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build();
+		given(this.discovery.findOpenRequests(1)).willReturn(List.of(letter, applying));
+		given(this.discovery.findRequest(1, 64)).willReturn(applying);
+
+		// The loop and Run say no one watches them: Auto-apply's isn't listed, nor can it be started or ended
+		assertThat(unattended("list_requests", "{}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.requests[*].id").asArray().containsExactly(63);
+		});
+		assertThat(unattended("get_request", "{\"request_id\": 64}")).bodyJson()
+			.satisfies(body -> assertThat(body).extractingPath("$.result.content[0].text")
+				.asString()
+				.contains("Auto-apply needs the profile at the browser"));
+		assertThat(unattended("finish_request", "{\"request_id\": 64, \"summary\": \"Couldn't.\", \"done\": false}"))
+			.bodyJson()
+			.satisfies(body -> assertThat(body).extractingPath("$.result.isError").isEqualTo(true));
+		then(this.discovery).should(never()).startRequest(1, 64);
+		then(this.discovery).should(never()).finishRequest(anyLong(), anyLong(), anyBoolean(), anyString());
+		// Someone at the browser lists it
+		assertThat(callTool("list_requests", "{}")).bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.requests[*].id").asArray().containsExactly(63, 64));
+	}
+
+	@Test
+	void keepsARequestWithinItsBudgetWithALongPostingCvAndStoryBank() {
+		given(this.discovery.startRequest(1, 65)).willReturn(AiRequest.builder()
+			.id(65)
+			.kind(AiRequestKind.PREPARE_INTERVIEW)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+		given(this.discovery.startRequest(1, 66)).willReturn(AiRequest.builder()
+			.id(66)
+			.kind(AiRequestKind.TAILOR_CV)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+		// A 15,000-character posting, a 40,000-character CV file and forty long stories
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.INTERVIEWING).toBuilder()
+			.description("We build payments. ".repeat(800))
+			.build()));
+		given(this.cvs.find(1)).willReturn(new Cv(new CvFile("cv.pdf", "application/pdf", 40_000, 40_000, Instant.now()), CvDetails.NONE));
+		given(this.cvs.fileText(1)).willReturn(Optional.of("Built the payments API at Acme. ".repeat(1250)));
+		given(this.stories.findAll(1)).willReturn(LongStream.rangeClosed(1, 40)
+			.mapToObj(id -> Story.builder().id(id).title("Story " + id).action("x".repeat(1000)).skills(List.of()).build())
+			.toList());
+
+		for (int request : List.of(65, 66)) {
+			assertThat(callTool("get_request", "{\"request_id\": " + request + "}")).bodyJson().satisfies(body -> {
+				assertThat(body).extractingPath("$.result.content[0].text").asString().hasSizeLessThan(25_000);
+				// What was cut says where the rest is
+				assertThat(result(body)).extractingPath("$.cv.file.text_with").isEqualTo("get_cv with full=true");
+				assertThat(result(body)).extractingPath("$.instructions")
+					.asString()
+					.startsWith("Pass profile_id 1 to every JobWarden tool you call for it.");
+			});
+		}
+	}
+
+	@Test
 	void addsTheJobsOfASavedSearchsRequestToThatSearch() {
 		given(this.discovery.startRequest(1, 61)).willReturn(AiRequest.builder()
 			.id(61)
@@ -1097,6 +1175,15 @@ class McpControllerTests {
 			assertThat(result(body)).extractingPath("$.instructions").asString().contains("list_stories gives in full");
 			assertThat(body).extractingPath("$.result.content[0].text").asString().hasSizeLessThan(25_000);
 		});
+	}
+
+	private MvcTestResult unattended(String tool, String arguments) {
+		return this.mvc.post()
+			.uri("/mcp")
+			.header(McpController.UNATTENDED_HEADER, "true")
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(request("tools/call", "{\"name\": \"" + tool + "\", \"arguments\": " + arguments + "}"))
+			.exchange();
 	}
 
 	@Test

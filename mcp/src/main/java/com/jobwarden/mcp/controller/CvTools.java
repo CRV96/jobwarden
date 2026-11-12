@@ -40,11 +40,11 @@ class CvTools implements McpToolSet {
 
 	/**
 	 * The most of the file's text a request hands out with its other data (a posting of up to 12,000 characters, the
-	 * fields): get_cv with full=true gives all of it. A request's result then stays well within what Codex reads whole.
+	 * fields), less when they leave less room: get_cv with full=true gives up to MAX_TEXT_LENGTH of it.
 	 */
 	static final int REQUEST_TEXT_LENGTH = 15_000;
 
-	/** Where a file's text is when a CV is handed out without it. */
+	/** Where a file's text is when a CV is handed out without it, or with less of it (up to 30,000 characters). */
 	static final String FILE_TEXT_WITH = "get_cv with full=true";
 
 	/** The most of it a brief CV returns: the first pages say who the person is. */
@@ -104,6 +104,13 @@ class CvTools implements McpToolSet {
 		return view(userId, depth, REQUEST_TEXT_LENGTH);
 	}
 
+	/**
+	 * The same, with no more of the file's text than given: for a request whose other data leaves less room.
+	 */
+	CvView viewForRequest(long userId, Depth depth, int fileTextMax) {
+		return view(userId, depth, Math.min(fileTextMax, REQUEST_TEXT_LENGTH));
+	}
+
 	private CvView view(long userId, Depth depth, int fileTextMax) {
 		Cv cv = this.cvs.find(userId);
 		CvDetails details = cv.details();
@@ -112,10 +119,11 @@ class CvTools implements McpToolSet {
 		// The file's text says again what the fields say: only without them, unless asked
 		boolean fileText = !filledIn || depth == Depth.FULL
 				|| (depth == Depth.POINTS && details.experience().stream().allMatch(job -> job.description() == null));
-		// Left out, the file says where its text is, for the evidence only it has
+		// Left out, or cut short, the file says where its text is, for the evidence only it has
+		String text = fileText ? fileText(userId, points, fileTextMax) : null;
+		boolean cut = text != null && points && text.length() >= fileTextMax;
 		FileView file = (cv.file() == null) ? null
-				: new FileView(cv.file().fileName(), fileText ? fileText(userId, points, fileTextMax) : null,
-						fileText ? null : FILE_TEXT_WITH);
+				: new FileView(cv.file().fileName(), text, (!fileText || cut) ? FILE_TEXT_WITH : null);
 		return new CvView(filledIn || file != null, filledIn ? details(details, points) : null, file);
 	}
 
