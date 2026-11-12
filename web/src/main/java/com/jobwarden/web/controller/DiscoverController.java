@@ -266,7 +266,8 @@ class DiscoverController extends BaseController {
 		model.addAttribute(ModelAttributes.AI_PROMPTS, requests.stream()
 			.filter(request -> request.status() == AiRequestStatus.WAITING)
 			.collect(Collectors.toMap(AiRequest::id, request -> (request.kind() == AiRequestKind.AUTO_APPLY)
-					? connected(AssistantPrompts.forApplying(request.id(), userId)) : prompt(model, request.id()))));
+					? connected(AssistantPrompts.forApplying(request.id(), userId), requireProfile(model))
+					: prompt(model, request.id()))));
 		model.addAttribute(ModelAttributes.AI_LOOP_PROMPT, AssistantPrompts.loop(requireProfile(model).assistant(), userId,
 				ServletUriComponentsBuilder.fromCurrentContextPath().path(this.requestsPath).toUriString(),
 				ServletUriComponentsBuilder.fromCurrentContextPath().path(this.mcpPath).toUriString()));

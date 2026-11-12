@@ -185,6 +185,28 @@ class DiscoverControllerTests {
 	}
 
 	@Test
+	void saysFirstWhenAnAssistantIsSetUpForAnotherProfile() {
+		// Claude Code's header names profile 2, Codex's this one (1) by its public id
+		given(this.connections.find(Assistant.CLAUDE_CODE)).willReturn(new Connection(State.CONNECTED, null, "2"));
+		given(this.connections.find(Assistant.CODEX))
+			.willReturn(new Connection(State.CONNECTED, null, ROBERT.publicId().toString()));
+		given(this.discovery.findRequests(eq(1L), any(Integer.class))).willReturn(List.of(
+				request(12, AiRequestKind.FIND_JOBS_FOR_CV, AiRequestStatus.WAITING, 0, null)));
+
+		// A call that leaves the profile out would go to profile 2: the button says so first
+		assertThat(this.mvc.get().uri("/discover")).bodyText()
+			.contains("popovertarget=\"open-CLAUDE_CODE-12-connect\"", "Claude Code is connected to another profile",
+					"href=\"/settings#assistant\"", "Open anyway")
+			.doesNotContain("open-CODEX-12-connect", "isn’t connected to JobWarden yet");
+
+		// No header names a profile: the one profile there is, or the one each call names, so it opens at once
+		given(this.connections.find(Assistant.CLAUDE_CODE)).willReturn(new Connection(State.CONNECTED, null));
+		assertThat(this.mvc.get().uri("/discover")).bodyText()
+			.containsPattern("href=\"claude://code/new\\?q=Do%20JobWarden%20request%2012[^\"]*\"")
+			.doesNotContain("open-CLAUDE_CODE-12-connect", "connected to another profile");
+	}
+
+	@Test
 	void keepsSayingWhyRunWasRefusedAsTheCardAsksAgain() {
 		given(this.runner.canRun(Assistant.CLAUDE_CODE)).willReturn(true);
 		given(this.runner.refusal(List.of(12L))).willReturn(Optional.of(new AssistantRunner.Refusal(

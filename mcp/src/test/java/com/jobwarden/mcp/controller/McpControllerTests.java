@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
 import com.jayway.jsonpath.JsonPath;
@@ -1107,44 +1108,64 @@ class McpControllerTests {
 
 	@Test
 	void keepsARequestWithinItsBudgetWithALongPostingCvAndStoryBank() {
-		given(this.discovery.startRequest(1, 65)).willReturn(AiRequest.builder()
-			.id(65)
-			.kind(AiRequestKind.PREPARE_INTERVIEW)
+		given(this.discovery.startRequest(eq(1L), anyLong())).willAnswer(call -> AiRequest.builder()
+			.id(call.getArgument(1))
+			.kind((long) call.getArgument(1) % 2 == 1 ? AiRequestKind.PREPARE_INTERVIEW : AiRequestKind.TAILOR_CV)
 			.applicationId(7L)
 			.requirements(AiRequirements.NONE)
 			.status(AiRequestStatus.WAITING)
 			.createdAt(Instant.now())
 			.build());
-		given(this.discovery.startRequest(1, 66)).willReturn(AiRequest.builder()
-			.id(66)
-			.kind(AiRequestKind.TAILOR_CV)
-			.applicationId(7L)
-			.requirements(AiRequirements.NONE)
-			.status(AiRequestStatus.WAITING)
-			.createdAt(Instant.now())
-			.build());
-		// A 15,000-character posting, a 40,000-character CV file and forty long stories
+		// A 15,000-character posting, a 28,000-character CV file and forty long stories
 		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.INTERVIEWING).toBuilder()
 			.link("https://example.com/jobs/7")
 			.description("We build payments. ".repeat(800))
 			.build()));
-		given(this.cvs.find(1)).willReturn(new Cv(new CvFile("cv.pdf", "application/pdf", 40_000, 40_000, Instant.now()), CvDetails.NONE));
-		given(this.cvs.fileText(1)).willReturn(Optional.of("Built the payments API at Acme. ".repeat(1250)));
+		given(this.cvs.fileText(1)).willReturn(Optional.of("Built the payments API at Acme. ".repeat(875)));
 		given(this.stories.findAll(1)).willReturn(LongStream.rangeClosed(1, 40)
 			.mapToObj(id -> Story.builder().id(id).title("Story " + id).action("x".repeat(1000)).skills(List.of()).build())
 			.toList());
+		// The CV with no fields, and with six jobs of 5,000 characters of points each, as many as its page takes
+		CvFile file = new CvFile("cv.pdf", "application/pdf", 40_000, 28_000, Instant.now());
+		CvDetails filledIn = CvDetails.builder()
+			.headline("Senior Java Developer")
+			.summary("s".repeat(2_000))
+			.experience(IntStream.rangeClosed(1, 6)
+				.mapToObj(n -> new CvExperience("Java Developer", "Acme " + n, null, "2020", "2021", "p".repeat(5_000)))
+				.toList())
+			.build();
+		given(this.cvs.find(1)).willReturn(new Cv(file, CvDetails.NONE));
 
-		for (int request : List.of(65, 66)) {
+		for (int request : List.of(65, 66, 67, 68)) {
+			if (request == 67) {
+				given(this.cvs.find(1)).willReturn(new Cv(file, filledIn));
+			}
 			assertThat(callTool("get_request", "{\"request_id\": " + request + "}")).bodyJson().satisfies(body -> {
 				assertThat(body).extractingPath("$.result.content[0].text").asString().hasSizeLessThan(25_000);
-				// What was cut says where the rest is
+				// What was cut, or left out, says where the rest is
 				assertThat(result(body)).extractingPath("$.cv.file.text_with").isEqualTo("get_cv with full=true");
 				assertThat(result(body)).extractingPath("$.job.description_with").isEqualTo("its link");
 				assertThat(result(body)).extractingPath("$.instructions")
 					.asString()
 					.startsWith("Pass profile_id 1 to every JobWarden tool you call for it.");
+				if (request > 66) {
+					assertThat(result(body)).extractingPath("$.cv.fields.cut_with").isEqualTo("get_cv with full=true");
+				}
 			});
 		}
+	}
+
+	@Test
+	void pointsNowhereElseForTheRestOfAFileLongerThanAFullCvGives() {
+		given(this.cvs.find(1)).willReturn(new Cv(new CvFile("cv.pdf", "application/pdf", 90_000, 40_000, Instant.now()),
+				CvDetails.NONE));
+		given(this.cvs.fileText(1)).willReturn(Optional.of("x".repeat(40_000)));
+
+		// get_cv with full=true gives the most of it there is to give: cut, it says so with its "…" alone
+		assertThat(callTool("get_cv", "{\"full\": true}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.file.text").asString().hasSize(CvTools.MAX_TEXT_LENGTH + 1).endsWith("…");
+			assertThat(result(body)).extractingPath("$.file").asMap().doesNotContainKey("text_with");
+		});
 	}
 
 	@Test

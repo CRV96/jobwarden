@@ -1,6 +1,8 @@
 package com.jobwarden.mcp.controller;
 
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Stream;
 
 import com.jobwarden.cv.dto.Cv;
 import com.jobwarden.cv.dto.CvCertification;
@@ -50,6 +52,9 @@ class CvTools implements McpToolSet {
 	/** The most of it a brief CV returns: the first pages say who the person is. */
 	static final int BRIEF_TEXT_LENGTH = 8_000;
 
+	/** The least of a field's text (a job's points, a project's, a school's, the summary) a request keeps when it cuts. */
+	static final int LEAST_FIELD_TEXT = 300;
+
 	private final Profiles profiles;
 
 	private final CvService cvs;
@@ -93,7 +98,7 @@ class CvTools implements McpToolSet {
 	 * The CV as get_cv gives it, which get_request also hands out with the requests that need it.
 	 */
 	CvView view(long userId, Depth depth) {
-		return view(userId, depth, MAX_TEXT_LENGTH);
+		return view(userId, depth, MAX_TEXT_LENGTH, Integer.MAX_VALUE);
 	}
 
 	/**
@@ -101,17 +106,64 @@ class CvTools implements McpToolSet {
 	 * {@link #REQUEST_TEXT_LENGTH}.
 	 */
 	CvView viewForRequest(long userId, Depth depth) {
-		return view(userId, depth, REQUEST_TEXT_LENGTH);
+		return view(userId, depth, REQUEST_TEXT_LENGTH, Integer.MAX_VALUE);
 	}
 
 	/**
 	 * The same, with no more of the file's text than given: for a request whose other data leaves less room.
 	 */
 	CvView viewForRequest(long userId, Depth depth, int fileTextMax) {
-		return view(userId, depth, Math.min(fileTextMax, REQUEST_TEXT_LENGTH));
+		return viewForRequest(userId, depth, fileTextMax, Integer.MAX_VALUE);
 	}
 
-	private CvView view(long userId, Depth depth, int fileTextMax) {
+	/**
+	 * The same, with no field's text longer than given either: for a request whose CV fields alone leave too little
+	 * room.
+	 */
+	CvView viewForRequest(long userId, Depth depth, int fileTextMax, int fieldTextMax) {
+		return view(userId, depth, Math.min(fileTextMax, REQUEST_TEXT_LENGTH), fieldTextMax);
+	}
+
+	/**
+	 * How long a field's text may be for the fields' texts to be shorter by at least the given number of characters all
+	 * told, never under {@link #LEAST_FIELD_TEXT}.
+	 */
+	static int fieldTextMax(@Nullable CvView view, int shorterBy) {
+		List<Integer> lengths = (view == null || view.fields() == null) ? List.of()
+				: texts(view.fields()).map(String::length).toList();
+		int low = LEAST_FIELD_TEXT;
+		int high = Math.max(low, lengths.stream().mapToInt(Integer::intValue).max().orElse(0));
+		// The longest that still saves enough: the more it allows, the less it saves
+		while (low < high) {
+			int max = (low + high + 1) / 2;
+			long saved = lengths.stream().mapToLong(length -> Math.max(0, length - max)).sum();
+			if (saved >= shorterBy) {
+				low = max;
+			} else {
+				high = max - 1;
+			}
+		}
+		return low;
+	}
+
+	/**
+	 * @return the longest of the fields' texts, in characters; 0 without fields
+	 */
+	static int longestFieldText(@Nullable CvView view) {
+		return (view == null || view.fields() == null) ? 0
+				: texts(view.fields()).mapToInt(String::length).max().orElse(0);
+	}
+
+	/** The fields' long texts: the summary, and the jobs', projects' and schools' descriptions. */
+	private static Stream<String> texts(DetailsView fields) {
+		return Stream.of(Stream.ofNullable(fields.summary()), fields.experience().stream().map(CvExperience::description),
+				fields.projects().stream().map(CvProject::description),
+				fields.education().stream().map(CvEducation::description))
+			.flatMap(texts -> texts)
+			.filter(Objects::nonNull);
+	}
+
+	private CvView view(long userId, Depth depth, int fileTextMax, int fieldTextMax) {
 		Cv cv = this.cvs.find(userId);
 		CvDetails details = cv.details();
 		boolean filledIn = details.isFilledIn() || !details.skills().isEmpty() || details.summary() != null;
@@ -121,11 +173,12 @@ class CvTools implements McpToolSet {
 				|| (depth == Depth.POINTS && details.experience().stream().allMatch(job -> job.description() == null));
 		// Left out, or cut short, the file says where its text is, for the evidence only it has
 		String text = fileText ? fileText(userId, points, fileTextMax) : null;
-		// Cut, it's a character longer than its limit: the "…"
-		boolean cut = text != null && text.length() > (points ? fileTextMax : BRIEF_TEXT_LENGTH);
+		// Cut, it's a character longer than its limit (the "…"); get_cv with full=true has more of it, unless it was that
+		int textMax = points ? fileTextMax : BRIEF_TEXT_LENGTH;
+		boolean more = text != null && text.length() > textMax && textMax < MAX_TEXT_LENGTH;
 		FileView file = (cv.file() == null) ? null
-				: new FileView(cv.file().fileName(), text, (!fileText || cut) ? FILE_TEXT_WITH : null);
-		return new CvView(filledIn || file != null, filledIn ? details(details, points) : null, file);
+				: new FileView(cv.file().fileName(), text, (!fileText || more) ? FILE_TEXT_WITH : null);
+		return new CvView(filledIn || file != null, filledIn ? details(details, points, fieldTextMax) : null, file);
 	}
 
 	/**
@@ -236,14 +289,36 @@ class CvTools implements McpToolSet {
 
 	/**
 	 * @param full with every job's points; else only the jobs' roles, companies, places and dates
+	 * @param textMax the longest a field's text may be: longer, it's cut, and says get_cv with full=true has it whole
 	 */
-	private static DetailsView details(CvDetails cv, boolean full) {
-		List<CvExperience> experience = full ? cv.experience() : cv.experience()
+	private static DetailsView details(CvDetails cv, boolean full, int textMax) {
+		List<CvExperience> experience = cv.experience()
 			.stream()
-			.map(job -> new CvExperience(job.role(), job.company(), job.location(), job.start(), job.end(), null))
+			.map(job -> new CvExperience(job.role(), job.company(), job.location(), job.start(), job.end(),
+					full ? cut(job.description(), textMax) : null))
 			.toList();
-		return new DetailsView(cv.fullName(), cv.headline(), cv.location(), cv.summary(), cv.skills(), experience,
-				cv.projects(), cv.education(), cv.languages(), cv.certifications());
+		List<CvProject> projects = cv.projects()
+			.stream()
+			.map(project -> new CvProject(project.name(), project.link(), project.technologies(),
+					cut(project.description(), textMax)))
+			.toList();
+		List<CvEducation> education = cv.education()
+			.stream()
+			.map(school -> new CvEducation(school.degree(), school.school(), school.location(), school.start(),
+					school.end(), cut(school.description(), textMax)))
+			.toList();
+		DetailsView whole = new DetailsView(cv.fullName(), cv.headline(), cv.location(), cv.summary(), cv.skills(),
+				full ? cv.experience() : experience, cv.projects(), cv.education(), cv.languages(), cv.certifications(),
+				null);
+		if (longestFieldText(new CvView(true, whole, null)) <= textMax) {
+			return whole;
+		}
+		return new DetailsView(cv.fullName(), cv.headline(), cv.location(), cut(cv.summary(), textMax), cv.skills(),
+				experience, projects, education, cv.languages(), cv.certifications(), FILE_TEXT_WITH);
+	}
+
+	private static @Nullable String cut(@Nullable String text, int maxLength) {
+		return (text == null) ? null : shortened(text, maxLength);
 	}
 
 	private static String shortened(String text, int maxLength) {
@@ -256,15 +331,17 @@ class CvTools implements McpToolSet {
 	record CvView(boolean hasCv, @Nullable DetailsView fields, @Nullable FileView file) {
 	}
 
-	/** The fields, without the contact details: the assistant needs none of them to find jobs. */
+	/**
+	 * The fields, without the contact details: the assistant needs none of them to find jobs.
+	 *
+	 * @param cutWith where the texts cut short (ending in …) are whole, when a request cut them
+	 */
 	record DetailsView(@Nullable String fullName, @Nullable String headline, @Nullable String location,
 			@Nullable String summary, List<String> skills, List<CvExperience> experience, List<CvProject> projects,
-			List<CvEducation> education, List<CvLanguage> languages, List<CvCertification> certifications) {
+			List<CvEducation> education, List<CvLanguage> languages, List<CvCertification> certifications,
+			@Nullable String cutWith) {
 	}
 
-	/**
-	 * @param text what could be read out of it; none for a scanned PDF
-	 */
 	/**
 	 * @param text its text, or none when the fields say it already
 	 * @param textWith then, how to get it: for evidence only the file has

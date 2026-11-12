@@ -173,7 +173,7 @@ abstract class BaseController {
 		User profile = requireProfile(model);
 		Prompt prompt = AssistantPrompts.forRequests(profile.assistant(), requestIds, profile.id());
 		if (this.runner == null) {
-			return connected(prompt);
+			return connected(prompt, profile);
 		}
 		// Why Run last refused them, kept a while, so the card keeps saying it as it asks again
 		RunRefusal refused = this.runner.refusal(requestIds)
@@ -181,7 +181,7 @@ abstract class BaseController {
 					AssistantRunner.signInCommand(refusal.assistant())))
 			.orElse(null);
 		return connected(prompt.run(this.runner.canRun(profile.assistant()), this.runner.isRunning(requestIds))
-			.refused(refused));
+			.refused(refused), profile);
 	}
 
 	/**
@@ -194,15 +194,17 @@ abstract class BaseController {
 
 	/**
 	 * The prompt, its apps knowing whether each assistant has JobWarden's MCP server on this computer: one that hasn't
-	 * says to connect it first, in Settings.
+	 * says to connect it first, in Settings; one set up for another profile says so, since a call that leaves the
+	 * profile out goes there.
 	 */
-	protected Prompt connected(Prompt prompt) {
+	protected Prompt connected(Prompt prompt, User profile) {
 		if (this.connections == null) {
 			return prompt;
 		}
 		return prompt.withApps(prompt.apps().stream().map(link -> {
 			Connection connection = connection(link.assistant());
-			return link.checked(!connection.isMissing(), connection.folder());
+			return link.checked(!connection.isMissing(), connection.profile() != null && !connection.isFor(profile),
+					connection.folder());
 		}).toList());
 	}
 

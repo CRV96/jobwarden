@@ -35,11 +35,12 @@
 <div th:fragment="prompt(prompt)" class="flex flex-col gap-2">
     <div class="flex flex-wrap items-center gap-2">
         <th:block th:each="app : ${prompt.apps}" th:with="openId=|open-${app.assistant}-${prompt.requestIds[0]}|">
-            <a class="btn btn-primary" th:if="${app.connected}" th:href="${app.href}">
+            <a class="btn btn-primary" th:if="${app.ready}" th:href="${app.href}">
                 <i class="ph ph-arrow-square-out"></i><span th:text="#{ai.open(${app.app})}">Open in Claude</span>
             </a>
-            <!--/* Not connected: the button says so first, and where to connect it; or opens it anyway */-->
-            <th:block th:unless="${app.connected}">
+            <!--/* Not connected, or set up for another profile: the button says so first, and where to connect it; or
+                   opens it anyway */-->
+            <th:block th:unless="${app.ready}" th:with="texts=${app.otherProfile} ? 'ai.open.other' : 'ai.open.unconnected'">
                 <button class="btn btn-primary" type="button" th:id="${openId}" th:popovertarget="|${openId}-connect|"
                         aria-haspopup="dialog">
                     <i class="ph ph-arrow-square-out"></i><span th:text="#{ai.open(${app.app})}">Open in Claude</span>
@@ -52,9 +53,9 @@
                             <i class="ph ph-plugs text-lg text-accent"></i>
                             <div class="flex flex-col gap-1">
                                 <div class="font-medium" th:id="|${openId}-title|"
-                                     th:text="#{ai.open.unconnected.title(${app.assistant.product()})}">Claude Code isn’t connected to JobWarden yet</div>
+                                     th:text="#{|${texts}.title|(${app.assistant.product()})}">Claude Code isn’t connected to JobWarden yet</div>
                                 <p class="text-xs text-pretty text-ink/65"
-                                   th:text="#{ai.open.unconnected.body(${app.assistant.product()})}">Without JobWarden’s MCP server…</p>
+                                   th:text="#{|${texts}.body|(${app.assistant.product()})}">Without JobWarden’s MCP server…</p>
                             </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">

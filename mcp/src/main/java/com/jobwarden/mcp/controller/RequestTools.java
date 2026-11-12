@@ -333,12 +333,14 @@ class RequestTools implements McpToolSet {
 		List<FitTools.JobRef> toScore = (kind == AiRequestKind.SCORE_JOBS) ? this.fits.unscored(userId, SCORE_AT_ONCE)
 				: List.of();
 		// The whole of it within what the assistant reads at once: what's long gives way, the stories first (to their
-		// titles), then the CV file's text, then the posting's description
+		// titles), then the CV file's text, then the CV fields' texts, then the posting's description
 		int storiesMax = STORIES_MAX_LENGTH;
 		int fileTextMax = CvTools.REQUEST_TEXT_LENGTH;
+		int fieldTextMax = Integer.MAX_VALUE;
 		int descriptionMax = JobTools.DESCRIPTION_MAX_LENGTH;
+		int descriptionLength = (job != null && job.description() != null) ? job.description().length() : 0;
 		RequestDetails details = null;
-		for (int round = 0; round < 4; round++) {
+		for (int round = 0; round < 6; round++) {
 			List<StoryTools.StoryView> stories = StoryTools.within(bank, storiesMax);
 			List<String> storyTitles = (kind == AiRequestKind.WRITE_STORIES) ? this.stories.titles(userId)
 					: bank.subList(stories.size(), bank.size()).stream().map(StoryTools.StoryView::title).toList();
@@ -348,20 +350,28 @@ class RequestTools implements McpToolSet {
 					+ ((kind == AiRequestKind.PREPARE_INTERVIEW && !storyTitles.isEmpty())
 							? instructions(request) + "\nstory_titles are more stories, which list_stories gives in full."
 							: instructions(request));
+			CvTools.CvView cv = cv(userId, request, fileTextMax, fieldTextMax);
 			details = new RequestDetails(request.id(), kind, instructions, requirements(request), taste, followed,
 					companies, watched, recipients, searches, toScore, stories, storyTitles, baseLetter,
-					(job != null) ? JobTools.details(job, descriptionMax) : null, cv(userId, request, fileTextMax));
+					(job != null) ? JobTools.details(job, descriptionMax) : null, cv);
 			int excess = results().writeValueAsString(details).length() - REQUEST_MAX_LENGTH;
 			if (excess <= 0) {
 				break;
 			}
 			int storyLength = stories.stream().mapToInt(StoryTools::length).sum();
+			int fileTextLength = (cv != null && cv.file() != null && cv.file().text() != null) ? cv.file().text().length()
+					: 0;
 			if (storyLength > 0) {
 				storiesMax = Math.max(0, storyLength - excess);
-			} else if (fileTextMax > LEAST_TEXT) {
-				fileTextMax = Math.max(LEAST_TEXT, fileTextMax - excess);
+			} else if (fileTextMax > LEAST_TEXT && fileTextLength > LEAST_TEXT) {
+				fileTextMax = Math.max(LEAST_TEXT, Math.min(fileTextMax, fileTextLength) - excess);
+			} else if (fieldTextMax > CvTools.LEAST_FIELD_TEXT && CvTools.longestFieldText(cv) > CvTools.LEAST_FIELD_TEXT) {
+				fieldTextMax = CvTools.fieldTextMax(cv, excess);
+			} else if (Math.min(descriptionMax, descriptionLength) > LEAST_TEXT) {
+				descriptionMax = Math.max(LEAST_TEXT, Math.min(descriptionMax, descriptionLength) - excess);
 			} else {
-				descriptionMax = Math.max(LEAST_TEXT, descriptionMax - excess);
+				// Nothing long is left to cut
+				break;
 			}
 		}
 		return details;
@@ -380,15 +390,15 @@ class RequestTools implements McpToolSet {
 	 * The CV the steps need: full for what's written from what the person did, brief for knowing who they are; none for
 	 * requests that need none, or only Auto-apply's own reading of it.
 	 */
-	private CvTools.@Nullable CvView cv(long userId, AiRequest request, int fileTextMax) {
+	private CvTools.@Nullable CvView cv(long userId, AiRequest request, int fileTextMax, int fieldTextMax) {
 		return switch (request.kind()) {
-			case TAILOR_CV -> this.cvs.viewForRequest(userId, CvTools.Depth.FULL, fileTextMax);
+			case TAILOR_CV -> this.cvs.viewForRequest(userId, CvTools.Depth.FULL, fileTextMax, fieldTextMax);
 			case PREPARE_INTERVIEW, SCORE_JOB, SCORE_JOBS, WRITE_COVER_LETTER, WRITE_STORIES ->
-				this.cvs.viewForRequest(userId, CvTools.Depth.POINTS, fileTextMax);
+				this.cvs.viewForRequest(userId, CvTools.Depth.POINTS, fileTextMax, fieldTextMax);
 			case FIND_JOBS_FOR_CV, WRITE_PROJECTS, WRITE_OUTREACH, NEGOTIATE_OFFER ->
-				this.cvs.viewForRequest(userId, CvTools.Depth.BRIEF, fileTextMax);
+				this.cvs.viewForRequest(userId, CvTools.Depth.BRIEF, fileTextMax, fieldTextMax);
 			case FIND_JOBS -> request.requirements().useCv()
-					? this.cvs.viewForRequest(userId, CvTools.Depth.BRIEF, fileTextMax) : null;
+					? this.cvs.viewForRequest(userId, CvTools.Depth.BRIEF, fileTextMax, fieldTextMax) : null;
 			default -> null;
 		};
 	}

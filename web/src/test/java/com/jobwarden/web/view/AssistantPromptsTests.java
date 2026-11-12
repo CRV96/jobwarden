@@ -144,8 +144,16 @@ class AssistantPromptsTests {
 		assertThat(codex.checked(true, Path.of("/Users/ana")).href()).isEqualTo(codex.href());
 		assertThat(codex.checked(false, null)).satisfies(unconnected -> {
 			assertThat(unconnected.connected()).isFalse();
+			assertThat(unconnected.ready()).isFalse();
 			assertThat(unconnected.href()).isEqualTo(codex.href());
 		});
+		// Set up for another profile, it asks first; not set up at all, that's what it says
+		assertThat(claude.checked(true, true, null)).satisfies(other -> {
+			assertThat(other.otherProfile()).isTrue();
+			assertThat(other.ready()).isFalse();
+		});
+		assertThat(claude.checked(false, true, null).otherProfile()).isFalse();
+		assertThat(claude.checked(true, false, null).ready()).isTrue();
 	}
 
 	@Test

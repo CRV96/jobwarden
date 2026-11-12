@@ -66,11 +66,20 @@ public final class AssistantPrompts {
 	 * @param href the link that opens it with the prompt in a new session, ready to send
 	 * @param connected whether the assistant may have JobWarden's MCP server: false when its configuration on this
 	 * computer has none, and the page then says to connect it first
+	 * @param otherProfile whether its configuration names another profile, which a call that leaves the profile out
+	 * goes to: the page then says so first
 	 */
-	public record AppLink(Assistant assistant, String href, boolean connected) {
+	public record AppLink(Assistant assistant, String href, boolean connected, boolean otherProfile) {
 
 		public AppLink(Assistant assistant, String href) {
-			this(assistant, href, true);
+			this(assistant, href, true, false);
+		}
+
+		/**
+		 * @return whether it opens at once: connected, for this profile or none in particular
+		 */
+		public boolean ready() {
+			return this.connected && !this.otherProfile;
 		}
 
 		/**
@@ -85,10 +94,17 @@ public final class AssistantPrompts {
 		 * opening its session in one of them, where it has.
 		 */
 		public AppLink checked(boolean connected, @Nullable Path folder) {
+			return checked(connected, false, folder);
+		}
+
+		/**
+		 * The same, knowing too whether its configuration names another profile.
+		 */
+		public AppLink checked(boolean connected, boolean otherProfile, @Nullable Path folder) {
 			String opened = (folder != null && this.assistant == Assistant.CLAUDE_CODE)
 					? this.href + "&folder=" + URLEncoder.encode(folder.toString(), StandardCharsets.UTF_8).replace("+", "%20")
 					: this.href;
-			return new AppLink(this.assistant, opened, connected);
+			return new AppLink(this.assistant, opened, connected, connected && otherProfile);
 		}
 
 	}
