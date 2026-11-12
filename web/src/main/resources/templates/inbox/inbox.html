@@ -86,7 +86,7 @@
                 th:with="applied=${update.decision.name() == 'APPLIED'}, claude=${update.decidedBy.name() == 'CLAUDE'}">
                 <i class="ph flex-none text-base" th:classappend="${claude} ? 'ph-sparkle text-accent' : 'ph-lightning text-ink/55'"
                    th:title="${claude} ? #{inbox.decided.byClaude} : #{inbox.decided.byJobWarden}" aria-hidden="true"></i>
-                <span class="sr-only" th:text="${claude} ? #{inbox.decided.byClaude} : #{inbox.decided.byJobWarden}">Done by Claude</span>
+                <span class="sr-only" th:text="${claude} ? #{inbox.decided.byClaude} : #{inbox.decided.byJobWarden}">Done by the AI Assistant</span>
                 <div class="min-w-0 flex-[1_1_220px]">
                     <div class="truncate text-[13px] font-medium" th:text="${update.subject} ?: #{inbox.noSubject}">Your application to Acme</div>
                     <div class="truncate text-xs text-ink/60" th:text="${update.sender}">Ana Pop &lt;ana@acme.com&gt;</div>
@@ -123,11 +123,11 @@
         <div class="flex flex-wrap items-center gap-2">
             <i class="ph ph-sparkle text-lg text-accent"></i>
             <p class="min-w-[200px] flex-1 text-[13px] text-pretty text-ink/75" th:unless="${open}" th:text="#{inbox.sort.hint}">
-                Claude can sort these: find the job each is about…</p>
+                The AI Assistant can sort these: find the job each is about…</p>
             <th:block th:if="${open}">
                 <span class="tag st-interviewing">
                     <i class="ph ph-arrow-clockwise animate-spin" th:if="${status == 'WORKING'}"></i>
-                    <span th:text="#{|ai.status.${status}|}">Waiting for Claude</span>
+                    <span th:text="#{|ai.status.${status}|}">Waiting for the AI Assistant</span>
                 </span>
                 <span class="flex-1"></span>
                 <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button" th:hx-post="@{/inbox/sort/cancel}"
@@ -135,25 +135,16 @@
             </th:block>
             <button class="btn btn-secondary" type="button" th:if="${!open and !emailUpdates.isEmpty()}" th:hx-post="@{/inbox/sort}"
                     hx-target="#email-updates" hx-swap="outerHTML">
-                <i class="ph ph-sparkle"></i><span th:text="#{inbox.sort}">Ask Claude to sort them</span>
+                <i class="ph ph-sparkle"></i><span th:text="#{inbox.sort}">Ask the AI Assistant to sort them</span>
             </button>
         </div>
         <th:block th:if="${status == 'WAITING'}">
-            <div class="text-xs text-ink/60" th:text="#{ai.prompt}">Paste this into Claude Code:</div>
-            <div class="flex items-start gap-2">
-                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${sortPrompt.text}">Do JobWarden request 12…</code>
-                <button th:replace="~{discover/discover :: copy-button(${sortPrompt.text})}"></button>
-            </div>
-            <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
-            <div class="flex items-start gap-2">
-                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${sortPrompt.command}">claude "Do JobWarden request 12…"</code>
-                <button th:replace="~{discover/discover :: copy-button(${sortPrompt.command})}"></button>
-            </div>
+            <div th:replace="~{applications/claude :: prompt(${sortPrompt})}"></div>
         </th:block>
         <p class="text-xs text-pretty text-ink/65" th:if="${status == 'DONE' and sortRequest.summary != null}"
-           th:text="#{inbox.sort.done(${sortRequest.summary})}">Claude sorted them: applied 5, dismissed 2.</p>
+           th:text="#{inbox.sort.done(${sortRequest.summary})}">The AI Assistant sorted them: applied 5, dismissed 2.</p>
         <p class="text-xs text-pretty text-danger" role="alert" th:if="${status == 'FAILED'}"
-           th:text="#{inbox.sort.failed(${sortRequest.summary} ?: '')}">Claude couldn’t sort them: …</p>
+           th:text="#{inbox.sort.failed(${sortRequest.summary} ?: '')}">The AI Assistant couldn’t sort them: …</p>
     </div>
 </div>
 </th:block>

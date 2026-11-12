@@ -1,6 +1,7 @@
 package com.jobwarden.web.controller;
 
 import java.net.URI;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.time.Instant;
@@ -10,6 +11,7 @@ import java.util.stream.IntStream;
 
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
+import com.jobwarden.identity.enums.Assistant;
 import com.jobwarden.identity.service.UserService;
 import com.jobwarden.inbox.dto.MailAccount;
 import com.jobwarden.inbox.enums.InboxAutomation;
@@ -25,6 +27,9 @@ import com.jobwarden.market.service.AdzunaKeyService;
 import com.jobwarden.updates.dto.Release;
 import com.jobwarden.updates.dto.UpdateStatus;
 import com.jobwarden.updates.service.UpdateService;
+import com.jobwarden.web.assistant.AssistantConnections;
+import com.jobwarden.web.assistant.AssistantConnections.Connection;
+import com.jobwarden.web.assistant.AssistantConnections.State;
 import com.jobwarden.web.user.CurrentUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,6 +62,9 @@ class SettingsControllerTests {
 	private CurrentUser currentUser;
 
 	@MockitoBean
+	private AssistantConnections connections;
+
+	@MockitoBean
 	private UserService users;
 
 	@MockitoBean
@@ -80,21 +88,99 @@ class SettingsControllerTests {
 	}
 
 	@Test
+	void saysWhichAssistantsAreConnectedAlready() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+		given(this.connections.find(Assistant.CLAUDE_CODE))
+			.willReturn(new Connection(State.CONNECTED, Path.of("/Users/robert/Developer/jobwarden")));
+		given(this.connections.find(Assistant.CODEX)).willReturn(new Connection(State.NOT_CONNECTED, null));
+
+		assertThat(this.mvc.get().uri("/settings")).bodyText()
+			.contains("Connected", "Not connected yet",
+					"Connected in /Users/robert/Developer/jobwarden alone: Open in Claude starts its session there.");
+	}
+
+	@Test
+	void saysWhenAnAssistantIsSetUpForAnotherProfile() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+		// Claude Code with this profile's id from before; Codex with another profile's
+		given(this.connections.find(Assistant.CLAUDE_CODE)).willReturn(new Connection(State.CONNECTED, null, "1000"));
+		given(this.connections.find(Assistant.CODEX))
+			.willReturn(new Connection(State.CONNECTED, null, "9d2e4b1a-0000-4000-8000-000000000001"));
+
+		assertThat(this.mvc.get().uri("/settings")).bodyText()
+			.contains("Connected to another profile",
+					"Its settings name another profile (9d2e4b1a-0000-4000-8000-000000000001). The requests from the pages still work",
+					"replace the jobwarden lines in ~/.codex/config.toml")
+			.doesNotContain("run claude mcp remove jobwarden");
+	}
+
+	@Test
+	void tellsTheLicenseWhoMadeItAndWhereItsCodeIs() {
+		assertThat(this.mvc.get().uri("/settings")).bodyText()
+			.contains("About", "MIT License", "href=\"https://github.com/CRV96/jobwarden/blob/main/LICENSE.md\"",
+					"Made by", ">CRV<", "href=\"https://github.com/CRV96\"", "href=\"https://github.com/CRV96/jobwarden\"",
+					"github.com/CRV96/jobwarden", "as long as the copyright notice and the license stay with it");
+	}
+
+	@Test
+	void offersToRenameTheProfileBesideItsPhoto() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+
+		assertThat(this.mvc.get().uri("/settings")).bodyText()
+			.contains("action=\"/profiles/rename\"", "name=\"name\"", "value=\"Robert\"", "Rename")
+			// And to delete it, its name typed to confirm
+			.contains("id=\"delete-profile\"", "Delete profile", "action=\"/profiles/delete\"", "Delete Robert?",
+					"Type Robert to confirm", "Delete for good", "href=\"/applications/export\"");
+	}
+
+	@Test
 	void showsWhatTheExtensionNeeds() {
 		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
 
 		assertThat(this.mvc.get().uri("/settings")).hasStatusOk()
 			.bodyText()
-			.contains("http://localhost", ">1000<", "data-theme-choice");
+			// The profile's public id, to copy, in place of the number the database counts with
+			.contains("http://localhost", ">" + ROBERT.publicId() + "<", "data-copy-text=\"" + ROBERT.publicId() + "\"",
+					"data-theme-choice")
+			.doesNotContain(">1000<");
 	}
 
 	@Test
-	void showsHowToConnectClaude() {
+	void showsHowToConnectClaudeCode() {
 		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
 
 		assertThat(this.mvc.get().uri("/settings")).bodyText()
-			.contains(">http://localhost/mcp<",
-					"claude mcp add --transport http jobwarden http://localhost/mcp --header &quot;X-JobWarden-Profile: 1000&quot;");
+			.contains(">http://localhost/mcp<", "Connect Claude Code to JobWarden (MCP)",
+					"claude mcp add --scope user --transport http jobwarden http://localhost/mcp --header &quot;X-JobWarden-Profile: "
+							+ ROBERT.publicId() + "&quot;",
+					// The profile picks its assistant; ChatGPT's app can't reach a server on this computer
+					"name=\"assistant\" value=\"CODEX\"", "The ChatGPT app can’t connect")
+			.containsPattern("value=\"CLAUDE_CODE\"[^>]*checked");
+	}
+
+	@Test
+	void showsHowToConnectCodexToAProfileThatWorksWithIt() {
+		given(this.currentUser.get()).willReturn(Optional.of(new User(1000, "Robert", Instant.parse("2026-09-28T10:00:00Z"),
+				null, Assistant.CODEX)));
+
+		assertThat(this.mvc.get().uri("/settings")).bodyText()
+			.contains("Connect Codex to JobWarden (MCP)", "~/.codex/config.toml", "[mcp_servers.jobwarden]",
+					"url = &quot;http://localhost/mcp&quot;",
+					"http_headers = { &quot;X-JobWarden-Profile&quot; = &quot;" + ROBERT.publicId() + "&quot; }",
+					// Both can be connected: the pages open either app
+					"Connect Claude Code to JobWarden (MCP)", "claude mcp add --scope user", "Your main assistant")
+			.containsPattern("value=\"CODEX\"[^>]*checked");
+	}
+
+	@Test
+	void savesTheAssistantTheProfileWorksWith() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+
+		assertThat(this.mvc.post().uri("/settings/assistant").param("assistant", "CODEX")).hasStatus3xxRedirection()
+			.hasRedirectedUrl("/settings#assistant")
+			.flash()
+			.containsEntry("assistantSaved", true);
+		then(this.users).should().changeAssistant(1000, Assistant.CODEX);
 	}
 
 	@Test
@@ -226,7 +312,7 @@ class SettingsControllerTests {
 		assertThat(this.mvc.get().uri("/settings")).hasStatusOk()
 			.bodyText()
 			.contains("id=\"inbox\"", "robert@proton.me", "<option value=\"MINUTES_30\" selected=\"selected\">every 30 minutes",
-					"only when I click Check now", "value=\"MATCHED\" checked=\"checked\"", "And let Claude sort the rest");
+					"only when I click Check now", "value=\"MATCHED\" checked=\"checked\"", "And let the AI Assistant sort the rest");
 	}
 
 	@Test

@@ -74,8 +74,8 @@ class InterviewBriefControllerTests {
 	void offersToAskClaudeForABrief() {
 		assertThat(this.mvc.get().uri("/applications/7/prep").header("HX-Request", "true")).hasStatusOk()
 			.bodyText()
-			.contains("Interview prep", "Claude finds out about the company", "/applications/7/prep/request",
-					"Ask Claude to prepare me")
+			.contains("Interview prep", "The assistant finds out about the company", "/applications/7/prep/request",
+					"Ask the AI Assistant to prepare me")
 			.doesNotContain("every 5s");
 	}
 

@@ -16,9 +16,12 @@
     </h2>
 </section>
 
-<!--/* jobOffer is the job's terms (a JobOffer, NONE without any). Saved as each field changes, like the contact and
-       follow-up: the status next to the title says it's saved, or why not. */-->
-<form id="offer-terms" th:fragment="terms" class="flex flex-col gap-2" data-collapse="offer" th:with="offer=${jobOffer}"
+<!--/* jobOffer is the job's terms (a JobOffer, NONE without any), offerTotal what it pays all in (an OfferTotal, or
+       null). Saved as each field changes, like the contact and follow-up: the status next to the title says it's saved,
+       or why not, and the total under the extras changes with them. */-->
+<form id="offer-terms" th:fragment="terms" class="flex flex-col gap-2" data-collapse="offer"
+      th:with="offer=${jobOffer}, baseCurrency=${salaryRange != null} ? ${salaryRange.currency} : 'EUR',
+               extrasList=|offer-extras-${offerJobId}|"
       th:hx-put="@{/applications/{id}/offer(id=${offerJobId})}" hx-trigger="change" hx-target="find .offer-status" hx-swap="innerHTML">
     <div class="flex items-center gap-2">
         <h2 class="section-title flex flex-1 items-center gap-1.5">
@@ -33,26 +36,52 @@
         Type in what they offer: the offers page puts it beside your other offers and what the market pays.</p>
     <!--/* The fields without a visible label have one for screen readers, which keeps them the grid's items (contents) */-->
     <div class="grid grid-cols-2 gap-1.5">
-        <label class="col-span-2 flex min-w-0 flex-col gap-1">
-            <span class="text-xs text-ink/60" th:text="#{offer.baseSalary}">Base salary</span>
-            <input class="input" type="text" name="baseSalary" maxlength="200" autocomplete="off" th:value="${offer.baseSalary}"
-                   th:placeholder="#{offer.baseSalary.placeholder}">
-        </label>
-        <label class="contents">
-            <span class="sr-only" th:text="#{offer.bonus}">Label</span>
-            <input class="input" type="text" name="bonus" maxlength="200" autocomplete="off" th:value="${offer.bonus}"
-                   th:placeholder="#{offer.bonus}">
-        </label>
-        <label class="contents">
-            <span class="sr-only" th:text="#{offer.signingBonus}">Label</span>
-            <input class="input" type="text" name="signingBonus" maxlength="200" autocomplete="off" th:value="${offer.signingBonus}"
-                   th:placeholder="#{offer.signingBonus}">
-        </label>
-        <label class="contents">
-            <span class="sr-only" th:text="#{offer.equity}">Label</span>
-            <input class="input" type="text" name="equity" maxlength="200" autocomplete="off" th:value="${offer.equity}"
-                   th:placeholder="#{offer.equity}">
-        </label>
+        <!--/* The base salary: a figure, its currency and what it pays for, like the job's salary (salaryRange, what to
+               start from: the figure picked, else the words saved before or the posting's salary, read) */-->
+        <fieldset class="col-span-2 flex min-w-0 flex-wrap gap-1.5"
+                  th:with="range=${salaryRange}, currency=${range != null} ? ${range.currency} : 'EUR',
+                           period=${range != null and range.period != null} ? ${range.period} : null">
+            <legend class="mb-1 text-xs text-ink/60" th:text="#{offer.baseSalary}">Base salary</legend>
+            <label class="flex min-w-[140px] flex-[2_1_140px] flex-col gap-1">
+                <span class="text-[11px] text-ink/50" th:text="#{offer.baseSalary.amount}">Amount, gross</span>
+                <input class="input" type="number" name="baseSalaryAmount" min="0.01" step="any" inputmode="decimal"
+                       autocomplete="off" placeholder="90000"
+                       th:value="${range != null} ? ${range.low.stripTrailingZeros().toPlainString()} : ''">
+            </label>
+            <label class="flex min-w-[88px] flex-[1_1_88px] flex-col gap-1">
+                <span class="text-[11px] text-ink/50" th:text="#{details.salary.currency}">Currency</span>
+                <select class="input" name="baseSalaryCurrency">
+                    <option th:each="code : ${salaryCurrencies}" th:value="${code}" th:selected="${code == currency}"
+                            th:text="${code}">EUR</option>
+                </select>
+            </label>
+            <label class="flex min-w-[120px] flex-[1_1_120px] flex-col gap-1">
+                <span class="text-[11px] text-ink/50" th:text="#{details.salary.period}">Paid per</span>
+                <select class="input" name="baseSalaryPeriod">
+                    <option th:each="choice : ${payPeriods}" th:value="${choice}"
+                            th:selected="${period != null} ? ${choice == period} : ${choice.name() == 'YEAR'}"
+                            th:text="#{|details.salary.period.${choice}|}">Year</option>
+                </select>
+            </label>
+            <p class="w-full text-xs text-pretty text-ink/55" th:if="${offer.baseSalary != null}"
+               th:text="#{offer.baseSalary.before(${offer.baseSalary})}">Saved before as: 70000 eur per year</p>
+        </fieldset>
+        <!--/* What it pays on top, a row each: what it is, an amount in a currency or a share of the base salary, how
+               often, and what for. app.js adds and removes the rows (data-rows), and saves the card when one goes. */-->
+        <fieldset class="col-span-2 flex min-w-0 flex-col gap-1.5">
+            <legend class="mb-1 text-xs text-ink/60" th:text="#{offer.extras}">On top of the salary</legend>
+            <div class="flex flex-col gap-1.5" th:data-rows="${extrasList}">
+                <th:block th:each="extra, iter : ${offer.extras}"><div th:replace="~{applications/offer :: extra-row(${iter.index}, ${extra})}"></div></th:block>
+            </div>
+            <template th:data-row-template="${extrasList}"><div th:replace="~{applications/offer :: extra-row('i', null)}"></div></template>
+            <div class="flex flex-wrap items-center gap-2">
+                <button class="btn btn-secondary px-2 py-1 text-xs" type="button" th:data-add-row="${extrasList}">
+                    <i class="ph ph-plus"></i><span th:text="#{offer.extras.add}">Add a bonus, meal vouchers, shares…</span>
+                </button>
+                <span class="text-[11px] text-pretty text-ink/50" th:text="#{offer.extras.hint}">A working day counts as one of 220 a year.</span>
+            </div>
+        </fieldset>
+        <div th:replace="~{applications/offer :: total(${offerTotal}, false)}"></div>
         <label class="contents">
             <span class="sr-only" th:text="#{offer.timeOff}">Label</span>
             <input class="input" type="text" name="timeOff" maxlength="200" autocomplete="off" th:value="${offer.timeOff}"
@@ -79,10 +108,89 @@
     </div>
 </form>
 
+<!--/* One of the offer's extras, a row of the form; null for a blank one, to add. index is its place in the list, or i
+       in the template, which app.js numbers. A new row's amount is in the base salary's currency (baseCurrency). */-->
+<div th:fragment="extra-row(index, extra)" class="flex flex-wrap items-center gap-1.5 rounded-lg border border-line p-1.5" data-row
+     th:with="unit=${extra != null and extra.unit != null} ? ${extra.unit} : ${baseCurrency}">
+    <!--/* Each field in a label of its own, its name for screen readers alone; contents keeps them the row's items */-->
+    <label class="contents">
+        <span class="sr-only" th:text="#{offer.extra.kind}">What it is</span>
+        <select class="input w-auto min-w-0 flex-[1_1_140px]" th:name="|extras[${index}].kind|">
+            <option th:each="kind : ${offerExtraKinds}" th:value="${kind}" th:selected="${extra != null and extra.kind == kind}"
+                    th:text="#{|offer.extra.kind.${kind}|}">Bonus</option>
+        </select>
+    </label>
+    <label class="contents">
+        <span class="sr-only" th:text="#{offer.extra.amount}">Amount</span>
+        <input class="input w-auto min-w-0 flex-[1_1_96px]" type="number" min="0.01" step="any" inputmode="decimal" autocomplete="off"
+               th:name="|extras[${index}].amount|" th:value="${extra?.amount?.stripTrailingZeros()?.toPlainString()}"
+               th:placeholder="#{offer.extra.amount}">
+    </label>
+    <label class="contents">
+        <span class="sr-only" th:text="#{offer.extra.unit}">Currency, or a share of the base salary</span>
+        <select class="input w-auto min-w-0 flex-[0_1_104px]" th:name="|extras[${index}].unit|">
+            <option th:each="code : ${salaryCurrencies}" th:value="${code}" th:selected="${code == unit}" th:text="${code}">EUR</option>
+            <option value="%" th:selected="${unit == '%'}" th:text="#{offer.extra.unit.share}">% of base</option>
+        </select>
+    </label>
+    <label class="contents">
+        <span class="sr-only" th:text="#{offer.extra.frequency}">How often</span>
+        <select class="input w-auto min-w-0 flex-[1_1_140px]" th:name="|extras[${index}].frequency|">
+            <option th:each="frequency : ${payFrequencies}" th:value="${frequency}"
+                    th:selected="${extra != null} ? ${extra.frequency == frequency} : ${frequency.name() == 'YEAR'}"
+                    th:text="#{|offer.extra.frequency.${frequency}|}">yearly</option>
+        </select>
+    </label>
+    <label class="contents">
+        <span class="sr-only" th:text="#{offer.extra.note}">What for, or where from</span>
+        <input class="input w-auto min-w-0 flex-[3_1_200px]" type="text" maxlength="200" autocomplete="off"
+               th:name="|extras[${index}].note|" th:value="${extra?.note}" th:placeholder="#{offer.extra.note}">
+    </label>
+    <button class="btn btn-ghost btn-icon" type="button" data-remove-row th:title="#{offer.extras.remove}"
+            th:aria-label="#{offer.extras.remove}">
+        <i class="ph ph-trash"></i>
+    </button>
+</div>
+
+<!--/* One of an offer's extras in words, as the offers page lists them: Bonus: 10% of the base, yearly; and what for */-->
+<span th:fragment="extra-text(extra)" class="flex flex-col">
+    <span>
+        <span class="text-ink/60" th:text="#{|offer.extra.kind.${extra.kind}|}">Bonus</span><span class="text-ink/60">:</span>
+        <span class="tabular-nums" th:if="${extra.amount != null}"
+              th:text="${extra.isShareOfBase()} ? #{offer.extra.share(${extra.amount.stripTrailingZeros().toPlainString()})} : ${@money.full(extra.amount, extra.unit)}">€2,000</span>
+        <span th:text="#{|offer.extra.frequency.${extra.frequency}|}">yearly</span>
+    </span>
+    <span class="text-xs text-pretty text-ink/55" th:if="${extra.note}" th:text="${extra.note}">On hitting the year’s targets</span>
+</span>
+
+<!--/* What the offer pays all in (total, an OfferTotal, or null): a year of the base salary and the extras paid again
+       and again, then what they're made of, what's paid once or per event, and what couldn't be counted. In the card
+       under the extras; out of band (oob) once the terms are saved. */-->
+<div th:fragment="total(total, oob)" class="col-span-2" th:id="|offer-total-${offerJobId}|" th:hx-swap-oob="${oob} ? 'true'"
+     aria-live="polite">
+    <div class="flex flex-col gap-0.5 rounded-lg bg-ink/3 px-3 py-2" th:if="${total != null}" th:with="currency=${total.currency}">
+        <div class="flex flex-wrap items-baseline gap-x-2">
+            <span class="text-xs text-ink/60" th:text="#{offer.total}">All in, a year</span>
+            <span class="text-[15px] font-semibold tabular-nums" th:text="${@money.full(total.yearly, currency)}">€96,800</span>
+        </div>
+        <p class="text-xs text-pretty text-ink/55 tabular-nums" th:if="${total.base != null and total.extras.signum() > 0}"
+           th:text="#{offer.total.parts(${@money.full(total.base, currency)}, ${@money.full(total.extras, currency)})}">€84,000 base salary + €12,800 on top</p>
+        <p class="text-xs text-pretty text-ink/55 tabular-nums" th:if="${total.once.signum() > 0}"
+           th:text="#{offer.total.once(${@money.full(total.once, currency)})}">And €5,000 once</p>
+        <p class="text-xs text-pretty text-ink/55 tabular-nums" th:if="${total.perEvent.signum() > 0}"
+           th:text="#{offer.total.perEvent(${@money.full(total.perEvent, currency)})}">And €500 each event</p>
+        <p class="text-xs text-pretty text-ink/55" th:if="${total.uncounted > 0}"
+           th:text="#{offer.total.uncounted(${total.uncounted})}">1 extra not counted: no amount, or a share of a base salary there isn’t</p>
+    </div>
+</div>
+
 <span th:fragment="terms-status">
     <span class="text-danger" th:if="${fieldErrors != null and !fieldErrors.isEmpty()}"
           th:text="${fieldErrors.values().iterator().next()}">A field can be at most 200 characters long.</span>
-    <th:block th:unless="${fieldErrors != null and !fieldErrors.isEmpty()}" th:text="#{application.notes.saved}">Saved</th:block>
+    <th:block th:unless="${fieldErrors != null and !fieldErrors.isEmpty()}">
+        <th:block th:text="#{application.notes.saved}">Saved</th:block>
+        <div th:replace="~{applications/offer :: total(${offerTotal}, true)}"></div>
+    </th:block>
 </span>
 
 <section th:fragment="negotiation-loader(jobId)" class="flex flex-col gap-2" data-collapse="negotiation"
@@ -109,14 +217,14 @@
     </div>
 
     <p class="text-[13px] text-pretty text-ink/65" th:if="${brief == null and !open}" th:text="#{negotiation.hint}">
-        Claude compares the offer with what the market pays…</p>
+        The AI Assistant compares the offer with what the market pays…</p>
 
     <th:block th:if="${open}">
         <th:block th:replace="~{applications/claude :: waiting(${request}, ${negotiationPrompt},
                   @{/applications/{id}/negotiation/cancel(id=${offerJobId})}, '#negotiation')}"></th:block>
     </th:block>
     <p class="text-[13px] text-danger" role="alert" th:if="${status == 'FAILED'}"
-       th:text="#{negotiation.failed(${request.summary} ?: '')}">Claude couldn’t write it: …</p>
+       th:text="#{negotiation.failed(${request.summary} ?: '')}">The AI Assistant couldn’t write it: …</p>
 
     <!--/* The brief: each part only when Claude wrote it */-->
     <th:block th:if="${brief}">
@@ -179,7 +287,7 @@
 
     <button class="btn btn-secondary self-start" type="button" th:unless="${open}"
             th:hx-post="@{/applications/{id}/negotiation/request(id=${offerJobId})}" hx-target="#negotiation" hx-swap="outerHTML">
-        <i class="ph ph-sparkle"></i><span th:text="${brief} ? #{negotiation.again} : #{negotiation.ask}">Ask Claude how to negotiate</span>
+        <i class="ph ph-sparkle"></i><span th:text="${brief} ? #{negotiation.again} : #{negotiation.ask}">Ask the AI Assistant how to negotiate</span>
     </button>
 </section>
 

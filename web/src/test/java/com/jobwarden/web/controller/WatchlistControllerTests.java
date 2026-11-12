@@ -79,7 +79,7 @@ class WatchlistControllerTests {
 			.bodyText()
 			.containsPattern("href=\"/watchlist\"\\s+aria-current=\"page\"")
 			.contains("<title>Watchlist · JobWarden</title>",
-					"with no Claude tokens", "Watch a company", "Companies you watch",
+					"with no AI tokens", "Watch a company", "Companies you watch",
 					"href=\"https://jobs.lever.co/acme\"", "Acme", "Lever", "Last checked: Today", "3 new this week",
 					"Stop watching Acme", "Check now", "Your jobs are on these boards too",
 					"value=\"https://job-boards.greenhouse.io/initech\"",

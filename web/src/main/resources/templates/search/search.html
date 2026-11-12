@@ -176,8 +176,8 @@
             <div class="card flex flex-wrap items-center gap-3 p-3">
                 <i class="ph ph-sparkle text-[20px] text-accent"></i>
                 <div class="min-w-[14rem] flex-1">
-                    <div class="font-medium" th:text="#{search.save.heading}">Let Claude find jobs for it</div>
-                    <p class="text-xs leading-5 text-ink/60" th:text="#{search.save.body}">Save the search: Claude looks for jobs for your saved searches.</p>
+                    <div class="font-medium" th:text="#{search.save.heading}">Let the AI Assistant find jobs for it</div>
+                    <p class="text-xs leading-5 text-ink/60" th:text="#{search.save.body}">Save the search: the AI Assistant looks for jobs for your saved searches.</p>
                     <p id="search-saved" hidden></p>
                 </div>
                 <button class="btn btn-primary" type="button" data-open-dialog="save-search">
@@ -192,7 +192,7 @@
         <form class="flex flex-col gap-3" th:hx-post="@{/discover/searches}" hx-include="#warden-query"
               hx-target="#search-saved" hx-swap="outerHTML" data-close-dialog-on-success>
             <h2 id="save-search-title" class="dialog-title" th:text="#{search.save.title}">Save this search</h2>
-            <p class="text-ink/65" th:text="#{search.save.body}">Claude looks for jobs for your saved searches and adds them to Discover.</p>
+            <p class="text-ink/65" th:text="#{search.save.body}">The AI Assistant looks for jobs for your saved searches and adds them to Discover.</p>
             <div>
                 <label class="field-label" for="save-search-name" th:text="#{search.save.name}">Name</label>
                 <input id="save-search-name" class="input" type="text" name="name" required maxlength="100" autocomplete="off"

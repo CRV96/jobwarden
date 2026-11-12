@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.LongStream;
 
 import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.cv.dto.BaseLetter;
@@ -125,6 +126,18 @@ class LettersControllerTests {
 	}
 
 	@Test
+	void runsTheOldestTwentyLettersAtOnceAndTheRestNext() {
+		given(this.discovery.findOpenRequests(1)).willReturn(LongStream.rangeClosed(101, 125)
+			.mapToObj(id -> request(id, 8))
+			.toList());
+
+		assertThat(this.mvc.get().uri("/letters")).hasStatusOk()
+			.bodyText()
+			.contains("The assistant has 25 letters to write", "Do JobWarden requests 101, 102", "120, one after the other")
+			.doesNotContain("121,", "requests=121");
+	}
+
+	@Test
 	void asksClaudeForTheTickedJobsWithoutALetterInOnePrompt() {
 		given(this.discovery.findOpenRequests(1)).willReturn(List.of(), List.of(request(41, 8), request(42, 9)));
 
@@ -133,8 +146,8 @@ class LettersControllerTests {
 			.param("ids", "7", "8", "9", "99")
 			.header("HX-Request", "true")).hasStatusOk()
 			.bodyText()
-			.contains("Claude has 2 letters to write", "Do JobWarden requests 41, 42, one after the other",
-					"profile_id 1", "id=\"letter-row-8\"", "hx-swap-oob=\"true\"", "Claude is writing")
+			.contains("The assistant has 2 letters to write", "Do JobWarden requests 41, 42, one after the other",
+					"profile_id 1", "id=\"letter-row-8\"", "hx-swap-oob=\"true\"", "The AI Assistant is writing")
 			// The rows on their own, where HTMX swaps them in place
 			.doesNotContain("<ul");
 
@@ -174,7 +187,7 @@ class LettersControllerTests {
 
 		assertThat(this.mvc.get().uri("/letters/rows/8").param("selected", "8").header("HX-Request", "true")).hasStatusOk()
 			.bodyText()
-			.contains("id=\"letter-row-8\"", "Claude is writing", "every 5s", "is-open");
+			.contains("id=\"letter-row-8\"", "The AI Assistant is writing", "every 5s", "is-open");
 	}
 
 	@Test

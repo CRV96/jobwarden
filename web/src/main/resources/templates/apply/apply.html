@@ -5,22 +5,29 @@
     <title th:text="|#{apply.title} · JobWarden|">Auto-apply · JobWarden</title>
 </head>
 <body>
-<!--/* applyJobs are the Saved jobs with a posting Claude can apply to; applyItems the jobs queued, the latest first, with
-       how each went; applyRun the latest run of Claude, with applyPrompt to paste into Claude Code. applyAnswers is
-       what the answers form shows; its custom rows are numbered by app.js (data-rows, data-row, data-add-row). */-->
+<!--/* applyJobs are the Saved jobs with a posting the assistant can apply to; applyItems the jobs queued, the latest
+       first, with how each went; applyRun the latest run, with applyPrompt to paste into Claude Code: only Claude Code,
+       with Claude in Chrome, drives the profile's own browser, so the page says so to a profile that works with another
+       assistant. applyAnswers is what the answers form shows; its custom rows are numbered by app.js (data-rows,
+       data-row, data-add-row). */-->
 <main class="page-split flex flex-col gap-5" th:with="answers=${applyAnswers}">
     <header class="flex flex-wrap items-end gap-3">
         <div class="min-w-[260px] flex-1">
             <h1 class="page-title mb-1 flex items-center gap-2">
                 <i class="ph ph-paper-plane-tilt text-accent"></i><span th:text="#{apply.title}">Auto-apply</span>
             </h1>
-            <p class="text-[13px] text-ink/60" th:text="#{apply.subtitle}">Claude applies to your saved jobs in your browser…</p>
+            <p class="text-[13px] text-ink/60" th:text="#{apply.subtitle}">The AI Assistant applies to your saved jobs in your browser…</p>
         </div>
         <th:block th:replace="~{help/help :: how-it-works('apply')}"></th:block>
     </header>
+    <p class="card flex items-start gap-2 p-3 text-[13px] text-pretty text-ink/70"
+       th:if="${currentProfile != null and !currentProfile.assistant.appliesInBrowser()}">
+        <i class="ph ph-info text-lg text-accent"></i>
+        <span th:text="#{apply.claudeOnly(${currentProfile.assistant.product()})}">Auto-apply runs in Claude Code…</span>
+    </p>
 
     <div class="card flex items-center gap-2 p-3 text-[13px] text-success" role="status" th:if="${param.saved}">
-        <i class="ph ph-check-circle text-base"></i><span th:text="#{apply.answers.saved}">Saved: Claude answers with these.</span>
+        <i class="ph ph-check-circle text-base"></i><span th:text="#{apply.answers.saved}">Saved: the AI Assistant answers with these.</span>
     </div>
 
     <!--/* From 1280 pixels wide, the jobs and how they went on the left, the answers on the right */-->
@@ -36,7 +43,7 @@
                 </div>
                 <p class="text-[13px] text-danger" role="alert" th:if="${applyError}" th:text="#{apply.queue.none}">Tick a job first.</p>
                 <p class="text-[13px] text-ink/65" th:unless="${hasCv}">
-                    <th:block th:text="#{tailoredCv.noCv}">Claude needs your CV first.</th:block>
+                    <th:block th:text="#{tailoredCv.noCv}">The AI Assistant needs your CV first.</th:block>
                     <a class="link" th:href="@{/cv}" th:text="#{tailoredCv.addCv}">Go to the CV page</a>
                 </p>
                 <ul class="flex max-h-[22rem] flex-col divide-y divide-line overflow-y-auto rounded-lg border border-line"
@@ -64,9 +71,9 @@
                         <i class="ph ph-paper-plane-tilt"></i><span th:text="#{apply.mode.SUBMIT}">Send when all is answered</span>
                     </label>
                 </div>
-                <p class="text-xs text-pretty text-ink/60" th:text="#{apply.rules}">Claude skips LinkedIn Easy Apply…</p>
+                <p class="text-xs text-pretty text-ink/60" th:text="#{apply.rules}">The AI Assistant skips LinkedIn Easy Apply…</p>
                 <button class="btn btn-primary self-start" type="submit" th:disabled="${applyJobs.isEmpty() or !hasCv}">
-                    <i class="ph ph-sparkle"></i><span th:text="#{apply.submit}">Apply with Claude</span>
+                    <i class="ph ph-sparkle"></i><span th:text="#{apply.submit}">Apply with the AI Assistant</span>
                 </button>
             </form>
 
@@ -187,7 +194,7 @@
                     <div class="seg self-start" role="radiogroup">
                         <label class="seg-opt" th:each="choice : ${coverLetters}">
                             <input type="radio" name="coverLetter" th:value="${choice}" th:checked="${choice == answers.coverLetter}">
-                            <span th:text="#{|apply.answers.coverLetter.${choice}|}">Claude writes one</span>
+                            <span th:text="#{|apply.answers.coverLetter.${choice}|}">The AI Assistant writes one</span>
                         </label>
                     </div>
                 </fieldset>
@@ -223,34 +230,25 @@
     </div>
 </main>
 
-<!--/* The latest run of Claude on the queue: while it's open, the page asks again every few seconds, and reloads once
-       Claude is done (ApplyController.run). */-->
+<!--/* The latest run on the queue: while it's open, the page asks again every few seconds, and reloads once it's done
+       (ApplyController.run). */-->
 <section id="apply-run" th:fragment="run" class="card flex flex-col gap-3 p-4" th:if="${applyRun != null}"
          th:with="run=${applyRun}, open=${applyRun.status.isOpen()}, status=${applyRun.status.name()}"
          th:hx-get="${open} ? @{/apply/run(waiting=true)}" th:hx-trigger="${open} ? 'every 5s'" hx-target="this" hx-swap="outerHTML">
     <div class="flex items-center gap-2">
         <h2 class="flex flex-1 items-center gap-1.5 font-semibold">
-            <i class="ph ph-sparkle text-accent"></i><span th:text="#{apply.run}">Claude, applying</span>
+            <i class="ph ph-sparkle text-accent"></i><span th:text="#{apply.run}">The AI Assistant, applying</span>
         </h2>
         <span class="tag" th:classappend="${status == 'DONE'} ? 'st-offer' : (${status == 'FAILED'} ? 'st-rejected' : (${status == 'CANCELLED'} ? 'st-withdrawn' : 'st-interviewing'))">
             <i class="ph ph-arrow-clockwise animate-spin" th:if="${status == 'WORKING'}"></i>
-            <span th:text="#{|ai.status.${status}|}">Waiting for Claude</span>
+            <span th:text="#{|ai.status.${status}|}">Waiting for the AI Assistant</span>
         </span>
         <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button" th:if="${open}"
                 th:hx-post="@{/apply/runs/{id}/cancel(id=${run.id})}" hx-target="#apply-run" hx-swap="outerHTML" th:text="#{ai.cancel}">Cancel</button>
     </div>
     <th:block th:if="${status == 'WAITING'}">
-        <p class="text-xs text-pretty text-ink/60" th:text="#{apply.run.chrome}">Claude needs your Chrome…</p>
-        <div class="text-xs text-ink/60" th:text="#{ai.prompt}">Paste this into Claude Code:</div>
-        <div class="flex items-start gap-2">
-            <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${applyPrompt.text}">Do JobWarden request 12…</code>
-            <button th:replace="~{discover/discover :: copy-button(${applyPrompt.text})}"></button>
-        </div>
-        <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
-        <div class="flex items-start gap-2">
-            <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="|claude --chrome &quot;${applyPrompt.text}&quot;|">claude --chrome "Do JobWarden request 12…"</code>
-            <button th:replace="~{discover/discover :: copy-button(|claude --chrome &quot;${applyPrompt.text}&quot;|)}"></button>
-        </div>
+        <p class="text-xs text-pretty text-ink/60" th:text="#{apply.run.chrome}">The AI Assistant needs your Chrome…</p>
+        <div th:replace="~{applications/claude :: prompt(${applyPrompt})}"></div>
     </th:block>
     <p class="text-[13px] whitespace-pre-line text-ink/80" th:if="${run.summary}" th:text="${run.summary}">Applied to 3 jobs, 1 waits for an answer.</p>
 </section>

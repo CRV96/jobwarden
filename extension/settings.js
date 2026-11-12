@@ -7,24 +7,29 @@ export const CAPTURE_PATH = '/api/captures';
 
 /** Where the web app shows an application, and where it lists the profiles with the current one's id. */
 export const APPLICATIONS_PATH = '/applications';
-export const PROFILES_PATH = '/profiles';
+/** Where the web app shows the profile's id, with a button to copy it. */
+export const PROFILE_SETTINGS_PATH = '/settings#profile';
 
 /** Where the web app lists the companies whose job boards it reads. */
 export const WATCHLIST_PATH = '/watchlist';
 
 /**
- * @returns {Promise<{serverUrl: string, userId: number | undefined, includeTime: boolean}>}
+ * userId is the number the server counts the profile with, which every capture sends; profileKey the id the profile
+ * shows (a UUID), which the settings were given and show back.
+ *
+ * @returns {Promise<{serverUrl: string, userId: number | undefined, profileKey: string | undefined, includeTime: boolean}>}
  */
 export async function loadSettings() {
   const {
     serverUrl = DEFAULT_SERVER_URL,
     userId,
+    profileKey,
     includeTime = true,
-  } = await chrome.storage.sync.get(['serverUrl', 'userId', 'includeTime']);
-  return { serverUrl, userId, includeTime };
+  } = await chrome.storage.sync.get(['serverUrl', 'userId', 'profileKey', 'includeTime']);
+  return { serverUrl, userId, profileKey, includeTime };
 }
 
-/** @param {Partial<{serverUrl: string, userId: number, includeTime: boolean}>} settings only the ones to change */
+/** @param {Partial<{serverUrl: string, userId: number, profileKey: string, includeTime: boolean}>} settings only the ones to change */
 export function saveSettings(settings) {
   return chrome.storage.sync.set(settings);
 }

@@ -29,7 +29,6 @@ import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.web.constants.AppConstants.ControllerConstants;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.constants.AppConstants.Views;
-import com.jobwarden.web.view.ClaudePrompts;
 import com.jobwarden.web.view.LetterFilter;
 import com.jobwarden.web.view.LetterRow;
 import lombok.CustomLog;
@@ -162,7 +161,8 @@ class LettersController extends BaseController {
 					asked.add(id);
 				}
 			}
-			log.info("Profile {} asked Claude for {} cover letters at once", userId, asked.size());
+			log.info("Profile {} asked {} for {} cover letters at once", userId, requireProfile(model).assistant().product(),
+					asked.size());
 		}
 		return showAsked(model, userId, asked, selected);
 	}
@@ -276,8 +276,9 @@ class LettersController extends BaseController {
 			.toList();
 		model.addAttribute(ModelAttributes.LETTERS_OPEN, open.size());
 		model.addAttribute(ModelAttributes.LETTERS_WAITING, waiting.size());
-		model.addAttribute(ModelAttributes.LETTERS_PROMPT,
-				waiting.isEmpty() ? null : ClaudePrompts.forRequests(waiting, userId));
+		// The oldest, as many as one Run takes: the others wait for the next, as the card asks again
+		model.addAttribute(ModelAttributes.LETTERS_PROMPT, waiting.isEmpty() ? null
+				: prompt(model, waiting.subList(0, Math.min(waiting.size(), AssistantRunController.MAX_REQUESTS))));
 	}
 
 	private void addBaseLetter(Model model, long userId, boolean editing) {

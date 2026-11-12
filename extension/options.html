@@ -9,7 +9,7 @@
         html, body { background: var(--jw-sidebar); }
         main { display: flex; flex-direction: column; gap: 16px; max-width: 480px; margin: 0 auto; padding: 24px 16px; }
         h1 { font-size: 21px; }
-        h1 .brand-mark { width: 34px; height: 34px; border-radius: 9px; font-size: 20px; }
+        h1 .brand-logo { width: 34px; height: 34px; border-radius: 9px; }
         .panel { display: flex; flex-direction: column; gap: 6px; padding: 16px; }
         .panel .field + .hint { margin-bottom: 10px; }
         .panel .checkbox + .hint { margin: 0 0 10px 23px; }
@@ -20,7 +20,7 @@
 <body>
 <main>
     <h1 class="brand">
-        <span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="icons/phosphor.svg#shield-check"/></svg></span>
+        <img class="brand-logo" src="icons/icon.svg" alt="" width="28" height="28">
         <span data-i18n="settingsTitle">JobWarden settings</span>
     </h1>
 
@@ -33,11 +33,12 @@
 
         <label class="field">
             <span class="field-label" data-i18n="profileId">Profile id</span>
-            <input class="input" type="number" name="userId" min="1" step="1" required>
+            <input class="input" type="text" name="userId" required autocomplete="off" spellcheck="false"
+                   placeholder="5b1f3c2e-8a4d-4c6e-9f10-2d7b8e3a6c41">
         </label>
         <p class="hint">
-            <span data-i18n="profileIdHint">JobWarden shows it on its Profiles page.</span>
-            <a id="open-profiles" class="link" target="_blank" data-i18n="openProfiles">Open the Profiles page</a>
+            <span data-i18n="profileIdHint">JobWarden shows it in Settings, under Your profile, with a button to copy it.</span>
+            <a id="open-profiles" class="link" target="_blank" data-i18n="openProfiles">Open JobWarden’s Settings</a>
         </p>
 
         <button class="btn btn-primary" type="submit" data-i18n="save">Save</button>

@@ -17,7 +17,7 @@
       th:with="claude=${appliedBy.name() == 'CLAUDE'}"
       th:title="${claude} ? #{applied.byClaude.hint} : #{applied.byExtension.hint}">
     <i class="ph" th:classappend="${claude} ? 'ph-sparkle' : 'ph-puzzle-piece'"></i><span
-        th:text="${claude} ? #{applied.byClaude} : #{applied.byExtension}">by Claude</span>
+        th:text="${claude} ? #{applied.byClaude} : #{applied.byExtension}">by the AI Assistant</span>
 </span>
 <i th:fragment="applied-by-icon(appliedBy)" class="ph text-accent" th:if="${appliedBy != null and appliedBy.name() != 'YOU'}"
    th:with="claude=${appliedBy.name() == 'CLAUDE'}"
@@ -94,6 +94,8 @@
         <dt class="text-ink/55" th:text="#{jobs.column.added}">Added</dt>
         <dd th:text="${@dates.relativeDay(jobApplication.capturedAt)}" th:title="${@dates.date(jobApplication.capturedAt)}">Today</dd>
     </dl>
+    <!--/* What the AI Assistant has for the job: the fit, and each card's state, links to them */-->
+    <div th:replace="~{applications/overview :: loader(${jobApplication.id})}"></div>
 
     <form class="flex flex-col gap-3 rounded-md p-3 shadow-sm" th:id="${formId}" th:hidden="${!open}"
           th:hx-post="@{/applications/{id}/details(id=${jobApplication.id})}"

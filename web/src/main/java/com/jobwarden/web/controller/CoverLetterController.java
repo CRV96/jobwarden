@@ -20,7 +20,6 @@ import com.jobwarden.web.constants.AppConstants.HtmxEvents;
 import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.constants.AppConstants.Views;
-import com.jobwarden.web.view.ClaudePrompts;
 import com.jobwarden.web.view.LetterPdf;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.CustomLog;
@@ -168,7 +167,7 @@ class CoverLetterController extends BaseController {
 		}
 		model.addAttribute(ModelAttributes.LETTER_REQUEST, request.orElse(null));
 		model.addAttribute(ModelAttributes.LETTER_PROMPT,
-				request.map(asked -> ClaudePrompts.forRequest(asked.id(), userId)).orElse(null));
+				request.map(asked -> prompt(model, asked.id())).orElse(null));
 		model.addAttribute(ModelAttributes.LETTER_EDITING, editing);
 		return Views.COVER_LETTER_FRAGMENT;
 	}

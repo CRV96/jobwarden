@@ -11,7 +11,7 @@
             <h1 class="page-title mb-1 flex items-center gap-2">
                 <i class="ph ph-sparkle text-accent"></i><span th:text="#{discover.title}">AI Assistant</span>
             </h1>
-            <p class="text-[13px] text-ink/60" th:text="#{discover.subtitle}">Jobs Claude found for your searches. Save the ones you like, discard the rest.</p>
+            <p class="text-[13px] text-ink/60" th:text="#{discover.subtitle}">Jobs the AI Assistant found for your searches. Save the ones you like, discard the rest.</p>
         </div>
         <th:block th:replace="~{help/help :: how-it-works('discover')}"></th:block>
         <a class="btn btn-ghost" th:href="@{/watchlist}"><i class="ph ph-binoculars"></i><span th:text="#{nav.watchlist}">Watchlist</span></a>
@@ -26,8 +26,8 @@
                    request then waits for Claude Code, which the prompt in the list below hands it to. */-->
             <section class="card flex flex-col gap-4 p-4" aria-labelledby="ask-title">
                 <div>
-                    <h2 id="ask-title" class="font-semibold" th:text="#{ai.ask}">Ask Claude</h2>
-                    <p class="text-xs text-ink/60" th:text="#{ai.ask.hint}">Pick what Claude should do…</p>
+                    <h2 id="ask-title" class="font-semibold" th:text="#{ai.ask}">Ask the AI Assistant</h2>
+                    <p class="text-xs text-ink/60" th:text="#{ai.ask.hint}">Pick what the AI Assistant should do…</p>
                 </div>
                 <form class="flex flex-col gap-3" th:hx-post="@{/discover/requests}" hx-target="#ai-requests" hx-swap="outerHTML">
                     <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2">
@@ -38,7 +38,7 @@
                                th:classappend="${preset == 'FIND_JOBS_FOR_CV'} ? 'ph-identification-card' : (${preset == 'FIND_JOBS'} ? 'ph-magnifying-glass' : (${preset == 'RUN_SAVED_SEARCHES'} ? 'ph-list-magnifying-glass' : (${preset == 'SCORE_JOBS'} ? 'ph-gauge' : (${preset == 'CHECK_POSTINGS'} ? 'ph-check-square-offset' : 'ph-broom'))))"></i>
                             <span class="min-w-0">
                                 <span class="block font-medium" th:text="#{|ai.kind.${preset}|}">Find jobs matching my CV</span>
-                                <span class="block text-xs text-ink/60" th:text="#{|ai.kind.${preset}.hint|}">Claude reads your CV…</span>
+                                <span class="block text-xs text-ink/60" th:text="#{|ai.kind.${preset}.hint|}">The AI Assistant reads your CV…</span>
                             </span>
                         </button>
                     </div>
@@ -96,7 +96,7 @@
                 <div id="ai-requests" th:fragment="requests" class="flex flex-col gap-2"
                      th:hx-get="${aiOpen} ? @{/discover/requests}" th:hx-trigger="${aiOpen} ? 'every 5s'" hx-swap="outerHTML"
                      th:hx-vals="${aiOpen} ? |{&quot;seen&quot;: ${toReviewAll}}|">
-                    <h3 class="section-title" th:text="#{ai.requests}">What you asked Claude</h3>
+                    <h3 class="section-title" th:text="#{ai.requests}">What you asked the AI Assistant</h3>
                     <p class="text-[13px] text-danger" role="alert" th:if="${aiError}" th:text="${aiError}">Pick a preset.</p>
                     <p class="text-xs text-ink/55" th:if="${aiRequests.isEmpty()}" th:text="#{ai.requests.empty}">Nothing yet.</p>
                     <ul class="flex flex-col gap-2">
@@ -106,7 +106,7 @@
                                 <span class="font-medium" th:text="#{|ai.kind.${request.kind}|}">Find jobs matching my CV</span>
                                 <span class="tag" th:classappend="${status == 'DONE'} ? 'st-offer' : (${status == 'FAILED'} ? 'st-rejected' : (${status == 'CANCELLED'} ? 'st-withdrawn' : 'st-interviewing'))">
                                     <i class="ph ph-arrow-clockwise animate-spin" th:if="${status == 'WORKING'}"></i>
-                                    <span th:text="#{|ai.status.${status}|}">Waiting for Claude</span>
+                                    <span th:text="#{|ai.status.${status}|}">Waiting for the AI Assistant</span>
                                 </span>
                                 <span class="text-xs text-ink/55" th:text="#{ai.asked(${@dates.relativeDay(request.createdAt)})}">Asked today</span>
                                 <span class="flex-1"></span>
@@ -114,18 +114,9 @@
                                         th:hx-post="@{/discover/requests/{id}/cancel(id=${request.id})}" hx-target="#ai-requests" hx-swap="outerHTML"
                                         th:text="#{ai.cancel}">Cancel</button>
                             </div>
-                            <!--/* Waiting: the prompt for Claude Code, to paste, or to run as a command */-->
+                            <!--/* Waiting: the prompt for the profile's assistant, to paste, or to run as a command */-->
                             <th:block th:if="${status == 'WAITING'}" th:with="prompt=${aiPrompts.get(request.id)}">
-                                <div class="text-xs text-ink/60" th:text="#{ai.prompt}">Paste this into Claude Code:</div>
-                                <div class="flex items-start gap-2">
-                                    <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${prompt.text}">Do JobWarden request 12…</code>
-                                    <button th:replace="~{discover/discover :: copy-button(${prompt.text})}"></button>
-                                </div>
-                                <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
-                                <div class="flex items-start gap-2">
-                                    <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${prompt.command}">claude "Do JobWarden request 12…"</code>
-                                    <button th:replace="~{discover/discover :: copy-button(${prompt.command})}"></button>
-                                </div>
+                                <div th:replace="~{applications/claude :: prompt(${prompt})}"></div>
                             </th:block>
                             <p class="text-[13px] whitespace-pre-line text-ink/80" th:if="${request.summary}" th:text="${request.summary}">Added 8 jobs from LinkedIn and Lever.</p>
                             <th:block th:if="${aiRequestJobs.containsKey(request.id)}">
@@ -146,14 +137,14 @@
                             </th:block>
                         </li>
                     </ul>
-                    <!--/* Claude Code can pick every request up on its own, with its /loop */-->
+                    <!--/* The profile's assistant, Claude Code or Codex, can pick every request up on its own, with the loop */-->
                     <div class="flex flex-col gap-1.5" th:if="${aiOpen}">
-                        <div class="text-xs text-ink/60" th:text="#{ai.loop}">To have Claude pick up every request on its own…</div>
+                        <div class="text-xs text-ink/60" th:text="#{ai.loop(${currentProfile.assistant.product()})}">To have Claude Code pick up every request on its own…</div>
                         <div class="flex items-start gap-2">
                             <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${aiLoopPrompt}">/loop 15m Do the waiting JobWarden requests…</code>
                             <button th:replace="~{discover/discover :: copy-button(${aiLoopPrompt})}"></button>
                         </div>
-                        <a class="link text-xs" th:href="@{/settings}" th:text="#{ai.connect}">Claude needs JobWarden’s MCP server: set it up in the settings.</a>
+                        <a class="link text-xs" th:href="@{/settings#assistant}" th:text="#{ai.connect}">The AI Assistant needs JobWarden’s MCP server: set it up in the settings.</a>
                     </div>
                 </div>
             </section>
@@ -291,8 +282,8 @@
                         <div class="card flex w-full max-w-[560px] flex-col items-center gap-3 p-8 text-center" th:unless="${foundJob}">
                             <span class="brand-mark size-11"><i class="ph ph-sparkle text-[22px]"></i></span>
                             <h2 class="text-[17px] font-semibold" th:text="#{discover.empty.title}">Nothing to review</h2>
-                            <p class="max-w-[420px] text-ink/65" th:text="#{discover.empty.body}">Ask Claude to look for jobs.</p>
-                            <a class="link text-[13px]" th:href="@{/settings}" th:text="#{discover.empty.connect}">Connect Claude to JobWarden</a>
+                            <p class="max-w-[420px] text-ink/65" th:text="#{discover.empty.body}">Ask the AI Assistant to look for jobs.</p>
+                            <a class="link text-[13px]" th:href="@{/settings#assistant}" th:text="#{discover.empty.connect}">Connect the AI Assistant to JobWarden</a>
                         </div>
                     </section>
 

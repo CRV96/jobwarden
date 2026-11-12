@@ -12,7 +12,8 @@ import lombok.NoArgsConstructor;
 public final class UserMapper {
 
 	public static User toUser(UserEntity user) {
-		return new User(user.getId(), user.getName(), user.getCreatedAt(), user.getImageChangedAt());
+		return new User(user.getId(), user.getName(), user.getCreatedAt(), user.getImageChangedAt(), user.getAssistant(),
+				user.getPublicId());
 	}
 
 }

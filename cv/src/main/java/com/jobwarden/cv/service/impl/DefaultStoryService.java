@@ -99,7 +99,7 @@ class DefaultStoryService implements StoryService {
 			entity.change(tidied(story));
 			added.add(toStory(this.stories.save(entity)));
 		}
-		log.info("Added {} of the {} stories Claude drafted to the story bank of profile {}", added.size(), drafted.size(),
+		log.info("Added {} of the {} stories the assistant drafted to the story bank of profile {}", added.size(), drafted.size(),
 				userId);
 		return added;
 	}

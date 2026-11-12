@@ -32,7 +32,6 @@ import com.jobwarden.web.dto.EmailUpdateForm;
 import com.jobwarden.web.dto.MailAccountForm;
 import com.jobwarden.web.enums.MailProvider;
 import com.jobwarden.web.enums.ReadingInterval;
-import com.jobwarden.web.view.ClaudePrompts;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
@@ -264,7 +263,7 @@ class InboxController extends BaseController {
 		Optional<AiRequest> sorting = latestSorting(userId);
 		model.addAttribute(ModelAttributes.SORT_REQUEST, sorting.orElse(null));
 		model.addAttribute(ModelAttributes.SORT_PROMPT,
-				sorting.map(request -> ClaudePrompts.forRequest(request.id(), userId)).orElse(null));
+				sorting.map(request -> prompt(model, request.id())).orElse(null));
 		model.addAttribute(ModelAttributes.DECIDED_FOR_YOU,
 				this.inbox.findDecidedForYou(userId, Instant.now().minus(DECIDED_FOR_YOU)));
 		List<EmailUpdate> updates = this.inbox.findPending(userId);

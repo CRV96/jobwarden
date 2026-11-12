@@ -1,20 +1,29 @@
 package com.jobwarden.web.controller;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 import com.jobwarden.common.exception.JobWardenException;
+import com.jobwarden.discover.dto.AiRequest;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
+import com.jobwarden.identity.enums.Assistant;
 import com.jobwarden.identity.service.UserService;
 import com.jobwarden.inbox.service.InboxService;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.updates.service.UpdateService;
+import com.jobwarden.web.assistant.AssistantConnections;
+import com.jobwarden.web.assistant.AssistantConnections.Connection;
+import com.jobwarden.web.assistant.AssistantRunner;
 import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.user.CurrentUser;
 import com.jobwarden.web.user.ProfileNotSelectedException;
+import com.jobwarden.web.view.AssistantPrompts;
+import com.jobwarden.web.view.AssistantPrompts.Prompt;
+import com.jobwarden.web.view.AssistantPrompts.RunRefusal;
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +52,10 @@ abstract class BaseController {
 	private @Nullable UpdateService updates;
 
 	private @Nullable InboxService inbox;
+
+	private @Nullable AssistantRunner runner;
+
+	private @Nullable AssistantConnections connections;
 
 	/**
 	 * Setters rather than a constructor, so subclasses keep their Lombok constructors: those can't pass arguments up
@@ -90,6 +103,22 @@ abstract class BaseController {
 	}
 
 	/**
+	 * Optional too: without it, the pages offer no Run, only the prompts to paste.
+	 */
+	@Autowired(required = false)
+	final void setRunner(AssistantRunner runner) {
+		this.runner = runner;
+	}
+
+	/**
+	 * Optional too: without it, the pages open the apps without asking whether they're connected.
+	 */
+	@Autowired(required = false)
+	final void setConnections(AssistantConnections connections) {
+		this.connections = connections;
+	}
+
+	/**
 	 * Spring calls this before every handler method of a subclass, so every page has the selected profile (or
 	 * {@code null}) for the sidebar in layout.html. It's the only place a request looks the profile up.
 	 * <p>
@@ -129,6 +158,57 @@ abstract class BaseController {
 	}
 
 	/**
+	 * What to paste into the profile's AI assistant to do a request, and the terminal command that starts the assistant
+	 * with it; and whether JobWarden can run it itself, here, and does: the profile is the one {@link #layout} put in the
+	 * model.
+	 */
+	protected Prompt prompt(Model model, long requestId) {
+		return prompt(model, List.of(requestId));
+	}
+
+	/**
+	 * The same for several requests, done one after the other in one session.
+	 */
+	protected Prompt prompt(Model model, List<Long> requestIds) {
+		User profile = requireProfile(model);
+		Prompt prompt = AssistantPrompts.forRequests(profile.assistant(), requestIds, profile.id());
+		if (this.runner == null) {
+			return connected(prompt, profile);
+		}
+		// Why Run last refused them, kept a while, so the card keeps saying it as it asks again
+		RunRefusal refused = this.runner.refusal(requestIds)
+			.map(refusal -> new RunRefusal(refusal.reason().name(), refusal.assistant().product(),
+					AssistantRunner.signInCommand(refusal.assistant())))
+			.orElse(null);
+		return connected(prompt.run(this.runner.canRun(profile.assistant()), this.runner.isRunning(requestIds))
+			.refused(refused), profile);
+	}
+
+	/**
+	 * Whether the assistant has JobWarden's MCP server on this computer; unknown without a way to tell.
+	 */
+	protected Connection connection(Assistant assistant) {
+		Connection connection = (this.connections == null) ? null : this.connections.find(assistant);
+		return (connection == null) ? Connection.UNKNOWN : connection;
+	}
+
+	/**
+	 * The prompt, its apps knowing whether each assistant has JobWarden's MCP server on this computer: one that hasn't
+	 * says to connect it first, in Settings; one set up for another profile says so, since a call that leaves the
+	 * profile out goes there.
+	 */
+	protected Prompt connected(Prompt prompt, User profile) {
+		if (this.connections == null) {
+			return prompt;
+		}
+		return prompt.withApps(prompt.apps().stream().map(link -> {
+			Connection connection = connection(link.assistant());
+			return link.checked(!connection.isMissing(), connection.profile() != null && !connection.isFor(profile),
+					connection.folder());
+		}).toList());
+	}
+
+	/**
 	 * Which images the pages showing applications have: the sites' icons, next to each site, and the companies'
 	 * logos, before each job's title.
 	 */
@@ -139,6 +219,19 @@ abstract class BaseController {
 
 	protected void selectProfile(long userId) {
 		this.currentUser.select(userId);
+	}
+
+	/**
+	 * Deletes the profile and everything of it (UserService.delete), stops the assistant's runs on its requests and
+	 * deletes what they printed, and selects no profile in this browser session.
+	 */
+	protected void deleteProfile(long userId) {
+		List<Long> requestIds = this.discovery.findRequests(userId, Integer.MAX_VALUE).stream().map(AiRequest::id).toList();
+		if (this.runner != null) {
+			this.runner.forget(requestIds);
+		}
+		this.users.delete(userId);
+		this.currentUser.forget();
 	}
 
 	protected static String redirectTo(String path) {
@@ -160,6 +253,13 @@ abstract class BaseController {
 		String inEnglish = Objects.requireNonNullElse(exception.getMessage(), exception.getErrorCode().getCode());
 		return this.messages.getMessage(exception.getErrorCode().getMessageKey(), exception.getArguments(), inEnglish,
 				LocaleContextHolder.getLocale());
+	}
+
+	/**
+	 * A message of the pages, in the user's language.
+	 */
+	protected String text(String code) {
+		return this.messages.getMessage(code, null, code, LocaleContextHolder.getLocale());
 	}
 
 	/**

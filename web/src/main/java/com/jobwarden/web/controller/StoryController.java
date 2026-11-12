@@ -15,7 +15,6 @@ import com.jobwarden.web.constants.AppConstants.ControllerConstants;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.constants.AppConstants.Views;
 import com.jobwarden.web.dto.StoryForm;
-import com.jobwarden.web.view.ClaudePrompts;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
@@ -125,7 +124,7 @@ class StoryController extends BaseController {
 		model.addAttribute(ModelAttributes.HAS_CV, cv.file() != null || cv.details().isFilledIn());
 		model.addAttribute(ModelAttributes.STORY_REQUEST, request.orElse(null));
 		model.addAttribute(ModelAttributes.STORY_PROMPT,
-				request.map(asked -> ClaudePrompts.forRequest(asked.id(), userId)).orElse(null));
+				request.map(asked -> prompt(model, asked.id())).orElse(null));
 		return Views.STORIES_FRAGMENT;
 	}
 

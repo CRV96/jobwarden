@@ -21,7 +21,7 @@
     "message": "Link"
   },
   "profileId": {
-    "message": "ID-ul profilului"
+    "message": "ID profil"
   },
   "includeTime": {
     "message": "Include ora"
@@ -81,10 +81,10 @@
     "message": "Unde rulează JobWarden. Pe acest calculator, de obicei http://localhost:8080."
   },
   "profileIdHint": {
-    "message": "JobWarden îl afișează pe pagina Profiluri."
+    "message": "JobWarden îl arată în Setări, la Profilul tău, cu un buton care îl copiază."
   },
   "openProfiles": {
-    "message": "Deschide pagina Profiluri"
+    "message": "Deschide Setările JobWarden"
   },
   "save": {
     "message": "Salvează"
@@ -94,6 +94,9 @@
   },
   "notSaved": {
     "message": "Setările nu au putut fi salvate."
+  },
+  "profileNotFound": {
+    "message": "Niciun profil nu are acest ID pe acest server. Copiază-l din Setările JobWarden, la Profilul tău."
   },
   "serverUrlInvalid": {
     "message": "Introdu o adresă care începe cu http:// sau https://."

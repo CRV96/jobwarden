@@ -87,7 +87,7 @@
             <section class="card flex flex-col gap-3 p-4" aria-labelledby="methods-title">
                 <div>
                     <h2 id="methods-title" class="section-title" th:text="#{stats.byMethod}">Answers by how you applied</h2>
-                    <p class="text-xs text-pretty text-ink/55" th:text="#{stats.byMethod.hint}">You, Claude from Auto-apply, or the extension.</p>
+                    <p class="text-xs text-pretty text-ink/55" th:text="#{stats.byMethod.hint}">You, the AI Assistant from Auto-apply, or the extension.</p>
                 </div>
                 <th:block th:replace="~{statistics/statistics :: rates(${stats.byMethod}, 'method')}"></th:block>
             </section>
@@ -96,7 +96,7 @@
             <section class="card flex flex-col gap-3 p-4" aria-labelledby="calibration-title">
                 <div>
                     <h2 id="calibration-title" class="section-title" th:text="#{stats.byFit}">Do high scores lead to interviews?</h2>
-                    <p class="text-xs text-pretty text-ink/55" th:text="#{stats.byFit.hint}">The jobs you applied to, by the fit Claude scored.</p>
+                    <p class="text-xs text-pretty text-ink/55" th:text="#{stats.byFit.hint}">The jobs you applied to, by the fit the AI Assistant scored.</p>
                 </div>
                 <th:block th:replace="~{statistics/statistics :: rates(${stats.byFit}, 'fit')}"></th:block>
                 <p class="flex items-start gap-2 rounded-lg bg-ink/4 p-2.5 text-[13px] text-pretty"
@@ -110,7 +110,7 @@
             <section class="card flex flex-col gap-3 p-4" aria-labelledby="gaps-title">
                 <div>
                     <h2 id="gaps-title" class="section-title" th:text="#{stats.gaps}">Skills to work on</h2>
-                    <p class="text-xs text-pretty text-ink/55" th:text="#{stats.gaps.hint}">What the postings Claude scored asked for…</p>
+                    <p class="text-xs text-pretty text-ink/55" th:text="#{stats.gaps.hint}">What the postings the AI Assistant scored asked for…</p>
                 </div>
                 <p class="text-[13px] text-pretty text-ink/60" th:if="${stats.skillGaps.isEmpty()}">
                     <span th:text="#{stats.gaps.none}">No job scored yet.</span>

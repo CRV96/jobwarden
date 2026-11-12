@@ -3,7 +3,7 @@ package com.jobwarden.mcp.controller;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * A tool Claude can call: what tools/list says about it, and what calling it does.
+ * A tool the assistant can call: what tools/list says about it, and what calling it does.
  *
  * @param inputSchema the JSON Schema of its arguments
  * @param readOnly whether it only reads: clients may call it without asking

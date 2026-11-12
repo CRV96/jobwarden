@@ -28,38 +28,29 @@
     </div>
 
     <p class="text-[13px] text-ink/65" th:unless="${hasCv}">
-        <th:block th:text="#{tailoredCv.noCv}">Claude needs your CV first: upload it or fill it in.</th:block>
+        <th:block th:text="#{tailoredCv.noCv}">The AI Assistant needs your CV first: upload it or fill it in.</th:block>
         <a class="link" th:href="@{/cv}" th:text="#{tailoredCv.addCv}">Go to the CV page</a>
     </p>
     <p class="text-[13px] text-pretty text-ink/65" th:if="${hasCv and tailoredCv == null and !open}"
-       th:text="#{tailoredCv.hint}">Claude rewrites your CV for this job…</p>
+       th:text="#{tailoredCv.hint}">The AI Assistant rewrites your CV for this job…</p>
 
     <!--/* Asked, not done yet: what to paste into Claude Code while it waits */-->
     <th:block th:if="${open}">
         <div class="flex items-center gap-2">
             <span class="tag st-interviewing">
                 <i class="ph ph-arrow-clockwise animate-spin" th:if="${status == 'WORKING'}"></i>
-                <span th:text="#{|ai.status.${status}|}">Waiting for Claude</span>
+                <span th:text="#{|ai.status.${status}|}">Waiting for the AI Assistant</span>
             </span>
             <span class="flex-1"></span>
             <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button" th:hx-post="@{/applications/{id}/cv/cancel(id=${cvJobId})}"
                     hx-target="#tailored-cv" hx-swap="outerHTML" th:text="#{ai.cancel}">Cancel</button>
         </div>
         <th:block th:if="${status == 'WAITING'}">
-            <div class="text-xs text-ink/60" th:text="#{ai.prompt}">Paste this into Claude Code:</div>
-            <div class="flex items-start gap-2">
-                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${cvPrompt.text}">Do JobWarden request 12…</code>
-                <button th:replace="~{discover/discover :: copy-button(${cvPrompt.text})}"></button>
-            </div>
-            <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
-            <div class="flex items-start gap-2">
-                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${cvPrompt.command}">claude "Do JobWarden request 12…"</code>
-                <button th:replace="~{discover/discover :: copy-button(${cvPrompt.command})}"></button>
-            </div>
+            <div th:replace="~{applications/claude :: prompt(${cvPrompt})}"></div>
         </th:block>
     </th:block>
     <p class="text-[13px] text-danger" role="alert" th:if="${status == 'FAILED'}"
-       th:text="#{tailoredCv.failed(${cvRequest.summary} ?: '')}">Claude couldn’t tailor it: the posting has no description.</p>
+       th:text="#{tailoredCv.failed(${cvRequest.summary} ?: '')}">The AI Assistant couldn’t tailor it: the posting has no description.</p>
 
     <!--/* The CV for the job: how it matches the posting, what Claude changed, and the CV itself */-->
     <th:block th:if="${tailoredCv}">
@@ -76,7 +67,7 @@
             </div>
         </div>
         <div class="flex flex-col gap-1" th:if="${tailoredCv.notes}">
-            <span class="text-xs text-ink/60" th:text="#{tailoredCv.notes}">What Claude changed</span>
+            <span class="text-xs text-ink/60" th:text="#{tailoredCv.notes}">What the AI Assistant changed</span>
             <p class="text-[13px] whitespace-pre-line text-ink/80" th:text="${tailoredCv.notes}">Put Kafka first…</p>
         </div>
         <div class="flex flex-wrap items-center gap-1.5">
@@ -95,7 +86,7 @@
 
     <button class="btn btn-secondary self-start" type="button" th:if="${hasCv and !open}"
             th:hx-post="@{/applications/{id}/cv/request(id=${cvJobId})}" hx-target="#tailored-cv" hx-swap="outerHTML">
-        <i class="ph ph-sparkle"></i><span th:text="${tailoredCv} ? #{tailoredCv.again} : #{tailoredCv.ask}">Ask Claude to tailor it</span>
+        <i class="ph ph-sparkle"></i><span th:text="${tailoredCv} ? #{tailoredCv.again} : #{tailoredCv.ask}">Ask the AI Assistant to tailor it</span>
     </button>
 </section>
 

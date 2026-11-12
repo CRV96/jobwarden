@@ -56,7 +56,7 @@ class DefaultCoverLetterService implements CoverLetterService {
 		checkUnchangedSince(entity.getUpdatedAt(), askedAt, "The cover letter");
 		entity.replace(checkedBody(body), checked("The notes", text(notes), CoverLetter.NOTES_MAX_LENGTH));
 		CoverLetter saved = toLetter(this.letters.saveAndFlush(entity));
-		log.info("Saved the cover letter Claude wrote for application {} of profile {}", applicationId, userId);
+		log.info("Saved the cover letter the assistant wrote for application {} of profile {}", applicationId, userId);
 		return saved;
 	}
 

@@ -5,8 +5,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.IntStream;
+import java.util.stream.LongStream;
 
 import com.jayway.jsonpath.JsonPath;
 import com.jobwarden.apply.dto.ApplicationAnswers;
@@ -66,10 +69,15 @@ import com.jobwarden.jobs.dto.JobOffer;
 import com.jobwarden.jobs.dto.NegotiationBrief;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
 import com.jobwarden.jobs.dto.OfferComparison;
+import com.jobwarden.jobs.dto.OfferExtra;
+import com.jobwarden.jobs.dto.OfferTotal;
 import com.jobwarden.jobs.dto.SalaryEntry;
 import com.jobwarden.jobs.dto.TidyResult;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.InterviewFormat;
+import com.jobwarden.jobs.enums.OfferExtraKind;
+import com.jobwarden.jobs.enums.PayFrequency;
 import com.jobwarden.jobs.enums.RequirementImportance;
 import com.jobwarden.jobs.enums.RequirementMatch;
 import com.jobwarden.jobs.enums.SalaryPeriod;
@@ -110,7 +118,9 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -184,6 +194,8 @@ class McpControllerTests {
 	void oneProfile() {
 		given(this.users.findAll()).willReturn(List.of(ROBERT));
 		given(this.users.exists(1)).willReturn(true);
+		// No CV yet, unless a test gives one: requests that need it hand out has_cv false
+		given(this.cvs.find(anyLong())).willReturn(new Cv(null, CvDetails.NONE));
 	}
 
 	@Test
@@ -232,6 +244,55 @@ class McpControllerTests {
 	}
 
 	@Test
+	void describesEachToolOnceAndBriefly() {
+		assertThat(rpc("tools/list", "{}")).bodyJson().satisfies(body -> {
+			// The title once, at the top: annotations keep only the hints clients decide approvals by
+			assertThat(body).extractingPath("$.result.tools[?(@.name == 'get_job')].title").asArray().containsExactly("Get a job");
+			assertThat(body).extractingPath("$.result.tools[*].annotations.title").asArray().isEmpty();
+			assertThat(body).extractingPath("$.result.tools[?(@.name == 'check_postings')].annotations.openWorldHint")
+				.asArray()
+				.containsExactly(true);
+			// Every tool's schema is read in every session: no description the name says, nothing the server ignores
+			assertThat(body).extractingPath("$.result.tools[*].inputSchema.additionalProperties").asArray().isEmpty();
+			assertThat(body).extractingPath("$.result.tools[?(@.name == 'get_job')].inputSchema.properties.profile_id")
+				.asArray()
+				.containsExactly(Map.of("type", "integer"));
+			// Nor does any name one assistant
+			assertThat(body.getJson()).doesNotContain("Claude");
+		});
+	}
+
+	@Test
+	void namesTheAssistantCallingFromItsUserAgent() {
+		assertThat(McpController.client("claude-code/2.1.311 (claude-desktop, agent-sdk/0.3.321)")).isEqualTo("Claude Code");
+		assertThat(McpController.client("codex-mcp-client/0.140.0")).isEqualTo("Codex");
+		assertThat(McpController.client("cursor/1.7 (darwin)")).isEqualTo("cursor");
+		// What lands in the logs is a name, nothing else
+		assertThat(McpController.client("evil\r\nINFO fake line/1")).isEqualTo("evil");
+		assertThat(McpController.client(null)).isEqualTo(McpController.UNKNOWN_CLIENT);
+	}
+
+	@Test
+	void savesWhoSentAnApplicationTheAssistantByItsOldName() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.SAVED)),
+				Optional.of(job(ApplicationStatus.APPLIED)), Optional.of(job(ApplicationStatus.SAVED)),
+				Optional.of(job(ApplicationStatus.APPLIED)), Optional.of(job(ApplicationStatus.SAVED)),
+				Optional.of(job(ApplicationStatus.APPLIED)));
+
+		callTool("update_job_status", "{\"job_id\": 7, \"status\": \"APPLIED\", \"applied_by\": \"ASSISTANT\"}");
+		callTool("update_job_status", "{\"job_id\": 7, \"status\": \"APPLIED\"}");
+		callTool("update_job_status", "{\"job_id\": 7, \"status\": \"APPLIED\", \"applied_by\": \"claude\"}");
+		assertThat(callTool("update_job_status", "{\"job_id\": 7, \"status\": \"APPLIED\", \"applied_by\": \"ME\"}"))
+			.bodyJson()
+			.satisfies(body -> assertThat(body).extractingPath("$.result.isError").isEqualTo(true));
+
+		ArgumentCaptor<NewTimelineEvent> events = ArgumentCaptor.forClass(NewTimelineEvent.class);
+		then(this.applications).should(org.mockito.Mockito.times(3)).addEvent(eq(1L), eq(7L), events.capture());
+		assertThat(events.getAllValues()).extracting(NewTimelineEvent::appliedBy)
+			.containsExactly(AppliedBy.CLAUDE, AppliedBy.YOU, AppliedBy.CLAUDE);
+	}
+
+	@Test
 	void listsTheJobsInSnakeCase() {
 		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of(ApplicationSummary.builder()
 			.id(7)
@@ -245,7 +306,8 @@ class McpControllerTests {
 		assertThat(callTool("list_jobs", "{\"status\": \"applied\"}")).bodyJson().satisfies(body -> {
 			assertThat(body).extractingPath("$.result.isError").isEqualTo(false);
 			assertThat(result(body)).extractingPath("$.jobs[0].link").isEqualTo("https://jobs.lever.co/acme/7");
-			assertThat(result(body)).extractingPath("$.jobs[0].last_modified").isEqualTo("2026-10-20T10:00:00Z");
+			// To the minute: seconds would only cost tokens
+			assertThat(result(body)).extractingPath("$.jobs[0].last_modified").isEqualTo("2026-10-20T10:00Z");
 			// Fields without a value are left out
 			assertThat(result(body)).extractingPath("$.jobs[0]").asMap().doesNotContainKey("salary");
 			assertThat(body).extractingPath("$.result.content[0].type").isEqualTo("text");
@@ -263,19 +325,31 @@ class McpControllerTests {
 	}
 
 	@Test
-	void takesTheProfileFromTheHeader() {
+	void takesTheProfileFromTheHeaderByItsPublicIdOrItsId() {
 		given(this.users.findAll()).willReturn(List.of(ROBERT, WORK));
-		given(this.users.exists(2)).willReturn(true);
+		given(this.users.findByKey(WORK.publicId().toString())).willReturn(Optional.of(WORK));
+		given(this.users.findByKey("2")).willReturn(Optional.of(WORK));
 		given(this.applications.find(eq(2L), any())).willReturn(new PageImpl<>(List.of()));
 
+		for (String key : List.of(WORK.publicId().toString(), "2")) {
+			assertThat(this.mvc.post()
+				.uri("/mcp")
+				.header(McpController.PROFILE_HEADER, key)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(request("tools/call", "{\"name\": \"list_jobs\", \"arguments\": {}}")))
+				.bodyJson()
+				.satisfies(body -> assertThat(result(body)).extractingPath("$.total").isEqualTo(0));
+		}
+		// One that names no profile says so
 		assertThat(this.mvc.post()
 			.uri("/mcp")
-			.header(McpController.PROFILE_HEADER, "2")
+			.header(McpController.PROFILE_HEADER, "6f1c2a8e-0000-4000-8000-000000000000")
 			.contentType(MediaType.APPLICATION_JSON)
 			.content(request("tools/call", "{\"name\": \"list_jobs\", \"arguments\": {}}")))
 			.bodyJson()
-			.satisfies(body -> assertThat(result(body)).extractingPath("$.total")
-			.isEqualTo(0));
+			.satisfies(body -> assertThat(body).extractingPath("$.result.content[0].text")
+				.asString()
+				.contains("There's no profile 6f1c2a8e-0000-4000-8000-000000000000"));
 	}
 
 	@Test
@@ -367,6 +441,19 @@ class McpControllerTests {
 	}
 
 	@Test
+	void saysWhereTheRestOfABriefCvFilesTextIs() {
+		given(this.cvs.find(1)).willReturn(new Cv(new CvFile("cv.pdf", "application/pdf", 40_000, 10_000, Instant.now()),
+				CvDetails.NONE));
+		given(this.cvs.fileText(1)).willReturn(Optional.of("x".repeat(10_000)), Optional.of("x".repeat(CvTools.BRIEF_TEXT_LENGTH)));
+
+		// Cut to its start, the text says get_cv full=true has the rest; whole, it says nothing
+		assertThat(callTool("get_cv", "{}")).bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.file.text_with").isEqualTo("get_cv with full=true"));
+		assertThat(callTool("get_cv", "{}")).bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.file").asMap().doesNotContainKey("text_with"));
+	}
+
+	@Test
 	void leavesTheJobsPointsOutOfABriefCv() {
 		given(this.cvs.find(1)).willReturn(new Cv(null, CvDetails.builder()
 			.headline("Senior Java Developer")
@@ -393,11 +480,23 @@ class McpControllerTests {
 			.createdAt(Instant.now())
 			.build());
 
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.INTERVIEWING)));
+		given(this.stories.findAll(1)).willReturn(List.of(Story.builder()
+			.id(3)
+			.title("The Kafka migration")
+			.result("3x the throughput")
+			.skills(List.of("Kafka"))
+			.build()));
+
 		assertThat(callTool("get_request", "{\"request_id\": 31}")).bodyJson().satisfies(body -> {
-			assertThat(result(body)).extractingPath("$.job_id").isEqualTo(7);
+			// What the steps need comes with them: no get_job, get_cv or list_stories to call
+			assertThat(result(body)).extractingPath("$.job.id").isEqualTo(7);
+			assertThat(result(body)).extractingPath("$.cv.has_cv").isEqualTo(false);
+			assertThat(result(body)).extractingPath("$.stories[0].title").isEqualTo("The Kafka migration");
 			assertThat(result(body)).extractingPath("$.instructions").asString()
-				.contains("get_job with job_id 7", "get_cv with full true", "WebFetch", "save_interview_brief and job_id 7",
-						"finish_request with request_id 31");
+				.contains("job is the posting", "short question", "save_interview_brief and job_id 7",
+						"finish_request with request_id 31")
+				.doesNotContain("get_job", "get_cv", "list_stories", "Claude");
 		});
 	}
 
@@ -470,10 +569,18 @@ class McpControllerTests {
 			.createdAt(Instant.now())
 			.build());
 
-		assertThat(callTool("get_request", "{\"request_id\": 33}")).bodyJson()
-			.satisfies(body -> assertThat(result(body)).extractingPath("$.instructions").asString()
-				.contains("get_cv with full true", "list_jobs_to_score with limit 15", "MUST", "PARTIAL", "save_job_fit",
-						"finish_request with request_id 33"));
+		given(this.fits.findUnscored(1, RequestTools.SCORE_AT_ONCE)).willReturn(List.of(ApplicationSummary.builder()
+			.id(9)
+			.title("Kotlin Developer")
+			.status(ApplicationStatus.SAVED)
+			.capturedAt(Instant.now())
+			.build()));
+
+		assertThat(callTool("get_request", "{\"request_id\": 33}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.jobs_to_score[0].id").isEqualTo(9);
+			assertThat(result(body)).extractingPath("$.instructions").asString()
+				.contains("jobs_to_score", "get_job each", "MUST", "PARTIAL", "save_job_fit", "finish_request with request_id 33");
+		});
 	}
 
 	@Test
@@ -540,7 +647,7 @@ class McpControllerTests {
 				answer -> CvDetails.builder().projects(answer.getArgument(1)).build());
 
 		assertThat(callTool("list_github_projects", "{}")).bodyJson().satisfies(body -> {
-			assertThat(result(body)).extractingPath("$.projects[0].full_name").isEqualTo("CRV96/jobwarden");
+			assertThat(result(body)).extractingPath("$.projects[0].url").isEqualTo("https://github.com/CRV96/jobwarden");
 			assertThat(result(body)).extractingPath("$.projects[0].languages").asArray().containsExactly("Java", "HTML");
 		});
 		assertThat(callTool("save_cv_projects", """
@@ -549,6 +656,69 @@ class McpControllerTests {
 				""")).bodyJson().satisfies(body -> assertThat(result(body)).extractingPath("$.projects").isEqualTo(1));
 		then(this.cvs).should().saveProjects(1, List.of(new CvProject("JobWarden", "https://github.com/CRV96/jobwarden",
 				"Java, Spring Boot", "A self-hosted job tracker.")));
+	}
+
+	@Test
+	void readsAReadmeWithoutItsBadgesImagesHtmlAndCode() {
+		String readme = """
+				# JobWarden [![CI](https://github.com/CRV96/jobwarden/actions/workflows/ci.yml/badge.svg)](https://github.com/CRV96/jobwarden/actions)
+
+				<p align="center"><img src="docs/logo.png" width="120"></p>
+
+				A self-hosted job tracker. ![screenshot](docs/screen.png)
+
+
+
+				```bash
+				docker compose up
+				```
+				It has 40,000 lines of Java.
+				""";
+		given(this.github.findProjects(1)).willReturn(List.of(new GitHubProject("CRV96/jobwarden", "jobwarden",
+				"https://github.com/CRV96/jobwarden", null, null, List.of("Java"), List.of(), 3, false, null, null, readme)));
+
+		assertThat(callTool("list_github_projects", "{}")).bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.projects[0].readme")
+				.isEqualTo("# JobWarden\n\nA self-hosted job tracker.\n\nIt has 40,000 lines of Java."));
+		assertThat(ProjectTools.readme("x".repeat(ProjectTools.README_MAX_LENGTH + 10))).hasSize(ProjectTools.README_MAX_LENGTH);
+		assertThat(ProjectTools.readme("![logo](logo.png)")).isNull();
+	}
+
+	@Test
+	void handsOutTheCvsPointsWithoutTheFileSayingThemAgain() {
+		given(this.cvs.find(1)).willReturn(new Cv(new CvFile("cv.pdf", "application/pdf", 84_000, 12, Instant.now()),
+				CvDetails.builder()
+					.headline("Senior Java Developer")
+					.experience(List.of(new CvExperience("Java Developer", "Acme", null, "2021", "Present", "Built the payments API")))
+					.build()));
+		given(this.cvs.fileText(1)).willReturn(Optional.of("Senior Java Developer at Acme: built the payments API"));
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.SAVED)));
+		given(this.discovery.startRequest(1, 42)).willReturn(AiRequest.builder()
+			.id(42)
+			.kind(AiRequestKind.SCORE_JOB)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+		given(this.discovery.startRequest(1, 43)).willReturn(AiRequest.builder()
+			.id(43)
+			.kind(AiRequestKind.TAILOR_CV)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+
+		assertThat(callTool("get_request", "{\"request_id\": 42}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.cv.fields.experience[0].description").isEqualTo("Built the payments API");
+			assertThat(result(body)).extractingPath("$.cv.file").asMap().doesNotContainKey("text");
+			// But says where it is, for evidence only the file has
+			assertThat(result(body)).extractingPath("$.cv.file.text_with").isEqualTo("get_cv with full=true");
+		});
+		// Rewriting the CV reads both: the file may say what the fields don't
+		assertThat(callTool("get_request", "{\"request_id\": 43}")).bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.cv.file.text").asString().contains("payments API"));
 	}
 
 	@Test
@@ -563,7 +733,7 @@ class McpControllerTests {
 
 		assertThat(callTool("get_request", "{\"request_id\": 41}")).bodyJson()
 			.satisfies(body -> assertThat(result(body)).extractingPath("$.instructions").asString()
-				.contains("get_cv", "list_github_projects", "at most 6", "Never claim", "save_cv_projects"));
+				.contains("cv has the headline", "list_github_projects", "at most 6", "Never claim", "save_cv_projects"));
 	}
 
 	@Test
@@ -647,7 +817,8 @@ class McpControllerTests {
 			assertThat(result(body)).extractingPath("$.requirements.locations[0]").isEqualTo("Romania");
 			assertThat(result(body)).extractingPath("$.requirements.use_cv").isEqualTo(true);
 			assertThat(result(body)).extractingPath("$.instructions").asString()
-				.contains("Call get_cv", "add_found_jobs and request_id 12, at most 10 jobs", "finish_request with request_id 12");
+				.contains("From cv", "add_found_jobs and request_id 12, at most 10", "finish_request with request_id 12");
+			assertThat(result(body)).extractingPath("$.cv.has_cv").isEqualTo(false);
 		});
 		then(this.discovery).should().startRequest(1, 12);
 	}
@@ -663,12 +834,13 @@ class McpControllerTests {
 			.createdAt(Instant.now())
 			.build();
 		given(this.discovery.startRequest(1, 14)).willReturn(waiting);
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.SAVED)));
 
 		assertThat(callTool("get_request", "{\"request_id\": 14}")).bodyJson().satisfies(body -> {
-			assertThat(result(body)).extractingPath("$.job_id").isEqualTo(7);
+			assertThat(result(body)).extractingPath("$.job.title").isEqualTo("Java Developer");
 			assertThat(result(body)).doesNotHavePath("$.requirements");
 			assertThat(result(body)).extractingPath("$.instructions").asString()
-				.contains("Call get_cv", "get_job with job_id 7", "never add a skill", "save_tailored_cv and job_id 7",
+				.contains("job is the posting", "cv is the full CV", "never add a skill", "save_tailored_cv and job_id 7",
 						"finish_request with request_id 14");
 		});
 	}
@@ -777,8 +949,7 @@ class McpControllerTests {
 				                 "profile_url": "https://www.linkedin.com/in/bob", "company": "Acme", "country": "RO",
 				                 "note": "Hires Java developers for the payments team."}]}
 				""")).bodyJson()
-			.satisfies(body -> assertThat(result(body)).extractingPath("$.added[0].origin")
-			.isEqualTo("FOUND"));
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.added").isEqualTo(1));
 		then(this.hiring).should().addFoundRecruiters(1, List.of(NewRecruiter.builder()
 			.name("Bob Ionescu")
 			.headline("Technical Recruiter at Acme")
@@ -857,6 +1028,198 @@ class McpControllerTests {
 			assertThat(result(body)).extractingPath("$.cover_letter").isEqualTo("WRITE");
 			assertThat(result(body)).extractingPath("$.custom[0].answer").isEqualTo("Yes, B");
 		});
+	}
+
+	@Test
+	void endsAutoApplysRequestOnlyOnceItsQueueIsDone() {
+		given(this.discovery.findRequest(1, 60)).willReturn(AiRequest.builder()
+			.id(60)
+			.kind(AiRequestKind.AUTO_APPLY)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WORKING)
+			.createdAt(Instant.now())
+			.build());
+		given(this.autoApply.findOpenItems(1)).willReturn(List.of(ApplyItem.builder()
+			.id(3)
+			.applicationId(7)
+			.title("Backend engineer")
+			.link("https://jobs.lever.co/acme/7")
+			.mode(ApplyMode.SUBMIT)
+			.status(ApplyStatus.QUEUED)
+			.createdAt(Instant.now())
+			.build()));
+
+		// An assistant that can't apply, which read it by mistake, can't end it while jobs wait
+		assertThat(callTool("finish_request", "{\"request_id\": 60, \"summary\": \"Done.\"}")).bodyJson()
+			.satisfies(body -> assertThat(body).extractingPath("$.result.content[0].text")
+				.asString()
+				.contains("Auto-apply ends when its queue is done"));
+		then(this.discovery).should(never()).finishRequest(anyLong(), anyLong(), anyBoolean(), anyString());
+		// It may say it couldn't
+		given(this.discovery.finishRequest(1, 60, false, "Can't drive the browser.")).willReturn(AiRequest.builder()
+			.id(60)
+			.kind(AiRequestKind.AUTO_APPLY)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.FAILED)
+			.createdAt(Instant.now())
+			.build());
+		assertThat(callTool("finish_request", "{\"request_id\": 60, \"summary\": \"Can't drive the browser.\", \"done\": false}"))
+			.bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.status").isEqualTo("FAILED"));
+	}
+
+	@Test
+	void keepsAutoApplyOutOfAnUnattendedRunsReach() {
+		AiRequest letter = AiRequest.builder()
+			.id(63)
+			.kind(AiRequestKind.WRITE_COVER_LETTER)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build();
+		AiRequest applying = AiRequest.builder()
+			.id(64)
+			.kind(AiRequestKind.AUTO_APPLY)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build();
+		given(this.discovery.findOpenRequests(1)).willReturn(List.of(letter, applying));
+		given(this.discovery.findRequest(1, 64)).willReturn(applying);
+
+		// The loop and Run say no one watches them: Auto-apply's isn't listed, nor can it be started or ended
+		assertThat(unattended("list_requests", "{}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.requests[*].id").asArray().containsExactly(63);
+		});
+		assertThat(unattended("get_request", "{\"request_id\": 64}")).bodyJson()
+			.satisfies(body -> assertThat(body).extractingPath("$.result.content[0].text")
+				.asString()
+				.contains("Auto-apply needs the profile at the browser"));
+		assertThat(unattended("finish_request", "{\"request_id\": 64, \"summary\": \"Couldn't.\", \"done\": false}"))
+			.bodyJson()
+			.satisfies(body -> assertThat(body).extractingPath("$.result.isError").isEqualTo(true));
+		then(this.discovery).should(never()).startRequest(1, 64);
+		then(this.discovery).should(never()).finishRequest(anyLong(), anyLong(), anyBoolean(), anyString());
+		// Someone at the browser lists it
+		assertThat(callTool("list_requests", "{}")).bodyJson()
+			.satisfies(body -> assertThat(result(body)).extractingPath("$.requests[*].id").asArray().containsExactly(63, 64));
+	}
+
+	@Test
+	void keepsARequestWithinItsBudgetWithALongPostingCvAndStoryBank() {
+		given(this.discovery.startRequest(eq(1L), anyLong())).willAnswer(call -> AiRequest.builder()
+			.id(call.getArgument(1))
+			.kind((long) call.getArgument(1) % 2 == 1 ? AiRequestKind.PREPARE_INTERVIEW : AiRequestKind.TAILOR_CV)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+		// A 15,000-character posting, a 28,000-character CV file and forty long stories
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.INTERVIEWING).toBuilder()
+			.link("https://example.com/jobs/7")
+			.description("We build payments. ".repeat(800))
+			.build()));
+		given(this.cvs.fileText(1)).willReturn(Optional.of("Built the payments API at Acme. ".repeat(875)));
+		given(this.stories.findAll(1)).willReturn(LongStream.rangeClosed(1, 40)
+			.mapToObj(id -> Story.builder().id(id).title("Story " + id).action("x".repeat(1000)).skills(List.of()).build())
+			.toList());
+		// The CV with no fields, and with six jobs of 5,000 characters of points each, as many as its page takes
+		CvFile file = new CvFile("cv.pdf", "application/pdf", 40_000, 28_000, Instant.now());
+		CvDetails filledIn = CvDetails.builder()
+			.headline("Senior Java Developer")
+			.summary("s".repeat(2_000))
+			.experience(IntStream.rangeClosed(1, 6)
+				.mapToObj(n -> new CvExperience("Java Developer", "Acme " + n, null, "2020", "2021", "p".repeat(5_000)))
+				.toList())
+			.build();
+		given(this.cvs.find(1)).willReturn(new Cv(file, CvDetails.NONE));
+
+		for (int request : List.of(65, 66, 67, 68)) {
+			if (request == 67) {
+				given(this.cvs.find(1)).willReturn(new Cv(file, filledIn));
+			}
+			assertThat(callTool("get_request", "{\"request_id\": " + request + "}")).bodyJson().satisfies(body -> {
+				assertThat(body).extractingPath("$.result.content[0].text").asString().hasSizeLessThan(25_000);
+				// What was cut, or left out, says where the rest is
+				assertThat(result(body)).extractingPath("$.cv.file.text_with").isEqualTo("get_cv with full=true");
+				assertThat(result(body)).extractingPath("$.job.description_with").isEqualTo("its link");
+				assertThat(result(body)).extractingPath("$.instructions")
+					.asString()
+					.startsWith("Pass profile_id 1 to every JobWarden tool you call for it.");
+				if (request > 66) {
+					assertThat(result(body)).extractingPath("$.cv.fields.cut_with").isEqualTo("get_cv with full=true");
+				}
+			});
+		}
+	}
+
+	@Test
+	void pointsNowhereElseForTheRestOfAFileLongerThanAFullCvGives() {
+		given(this.cvs.find(1)).willReturn(new Cv(new CvFile("cv.pdf", "application/pdf", 90_000, 40_000, Instant.now()),
+				CvDetails.NONE));
+		given(this.cvs.fileText(1)).willReturn(Optional.of("x".repeat(40_000)));
+
+		// get_cv with full=true gives the most of it there is to give: cut, it says so with its "…" alone
+		assertThat(callTool("get_cv", "{\"full\": true}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.file.text").asString().hasSize(CvTools.MAX_TEXT_LENGTH + 1).endsWith("…");
+			assertThat(result(body)).extractingPath("$.file").asMap().doesNotContainKey("text_with");
+		});
+	}
+
+	@Test
+	void addsTheJobsOfASavedSearchsRequestToThatSearch() {
+		given(this.discovery.startRequest(1, 61)).willReturn(AiRequest.builder()
+			.id(61)
+			.kind(AiRequestKind.FIND_JOBS)
+			.requirements(AiRequirements.builder()
+				.titles(List.of("Java Developer"))
+				// A name that looks like an id doesn't stand for it
+				.notes("(search_id 5) From the saved search Java (search_id 6).")
+				.build())
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+
+		assertThat(callTool("get_request", "{\"request_id\": 61}")).bodyJson()
+			.extractingPath("$.result.content[0].text")
+			.asString()
+			.contains("Pass search_id 5 to add_found_jobs too")
+			.doesNotContain("search_id 6 to");
+	}
+
+	@Test
+	void handsOutAsMuchOfTheStoryBankAsFitsAndTheRestByTitle() {
+		given(this.discovery.startRequest(1, 62)).willReturn(AiRequest.builder()
+			.id(62)
+			.kind(AiRequestKind.PREPARE_INTERVIEW)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.INTERVIEWING)));
+		// Forty stories of about a thousand characters: far more than a request hands out
+		given(this.stories.findAll(1)).willReturn(LongStream.rangeClosed(1, 40)
+			.mapToObj(id -> Story.builder().id(id).title("Story " + id).action("x".repeat(1000)).skills(List.of()).build())
+			.toList());
+
+		assertThat(callTool("get_request", "{\"request_id\": 62}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.stories").asArray().hasSizeBetween(7, 8);
+			assertThat(result(body)).extractingPath("$.story_titles").asArray().hasSizeBetween(32, 33).contains("Story 40");
+			assertThat(result(body)).extractingPath("$.instructions").asString().contains("list_stories gives in full");
+			assertThat(body).extractingPath("$.result.content[0].text").asString().hasSizeLessThan(25_000);
+		});
+	}
+
+	private MvcTestResult unattended(String tool, String arguments) {
+		return this.mvc.post()
+			.uri("/mcp")
+			.header(McpController.UNATTENDED_HEADER, "true")
+			.contentType(MediaType.APPLICATION_JSON)
+			.content(request("tools/call", "{\"name\": \"" + tool + "\", \"arguments\": " + arguments + "}"))
+			.exchange();
 	}
 
 	@Test
@@ -1172,7 +1535,7 @@ class McpControllerTests {
 
 	@Test
 	void refusesMoreStoriesThanABriefNames() {
-		String ids = java.util.stream.LongStream.rangeClosed(1, 21)
+		String ids = LongStream.rangeClosed(1, 21)
 			.mapToObj(String::valueOf)
 			.collect(java.util.stream.Collectors.joining(", "));
 
@@ -1192,12 +1555,16 @@ class McpControllerTests {
 			.status(AiRequestStatus.WAITING)
 			.createdAt(Instant.now())
 			.build());
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.SAVED)));
 
-		assertThat(callTool("get_request", "{\"request_id\": 34}")).bodyJson()
-			.extractingPath("$.result.content[0].text")
-			.asString()
-			.contains("get_job with job_id 7", "get_cv with full true", "save_cover_letter and job_id 7", "no clichés",
-					"base_letter");
+		assertThat(callTool("get_request", "{\"request_id\": 34}")).bodyJson().satisfies(body -> {
+			assertThat(body).extractingPath("$.result.content[0].text")
+				.asString()
+				.contains("job is the posting", "cv is the full CV", "save_cover_letter and job_id 7", "no clichés",
+						"base_letter");
+			// With the job it's about
+			assertThat(result(body)).extractingPath("$.job.id").isEqualTo(7);
+		});
 	}
 
 	@Test
@@ -1261,16 +1628,24 @@ class McpControllerTests {
 		given(this.offers.compare(1, "EUR", SalaryPeriod.YEAR)).willReturn(OfferComparison.builder()
 			.currency("EUR")
 			.period(SalaryPeriod.YEAR)
-			.offers(List.of(new ComparedOffer(acme, JobOffer.builder().baseSalary("90,000 EUR").bonus("10%").build(),
-					"90,000 EUR", new SalaryEntry(acme, new BigDecimal("90000.00"), new BigDecimal("90000.00"), "EUR", false,
-							null), false, null, false)))
+			.offers(List.of(new ComparedOffer(acme, JobOffer.builder()
+				.baseSalary("90,000 EUR")
+				.extras(List.of(new OfferExtra(OfferExtraKind.BONUS, BigDecimal.TEN, "%", PayFrequency.YEAR, "On targets")))
+				.build(), "90,000 EUR", new SalaryEntry(acme, new BigDecimal("90000.00"), new BigDecimal("90000.00"), "EUR", false,
+						null), false, new OfferTotal("EUR", new BigDecimal("90000"), new BigDecimal("9000"),
+								new BigDecimal("99000.00"), BigDecimal.ZERO, BigDecimal.ZERO, 0), null, false)))
 			.currencies(List.of("EUR"))
 			.build());
 
 		assertThat(callTool("list_offers", "{}")).bodyJson().satisfies(body -> {
 			assertThat(result(body)).extractingPath("$.offers[0].job_id").isEqualTo(7);
 			assertThat(result(body)).extractingPath("$.offers[0].yearly_low").isEqualTo(90000);
-			assertThat(result(body)).extractingPath("$.offers[0].bonus").isEqualTo("10%");
+			assertThat(result(body)).extractingPath("$.offers[0].extras[0].kind").isEqualTo("BONUS");
+			assertThat(result(body)).extractingPath("$.offers[0].extras[0].unit").isEqualTo("%");
+			assertThat(result(body)).extractingPath("$.offers[0].extras[0].frequency").isEqualTo("YEAR");
+			assertThat(result(body)).extractingPath("$.offers[0].all_in_yearly").isEqualTo(99000);
+			// Nothing paid once or per event: not said
+			assertThat(result(body)).extractingPath("$.offers[0]").asMap().doesNotContainKeys("once", "per_event");
 		});
 	}
 
@@ -1427,10 +1802,10 @@ class McpControllerTests {
 				assertThat(body).extractingPath("$.result.content[0].text").asString().contains("Greenhouse, Lever or Ashby");
 			});
 		assertThat(callTool("get_request", "{\"request_id\": 35}")).bodyJson().satisfies(body -> {
-			assertThat(result(body)).extractingPath("$.watched_companies").asArray()
-				.containsExactly("Acme (https://jobs.lever.co/acme)");
+			// The names alone: JobWarden reads the boards
+			assertThat(result(body)).extractingPath("$.watched_companies").asArray().containsExactly("Acme");
 			assertThat(result(body)).extractingPath("$.instructions").asString()
-				.contains("watched_companies lists the companies", "call watch_company");
+				.contains("watched_companies' boards", "call watch_company");
 		});
 	}
 
@@ -1519,10 +1894,10 @@ class McpControllerTests {
 				Instant.now())));
 
 		assertThat(callTool("list_saved_searches", "{}")).bodyJson().satisfies(body -> {
-			assertThat(result(body)).extractingPath("$.searches[0].queries.GOOGLE.query")
+			// The queries alone, to run with a web search: their addresses would say them again
+			assertThat(result(body)).extractingPath("$.searches[0].queries.GOOGLE")
 				.isEqualTo("site:jobs.lever.co \"Java Developer\"");
-			assertThat(result(body)).extractingPath("$.searches[0].queries.LINKEDIN.url").asString()
-				.startsWith("https://www.linkedin.com/jobs/search/?keywords=");
+			assertThat(result(body)).extractingPath("$.searches[0].queries.LINKEDIN").asString().contains("Java Developer");
 			assertThat(result(body)).extractingPath("$.searches[0].criteria.titles[0]")
 				.isEqualTo("Java Developer");
 		});
@@ -1545,7 +1920,7 @@ class McpControllerTests {
 				  {"title": "Java Developer", "link": "https://jobs.lever.co/acme/2"}]}"""))
 			.bodyJson()
 			.satisfies(body -> {
-				assertThat(result(body)).extractingPath("$.added[0].id").isEqualTo(11);
+				assertThat(result(body)).extractingPath("$.added").isEqualTo(1);
 				assertThat(result(body)).extractingPath("$.skipped[0].reason").isEqualTo("already found");
 				assertThat(result(body)).extractingPath("$.waiting_for_a_decision").isEqualTo(4);
 			});

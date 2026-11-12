@@ -3,10 +3,13 @@ package com.jobwarden.web.controller;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.LinkedHashSet;
+import java.util.EnumMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 import com.jobwarden.identity.dto.User;
+import com.jobwarden.identity.enums.Assistant;
 import com.jobwarden.identity.service.UserService;
 import com.jobwarden.inbox.dto.MailAccount;
 import com.jobwarden.inbox.enums.InboxAutomation;
@@ -14,12 +17,14 @@ import com.jobwarden.inbox.service.InboxService;
 import com.jobwarden.market.enums.AdzunaKeyCheck;
 import com.jobwarden.market.service.AdzunaKeyService;
 import com.jobwarden.web.constants.AppConstants.ControllerConstants;
+import com.jobwarden.web.assistant.AssistantConnections.Connection;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.constants.AppConstants.Views;
 import com.jobwarden.web.dto.AdzunaKeyForm;
 import com.jobwarden.web.dto.InboxSettingsForm;
 import com.jobwarden.web.enums.Language;
 import com.jobwarden.web.enums.ReadingInterval;
+import com.jobwarden.web.view.AssistantPrompts;
 import jakarta.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -30,15 +35,17 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /**
  * Settings of this browser, not of a profile, so the page needs none: the theme (kept by the browser), the language
- * (kept in a cookie, see LocaleConfiguration), and what the extension and Claude need to know. One of the server, the
- * same for every profile: the key for Adzuna's API, which the Salaries page asks for the salaries in job ads. And, when
- * a profile is chosen, its own: its jobs as a CSV file, and how its inbox reads its mailbox.
+ * (kept in a cookie, see LocaleConfiguration), and what the extension and the AI assistant need to know. One of the
+ * server, the same for every profile: the key for Adzuna's API, which the Salaries page asks for the salaries in job
+ * ads. And, when a profile is chosen, its own: its jobs as a CSV file, how its inbox reads its mailbox, and which AI
+ * assistant it works with, Claude Code or Codex.
  */
 @Controller
 @RequestMapping(ControllerConstants.SETTINGS)
@@ -50,16 +57,33 @@ class SettingsController extends BaseController {
 	/** Where the page shows the inbox's settings */
 	private static final String INBOX_SECTION = ControllerConstants.SETTINGS + "#inbox";
 
+	/** Where the page shows the AI assistant, and how to connect it */
+	private static final String ASSISTANT_SECTION = ControllerConstants.SETTINGS + "#assistant";
+
+	/** Who made JobWarden, by their GitHub name: About names them, with a link to their GitHub profile. */
+	static final String AUTHOR = "CRV";
+
 	private final AdzunaKeyService adzunaKeys;
 
 	private final InboxService inbox;
 
+	private final UserService users;
+
 	private final String mcpPath;
 
-	SettingsController(AdzunaKeyService adzunaKeys, InboxService inbox, @Value("${jobwarden.mcp.path:/mcp}") String mcpPath) {
+	private final String repository;
+
+	/**
+	 * @param repository where JobWarden's code is on GitHub, the repository its releases come from, e.g. CRV96/jobwarden
+	 */
+	SettingsController(AdzunaKeyService adzunaKeys, InboxService inbox, UserService users,
+			@Value("${jobwarden.mcp.path:/mcp}") String mcpPath,
+			@Value("${jobwarden.updates.repository:CRV96/jobwarden}") String repository) {
 		this.adzunaKeys = adzunaKeys;
 		this.inbox = inbox;
+		this.users = users;
 		this.mcpPath = mcpPath;
+		this.repository = repository;
 	}
 
 	@GetMapping
@@ -70,8 +94,28 @@ class SettingsController extends BaseController {
 				Language.fromTag(locale.toLanguageTag()).orElse(Language.DEFAULT));
 		String serverUrl = ServletUriComponentsBuilder.fromCurrentContextPath().toUriString();
 		model.addAttribute(ModelAttributes.SERVER_URL, serverUrl);
-		model.addAttribute(ModelAttributes.MCP_URL, serverUrl + this.mcpPath);
+		String mcpUrl = serverUrl + this.mcpPath;
+		model.addAttribute(ModelAttributes.MCP_URL, mcpUrl);
+		model.addAttribute(ModelAttributes.ASSISTANTS, Assistant.values());
+		// How to connect each assistant: the profile may work with both
+		String profileKey = (model.getAttribute(ModelAttributes.CURRENT_PROFILE) instanceof User profile)
+				? profile.publicId().toString() : null;
+		Map<Assistant, String> connections = new EnumMap<>(Assistant.class);
+		for (Assistant assistant : Assistant.values()) {
+			connections.put(assistant, AssistantPrompts.connection(assistant, mcpUrl, profileKey));
+		}
+		model.addAttribute(ModelAttributes.ASSISTANT_CONNECTION, connections);
+		// Whether each has it already, from its own configuration on this computer
+		Map<Assistant, Connection> states = new EnumMap<>(Assistant.class);
+		for (Assistant assistant : Assistant.values()) {
+			states.put(assistant, connection(assistant));
+		}
+		model.addAttribute(ModelAttributes.ASSISTANT_STATES, states);
 		model.addAttribute(ModelAttributes.ADZUNA_KEY, this.adzunaKeys.find());
+		model.addAttribute(ModelAttributes.REPOSITORY, this.repository);
+		model.addAttribute(ModelAttributes.AUTHOR, AUTHOR);
+		// The repository's owner, e.g. CRV96 of CRV96/jobwarden
+		model.addAttribute(ModelAttributes.AUTHOR_URL, "https://github.com/" + this.repository.split("/")[0]);
 		model.addAttribute(ModelAttributes.PROFILE_IMAGE_MAX_BYTES, UserService.MAX_IMAGE_BYTES);
 		if (model.getAttribute(ModelAttributes.CURRENT_PROFILE) instanceof User profile) {
 			Optional<MailAccount> mailbox = this.inbox.findAccount(profile.id());
@@ -97,6 +141,17 @@ class SettingsController extends BaseController {
 		this.inbox.changeSettings(userId, form.readEvery().getMinutes(), form.automation());
 		redirect.addFlashAttribute(ModelAttributes.INBOX_SAVED, true);
 		return redirectTo(INBOX_SECTION);
+	}
+
+	/**
+	 * Which AI assistant the profile works with: its pages write their prompts and terminal commands for it from now
+	 * on. Back on the page, it says so once, with how to connect that one.
+	 */
+	@PostMapping("/assistant")
+	String saveAssistant(@RequestParam Assistant assistant, Model model, RedirectAttributes redirect) {
+		this.users.changeAssistant(requireProfile(model).id(), assistant);
+		redirect.addFlashAttribute(ModelAttributes.ASSISTANT_SAVED, true);
+		return redirectTo(ASSISTANT_SECTION);
 	}
 
 	/**

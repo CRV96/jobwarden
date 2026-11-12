@@ -5,12 +5,13 @@ import java.util.Optional;
 import com.jobwarden.jobs.dto.JobOffer;
 import com.jobwarden.jobs.dto.NegotiationBrief;
 import com.jobwarden.jobs.dto.OfferComparison;
+import com.jobwarden.jobs.dto.OfferTotal;
 import com.jobwarden.jobs.enums.SalaryPeriod;
 import org.jspecify.annotations.Nullable;
 
 /**
  * The offers the profile's jobs made it: their terms, typed in on each job's page, compared side by side on the offers
- * page; and the brief Claude writes to negotiate one. Every method takes the owning user's id, like
+ * page; and the brief the AI Assistant writes to negotiate one. Every method takes the owning user's id, like
  * {@link ApplicationService}.
  */
 public interface OfferService {
@@ -29,8 +30,16 @@ public interface OfferService {
 	JobOffer save(long userId, long applicationId, JobOffer offer);
 
 	/**
-	 * The jobs at Offer, side by side: each with its terms, and its salary (the offer's base salary, or else the
-	 * posting's) in the currency and per the period asked for, so they compare.
+	 * What the offer pays, all in: a year of its base salary and of its extras paid again and again, in the base
+	 * salary's currency (without one, the first extra's), and beside it, what's paid once or per event.
+	 *
+	 * @return the total, or nothing without a base salary or an extra with an amount
+	 */
+	Optional<OfferTotal> total(JobOffer offer);
+
+	/**
+	 * The jobs at Offer, side by side: each with its terms, its salary (the offer's base salary, or else the
+	 * posting's) in the currency and per the period asked for, so they compare, and what it pays all in.
 	 *
 	 * @param currency an ISO 4217 code; {@code null}, or one there's no exchange rate for, for euros
 	 */

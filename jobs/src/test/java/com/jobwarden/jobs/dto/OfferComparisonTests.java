@@ -47,7 +47,7 @@ class OfferComparisonTests {
 			.capturedAt(Instant.now())
 			.build();
 		SalaryEntry entry = new SalaryEntry(job, BigDecimal.valueOf(salary), BigDecimal.valueOf(salary), "EUR", false, basis);
-		return new ComparedOffer(job, JobOffer.NONE, null, entry, false, null, false);
+		return new ComparedOffer(job, JobOffer.NONE, null, entry, false, null, null, false);
 	}
 
 }

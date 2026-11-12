@@ -12,7 +12,7 @@
     <header class="flex flex-wrap items-end gap-3">
         <div class="min-w-[240px] flex-1">
             <h1 class="page-title mb-1" th:text="#{cv.title}">CV</h1>
-            <p class="text-[13px] text-ink/60" th:text="#{cv.subtitle}">Upload your CV, or fill in the fields and JobWarden builds one. Claude reads it to find jobs that fit you.</p>
+            <p class="text-[13px] text-ink/60" th:text="#{cv.subtitle}">Upload your CV, or fill in the fields and JobWarden builds one. The AI Assistant reads it to find jobs that fit you.</p>
         </div>
         <th:block th:replace="~{help/help :: how-it-works('cv')}"></th:block>
     </header>
@@ -41,7 +41,7 @@
                              th:text="#{cv.file.details(${#numbers.formatInteger((file.size + 1023) / 1024, 1, 'DEFAULT')}, ${@dates.relativeDay(file.uploadedAt)})}">84 KB · uploaded today</div>
                         <div class="mt-0.5 flex items-center gap-1 text-xs" th:classappend="${file.textLength > 0} ? 'text-ink/60' : 'text-danger'">
                             <i class="ph" th:classappend="${file.textLength > 0} ? 'ph-sparkle text-accent' : 'ph-warning-circle'"></i>
-                            <span th:text="${file.textLength > 0} ? #{cv.file.text(${#numbers.formatInteger(file.textLength, 1, 'DEFAULT')})} : #{cv.file.noText}">Claude can read 4,512 characters of it.</span>
+                            <span th:text="${file.textLength > 0} ? #{cv.file.text(${#numbers.formatInteger(file.textLength, 1, 'DEFAULT')})} : #{cv.file.noText}">The AI Assistant can read 4,512 characters of it.</span>
                         </div>
                     </div>
                     <a class="btn btn-secondary" th:href="@{/cv/file}"><i class="ph ph-download-simple"></i><span th:text="#{cv.file.download}">Download</span></a>
@@ -66,7 +66,7 @@
                     <h2 id="tailored-title" class="flex items-center gap-1.5 font-semibold">
                         <i class="ph ph-sparkle text-accent"></i><span th:text="#{cv.tailored}">CVs tailored to jobs</span>
                     </h2>
-                    <p class="text-xs text-ink/60" th:text="#{cv.tailored.hint}">On a job’s page, Claude can rewrite your CV for it.</p>
+                    <p class="text-xs text-ink/60" th:text="#{cv.tailored.hint}">On a job’s page, the AI Assistant can rewrite your CV for it.</p>
                 </div>
                 <ul class="flex flex-col divide-y divide-line" th:unless="${tailoredCvs.isEmpty()}">
                     <li class="flex items-center gap-2 py-2 last:pb-0" th:each="tailored : ${tailoredCvs}"

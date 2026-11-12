@@ -15,7 +15,7 @@
     <header class="flex flex-wrap items-end gap-3">
         <div class="min-w-[240px] flex-1">
             <h1 class="page-title mb-1" th:text="#{offers.title}">Offers</h1>
-            <p class="text-[13px] text-ink/60" th:text="#{offers.subtitle}">Your offers side by side, against what the market pays. Claude writes how to negotiate each.</p>
+            <p class="text-[13px] text-ink/60" th:text="#{offers.subtitle}">Your offers side by side, against what the market pays. The AI Assistant writes how to negotiate each.</p>
         </div>
         <th:block th:replace="~{help/help :: how-it-works('offers')}"></th:block>
     </header>
@@ -113,6 +113,25 @@
                         <span class="text-ink/40" th:unless="${offer.salaryText}">—</span>
                     </td>
                 </tr>
+                <!--/* All in: the salary and the extras paid again and again, per the period; what's paid once beside it */-->
+                <tr>
+                    <th class="sticky left-0 bg-surface p-3 text-left align-top text-xs font-normal text-ink/60" scope="row"
+                        th:text="#{offers.total(${per})}">All in, a year</th>
+                    <td class="p-3 align-top" th:each="offer : ${comparison.offers}" th:with="total=${offer.total}">
+                        <th:block th:if="${total != null and total.hasExtras()}">
+                            <div class="font-semibold tabular-nums" th:text="${@money.compact(total.per(comparison.period), currency)}">€96.8K</div>
+                            <div class="mt-0.5 text-xs text-ink/55 tabular-nums" th:if="${total.once.signum() > 0}"
+                                 th:text="#{offer.total.once(${@money.compact(total.once, currency)})}">And €5K once</div>
+                            <div class="mt-0.5 text-xs text-ink/55 tabular-nums" th:if="${total.perEvent.signum() > 0}"
+                                 th:text="#{offer.total.perEvent(${@money.compact(total.perEvent, currency)})}">And €500 each event</div>
+                            <!--/* A partial figure says so, not to be compared as a whole one */-->
+                            <div class="mt-0.5 flex items-center gap-1 text-xs text-ink/60" th:if="${total.uncounted > 0}">
+                                <i class="ph ph-info"></i><span th:text="#{offers.total.uncounted(${total.uncounted})}">1 extra not counted</span>
+                            </div>
+                        </th:block>
+                        <span class="text-ink/40" th:unless="${total != null and total.hasExtras()}">—</span>
+                    </td>
+                </tr>
                 <!--/* What the market pays, beside each: loads after the page */-->
                 <tr id="offers-market" th:hx-get="${offerMarketUrl}" hx-trigger="load" hx-target="this" hx-swap="outerHTML">
                     <th class="sticky left-0 bg-surface p-3 text-left align-top text-xs font-normal text-ink/60" scope="row"
@@ -121,9 +140,18 @@
                         <i class="ph ph-arrow-clockwise animate-spin"></i> <span th:text="#{market.loading}">Loading what the market pays…</span>
                     </td>
                 </tr>
-                <tr th:replace="~{offers/offers :: term(#{offer.bonus}, 'bonus')}"></tr>
-                <tr th:replace="~{offers/offers :: term(#{offer.signingBonus}, 'signingBonus')}"></tr>
-                <tr th:replace="~{offers/offers :: term(#{offer.equity}, 'equity')}"></tr>
+                <tr>
+                    <th class="sticky left-0 bg-surface p-3 text-left align-top text-xs font-normal text-ink/60" scope="row"
+                        th:text="#{offer.extras}">On top of the salary</th>
+                    <td class="p-3 align-top" th:each="offer : ${comparison.offers}">
+                        <ul class="flex flex-col gap-1" th:unless="${offer.terms.extras.isEmpty()}">
+                            <li th:each="extra : ${offer.terms.extras}">
+                                <span th:replace="~{applications/offer :: extra-text(${extra})}"></span>
+                            </li>
+                        </ul>
+                        <span class="text-ink/40" th:if="${offer.terms.extras.isEmpty()}">—</span>
+                    </td>
+                </tr>
                 <tr th:replace="~{offers/offers :: term(#{offer.timeOff}, 'timeOff')}"></tr>
                 <tr th:replace="~{offers/offers :: term(#{offer.benefits}, 'benefits')}"></tr>
                 <tr>
@@ -168,7 +196,7 @@
                                 th:hx-get="@{/applications/{id}/drawer(id=${offer.application.id})}" hx-trigger="click"
                                 hx-target="#drawer-content" hx-swap="innerHTML">
                             <i class="ph" th:classappend="${offer.hasBrief} ? 'ph-scales' : 'ph-sparkle'"></i>
-                            <span th:text="${offer.hasBrief} ? #{offers.readBrief} : #{negotiation.ask}">Ask Claude how to negotiate</span>
+                            <span th:text="${offer.hasBrief} ? #{offers.readBrief} : #{negotiation.ask}">Ask the AI Assistant how to negotiate</span>
                         </button>
                     </td>
                 </tr>

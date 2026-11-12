@@ -555,7 +555,7 @@ function describeSettings() {
   const button = document.getElementById('settings');
   button.setAttribute('aria-label', message('settings'));
   button.title = (settings.userId === undefined) ? message('settings')
-    : `${message('settings')} · ${new URL(settings.serverUrl).host} · ${message('profileId')} ${settings.userId}`;
+    : `${message('settings')} · ${new URL(settings.serverUrl).host} · ${message('profileId')} ${settings.profileKey ?? settings.userId}`;
 }
 
 function setBusy(busy) {

@@ -30,7 +30,6 @@ import com.jobwarden.web.constants.AppConstants.ControllerConstants;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.constants.AppConstants.Views;
 import com.jobwarden.web.dto.CvForm;
-import com.jobwarden.web.view.ClaudePrompts;
 import com.jobwarden.web.view.CvPdf;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
@@ -250,7 +249,7 @@ class CvController extends BaseController {
 		Optional<AiRequest> request = latestProjects(userId);
 		model.addAttribute(ModelAttributes.PROJECTS_REQUEST, request.orElse(null));
 		model.addAttribute(ModelAttributes.PROJECTS_PROMPT,
-				request.map(asked -> ClaudePrompts.forRequest(asked.id(), userId)).orElse(null));
+				request.map(asked -> prompt(model, asked.id())).orElse(null));
 		model.addAttribute(ModelAttributes.MAX_REPOSITORIES, GitHubService.MAX_REPOSITORIES);
 		return Views.GITHUB_FRAGMENT;
 	}

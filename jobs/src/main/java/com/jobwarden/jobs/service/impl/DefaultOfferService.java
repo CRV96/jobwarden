@@ -5,7 +5,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
@@ -16,6 +18,8 @@ import com.jobwarden.jobs.dto.ComparedOffer;
 import com.jobwarden.jobs.dto.JobOffer;
 import com.jobwarden.jobs.dto.NegotiationBrief;
 import com.jobwarden.jobs.dto.OfferComparison;
+import com.jobwarden.jobs.dto.OfferExtra;
+import com.jobwarden.jobs.dto.OfferTotal;
 import com.jobwarden.jobs.dto.SalaryEntry;
 import com.jobwarden.jobs.dto.SalaryRange;
 import com.jobwarden.jobs.entity.JobOfferEntity;
@@ -81,6 +85,30 @@ class DefaultOfferService implements OfferService {
 	}
 
 	@Override
+	public Optional<OfferTotal> total(JobOffer offer) {
+		RateTable rates = this.exchangeRates.current();
+		Optional<SalaryRange> base = offer.baseSalaryRange()
+			.or(() -> new SalaryParser(rates.currencies()).parse(offer.baseSalary()));
+		// In the base salary's currency; without one, the first extra's
+		Optional<String> currency = base.map(SalaryRange::currency)
+			.or(() -> offer.extras()
+				.stream()
+				.filter(extra -> extra.amount() != null && extra.unit() != null && !extra.isShareOfBase())
+				.map(OfferExtra::unit)
+				.findFirst());
+		// A salary in words that says no period is read as the comparison reads it: 5,000 EUR is a month
+		return currency.flatMap(shownIn -> OfferTotals.total(offer.extras(),
+				base.map(range -> range.low()
+					.add(range.high())
+					.divide(BigDecimal.TWO)
+					.multiply(BigDecimal.valueOf(Objects
+						.requireNonNullElseGet(range.period(), () -> DefaultSalaryService.guessedPeriod(range, rates))
+						.perYear())))
+					.orElse(null),
+				shownIn, rates));
+	}
+
+	@Override
 	public OfferComparison compare(long userId, @Nullable String currency, SalaryPeriod period) {
 		RateTable rates = this.exchangeRates.current();
 		SalaryParser parser = new SalaryParser(rates.currencies());
@@ -103,12 +131,22 @@ class DefaultOfferService implements OfferService {
 		List<SalaryRange> read = new ArrayList<>();
 		for (ApplicationSummary job : jobs) {
 			JobOffer offer = terms.getOrDefault(job.id(), JobOffer.NONE);
-			String text = (offer.baseSalary() != null) ? offer.baseSalary() : blankToNull(job.salary());
-			Optional<SalaryRange> range = parser.parse(text);
+			String offered = offer.baseSalaryText();
+			String text = (offered != null) ? offered : blankToNull(job.salary());
+			// The figure picked as it is; words, the offer's from before or the posting's, as they read
+			// A figure in a currency there's no exchange rate for can't be compared: it reads as unreadable
+			Optional<SalaryRange> range = offer.baseSalaryRange()
+				.or(() -> parser.parse(text))
+				.filter(found -> rates.currencies().contains(found.currency()));
 			range.ifPresent(read::add);
 			SalaryEntry salary = range.map(found -> DefaultSalaryService.entry(job, found, rates, shownIn, period))
 				.orElse(null);
-			compared.add(new ComparedOffer(job, offer, text, salary, offer.baseSalary() == null && text != null,
+			// All in, a year of it, in the comparison's currency: from a year, so the period shown rounds nothing in
+			BigDecimal baseYearly = range
+				.map(found -> DefaultSalaryService.entry(job, found, rates, shownIn, SalaryPeriod.YEAR).midpoint())
+				.orElse(null);
+			OfferTotal total = OfferTotals.total(offer.extras(), baseYearly, shownIn, rates).orElse(null);
+			compared.add(new ComparedOffer(job, offer, text, salary, offered == null && text != null, total,
 					scores.get(job.id()), withBrief.contains(job.id())));
 		}
 		return OfferComparison.builder()
@@ -155,18 +193,36 @@ class DefaultOfferService implements OfferService {
 		}
 	}
 
-	/** Blank text is no value, and the rest is stripped. */
+	/**
+	 * Blank text is no value, and the rest is stripped. A base salary is a figure with its currency, or none: a
+	 * currency or a period without an amount says nothing, and once there's a figure, the words from before go. An
+	 * extra's amount comes with its unit, and an extra with neither an amount nor a note goes.
+	 */
 	private static JobOffer tidied(JobOffer offer) {
+		boolean figure = offer.baseSalaryAmount() != null && blankToNull(offer.baseSalaryCurrency()) != null;
 		return offer.toBuilder()
-			.baseSalary(blankToNull(offer.baseSalary()))
-			.bonus(blankToNull(offer.bonus()))
-			.equity(blankToNull(offer.equity()))
-			.signingBonus(blankToNull(offer.signingBonus()))
+			.baseSalaryAmount(figure ? offer.baseSalaryAmount() : null)
+			.baseSalaryCurrency(figure ? Objects.requireNonNull(blankToNull(offer.baseSalaryCurrency())).toUpperCase(Locale.ROOT)
+					: null)
+			.baseSalaryPeriod(figure ? Objects.requireNonNullElse(offer.baseSalaryPeriod(), SalaryPeriod.YEAR) : null)
+			.baseSalary(figure ? null : blankToNull(offer.baseSalary()))
+			.extras(offer.extras().stream().map(DefaultOfferService::tidied).flatMap(Optional::stream).toList())
 			.timeOff(blankToNull(offer.timeOff()))
 			.benefits(blankToNull(offer.benefits()))
 			.notes(blankToNull(offer.notes()))
 			.updatedAt(null)
 			.build();
+	}
+
+	private static Optional<OfferExtra> tidied(OfferExtra extra) {
+		String unit = blankToNull(extra.unit());
+		boolean amount = extra.amount() != null && extra.amount().signum() > 0 && unit != null;
+		String note = blankToNull(extra.note());
+		if (!amount && note == null) {
+			return Optional.empty();
+		}
+		return Optional.of(new OfferExtra(extra.kind(), amount ? extra.amount() : null,
+				amount ? Objects.requireNonNull(unit).toUpperCase(Locale.ROOT) : null, extra.frequency(), note));
 	}
 
 	private static @Nullable String blankToNull(@Nullable String text) {
@@ -175,10 +231,11 @@ class DefaultOfferService implements OfferService {
 
 	private static JobOffer toOffer(JobOfferEntity offer) {
 		return JobOffer.builder()
+			.baseSalaryAmount(offer.getBaseSalaryAmount())
+			.baseSalaryCurrency(offer.getBaseSalaryCurrency())
+			.baseSalaryPeriod(offer.getBaseSalaryPeriod())
 			.baseSalary(offer.getBaseSalary())
-			.bonus(offer.getBonus())
-			.equity(offer.getEquity())
-			.signingBonus(offer.getSigningBonus())
+			.extras(offer.extras())
 			.timeOff(offer.getTimeOff())
 			.benefits(offer.getBenefits())
 			.startDate(offer.getStartDate())

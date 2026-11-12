@@ -1,5 +1,6 @@
 import { message, translatePage } from './i18n.js';
-import { hostPermission, loadSettings, normalizeServerUrl, PROFILES_PATH, saveSettings } from './settings.js';
+import { findProfile } from './api.js';
+import { hostPermission, loadSettings, normalizeServerUrl, PROFILE_SETTINGS_PATH, saveSettings } from './settings.js';
 import { remindersShown } from './reminders.js';
 import { iconShowsStatus } from './status.js';
 
@@ -25,7 +26,7 @@ showRemindersInput.addEventListener('change', () => changePermission(showReminde
 
 const settings = await loadSettings();
 serverUrlInput.value = settings.serverUrl;
-userIdInput.value = settings.userId ?? '';
+userIdInput.value = settings.profileKey ?? settings.userId ?? '';
 updateProfilesLink();
 showOnIconInput.checked = await iconShowsStatus();
 showRemindersInput.checked = await remindersShown();
@@ -46,8 +47,15 @@ function save(event) {
         showStatus(message('permissionDenied', serverUrl), 'error');
         return;
       }
-      await saveSettings({ serverUrl, userId: Number(userIdInput.value) });
+      // The id the profile shows: the server says which profile it is, and the captures send its number
+      const profile = await findProfile(serverUrl, userIdInput.value.trim());
+      if (profile === null) {
+        showStatus(message('profileNotFound'), 'error');
+        return;
+      }
+      await saveSettings({ serverUrl, userId: profile.id, profileKey: profile.publicId });
       serverUrlInput.value = serverUrl;
+      userIdInput.value = profile.publicId;
       showStatus(message('saved'), 'success');
     })
     .catch((error) => {
@@ -92,7 +100,7 @@ function updateProfilesLink() {
   const serverUrl = normalizeServerUrl(serverUrlInput.value);
   openProfiles.hidden = serverUrl === null;
   if (serverUrl !== null) {
-    openProfiles.href = serverUrl + PROFILES_PATH;
+    openProfiles.href = serverUrl + PROFILE_SETTINGS_PATH;
   }
 }
 

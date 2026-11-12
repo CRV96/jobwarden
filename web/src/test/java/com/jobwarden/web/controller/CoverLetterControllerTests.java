@@ -91,7 +91,7 @@ class CoverLetterControllerTests {
 	void offersToAskClaudeOrToWriteItOneself() {
 		assertThat(this.mvc.get().uri("/applications/7/letter/card").header("HX-Request", "true")).hasStatusOk()
 			.bodyText()
-			.contains("Cover letter", "Ask Claude to write it", "/applications/7/letter/request", "Write it myself");
+			.contains("Cover letter", "Ask the AI Assistant to write it", "/applications/7/letter/request", "Write it myself");
 	}
 
 	@Test

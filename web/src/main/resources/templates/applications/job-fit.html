@@ -46,34 +46,25 @@
     </div>
 
     <p class="text-[13px] text-pretty text-ink/65" th:if="${fit == null and !open}" th:text="#{fit.hint}">
-        Claude reads the posting’s requirements against your CV…</p>
+        The AI Assistant reads the posting’s requirements against your CV…</p>
 
     <!--/* Asked, not done yet: what to paste into Claude Code while it waits */-->
     <th:block th:if="${open}">
         <div class="flex items-center gap-2">
             <span class="tag st-interviewing">
                 <i class="ph ph-arrow-clockwise animate-spin" th:if="${status == 'WORKING'}"></i>
-                <span th:text="#{|ai.status.${status}|}">Waiting for Claude</span>
+                <span th:text="#{|ai.status.${status}|}">Waiting for the AI Assistant</span>
             </span>
             <span class="flex-1"></span>
             <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button" th:hx-post="@{/applications/{id}/fit/cancel(id=${fitJobId})}"
                     hx-target="#job-fit" hx-swap="outerHTML" th:text="#{ai.cancel}">Cancel</button>
         </div>
         <th:block th:if="${status == 'WAITING'}">
-            <div class="text-xs text-ink/60" th:text="#{ai.prompt}">Paste this into Claude Code:</div>
-            <div class="flex items-start gap-2">
-                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${fitPrompt.text}">Do JobWarden request 12…</code>
-                <button th:replace="~{discover/discover :: copy-button(${fitPrompt.text})}"></button>
-            </div>
-            <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
-            <div class="flex items-start gap-2">
-                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${fitPrompt.command}">claude "Do JobWarden request 12…"</code>
-                <button th:replace="~{discover/discover :: copy-button(${fitPrompt.command})}"></button>
-            </div>
+            <div th:replace="~{applications/claude :: prompt(${fitPrompt})}"></div>
         </th:block>
     </th:block>
     <p class="text-[13px] text-danger" role="alert" th:if="${status == 'FAILED'}"
-       th:text="#{fit.failed(${fitRequest.summary} ?: '')}">Claude couldn’t score it: …</p>
+       th:text="#{fit.failed(${fitRequest.summary} ?: '')}">The AI Assistant couldn’t score it: …</p>
 
     <!--/* The score, out of 5, and the requirements it comes from: the must-haves first, as Claude listed them */-->
     <th:block th:if="${fit}">
@@ -105,7 +96,7 @@
 
     <button class="btn btn-secondary self-start" type="button" th:unless="${open}"
             th:hx-post="@{/applications/{id}/fit/request(id=${fitJobId})}" hx-target="#job-fit" hx-swap="outerHTML">
-        <i class="ph ph-sparkle"></i><span th:text="${fit} ? #{fit.again} : #{fit.ask}">Ask Claude to score it</span>
+        <i class="ph ph-sparkle"></i><span th:text="${fit} ? #{fit.again} : #{fit.ask}">Ask the AI Assistant to score it</span>
     </button>
 </section>
 

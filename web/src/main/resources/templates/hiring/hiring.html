@@ -74,7 +74,7 @@
                         <span class="flex-1" th:text="#{|hiring.faq.${topic}.question|}">Where do these posts come from?</span>
                         <i class="ph ph-caret-down text-xs text-ink/50 transition-transform group-open:rotate-180"></i>
                     </summary>
-                    <p class="mt-1.5 text-xs text-pretty text-ink/65" th:text="#{|hiring.faq.${topic}.answer|}">Claude finds them…</p>
+                    <p class="mt-1.5 text-xs text-pretty text-ink/65" th:text="#{|hiring.faq.${topic}.answer|}">The AI Assistant finds them…</p>
                 </details>
             </section>
         </aside>
@@ -108,7 +108,7 @@
                     <h2 class="text-[17px] font-semibold"
                         th:text="${following} ? #{hiring.following.empty.title} : (${params.isFiltered()} ? #{hiring.empty.filtered.title} : #{hiring.empty.title})">No hiring posts yet</h2>
                     <p class="max-w-[440px] text-ink/65"
-                       th:text="${following} ? #{hiring.following.empty.body} : (${params.isFiltered()} ? #{hiring.empty.filtered.body} : #{hiring.empty.body})">Ask Claude for posts…</p>
+                       th:text="${following} ? #{hiring.following.empty.body} : (${params.isFiltered()} ? #{hiring.empty.filtered.body} : #{hiring.empty.body})">Ask the AI Assistant for posts…</p>
                     <a class="link text-[13px]" th:if="${following}" th:href="@{/hiring(tab='RECRUITERS')}" th:text="#{hiring.tab.RECRUITERS}">Recruiters</a>
                 </div>
             </th:block>
@@ -145,7 +145,7 @@
                                 </th:block>
                             </div>
                             <div class="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
-                                <span class="tag" th:if="${origin == 'FOUND'}"><i class="ph ph-sparkle"></i><span th:text="#{hiring.who.FOUND}">Found by Claude</span></span>
+                                <span class="tag" th:if="${origin == 'FOUND'}"><i class="ph ph-sparkle"></i><span th:text="#{hiring.who.FOUND}">Found by the AI Assistant</span></span>
                                 <span class="tag" th:if="${origin == 'HAND'}"><i class="ph ph-user-plus"></i><span th:text="#{hiring.origin.HAND}">Added by you</span></span>
                                 <th:block th:unless="${recruiter.contactFor.isEmpty()}">
                                     <span class="tag st-applied"><i class="ph ph-address-book"></i><span th:text="#{hiring.contactFor}">Contact for</span></span>
@@ -172,7 +172,7 @@
                 <div class="card flex flex-col items-center gap-3 p-8 text-center" th:if="${recruiters.isEmpty()}">
                     <span class="brand-mark size-11"><i class="ph ph-users-three text-[22px]"></i></span>
                     <h2 class="text-[17px] font-semibold" th:text="#{hiring.recruiters.empty.title}">No recruiters yet</h2>
-                    <p class="max-w-[440px] text-ink/65" th:text="#{hiring.recruiters.empty.body}">Ask Claude for recruiters…</p>
+                    <p class="max-w-[440px] text-ink/65" th:text="#{hiring.recruiters.empty.body}">Ask the AI Assistant for recruiters…</p>
                 </div>
             </th:block>
         </section>
@@ -214,9 +214,9 @@
     <div>
         <h2 class="flex items-center gap-1.5 font-semibold">
             <i class="ph ph-sparkle text-accent"></i>
-            <span th:text="${forRecruiters} ? #{hiring.recruiters.ask} : #{hiring.ask}">Ask Claude for posts</span>
+            <span th:text="${forRecruiters} ? #{hiring.recruiters.ask} : #{hiring.ask}">Ask the AI Assistant for posts</span>
         </h2>
-        <p class="text-xs text-ink/60" th:text="${forRecruiters} ? #{hiring.recruiters.ask.hint} : #{hiring.ask.hint}">Claude searches LinkedIn, X and Reddit…</p>
+        <p class="text-xs text-ink/60" th:text="${forRecruiters} ? #{hiring.recruiters.ask.hint} : #{hiring.ask.hint}">The AI Assistant searches LinkedIn, X and Reddit…</p>
     </div>
     <form class="flex flex-col gap-2" th:unless="${open}" th:hx-post="@{/hiring/requests}" hx-target="#hiring-ask" hx-swap="outerHTML">
         <input type="hidden" name="kind" th:value="${askKind}">
@@ -251,23 +251,14 @@
         <div class="flex items-center gap-2">
             <span class="tag st-interviewing">
                 <i class="ph ph-arrow-clockwise animate-spin" th:if="${status == 'WORKING'}"></i>
-                <span th:text="#{|ai.status.${status}|}">Waiting for Claude</span>
+                <span th:text="#{|ai.status.${status}|}">Waiting for the AI Assistant</span>
             </span>
             <span class="flex-1"></span>
             <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button" th:hx-post="@{/hiring/requests/{id}/cancel(id=${request.id})}"
                     hx-target="#hiring-ask" hx-swap="outerHTML" th:text="#{ai.cancel}">Cancel</button>
         </div>
         <th:block th:if="${status == 'WAITING'}">
-            <div class="text-xs text-ink/60" th:text="#{ai.prompt}">Paste this into Claude Code:</div>
-            <div class="flex items-start gap-2">
-                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${hiringPrompt.text}">Do JobWarden request 12…</code>
-                <button th:replace="~{discover/discover :: copy-button(${hiringPrompt.text})}"></button>
-            </div>
-            <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
-            <div class="flex items-start gap-2">
-                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${hiringPrompt.command}">claude "Do JobWarden request 12…"</code>
-                <button th:replace="~{discover/discover :: copy-button(${hiringPrompt.command})}"></button>
-            </div>
+            <div th:replace="~{applications/claude :: prompt(${hiringPrompt})}"></div>
         </th:block>
     </th:block>
     <p class="text-xs whitespace-pre-line text-ink/70" th:if="${request != null and !open and request.summary != null}"

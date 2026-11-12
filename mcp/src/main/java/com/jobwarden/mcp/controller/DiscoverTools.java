@@ -13,7 +13,6 @@ import com.jobwarden.discover.dto.AddedFoundJobs;
 import com.jobwarden.discover.dto.FoundJob;
 import com.jobwarden.discover.dto.NewFoundJob;
 import com.jobwarden.discover.dto.SavedSearch;
-import com.jobwarden.discover.dto.SearchCount;
 import com.jobwarden.discover.enums.Decision;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.hiring.service.HiringService;
@@ -70,36 +69,30 @@ class DiscoverTools implements McpToolSet {
 
 	private McpTool listSavedSearches() {
 		return new McpTool("list_saved_searches", "List saved searches",
-				"The searches the profile keeps for finding jobs, each with its filters, ready-made Boolean queries for "
-						+ "Google (limited to the job boards companies use), LinkedIn, Reddit, X and remote job boards, with the "
-						+ "address that runs each, and how many found jobs still wait for a decision.",
-				object(properties(Profiles.ARGUMENT, Profiles.schema())), true, false, call -> {
-					long userId = this.profiles.of(call);
-					Map<Long, Long> waiting = this.discovery.countToReviewBySearch(userId)
-						.stream()
-						.filter(count -> count.searchId() != null)
-						.collect(Collectors.toMap(SearchCount::searchId, SearchCount::count));
-					return Map.of("searches", this.discovery.findSearches(userId)
-						.stream()
-						.map(search -> view(search, waiting.getOrDefault(search.id(), 0L)))
-						.toList());
-				});
+				"The profile's saved job searches: filters, and ready-made queries for Google (on companies' job boards), "
+						+ "LinkedIn, Reddit, X and remote job boards.",
+				object(properties(Profiles.ARGUMENT, Profiles.schema())), true, false,
+				call -> Map.of("searches", searches(this.profiles.of(call))));
+	}
+
+	/** The saved searches as list_saved_searches gives them, which get_request also hands out to run them. */
+	List<SearchView> searches(long userId) {
+		return this.discovery.findSearches(userId).stream().map(this::view).toList();
 	}
 
 	private McpTool saveSearch() {
 		return new McpTool("save_search", "Save a search",
-				"Keeps filters under a name, for finding jobs now and later; saving under a name the profile has replaces "
-						+ "its filters. Returns the search with its queries.",
+				"Saves filters under a name, replacing a search of that name, and returns its queries.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"name", string("What the search is, e.g. Remote Java in Europe"),
-						"titles", strings("Job titles; a job matches any of them"),
-						"locations", strings("Locations or regions, e.g. Europe, EMEA, Germany"),
-						"skills", strings("Skills or keywords; a job matches any of them"),
-						"sites", strings("Domains Google searches; the job boards Lever, Greenhouse and Ashby if left out"),
-						"work_types", list(oneOf(WorkType.values(), "A work type"), "Remote, hybrid or on-site"),
-						"employment_types", list(oneOf(EmploymentType.values(), "An employment type"), "Kinds of contract"),
-						"excludes", strings("Words a job must not have, e.g. junior"),
-						"recency", oneOf(Recency.values(), "How recent the postings must be; any time if left out")),
+						"name", string("e.g. Remote Java in Europe"),
+						"titles", strings("Any of these"),
+						"locations", strings("e.g. Europe, Germany"),
+						"skills", strings("Any of these"),
+						"sites", strings("Domains for Google; default Lever, Greenhouse and Ashby"),
+						"work_types", list(oneOf(WorkType.values())),
+						"employment_types", list(oneOf(EmploymentType.values())),
+						"excludes", strings("e.g. junior"),
+						"recency", oneOf(Recency.values(), "Default ANY")),
 						"name"),
 				false, false, call -> {
 					long userId = this.profiles.of(call);
@@ -114,32 +107,30 @@ class DiscoverTools implements McpToolSet {
 						.excludes(call.strings("excludes"))
 						.recency(call.constant("recency", Recency.class))
 						.build();
-					SavedSearch search = this.discovery.saveSearch(userId, call.requiredString("name"), criteria);
-					return view(search, this.discovery.countToReview(userId, search.id()));
+					return view(this.discovery.saveSearch(userId, call.requiredString("name"), criteria));
 				});
 	}
 
 	private McpTool addFoundJobs() {
 		ObjectNode job = object(properties(
-				"title", string("The job's title, as the posting has it"),
-				"link", string("The posting's address: the job's own page, not a search"),
-				"company", string("The company"),
-				"location", string("Where, e.g. Remote, Europe"),
-				"salary", string("The salary, as the posting gives it, e.g. 60,000–80,000 EUR per year"),
-				"description", string("What the job is, in a few sentences"),
-				"note", string("Why it fits the search, in a sentence: the profile reads it when deciding"),
-				"posted_on", date("When the posting went up, as YYYY-MM-DD, if it says")),
+				"title", string("As posted"),
+				"link", string("The posting's own page, not a search"),
+				"company", string(),
+				"location", string("e.g. Remote, Europe"),
+				"salary", string("As posted"),
+				"description", string("A few sentences"),
+				"note", string("Why it fits, one sentence: the profile reads it"),
+				"posted_on", date()),
 				"title", "link");
 		return new McpTool("add_found_jobs", "Add found jobs",
-				"Adds jobs you found to the profile's AI Assistant page, where they wait to be saved, applied to or "
-						+ "discarded. Only real postings that are still open, each with its own link. Links the profile already "
-						+ "has, as found jobs (also discarded ones) or as applications, are left out and listed as skipped. "
-						+ "At most " + MAX_JOBS_AT_ONCE + " at once.",
+				"Adds jobs you found to the AI Assistant page, for the profile to save or discard. Only real, open postings, "
+						+ "each with its own link; links the profile has (discarded ones too) are skipped. Max "
+						+ MAX_JOBS_AT_ONCE + ".",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"search_id", integer("The saved search they were found for, from list_saved_searches"),
-						"request_id", integer("The request from the AI Assistant page they were found for, from get_request"),
-						"search_label", string("Without a saved search: what they were searched for, e.g. Remote Kotlin jobs"),
-						"jobs", list(job, "The jobs found")),
+						"search_id", integer("The saved search they're for"),
+						"request_id", integer("The request they're for"),
+						"search_label", string("Without either: what you searched for, e.g. Remote Kotlin jobs"),
+						"jobs", list(job)),
 						"jobs"),
 				false, false, call -> {
 					long userId = this.profiles.of(call);
@@ -164,18 +155,18 @@ class DiscoverTools implements McpToolSet {
 						.requestId(requestId)
 						.build()).toList();
 					AddedFoundJobs added = this.discovery.addFoundJobs(userId, found);
-					return Map.of("added", added.added().stream().map(DiscoverTools::row).toList(), "skipped",
-							added.skipped(), "waiting_for_a_decision", this.discovery.countToReview(userId, null));
+					return Map.of("added", added.added().size(), "skipped", added.skipped(), "waiting_for_a_decision",
+							this.discovery.countToReview(userId, null));
 				});
 	}
 
 	private McpTool listFoundJobs() {
 		return new McpTool("list_found_jobs", "List found jobs",
-				"The jobs found for the profile and what became of them: PENDING (waiting on the AI Assistant page), SAVED or "
-						+ "APPLIED (now applications) or DISCARDED. Use it to learn what the profile likes before searching again.",
+				"Jobs found for the profile and its decision: PENDING (on the AI Assistant page), SAVED, APPLIED or "
+						+ "DISCARDED.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"decision", oneOf(Decision.values(), "Only the jobs with this decision; all of them if left out"),
-						"limit", integer("How many at most, up to 200; 50 if left out"))),
+						"decision", oneOf(Decision.values()),
+						"limit", integer("Default 50, max 200"))),
 				true, false, call -> {
 					long userId = this.profiles.of(call);
 					return Map.of("jobs", this.discovery
@@ -187,17 +178,14 @@ class DiscoverTools implements McpToolSet {
 	}
 
 	/**
-	 * Which search results to open: the profile's jobs, found jobs, hiring posts and recruiters are left out, so Claude
-	 * opens only what may be new. Opening a page costs far more than asking.
+	 * Which search results to open: the profile's jobs, found jobs, hiring posts and recruiters are left out, so the
+	 * assistant opens only what may be new. Opening a page costs far more than asking.
 	 */
 	private McpTool filterLinks() {
 		return new McpTool("filter_links", "Filter links",
-				"Which of these links are new to the profile: not one of its jobs, its found jobs (discarded ones too), "
-						+ "its hiring posts (hidden ones too) or its recruiters' profiles (removed ones too). Call it with a "
-						+ "search's results before opening any, and open only the new ones. Up to " + MAX_LINKS_AT_ONCE
-						+ " at once.",
-				object(properties(Profiles.ARGUMENT, Profiles.schema(), "links", strings("The links, e.g. a search's results")),
-						"links"),
+				"Which links are new to the profile: not its jobs, found jobs, hiring posts or recruiters, hidden or "
+						+ "removed ones too. Call it on search results before opening any. Max " + MAX_LINKS_AT_ONCE + ".",
+				object(properties(Profiles.ARGUMENT, Profiles.schema(), "links", strings()), "links"),
 				true, false, call -> {
 					long userId = this.profiles.of(call);
 					List<String> links = call.strings("links").stream().distinct().toList();
@@ -211,19 +199,15 @@ class DiscoverTools implements McpToolSet {
 				});
 	}
 
-	private SearchView view(SavedSearch search, long waiting) {
+	/** A search with each platform's query: to run with a web search, which needs no address. */
+	private SearchView view(SavedSearch search) {
 		GeneratedQueries generated = this.queries.generate(search.criteria());
-		Map<String, QueryView> queries = generated.all()
+		Map<String, String> queries = generated.all()
 			.stream()
 			.filter(query -> !query.query().isEmpty())
-			.collect(Collectors.toMap(query -> query.platform().name(), DiscoverTools::view, (a, b) -> a,
+			.collect(Collectors.toMap(query -> query.platform().name(), GeneratedQuery::query, (a, b) -> a,
 					LinkedHashMap::new));
-		return new SearchView(search.id(), search.name(), criteria(search.criteria()), queries, generated.googleTruncated(),
-				waiting);
-	}
-
-	private static QueryView view(GeneratedQuery query) {
-		return new QueryView(query.query(), query.searchUrl());
+		return new SearchView(search.id(), search.name(), criteria(search.criteria()), queries);
 	}
 
 	private static ObjectNode criteria(SearchCriteria criteria) {
@@ -246,14 +230,9 @@ class DiscoverTools implements McpToolSet {
 	}
 
 	/**
-	 * @param googleTruncated whether the Google query had to leave out terms to stay within Google's 32 words
-	 * @param waitingForADecision how many of the jobs found for it still wait on the AI Assistant page
+	 * @param queries each platform's query, by platform
 	 */
-	record SearchView(long id, String name, ObjectNode criteria, Map<String, QueryView> queries,
-			boolean googleTruncated, long waitingForADecision) {
-	}
-
-	record QueryView(String query, @Nullable String url) {
+	record SearchView(long id, String name, ObjectNode criteria, Map<String, String> queries) {
 	}
 
 	record FoundRow(long id, String title, @Nullable String company, @Nullable String location, String link,

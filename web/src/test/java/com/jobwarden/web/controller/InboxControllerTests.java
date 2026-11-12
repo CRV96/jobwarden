@@ -117,7 +117,7 @@ class InboxControllerTests {
 			.param("folder", "Labels/Jobs")
 			.header("HX-Request", "true")).hasStatusOk()
 			.bodyText()
-			.contains("Nothing answers at 127.0.0.1, port 1143. If it’s Proton Mail Bridge, open it",
+			.contains("Nothing answers at 127.0.0.1, port 1143. If your mail comes through an app on this computer, such as Proton Mail Bridge",
 					"data-local=\"true\"\n                        selected=\"selected\">Proton Mail (Bridge)",
 					"value=\"127.0.0.1\"", "value=\"1143\"", "value=\"Labels/Jobs\"")
 			.doesNotContain("bridge password");
@@ -131,7 +131,7 @@ class InboxControllerTests {
 
 		assertThat(this.mvc.get().uri("/inbox")).hasStatusOk()
 			.bodyText()
-			.contains("nothing answered on this computer. If it’s Proton Mail Bridge, open it",
+			.contains("nothing answered on this computer. If your mail comes through an app here, such as Proton Mail Bridge",
 					"JobWarden trusts only the certificate it showed", "SHA-256 49:BF:C9")
 			.doesNotContain("Connection refused");
 	}
@@ -217,7 +217,7 @@ class InboxControllerTests {
 
 		assertThat(this.mvc.get().uri("/inbox")).hasStatusOk()
 			.bodyText()
-			.contains("Read every 30 minutes.", "JobWarden applies those it matches to a job; Claude sorts the others.",
+			.contains("Read every 30 minutes.", "JobWarden applies those it matches to a job; the assistant sorts the others.",
 					"href=\"/settings#inbox\"");
 	}
 
@@ -230,7 +230,7 @@ class InboxControllerTests {
 		assertThat(this.mvc.post().uri("/inbox/sort").header("HX-Request", "true")).hasStatusOk()
 			.bodyText()
 			.contains("Do JobWarden request 9: call get_request with request_id 9 and profile_id 1",
-					"hx-get=\"/inbox/sort\" hx-trigger=\"every 5s\"", "Waiting for Claude");
+					"hx-get=\"/inbox/sort\" hx-trigger=\"every 5s\"", "Waiting for the AI Assistant");
 		then(this.discovery).should().createRequest(1, AiRequestKind.SORT_INBOX, AiRequirements.NONE);
 	}
 
@@ -242,8 +242,8 @@ class InboxControllerTests {
 
 		assertThat(this.mvc.post().uri("/inbox/sort").header("HX-Request", "true")).hasStatusOk()
 			.bodyText()
-			.contains("Claude is on it")
-			.doesNotContain("Ask Claude to sort them");
+			.contains("The AI Assistant is on it")
+			.doesNotContain("Ask the AI Assistant to sort them");
 		then(this.discovery).should(never()).createRequest(anyLong(), any(AiRequestKind.class), any(AiRequirements.class));
 	}
 
@@ -254,7 +254,7 @@ class InboxControllerTests {
 
 		assertThat(this.mvc.get().uri("/inbox/sort").header("HX-Request", "true")).hasStatusOk()
 			.bodyText()
-			.contains("hx-get=\"/inbox/updates\" hx-trigger=\"load\"", "Claude, the last time: Applied 3, dismissed 1.")
+			.contains("hx-get=\"/inbox/updates\" hx-trigger=\"load\"", "The assistant, the last time: Applied 3, dismissed 1.")
 			.doesNotContain("every 5s");
 	}
 
@@ -269,7 +269,7 @@ class InboxControllerTests {
 		assertThat(this.mvc.get().uri("/inbox")).hasStatusOk()
 			.bodyText()
 			.contains("Done for you lately", "Done by JobWarden, on its own", "href=\"/applications/7\"",
-					"Done by Claude", "Weekly jobs for you", "/inbox/updates/6/reopen", "Bring back");
+					"Done by the AI Assistant", "Weekly jobs for you", "/inbox/updates/6/reopen", "Bring back");
 	}
 
 	@Test

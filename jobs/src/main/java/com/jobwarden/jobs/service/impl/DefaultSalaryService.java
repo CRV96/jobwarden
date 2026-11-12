@@ -163,7 +163,7 @@ class DefaultSalaryService implements SalaryService {
 				salary.currency(), salary.period() == null, salary.basis());
 	}
 
-	private static SalaryPeriod guessedPeriod(SalaryRange salary, RateTable rates) {
+	static SalaryPeriod guessedPeriod(SalaryRange salary, RateTable rates) {
 		BigDecimal inEuros = rates.convert(salary.low().add(salary.high()).divide(BigDecimal.TWO), salary.currency(), "EUR");
 		if (inEuros.compareTo(HOURLY_BELOW) < 0) {
 			return SalaryPeriod.HOUR;

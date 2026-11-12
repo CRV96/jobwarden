@@ -85,7 +85,7 @@ p {
 	fill: currentColor;
 }
 
-/* — The brand: the app's mark, a tile in the accent with the shield — */
+/* — The brand: the logo and the name — */
 .brand {
 	display: flex;
 	align-items: center;
@@ -96,17 +96,13 @@ p {
 	letter-spacing: -0.01em;
 }
 
-.brand-mark {
-	display: grid;
+/* JobWarden's logo, the same as the toolbar icon's and the app's */
+.brand-logo {
 	flex: none;
-	place-items: center;
 	width: 28px;
 	height: 28px;
 	border-radius: 7px;
-	background: linear-gradient(180deg, color-mix(in srgb, var(--jw-accent) 80%, #fff), var(--jw-accent));
 	box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
-	color: #fff;
-	font-size: 16px;
 }
 
 /* — Text — */

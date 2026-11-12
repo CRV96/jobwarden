@@ -20,7 +20,7 @@ import static com.jobwarden.mcp.controller.Schemas.string;
 import static com.jobwarden.mcp.controller.Schemas.strings;
 
 /**
- * Preparing the profile for an interview: the brief Claude writes for a job, which the job's page shows, with the
+ * Preparing the profile for an interview: the brief the assistant writes for a job, which the job's page shows, with the
  * stories of the profile's story bank that answer what they'll look for.
  */
 @Component
@@ -45,21 +45,18 @@ class PrepTools implements McpToolSet {
 
 	private McpTool saveInterviewBrief() {
 		return new McpTool("save_interview_brief", "Save an interview brief",
-				"Keeps the brief you wrote to prepare the profile for a job's interview, replacing the one the job had. The "
-						+ "job's page shows it.",
+				"Saves a job's interview brief, replacing its previous one.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"job_id", integer("The job, from get_request"),
-						"company", string("Who they are: what they make and for whom, how big, where, how they're doing, "
-								+ "what's new; a paragraph or two"),
-						"role", string("What the job is about, and what they'll look for in the interview"),
-						"questions", strings("The questions likely asked, technical and about the person"),
-						"stories", strings("For what they'll look for, a story each, in a line or two, with the result: "
-								+ "from the story bank first, else from the CV"),
-						"story_ids", list(integer("A story's id, from list_stories"), "The story bank's stories that "
-								+ "answer what they'll look for, the best first"),
-						"ask_them", strings("Good questions to ask them"),
-						"watch_out", string("What to look into before saying yes; left out when there's nothing"),
-						"sources", strings("The addresses you read")),
+						"job_id", integer(),
+						"company", string("What they make and for whom, size, place, how they're doing, what's new; 1-2 "
+								+ "paragraphs"),
+						"role", string("What the job is about and what they'll look for"),
+						"questions", strings("Likely questions, technical and personal"),
+						"stories", strings("A story per thing they'll look for, 1-2 lines with the result"),
+						"story_ids", list(integer(), "The story bank's that fit, best first"),
+						"ask_them", strings(),
+						"watch_out", string("What to check before saying yes; omit if nothing"),
+						"sources", strings("URLs read")),
 						"job_id", "company"),
 				false, false, call -> {
 					long userId = this.profiles.of(call);

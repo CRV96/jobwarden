@@ -23,7 +23,7 @@
     <div class="flex flex-wrap items-center gap-2">
         <div class="min-w-0 flex-1">
             <h2 id="github-title" class="flex items-center gap-1.5 font-semibold"><i class="ph ph-github-logo"></i><span>GitHub</span></h2>
-            <p class="text-xs text-pretty text-ink/60" th:text="#{cv.github.hint}">Choose the repositories Claude may read…</p>
+            <p class="text-xs text-pretty text-ink/60" th:text="#{cv.github.hint}">Choose the repositories the AI Assistant may read…</p>
         </div>
         <th:block th:if="${account}">
             <a class="link text-[13px] font-medium" th:href="|https://github.com/${account.username}|" target="_blank"
@@ -96,11 +96,11 @@
                 <i class="ph ph-sparkle text-lg text-accent"></i>
                 <p class="min-w-[200px] flex-1 text-[13px] text-pretty text-ink/75" th:unless="${open}"
                    th:text="${account.repositories.isEmpty()} ? #{cv.github.write.first} : #{cv.github.write.hint(${#lists.size(account.repositories)})}">
-                    Claude writes your CV’s projects from the 3 repositories you chose…</p>
+                    The AI Assistant writes your CV’s projects from the 3 repositories you chose…</p>
                 <th:block th:if="${open}">
                     <span class="tag st-interviewing">
                         <i class="ph ph-arrow-clockwise animate-spin" th:if="${status == 'WORKING'}"></i>
-                        <span th:text="#{|ai.status.${status}|}">Waiting for Claude</span>
+                        <span th:text="#{|ai.status.${status}|}">Waiting for the AI Assistant</span>
                     </span>
                     <span class="flex-1"></span>
                     <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button" th:hx-post="@{/cv/github/write/cancel}"
@@ -112,23 +112,14 @@
                 </button>
             </div>
             <th:block th:if="${status == 'WAITING'}">
-                <div class="text-xs text-ink/60" th:text="#{ai.prompt}">Paste this into Claude Code:</div>
-                <div class="flex items-start gap-2">
-                    <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${projectsPrompt.text}">Do JobWarden request 12…</code>
-                    <button th:replace="~{discover/discover :: copy-button(${projectsPrompt.text})}"></button>
-                </div>
-                <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
-                <div class="flex items-start gap-2">
-                    <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${projectsPrompt.command}">claude "Do JobWarden request 12…"</code>
-                    <button th:replace="~{discover/discover :: copy-button(${projectsPrompt.command})}"></button>
-                </div>
+                <div th:replace="~{applications/claude :: prompt(${projectsPrompt})}"></div>
             </th:block>
             <p class="text-xs text-pretty text-ink/65" th:if="${status == 'DONE'}">
-                <span th:text="#{cv.github.write.done(${projectsRequest.summary} ?: '')}">Claude wrote 3 projects.</span>
+                <span th:text="#{cv.github.write.done(${projectsRequest.summary} ?: '')}">The AI Assistant wrote 3 projects.</span>
                 <a class="link" th:href="@{/cv}" th:text="#{cv.github.write.show}">Show them</a>
             </p>
             <p class="text-xs text-pretty text-danger" role="alert" th:if="${status == 'FAILED'}"
-               th:text="#{cv.github.write.failed(${projectsRequest.summary} ?: '')}">Claude couldn’t write them: …</p>
+               th:text="#{cv.github.write.failed(${projectsRequest.summary} ?: '')}">The AI Assistant couldn’t write them: …</p>
         </div>
     </th:block>
 

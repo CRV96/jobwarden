@@ -100,9 +100,9 @@ class ApplyControllerTests {
 			.hasViewName("apply/apply")
 			.bodyText()
 			.contains("Auto-apply", "name=\"ids\" value=\"7\"", "Backend engineer", "Acme · jobs.lever.co",
-					"value=\"SUBMIT\" checked", "Apply with Claude", "value=\"EU citizen\"", "Driving licence?",
+					"value=\"SUBMIT\" checked", "Apply with the AI Assistant", "value=\"EU citizen\"", "Driving licence?",
 					"name=\"custom[0].answer\"", "robert@example.com", "LinkedIn Easy Apply")
-			.doesNotContain("Without a link", "Claude, applying");
+			.doesNotContain("Without a link", "The AI Assistant, applying");
 	}
 
 	@Test
@@ -174,7 +174,7 @@ class ApplyControllerTests {
 		given(this.autoApply.findItems(1, ApplyController.ITEMS_SHOWN)).willReturn(List.of(item(ApplyStatus.FILLED), needsAnswer));
 
 		assertThat(this.mvc.get().uri("/apply")).bodyText()
-			.contains("Claude, applying", "Do JobWarden request 30", "claude --chrome", "hx-trigger=\"every 5s\"",
+			.contains("The AI Assistant, applying", "Do JobWarden request 30", "claude --chrome", "hx-trigger=\"every 5s\"",
 					"Filled in, for you to send", "/apply/items/3/sent", "Needs your answer", "Willing to work weekends?",
 					"/apply/items/4/answer")
 			// A job Claude has filled in isn't offered again

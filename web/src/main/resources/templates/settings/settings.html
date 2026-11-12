@@ -14,377 +14,516 @@
         <th:block th:replace="~{help/help :: how-it-works('settings')}"></th:block>
     </header>
 
+    <!--/* Two columns from 1280 pixels wide, each section under the one before it, so a long one leaves no gap
+           beside it, and the two about as tall: the profile, its jobs, the salaries, the browser extension and the
+           version; then how JobWarden looks and works, the inbox and the assistant. One column, in that order, below. */-->
     <div class="grid items-start gap-x-12 gap-y-6 xl:grid-cols-2">
-        <!--/* The profile's photo (ProfileController), which shows next to its name: in the menu and on the Profiles
-               page. A file larger than the server takes is refused before it's sent (app.js: data-max-bytes). */-->
-        <section id="profile" class="flex flex-col gap-2" th:if="${currentProfile}">
-            <h2 class="section-title" th:text="#{settings.profile}">Your profile</h2>
-            <output class="card flex items-center gap-2 p-3 text-success" th:if="${profileImageSaved} or ${profileImageRemoved}">
-                <i class="ph ph-check-circle text-lg"></i>
-                <span th:text="${profileImageSaved} ? #{settings.profile.photo.saved} : #{settings.profile.photo.removed}">Saved.</span>
-            </output>
-            <div class="flex flex-wrap items-start gap-3">
-                <span th:replace="~{profiles/list :: avatar(${currentProfile}, 'size-16 text-xl')}">R</span>
-                <div class="flex min-w-[200px] flex-1 flex-col gap-2">
-                    <div>
-                        <div class="font-medium" th:text="${currentProfile.name}">Robert</div>
-                        <div class="text-xs text-pretty text-ink/60" th:text="#{settings.profile.photo.hint}">A PNG, JPEG or GIF, up to 5 MB.</div>
-                    </div>
-                    <form class="flex flex-wrap items-center gap-2" method="post" enctype="multipart/form-data"
-                          th:action="@{/profiles/image}">
-                        <label class="contents">
-                            <span class="sr-only" th:text="#{settings.profile.photo.choose}">Choose a photo</span>
-                            <input class="input w-auto max-w-full flex-1" type="file" name="image" required
-                                   accept="image/png,image/jpeg,image/gif"
-                                   th:data-max-bytes="${profileImageMaxBytes}" th:data-too-large="#{settings.profile.photo.tooLarge}">
-                        </label>
-                        <button class="btn btn-primary" type="submit">
-                            <i class="ph ph-upload-simple"></i><span
-                                th:text="${currentProfile.hasImage()} ? #{settings.profile.photo.replace} : #{settings.profile.photo.upload}">Upload</span>
-                        </button>
-                    </form>
-                    <p class="field-error" role="alert" th:if="${profileImageError}" th:text="${profileImageError}">That photo is too large.</p>
-                    <form th:if="${currentProfile.hasImage()}" method="post" th:action="@{/profiles/image/remove}">
-                        <button class="btn btn-ghost px-1.5 py-1 text-xs" type="submit">
-                            <i class="ph ph-trash"></i><span th:text="#{settings.profile.photo.remove}">Remove photo</span>
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </section>
-
-        <!--/* Kept by the browser, not the server: app.js applies and saves the choice. */-->
-        <section class="flex flex-col gap-2">
-            <h2 class="section-title" th:text="#{settings.appearance}">Appearance</h2>
-            <div class="flex flex-wrap items-center gap-3">
-                <div class="min-w-[200px] flex-1">
-                    <div id="theme-label" class="font-medium" th:text="#{settings.theme}">Theme</div>
-                    <div class="text-xs text-ink/60" th:text="#{settings.theme.hint}">Applies to this device</div>
-                </div>
-                <div class="seg" role="radiogroup" aria-labelledby="theme-label">
-                    <label class="seg-opt">
-                        <input type="radio" name="theme" value="dark" data-theme-choice>
-                        <i class="ph ph-moon"></i><span th:text="#{settings.theme.dark}">Dark</span>
-                    </label>
-                    <label class="seg-opt">
-                        <input type="radio" name="theme" value="light" data-theme-choice>
-                        <i class="ph ph-sun"></i><span th:text="#{settings.theme.light}">Light</span>
-                    </label>
-                </div>
-            </div>
-        </section>
-
-        <!--/* Each language reloads this page with ?lang=, which LocaleConfiguration remembers in a cookie. */-->
-        <section class="flex flex-col gap-2">
-            <h2 class="section-title" th:text="#{settings.language}">Language</h2>
-            <div class="flex flex-wrap items-center gap-3">
-                <div class="min-w-[200px] flex-1">
-                    <div class="font-medium" th:text="#{settings.language.interface}">Interface language</div>
-                    <div class="text-xs text-ink/60" th:text="#{settings.language.hint}">Dates and labels follow this language</div>
-                </div>
-                <button id="language-button" class="btn btn-secondary w-[220px] justify-start gap-2" type="button"
-                        popovertarget="language-menu" aria-haspopup="menu">
-                    <span class="fi flex-none rounded-[2px] text-[15px] shadow-[0_0_0_0.5px_rgb(0_0_0/0.2)]" aria-hidden="true"
-                          th:classappend="|fi-${currentLanguage.flag}|"></span>
-                    <span class="flex-1 text-left" th:text="${currentLanguage.nativeName}">English</span>
-                    <i class="ph ph-caret-up-down text-xs opacity-60"></i>
-                </button>
-                <div id="language-menu" class="menu max-h-[340px] w-[220px] overflow-y-auto" popover role="menu"
-                     aria-labelledby="language-button" data-anchor="language-button">
-                    <a class="menu-item" role="menuitemradio" th:each="language : ${languages}" th:lang="${language.tag}"
-                       th:href="@{/settings(lang=${language.tag})}" th:aria-checked="${language == currentLanguage}">
-                        <i class="ph ph-check w-3 text-xs" th:classappend="${language == currentLanguage} ? 'opacity-100' : 'opacity-0'"></i>
-                        <span class="fi flex-none rounded-[2px] text-[15px] shadow-[0_0_0_0.5px_rgb(0_0_0/0.2)]" aria-hidden="true"
-                              th:classappend="|fi-${language.flag}|"></span>
-                        <span class="flex-1" th:text="${language.nativeName}">English</span>
-                        <span class="text-[11px] tracking-[0.04em] opacity-55" th:text="${#strings.toUpperCase(language.tag)}">EN</span>
-                    </a>
-                </div>
-            </div>
-        </section>
-
-        <!--/* The profile's jobs as a CSV file (ApplicationCsvService): exported, and imported back or from a spreadsheet.
-               After an import, ApplicationController.importCsv comes back here and says how it went, once: the first
-               rows that couldn't be imported, and how many more. */-->
-        <section id="jobs-data" class="flex flex-col gap-2" th:if="${currentProfile}">
-            <h2 class="section-title" th:text="#{settings.jobs}">Your jobs</h2>
-            <div class="card flex items-start gap-3 p-3" role="status" th:if="${csvImport}"
-                 th:with="problems=${csvImport.problems()}, shown=10">
-                <i class="ph ph-file-csv text-lg text-accent"></i>
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                    <p class="font-medium" th:text="#{jobs.import.done(${csvImport.imported()}, ${csvImport.skipped()})}">Import done: 12 added, 3 already there.</p>
-                    <th:block th:unless="${problems.isEmpty()}">
-                        <p class="text-xs text-ink/65" th:text="#{jobs.import.problems}">These rows weren’t imported:</p>
-                        <ul class="flex flex-col text-xs text-danger">
-                            <li th:each="problem, row : ${problems}" th:if="${row.index < shown}"
-                                th:text="#{|jobs.import.problem.${problem.problem()}|(${problem.row()}, ${problem.value()})}">Row 7: no title.</li>
-                            <li th:if="${#lists.size(problems) > shown}" th:text="#{jobs.import.more(${#lists.size(problems) - shown})}">And 4 more.</li>
-                        </ul>
-                    </th:block>
-                    <a class="link text-xs" th:href="@{/applications}" th:text="#{nav.jobs}">Jobs</a>
-                </div>
-            </div>
-            <p class="card flex items-center gap-2 p-3" role="status" th:if="${archivedByDate != null}">
-                <i class="ph ph-archive text-lg text-accent"></i>
-                <span class="flex-1" th:text="#{jobs.archiveByDate.done(${archivedByDate})}">Archived 12 jobs.</span>
-                <a class="link text-xs" th:href="@{/applications(archived=true)}" th:text="#{jobs.archived}">Archived</a>
-            </p>
-            <p class="card flex items-center gap-2 p-3 text-danger" role="alert" th:if="${csvImportError}">
-                <i class="ph ph-warning-circle text-lg"></i><span th:text="${csvImportError}">The file has no title column.</span>
-            </p>
-            <div class="card flex flex-col gap-3 p-3">
-                <div class="flex flex-wrap items-center gap-3">
-                    <i class="ph ph-download-simple text-[22px] text-accent"></i>
-                    <div class="min-w-[200px] flex-1">
-                        <div class="font-medium" th:text="#{jobs.export}">Export</div>
-                        <div class="text-xs text-ink/60" th:text="#{jobs.export.hint}">Download every job as a CSV file</div>
-                    </div>
-                    <a class="btn btn-secondary" th:href="@{/applications/export}" download>
-                        <i class="ph ph-file-csv"></i><span th:text="#{jobs.export}">Export</span>
-                    </a>
-                </div>
-                <div class="border-t border-line"></div>
-                <form class="flex items-start gap-3" method="post" enctype="multipart/form-data" th:action="@{/applications/import}">
-                    <i class="ph ph-upload-simple text-[22px] text-accent"></i>
-                    <div class="flex min-w-0 flex-1 flex-col gap-2">
-                        <div>
-                            <div class="font-medium" th:text="#{jobs.import.title}">Import jobs from a CSV file</div>
-                            <div class="text-xs text-pretty text-ink/60" th:text="#{jobs.import.body}">One row per job…</div>
-                        </div>
-                        <details class="text-xs text-ink/60">
-                            <summary class="cursor-pointer" th:text="#{jobs.import.columns}">Columns it reads:</summary>
-                            <code class="mt-1 block leading-relaxed text-ink/80">title, company, location, status, status_date,
-                                applied_on, applied_by, salary, employment_type, link, rejection_reason, contact_name, contact_role,
-                                contact_email, contact_phone, contact_link, referred_by, deadline, follow_up_on, notes,
-                                description</code>
-                        </details>
-                        <div class="flex flex-wrap items-center gap-2">
-                            <input class="input w-auto max-w-full min-w-0 flex-1" type="file" name="file" required
-                                   accept=".csv,.tsv,.txt,text/csv,text/plain" th:aria-label="#{jobs.import.file}" th:title="#{jobs.import.file}">
-                            <button class="btn btn-primary" type="submit">
-                                <i class="ph ph-upload-simple"></i><span th:text="#{jobs.import.submit}">Import</span>
-                            </button>
-                        </div>
-                    </div>
-                </form>
-                <div class="border-t border-line"></div>
-                <!--/* Archives the jobs nothing happened on since a day: by default the ones that ended */-->
-                <form class="flex items-start gap-3" method="post" th:action="@{/applications/archive-unchanged}">
-                    <i class="ph ph-archive text-[22px] text-accent"></i>
-                    <div class="flex min-w-0 flex-1 flex-col gap-2">
-                        <div>
-                            <div class="font-medium" th:text="#{jobs.archiveByDate.title}">Archive old jobs</div>
-                            <div class="text-xs text-pretty text-ink/60" th:text="#{jobs.archiveByDate.body}">Jobs nothing changed on since a day…</div>
-                        </div>
-                        <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-                            <label class="flex items-center gap-2">
-                                <span class="text-xs text-ink/60" th:text="#{jobs.archiveByDate.since}">Unchanged since</span>
-                                <input class="input w-auto" type="date" name="before" required th:max="${today}"
-                                       th:value="${today.minusMonths(3)}">
-                            </label>
-                            <label class="flex items-center gap-2 text-[13px]">
-                                <input class="check" type="checkbox" name="endedOnly" value="true" checked>
-                                <span th:text="#{jobs.archiveByDate.endedOnly}">Only those that ended</span>
+        <div class="flex min-w-0 flex-col gap-6">
+            <!--/* The profile's name and photo (ProfileController), which show in the menu and on the Profiles page. The name
+                   is unique, ignoring case; a taken or blank one comes back as typed, with why. A photo larger than the
+                   server takes is refused before it's sent (app.js: data-max-bytes). */-->
+            <section id="profile" class="flex flex-col gap-2" th:if="${currentProfile}">
+                <h2 class="section-title" th:text="#{settings.profile}">Your profile</h2>
+                <output class="card flex items-center gap-2 p-3 text-success" th:if="${profileImageSaved} or ${profileImageRemoved}">
+                    <i class="ph ph-check-circle text-lg"></i>
+                    <span th:text="${profileImageSaved} ? #{settings.profile.photo.saved} : #{settings.profile.photo.removed}">Saved.</span>
+                </output>
+                <output class="card flex items-center gap-2 p-3 text-success" th:if="${profileNameSaved}">
+                    <i class="ph ph-check-circle text-lg"></i>
+                    <span th:text="#{settings.profile.name.saved(${currentProfile.name})}">Saved: the profile is called Robert now.</span>
+                </output>
+                <div class="flex flex-wrap items-start gap-3">
+                    <span th:replace="~{profiles/list :: avatar(${currentProfile}, 'size-16 text-xl')}">R</span>
+                    <div class="flex min-w-[200px] flex-1 flex-col gap-2">
+                        <form class="flex flex-wrap items-end gap-2" method="post" th:action="@{/profiles/rename}">
+                            <label class="flex min-w-[160px] flex-1 flex-col gap-1">
+                                <span class="field-label" th:text="#{settings.profile.name}">Username</span>
+                                <input class="input" type="text" name="name" required maxlength="100" autocomplete="off"
+                                       th:value="${profileNameTyped} ?: ${currentProfile.name}"
+                                       th:aria-invalid="${profileNameError != null} ? 'true'">
                             </label>
                             <button class="btn btn-secondary" type="submit">
-                                <i class="ph ph-archive"></i><span th:text="#{jobs.archive}">Archive</span>
+                                <i class="ph ph-pencil-simple"></i><span th:text="#{settings.profile.name.save}">Rename</span>
                             </button>
+                        </form>
+                        <p class="field-error" role="alert" th:if="${profileNameError}" th:text="${profileNameError}">A profile with this name already exists.</p>
+                        <!--/* Its public id, made when it was created: what the browser extension and the assistants ask for */-->
+                        <div class="flex flex-col gap-1">
+                            <span class="field-label" th:text="#{settings.profile.id}">Profile ID</span>
+                            <div class="flex items-center gap-2">
+                                <code class="query-box min-h-0 min-w-0 flex-1 truncate py-1.5 text-[12px]" th:text="${currentProfile.publicId}">5b1f3c2e-8a4d-4c6e-9f10-2d7b8e3a6c41</code>
+                                <button th:replace="~{settings/settings :: copy(${currentProfile.publicId})}"></button>
+                            </div>
+                            <span class="text-xs text-pretty text-ink/55" th:text="#{settings.profile.id.hint}">The browser extension and the assistants ask for it.</span>
                         </div>
-                    </div>
-                </form>
-            </div>
-        </section>
-
-        <!--/* The profile's inbox (the inbox module): how often JobWarden reads its mailbox on its own, and what becomes of
-               the updates found. Saved with the button; SettingsController comes back here and says so, once. Without a
-               mailbox, where to connect one. */-->
-        <section id="inbox" class="flex flex-col gap-2" th:if="${currentProfile}">
-            <h2 class="section-title" th:text="#{nav.inbox}">Inbox</h2>
-            <output class="card flex items-center gap-2 p-3 text-success" th:if="${inboxSaved}">
-                <i class="ph ph-check-circle text-lg"></i><span th:text="#{settings.inbox.saved}">Saved.</span>
-            </output>
-            <div class="card flex items-start gap-3 p-3" th:unless="${mailAccount}">
-                <i class="ph ph-envelope-simple text-[22px] text-accent"></i>
-                <div class="flex min-w-0 flex-1 flex-col gap-1">
-                    <div class="font-medium" th:text="#{settings.inbox.none}">No mailbox connected</div>
-                    <div class="text-xs text-pretty text-ink/60" th:text="#{settings.inbox.none.body}">Connect one on the Inbox page…</div>
-                    <a class="link text-xs" th:href="@{/inbox}" th:text="#{nav.inbox}">Inbox</a>
-                </div>
-            </div>
-            <form class="card flex flex-col gap-3 p-3" method="post" th:action="@{/settings/inbox}" th:if="${mailAccount}">
-                <div class="flex flex-wrap items-center gap-3">
-                    <i class="ph ph-clock-clockwise text-[22px] text-accent"></i>
-                    <div class="min-w-[200px] flex-1">
-                        <label class="font-medium" for="inbox-read-every" th:text="#{settings.inbox.readEvery}">Read my emails</label>
-                        <div class="truncate text-xs text-ink/60" th:text="${mailAccount.username}">robert@proton.me</div>
-                    </div>
-                    <select id="inbox-read-every" class="input w-[220px] max-w-full" name="readEvery">
-                        <option th:each="interval : ${readingIntervals}" th:value="${interval}" th:selected="${interval == readingInterval}"
-                                th:text="#{|inbox.every.${interval}|}">every 10 minutes</option>
-                    </select>
-                </div>
-                <div class="border-t border-line"></div>
-                <fieldset class="flex flex-col gap-2">
-                    <legend class="mb-1.5 font-medium" th:text="#{settings.inbox.automation}">What the emails say about your jobs</legend>
-                    <label class="flex cursor-pointer items-start gap-2.5 rounded-lg border border-line p-2.5 has-checked:border-accent has-checked:bg-accent/6"
-                           th:each="automation : ${inboxAutomations}">
-                        <input class="mt-0.5 accent-[var(--jw-accent)]" type="radio" name="automation" th:value="${automation}"
-                               th:checked="${automation == mailAccount.automation}">
-                        <span class="flex min-w-0 flex-col gap-0.5">
-                            <span class="text-[13px] font-medium" th:text="#{|settings.inbox.automation.${automation}|}">I review each one</span>
-                            <span class="text-xs text-pretty text-ink/60" th:text="#{|settings.inbox.automation.${automation}.hint|}">Nothing changes a job until you apply it.</span>
-                        </span>
-                    </label>
-                </fieldset>
-                <div>
-                    <button class="btn btn-primary" type="submit">
-                        <i class="ph ph-floppy-disk"></i><span th:text="#{settings.inbox.save}">Save</span>
-                    </button>
-                </div>
-            </form>
-        </section>
-
-        <!--/* What to enter in the extension's own settings. */-->
-        <section class="flex flex-col gap-2">
-            <h2 class="section-title" th:text="#{settings.extension}">Browser extension</h2>
-            <div class="card flex items-start gap-3 p-3">
-                <i class="ph ph-puzzle-piece text-[22px] text-accent"></i>
-                <div class="flex min-w-0 flex-1 flex-col gap-2">
-                    <div>
-                        <div class="font-medium" th:text="#{settings.extension.name}">JobWarden for Chrome and Firefox</div>
-                        <div class="text-xs text-ink/60" th:text="#{settings.extension.body}">
-                            Saves postings from job boards with one click. In its settings, enter this server’s address and your profile id.</div>
-                    </div>
-                    <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
-                        <dt class="text-ink/55" th:text="#{settings.extension.server}">Server</dt>
-                        <dd class="min-w-0 truncate font-mono" th:text="${serverUrl}">http://localhost:8080</dd>
-                        <dt class="text-ink/55" th:text="#{settings.extension.profileId}">Profile id</dt>
-                        <!--/* The id as text, so it shows 1000 and not 1,000 */-->
-                        <dd class="font-mono" th:if="${currentProfile}" th:text="${#strings.toString(currentProfile.id)}">1</dd>
-                        <dd th:unless="${currentProfile}">
-                            <a class="link" th:href="@{/profiles}" th:text="#{settings.extension.chooseProfile}">Choose a profile first</a>
-                        </dd>
-                    </dl>
-                </div>
-            </div>
-        </section>
-
-        <!--/* How to connect Claude to the MCP server (the mcp module) */-->
-        <section class="flex flex-col gap-2">
-            <h2 class="section-title" th:text="#{settings.claude}">Claude</h2>
-            <div class="card flex items-start gap-3 p-3"
-                 th:with="command=|claude mcp add --transport http jobwarden ${mcpUrl}${currentProfile != null ? ' --header &quot;X-JobWarden-Profile: ' + currentProfile.id + '&quot;' : ''}|">
-                <i class="ph ph-sparkle text-[22px] text-accent"></i>
-                <div class="flex min-w-0 flex-1 flex-col gap-2">
-                    <div>
-                        <div class="font-medium" th:text="#{settings.claude.name}">JobWarden for Claude (MCP)</div>
-                        <div class="text-xs text-ink/60" th:text="#{settings.claude.body}">
-                            Lets Claude check whether your postings are still up, update their status, and find jobs for your saved searches.</div>
-                    </div>
-                    <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
-                        <dt class="text-ink/55" th:text="#{settings.claude.address}">MCP address</dt>
-                        <dd class="min-w-0 truncate font-mono" th:text="${mcpUrl}">http://localhost:8080/mcp</dd>
-                    </dl>
-                    <div class="text-xs text-ink/60" th:text="#{settings.claude.command}">In Claude Code, run:</div>
-                    <div class="flex items-start gap-2">
-                        <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${command}">claude mcp add --transport http jobwarden http://localhost:8080/mcp</code>
-                        <button class="btn btn-secondary" type="button" th:data-copy-text="${command}">
-                            <span class="inline-flex items-center gap-1.5" data-copy-idle><i class="ph ph-copy"></i><span th:text="#{search.copy}">Copy</span></span>
-                            <span class="inline-flex items-center gap-1.5" data-copy-done hidden><i class="ph ph-check text-success"></i><span th:text="#{search.copied}">Copied</span></span>
-                        </button>
-                    </div>
-                    <div class="text-xs text-ink/60" th:text="#{settings.claude.then}">Then ask Claude, e.g. “Check my open applications in JobWarden and close the ones whose posting is gone”.</div>
-                </div>
-            </div>
-        </section>
-
-        <!--/* The key for Adzuna's API (the market module's AdzunaKeyService), which the Salaries page asks for the salaries
-               in job ads: the server's, not a profile's. A key saved here takes the place of the ADZUNA_APP_ID and
-               ADZUNA_APP_KEY environment variables. After it's saved, only the app key's last characters show; after
-               saving, SettingsController comes back here and says how it went, once. */-->
-        <section id="salaries" class="flex flex-col gap-2">
-            <h2 class="section-title" th:text="#{settings.salaries}">Salaries</h2>
-            <p class="card flex items-center gap-2 p-3" th:if="${adzunaCheck}"
-               th:role="${adzunaCheck.name() == 'REFUSED'} ? 'alert' : 'status'"
-               th:classappend="${adzunaCheck.name() == 'REFUSED'} ? 'text-danger' : (${adzunaCheck.name() == 'ACCEPTED'} ? 'text-success' : 'text-accent')">
-                <i class="ph text-lg" th:classappend="${adzunaCheck.name() == 'ACCEPTED'} ? 'ph-check-circle' : 'ph-warning-circle'"></i>
-                <span th:text="#{|settings.adzuna.${adzunaCheck}|}">Adzuna accepted the key.</span>
-            </p>
-            <p class="card flex items-center gap-2 p-3 text-danger" role="alert" th:if="${adzunaError}">
-                <i class="ph ph-warning-circle text-lg"></i><span th:text="${adzunaError}">Enter the app key.</span>
-            </p>
-            <p class="card flex items-center gap-2 p-3" role="status" th:if="${adzunaRemoved}">
-                <i class="ph ph-check-circle text-lg text-success"></i><span th:text="#{settings.adzuna.removed}">The saved key is removed.</span>
-            </p>
-            <div class="card flex items-start gap-3 p-3">
-                <i class="ph ph-coins text-[22px] text-accent"></i>
-                <div class="flex min-w-0 flex-1 flex-col gap-3">
-                    <div>
-                        <div class="font-medium" th:text="#{settings.adzuna.name}">Adzuna key</div>
-                        <div class="text-xs text-pretty text-ink/60" th:text="#{settings.adzuna.body}">
-                            For the salaries in current job ads, on the Salaries page.</div>
-                    </div>
-                    <div class="flex flex-col gap-1 text-xs">
-                        <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1" th:if="${adzunaKey.appId() != null}">
-                            <dt class="text-ink/55" th:text="#{settings.adzuna.appId}">App ID</dt>
-                            <dd class="min-w-0 truncate font-mono" th:text="${adzunaKey.appId()}">1a2b3c4d</dd>
-                            <dt class="text-ink/55" th:text="#{settings.adzuna.appKey}">App key</dt>
-                            <dd class="font-mono" th:text="|••••${adzunaKey.keyEnding()}|">••••5f6e</dd>
-                        </dl>
-                        <p class="text-pretty text-ink/60" th:text="#{|settings.adzuna.source.${adzunaKey.source()}|}">
-                            No key yet: the Salaries page leaves job ads out.</p>
-                    </div>
-                    <form class="flex flex-wrap items-end gap-2" method="post" th:action="@{/settings/adzuna}">
-                        <label class="flex min-w-[150px] flex-1 flex-col gap-1">
-                            <span class="field-label" th:text="#{settings.adzuna.appId}">App ID</span>
-                            <input class="input font-mono" type="text" name="appId" required maxlength="100"
-                                   autocomplete="off" spellcheck="false" th:value="${adzunaAppId}">
-                        </label>
-                        <label class="flex min-w-[150px] flex-1 flex-col gap-1">
-                            <span class="field-label" th:text="#{settings.adzuna.appKey}">App key</span>
-                            <input class="input font-mono" type="password" name="appKey" required maxlength="100"
-                                   autocomplete="new-password" spellcheck="false">
-                        </label>
-                        <button class="btn btn-primary" type="submit">
-                            <i class="ph ph-key"></i>
-                            <span th:text="${adzunaKey.source().name() == 'SETTINGS'} ? #{settings.adzuna.replace} : #{settings.adzuna.save}">Save</span>
-                        </button>
-                    </form>
-                    <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
-                        <a class="link" href="https://developer.adzuna.com/signup" target="_blank" rel="noopener noreferrer"
-                           th:text="#{settings.adzuna.signUp}">Get a free key at developer.adzuna.com</a>
-                        <form method="post" th:action="@{/settings/adzuna/remove}" th:if="${adzunaKey.source().name() == 'SETTINGS'}">
-                            <button class="btn btn-ghost text-danger" type="submit">
-                                <i class="ph ph-trash"></i><span th:text="#{settings.adzuna.remove}">Remove the saved key</span>
+                        <div class="text-xs text-pretty text-ink/60" th:text="#{settings.profile.photo.hint}">A PNG, JPEG or GIF, up to 5 MB.</div>
+                        <form class="flex flex-wrap items-center gap-2" method="post" enctype="multipart/form-data"
+                              th:action="@{/profiles/image}">
+                            <label class="contents">
+                                <span class="sr-only" th:text="#{settings.profile.photo.choose}">Choose a photo</span>
+                                <input class="input w-auto max-w-full flex-1" type="file" name="image" required
+                                       accept="image/png,image/jpeg,image/gif"
+                                       th:data-max-bytes="${profileImageMaxBytes}" th:data-too-large="#{settings.profile.photo.tooLarge}">
+                            </label>
+                            <button class="btn btn-primary" type="submit">
+                                <i class="ph ph-upload-simple"></i><span
+                                    th:text="${currentProfile.hasImage()} ? #{settings.profile.photo.replace} : #{settings.profile.photo.upload}">Upload</span>
+                            </button>
+                        </form>
+                        <p class="field-error" role="alert" th:if="${profileImageError}" th:text="${profileImageError}">That photo is too large.</p>
+                        <form th:if="${currentProfile.hasImage()}" method="post" th:action="@{/profiles/image/remove}">
+                            <button class="btn btn-ghost px-1.5 py-1 text-xs" type="submit">
+                                <i class="ph ph-trash"></i><span th:text="#{settings.profile.photo.remove}">Remove photo</span>
                             </button>
                         </form>
                     </div>
                 </div>
-            </div>
-        </section>
-
-        <!--/* The version running, and whether a newer one is out on GitHub (the updates module) */-->
-        <section class="flex flex-col gap-2" th:if="${update}">
-            <h2 class="section-title" th:text="#{settings.about}">About</h2>
-            <div class="card flex flex-wrap items-start gap-3 p-3">
-                <i class="ph text-[22px]" th:classappend="${update.updateAvailable()} ? 'ph-arrow-circle-up text-accent' : 'ph-shield-check text-ink/60'"></i>
-                <div class="flex min-w-[200px] flex-1 flex-col gap-1">
-                    <div class="font-medium" th:text="#{settings.version(${update.version})}">JobWarden 0.1.0</div>
-                    <div class="text-xs text-ink/60" th:if="${update.updateAvailable()}"
-                         th:text="#{settings.version.newer(${update.latest.version})}">JobWarden 0.2.0 is out on GitHub.</div>
-                    <div class="text-xs text-ink/60" th:if="${update.latest != null and !update.updateAvailable()}"
-                         th:text="#{settings.version.upToDate}">Up to date: the latest release on GitHub.</div>
-                    <div class="text-xs text-ink/60" th:if="${update.latest == null}" th:text="#{settings.version.unknown}">
-                        No release on GitHub yet, or GitHub couldn’t be reached.</div>
-                    <div class="text-xs text-ink/60" th:text="#{settings.version.how}">To update, get the release’s code…</div>
+                <!--/* Deleting the profile and everything of it, for good (ProfileController): its name typed to confirm, in
+                       a dialog that says what goes; typed otherwise, nothing goes, and the page says why */-->
+                <div id="delete-profile" class="mt-2 flex flex-wrap items-center gap-3 rounded-lg border border-danger/30 p-3">
+                    <div class="min-w-[200px] flex-1">
+                        <div class="text-[13px] font-medium" th:text="#{settings.profile.delete}">Delete this profile</div>
+                        <div class="text-xs text-pretty text-ink/60" th:text="#{settings.profile.delete.hint}">Deletes it and everything of it, for good.</div>
+                        <p class="field-error mt-1" role="alert" th:if="${profileDeleteError}"
+                           th:text="#{settings.profile.delete.mismatch(${currentProfile.name})}">Nothing was deleted: type Robert exactly to confirm.</p>
+                    </div>
+                    <button class="btn btn-danger" type="button" data-open-dialog="delete-profile-dialog">
+                        <i class="ph ph-trash"></i><span th:text="#{settings.profile.delete.button}">Delete profile</span>
+                    </button>
                 </div>
-                <a class="btn btn-secondary" th:href="${update.updateAvailable()} ? ${update.latest.url} : ${update.releases}"
-                   target="_blank" rel="noopener noreferrer">
-                    <i class="ph ph-github-logo"></i><span th:text="${update.updateAvailable()} ? #{update.see} : #{settings.version.releases}">Releases</span>
-                </a>
-            </div>
-        </section>
+                <dialog id="delete-profile-dialog" class="dialog w-[min(460px,calc(100%-32px))]" role="alertdialog"
+                        aria-labelledby="delete-profile-title">
+                    <form class="flex flex-col gap-3" method="post" th:action="@{/profiles/delete}">
+                        <div class="flex items-start gap-3">
+                            <div class="grid size-9 flex-none place-items-center rounded-full bg-danger/14 text-danger">
+                                <i class="ph ph-trash text-lg"></i>
+                            </div>
+                            <div class="flex flex-col gap-1.5">
+                                <p id="delete-profile-title" class="text-[15px] font-bold"
+                                   th:text="#{settings.profile.delete.title(${currentProfile.name})}">Delete Robert?</p>
+                                <p class="text-[13px] text-pretty opacity-85" th:text="#{settings.profile.delete.body}">
+                                    This deletes the profile and everything of it, for good…</p>
+                                <a class="link self-start text-[13px]" th:href="@{/applications/export}" download
+                                   th:text="#{settings.profile.delete.export}">Export its jobs first</a>
+                            </div>
+                        </div>
+                        <label class="flex flex-col gap-1">
+                            <span class="field-label" th:text="#{settings.profile.delete.confirm(${currentProfile.name})}">Type Robert to confirm</span>
+                            <input class="input" type="text" name="confirm" required autocomplete="off" spellcheck="false">
+                        </label>
+                        <div class="dialog-actions">
+                            <button class="btn btn-secondary" type="button" data-close-dialog th:text="#{action.cancel}">Cancel</button>
+                            <button class="btn btn-danger" type="submit" th:text="#{settings.profile.delete.submit}">Delete for good</button>
+                        </div>
+                    </form>
+                </dialog>
+            </section>
+
+            <!--/* The profile's jobs as a CSV file (ApplicationCsvService): exported, and imported back or from a spreadsheet.
+                   After an import, ApplicationController.importCsv comes back here and says how it went, once: the first
+                   rows that couldn't be imported, and how many more. */-->
+            <section id="jobs-data" class="flex flex-col gap-2" th:if="${currentProfile}">
+                <h2 class="section-title" th:text="#{settings.jobs}">Your jobs</h2>
+                <div class="card flex items-start gap-3 p-3" role="status" th:if="${csvImport}"
+                     th:with="problems=${csvImport.problems()}, shown=10">
+                    <i class="ph ph-file-csv text-lg text-accent"></i>
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                        <p class="font-medium" th:text="#{jobs.import.done(${csvImport.imported()}, ${csvImport.skipped()})}">Import done: 12 added, 3 already there.</p>
+                        <th:block th:unless="${problems.isEmpty()}">
+                            <p class="text-xs text-ink/65" th:text="#{jobs.import.problems}">These rows weren’t imported:</p>
+                            <ul class="flex flex-col text-xs text-danger">
+                                <li th:each="problem, row : ${problems}" th:if="${row.index < shown}"
+                                    th:text="#{|jobs.import.problem.${problem.problem()}|(${problem.row()}, ${problem.value()})}">Row 7: no title.</li>
+                                <li th:if="${#lists.size(problems) > shown}" th:text="#{jobs.import.more(${#lists.size(problems) - shown})}">And 4 more.</li>
+                            </ul>
+                        </th:block>
+                        <a class="link text-xs" th:href="@{/applications}" th:text="#{nav.jobs}">Jobs</a>
+                    </div>
+                </div>
+                <p class="card flex items-center gap-2 p-3" role="status" th:if="${archivedByDate != null}">
+                    <i class="ph ph-archive text-lg text-accent"></i>
+                    <span class="flex-1" th:text="#{jobs.archiveByDate.done(${archivedByDate})}">Archived 12 jobs.</span>
+                    <a class="link text-xs" th:href="@{/applications(archived=true)}" th:text="#{jobs.archived}">Archived</a>
+                </p>
+                <p class="card flex items-center gap-2 p-3 text-danger" role="alert" th:if="${csvImportError}">
+                    <i class="ph ph-warning-circle text-lg"></i><span th:text="${csvImportError}">The file has no title column.</span>
+                </p>
+                <div class="card flex flex-col gap-3 p-3">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <i class="ph ph-download-simple text-[22px] text-accent"></i>
+                        <div class="min-w-[200px] flex-1">
+                            <div class="font-medium" th:text="#{jobs.export}">Export</div>
+                            <div class="text-xs text-ink/60" th:text="#{jobs.export.hint}">Download every job as a CSV file</div>
+                        </div>
+                        <a class="btn btn-secondary" th:href="@{/applications/export}" download>
+                            <i class="ph ph-file-csv"></i><span th:text="#{jobs.export}">Export</span>
+                        </a>
+                    </div>
+                    <div class="border-t border-line"></div>
+                    <form class="flex items-start gap-3" method="post" enctype="multipart/form-data" th:action="@{/applications/import}">
+                        <i class="ph ph-upload-simple text-[22px] text-accent"></i>
+                        <div class="flex min-w-0 flex-1 flex-col gap-2">
+                            <div>
+                                <div class="font-medium" th:text="#{jobs.import.title}">Import jobs from a CSV file</div>
+                                <div class="text-xs text-pretty text-ink/60" th:text="#{jobs.import.body}">One row per job…</div>
+                            </div>
+                            <details class="text-xs text-ink/60">
+                                <summary class="cursor-pointer" th:text="#{jobs.import.columns}">Columns it reads:</summary>
+                                <code class="mt-1 block leading-relaxed text-ink/80">title, company, location, status, status_date,
+                                    applied_on, applied_by, salary, employment_type, link, rejection_reason, contact_name, contact_role,
+                                    contact_email, contact_phone, contact_link, referred_by, deadline, follow_up_on, notes,
+                                    description</code>
+                            </details>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <input class="input w-auto max-w-full min-w-0 flex-1" type="file" name="file" required
+                                       accept=".csv,.tsv,.txt,text/csv,text/plain" th:aria-label="#{jobs.import.file}" th:title="#{jobs.import.file}">
+                                <button class="btn btn-primary" type="submit">
+                                    <i class="ph ph-upload-simple"></i><span th:text="#{jobs.import.submit}">Import</span>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    <div class="border-t border-line"></div>
+                    <!--/* Archives the jobs nothing happened on since a day: by default the ones that ended */-->
+                    <form class="flex items-start gap-3" method="post" th:action="@{/applications/archive-unchanged}">
+                        <i class="ph ph-archive text-[22px] text-accent"></i>
+                        <div class="flex min-w-0 flex-1 flex-col gap-2">
+                            <div>
+                                <div class="font-medium" th:text="#{jobs.archiveByDate.title}">Archive old jobs</div>
+                                <div class="text-xs text-pretty text-ink/60" th:text="#{jobs.archiveByDate.body}">Jobs nothing changed on since a day…</div>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+                                <label class="flex items-center gap-2">
+                                    <span class="text-xs text-ink/60" th:text="#{jobs.archiveByDate.since}">Unchanged since</span>
+                                    <input class="input w-auto" type="date" name="before" required th:max="${today}"
+                                           th:value="${today.minusMonths(3)}">
+                                </label>
+                                <label class="flex items-center gap-2 text-[13px]">
+                                    <input class="check" type="checkbox" name="endedOnly" value="true" checked>
+                                    <span th:text="#{jobs.archiveByDate.endedOnly}">Only those that ended</span>
+                                </label>
+                                <button class="btn btn-secondary" type="submit">
+                                    <i class="ph ph-archive"></i><span th:text="#{jobs.archive}">Archive</span>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!--/* The key for Adzuna's API (the market module's AdzunaKeyService), which the Salaries page asks for the salaries
+                   in job ads: the server's, not a profile's. A key saved here takes the place of the ADZUNA_APP_ID and
+                   ADZUNA_APP_KEY environment variables. After it's saved, only the app key's last characters show; after
+                   saving, SettingsController comes back here and says how it went, once. */-->
+            <section id="salaries" class="flex flex-col gap-2">
+                <h2 class="section-title" th:text="#{settings.salaries}">Salaries</h2>
+                <p class="card flex items-center gap-2 p-3" th:if="${adzunaCheck}"
+                   th:role="${adzunaCheck.name() == 'REFUSED'} ? 'alert' : 'status'"
+                   th:classappend="${adzunaCheck.name() == 'REFUSED'} ? 'text-danger' : (${adzunaCheck.name() == 'ACCEPTED'} ? 'text-success' : 'text-accent')">
+                    <i class="ph text-lg" th:classappend="${adzunaCheck.name() == 'ACCEPTED'} ? 'ph-check-circle' : 'ph-warning-circle'"></i>
+                    <span th:text="#{|settings.adzuna.${adzunaCheck}|}">Adzuna accepted the key.</span>
+                </p>
+                <p class="card flex items-center gap-2 p-3 text-danger" role="alert" th:if="${adzunaError}">
+                    <i class="ph ph-warning-circle text-lg"></i><span th:text="${adzunaError}">Enter the app key.</span>
+                </p>
+                <p class="card flex items-center gap-2 p-3" role="status" th:if="${adzunaRemoved}">
+                    <i class="ph ph-check-circle text-lg text-success"></i><span th:text="#{settings.adzuna.removed}">The saved key is removed.</span>
+                </p>
+                <div class="card flex items-start gap-3 p-3">
+                    <i class="ph ph-coins text-[22px] text-accent"></i>
+                    <div class="flex min-w-0 flex-1 flex-col gap-3">
+                        <div>
+                            <div class="font-medium" th:text="#{settings.adzuna.name}">Adzuna key</div>
+                            <div class="text-xs text-pretty text-ink/60" th:text="#{settings.adzuna.body}">
+                                For the salaries in current job ads, on the Salaries page.</div>
+                        </div>
+                        <div class="flex flex-col gap-1 text-xs">
+                            <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1" th:if="${adzunaKey.appId() != null}">
+                                <dt class="text-ink/55" th:text="#{settings.adzuna.appId}">App ID</dt>
+                                <dd class="min-w-0 truncate font-mono" th:text="${adzunaKey.appId()}">1a2b3c4d</dd>
+                                <dt class="text-ink/55" th:text="#{settings.adzuna.appKey}">App key</dt>
+                                <dd class="font-mono" th:text="|••••${adzunaKey.keyEnding()}|">••••5f6e</dd>
+                            </dl>
+                            <p class="text-pretty text-ink/60" th:text="#{|settings.adzuna.source.${adzunaKey.source()}|}">
+                                No key yet: the Salaries page leaves job ads out.</p>
+                        </div>
+                        <form class="flex flex-wrap items-end gap-2" method="post" th:action="@{/settings/adzuna}">
+                            <label class="flex min-w-[150px] flex-1 flex-col gap-1">
+                                <span class="field-label" th:text="#{settings.adzuna.appId}">App ID</span>
+                                <input class="input font-mono" type="text" name="appId" required maxlength="100"
+                                       autocomplete="off" spellcheck="false" th:value="${adzunaAppId}">
+                            </label>
+                            <label class="flex min-w-[150px] flex-1 flex-col gap-1">
+                                <span class="field-label" th:text="#{settings.adzuna.appKey}">App key</span>
+                                <input class="input font-mono" type="password" name="appKey" required maxlength="100"
+                                       autocomplete="new-password" spellcheck="false">
+                            </label>
+                            <button class="btn btn-primary" type="submit">
+                                <i class="ph ph-key"></i>
+                                <span th:text="${adzunaKey.source().name() == 'SETTINGS'} ? #{settings.adzuna.replace} : #{settings.adzuna.save}">Save</span>
+                            </button>
+                        </form>
+                        <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <a class="link" href="https://developer.adzuna.com/signup" target="_blank" rel="noopener noreferrer"
+                               th:text="#{settings.adzuna.signUp}">Get a free key at developer.adzuna.com</a>
+                            <form method="post" th:action="@{/settings/adzuna/remove}" th:if="${adzunaKey.source().name() == 'SETTINGS'}">
+                                <button class="btn btn-ghost text-danger" type="submit">
+                                    <i class="ph ph-trash"></i><span th:text="#{settings.adzuna.remove}">Remove the saved key</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!--/* What to enter in the extension's own settings. */-->
+            <section class="flex flex-col gap-2">
+                <h2 class="section-title" th:text="#{settings.extension}">Browser extension</h2>
+                <div class="card flex items-start gap-3 p-3">
+                    <i class="ph ph-puzzle-piece text-[22px] text-accent"></i>
+                    <div class="flex min-w-0 flex-1 flex-col gap-2">
+                        <div>
+                            <div class="font-medium" th:text="#{settings.extension.name}">JobWarden for Chrome and Firefox</div>
+                            <div class="text-xs text-ink/60" th:text="#{settings.extension.body}">
+                                Saves postings from job boards with one click. In its settings, enter this server’s address and your profile id.</div>
+                        </div>
+                        <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+                            <dt class="text-ink/55" th:text="#{settings.extension.server}">Server</dt>
+                            <dd class="min-w-0 truncate font-mono" th:text="${serverUrl}">http://localhost:8080</dd>
+                            <dt class="text-ink/55" th:text="#{settings.extension.profileId}">Profile id</dt>
+                            <dd class="flex min-w-0 items-center gap-2" th:if="${currentProfile}">
+                                <span class="min-w-0 truncate font-mono" th:text="${currentProfile.publicId}">5b1f3c2e-8a4d-4c6e-9f10-2d7b8e3a6c41</span>
+                                <button th:replace="~{settings/settings :: copy(${currentProfile.publicId})}"></button>
+                            </dd>
+                            <dd th:unless="${currentProfile}">
+                                <a class="link" th:href="@{/profiles}" th:text="#{settings.extension.chooseProfile}">Choose a profile first</a>
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+            </section>
+
+            <!--/* The version running, and whether a newer one is out on GitHub (the updates module); then the license, who
+                   made JobWarden and where its code is */-->
+            <section class="flex flex-col gap-2" th:with="repositoryUrl=|https://github.com/${repository}|">
+                <h2 class="section-title" th:text="#{settings.about}">About</h2>
+                <div class="card flex flex-wrap items-start gap-3 p-3" th:if="${update}">
+                    <i class="ph text-[22px]" th:classappend="${update.updateAvailable()} ? 'ph-arrow-circle-up text-accent' : 'ph-shield-check text-ink/60'"></i>
+                    <div class="flex min-w-[200px] flex-1 flex-col gap-1">
+                        <div class="font-medium" th:text="#{settings.version(${update.version})}">JobWarden 0.1.0</div>
+                        <div class="text-xs text-ink/60" th:if="${update.updateAvailable()}"
+                             th:text="#{settings.version.newer(${update.latest.version})}">JobWarden 0.2.0 is out on GitHub.</div>
+                        <div class="text-xs text-ink/60" th:if="${update.latest != null and !update.updateAvailable()}"
+                             th:text="#{settings.version.upToDate}">Up to date: the latest release on GitHub.</div>
+                        <div class="text-xs text-ink/60" th:if="${update.latest == null}" th:text="#{settings.version.unknown}">
+                            No release on GitHub yet, or GitHub couldn’t be reached.</div>
+                        <div class="text-xs text-ink/60" th:text="#{settings.version.how}">To update, get the release’s code…</div>
+                    </div>
+                    <a class="btn btn-secondary" th:href="${update.updateAvailable()} ? ${update.latest.url} : ${update.releases}"
+                       target="_blank" rel="noopener noreferrer">
+                        <i class="ph ph-github-logo"></i><span th:text="${update.updateAvailable()} ? #{update.see} : #{settings.version.releases}">Releases</span>
+                    </a>
+                </div>
+                <div class="card flex items-start gap-3 p-3">
+                    <i class="ph ph-scales text-[22px] text-ink/60"></i>
+                    <div class="flex min-w-0 flex-1 flex-col gap-2">
+                        <dl class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-xs">
+                            <dt class="text-ink/55" th:text="#{settings.about.license}">License</dt>
+                            <dd><a class="link" th:href="|${repositoryUrl}/blob/main/LICENSE.md|" target="_blank" rel="noopener noreferrer"
+                                   th:text="#{settings.about.licenseName}">MIT License</a></dd>
+                            <dt class="text-ink/55" th:text="#{settings.about.author}">Made by</dt>
+                            <dd><a class="link" th:href="${authorUrl}" target="_blank" rel="noopener noreferrer" th:text="${author}">CRV</a></dd>
+                            <dt class="text-ink/55" th:text="#{settings.about.source}">Source code</dt>
+                            <dd class="min-w-0 truncate">
+                                <a class="link inline-flex items-center gap-1" th:href="${repositoryUrl}" target="_blank" rel="noopener noreferrer">
+                                    <i class="ph ph-github-logo"></i><span th:text="|github.com/${repository}|">github.com/CRV96/jobwarden</span>
+                                </a>
+                            </dd>
+                        </dl>
+                        <p class="text-xs text-pretty text-ink/60" th:text="#{settings.about.free}">Free and open source…</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+        <div class="flex min-w-0 flex-col gap-6">
+            <!--/* The theme and the language, one row each in one section. The theme is kept by the browser, not the
+                   server: app.js applies and saves the choice. Each language reloads this page with ?lang=, which
+                   LocaleConfiguration remembers in a cookie. */-->
+            <section class="flex flex-col gap-2">
+                <h2 class="section-title" th:text="#{settings.appearance}">Appearance and language</h2>
+                <div class="flex flex-col divide-y divide-line">
+                    <div class="flex flex-wrap items-center gap-3 pb-3">
+                        <div class="min-w-[200px] flex-1">
+                            <div id="theme-label" class="font-medium" th:text="#{settings.theme}">Theme</div>
+                            <div class="text-xs text-ink/60" th:text="#{settings.theme.hint}">Applies to this device</div>
+                        </div>
+                        <div class="seg" role="radiogroup" aria-labelledby="theme-label">
+                            <label class="seg-opt">
+                                <input type="radio" name="theme" value="dark" data-theme-choice>
+                                <i class="ph ph-moon"></i><span th:text="#{settings.theme.dark}">Dark</span>
+                            </label>
+                            <label class="seg-opt">
+                                <input type="radio" name="theme" value="light" data-theme-choice>
+                                <i class="ph ph-sun"></i><span th:text="#{settings.theme.light}">Light</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3 pt-3">
+                        <div class="min-w-[200px] flex-1">
+                            <div class="font-medium" th:text="#{settings.language.interface}">Interface language</div>
+                            <div class="text-xs text-ink/60" th:text="#{settings.language.hint}">Dates and labels follow this language</div>
+                        </div>
+                        <button id="language-button" class="btn btn-secondary w-[220px] justify-start gap-2" type="button"
+                                popovertarget="language-menu" aria-haspopup="menu">
+                            <span class="fi flex-none rounded-[2px] text-[15px] shadow-[0_0_0_0.5px_rgb(0_0_0/0.2)]" aria-hidden="true"
+                                  th:classappend="|fi-${currentLanguage.flag}|"></span>
+                            <span class="flex-1 text-left" th:text="${currentLanguage.nativeName}">English</span>
+                            <i class="ph ph-caret-up-down text-xs opacity-60"></i>
+                        </button>
+                        <div id="language-menu" class="menu max-h-[340px] w-[220px] overflow-y-auto" popover role="menu"
+                             aria-labelledby="language-button" data-anchor="language-button">
+                            <a class="menu-item" role="menuitemradio" th:each="language : ${languages}" th:lang="${language.tag}"
+                               th:href="@{/settings(lang=${language.tag})}" th:aria-checked="${language == currentLanguage}">
+                                <i class="ph ph-check w-3 text-xs" th:classappend="${language == currentLanguage} ? 'opacity-100' : 'opacity-0'"></i>
+                                <span class="fi flex-none rounded-[2px] text-[15px] shadow-[0_0_0_0.5px_rgb(0_0_0/0.2)]" aria-hidden="true"
+                                      th:classappend="|fi-${language.flag}|"></span>
+                                <span class="flex-1" th:text="${language.nativeName}">English</span>
+                                <span class="text-[11px] tracking-[0.04em] opacity-55" th:text="${#strings.toUpperCase(language.tag)}">EN</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!--/* The profile's inbox (the inbox module): how often JobWarden reads its mailbox on its own, and what becomes of
+                   the updates found. Saved with the button; SettingsController comes back here and says so, once. Without a
+                   mailbox, where to connect one. */-->
+            <section id="inbox" class="flex flex-col gap-2" th:if="${currentProfile}">
+                <h2 class="section-title" th:text="#{nav.inbox}">Inbox</h2>
+                <output class="card flex items-center gap-2 p-3 text-success" th:if="${inboxSaved}">
+                    <i class="ph ph-check-circle text-lg"></i><span th:text="#{settings.inbox.saved}">Saved.</span>
+                </output>
+                <div class="card flex items-start gap-3 p-3" th:unless="${mailAccount}">
+                    <i class="ph ph-envelope-simple text-[22px] text-accent"></i>
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                        <div class="font-medium" th:text="#{settings.inbox.none}">No mailbox connected</div>
+                        <div class="text-xs text-pretty text-ink/60" th:text="#{settings.inbox.none.body}">Connect one on the Inbox page…</div>
+                        <a class="link text-xs" th:href="@{/inbox}" th:text="#{nav.inbox}">Inbox</a>
+                    </div>
+                </div>
+                <form class="card flex flex-col gap-3 p-3" method="post" th:action="@{/settings/inbox}" th:if="${mailAccount}">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <i class="ph ph-clock-clockwise text-[22px] text-accent"></i>
+                        <div class="min-w-[200px] flex-1">
+                            <label class="font-medium" for="inbox-read-every" th:text="#{settings.inbox.readEvery}">Read my emails</label>
+                            <div class="truncate text-xs text-ink/60" th:text="${mailAccount.username}">robert@proton.me</div>
+                        </div>
+                        <select id="inbox-read-every" class="input w-[220px] max-w-full" name="readEvery">
+                            <option th:each="interval : ${readingIntervals}" th:value="${interval}" th:selected="${interval == readingInterval}"
+                                    th:text="#{|inbox.every.${interval}|}">every 10 minutes</option>
+                        </select>
+                    </div>
+                    <div class="border-t border-line"></div>
+                    <fieldset class="flex flex-col gap-2">
+                        <legend class="mb-1.5 font-medium" th:text="#{settings.inbox.automation}">What the emails say about your jobs</legend>
+                        <label class="flex cursor-pointer items-start gap-2.5 rounded-lg border border-line p-2.5 has-checked:border-accent has-checked:bg-accent/6"
+                               th:each="automation : ${inboxAutomations}">
+                            <input class="mt-0.5 accent-[var(--jw-accent)]" type="radio" name="automation" th:value="${automation}"
+                                   th:checked="${automation == mailAccount.automation}">
+                            <span class="flex min-w-0 flex-col gap-0.5">
+                                <span class="text-[13px] font-medium" th:text="#{|settings.inbox.automation.${automation}|}">I review each one</span>
+                                <span class="text-xs text-pretty text-ink/60" th:text="#{|settings.inbox.automation.${automation}.hint|}">Nothing changes a job until you apply it.</span>
+                            </span>
+                        </label>
+                    </fieldset>
+                    <div>
+                        <button class="btn btn-primary" type="submit">
+                            <i class="ph ph-floppy-disk"></i><span th:text="#{settings.inbox.save}">Save</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!--/* The AI assistant (the mcp module's MCP server): which one the profile works with, Claude Code or Codex, saved
+                   with the button (SettingsController comes back here and says so, once), and how to connect it. The pages
+                   write their prompts and terminal commands for the one chosen; without a profile, Claude Code's. */-->
+            <section id="assistant" class="flex flex-col gap-2"
+                     th:with="assistant=${currentProfile != null ? currentProfile.assistant : assistants[0]}">
+                <h2 class="section-title" th:text="#{settings.assistant}">AI Assistant</h2>
+                <output class="card flex items-center gap-2 p-3 text-success" th:if="${assistantSaved}">
+                    <i class="ph ph-check-circle text-lg"></i>
+                    <span th:text="#{settings.assistant.saved(${assistant.product()})}">Saved: the pages write their prompts for Codex now.</span>
+                </output>
+                <!--/* How to connect each: the pages open either app, so a profile may connect both */-->
+                <div class="card flex items-start gap-3 p-3" th:each="choice : ${assistants}">
+                    <i class="ph ph-sparkle text-[22px] text-accent"></i>
+                    <div class="flex min-w-0 flex-1 flex-col gap-2">
+                        <!--/* Whether it's connected already, from its configuration here (nothing when that can't be told),
+                               and for which profile: one set up for another still does the pages' requests, which name
+                               theirs, but what's asked of it directly goes to that one */-->
+                        <div th:with="state=${assistantStates.get(choice)}, connected=${state.state().name() == 'CONNECTED'},
+                                      other=${connected and currentProfile != null and state.profile() != null and !state.isFor(currentProfile)}">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="font-medium" th:text="#{settings.assistant.connect(${choice.product()})}">Connect Claude Code to JobWarden (MCP)</span>
+                                <span class="tag st-offer" th:if="${connected and !other}">
+                                    <i class="ph ph-check"></i><span th:text="#{settings.assistant.state.CONNECTED}">Connected</span>
+                                </span>
+                                <span class="tag st-interviewing" th:if="${other}">
+                                    <i class="ph ph-user-switch"></i><span th:text="#{settings.assistant.state.OTHER}">Connected to another profile</span>
+                                </span>
+                                <span class="tag st-rejected" th:if="${state.isMissing()}">
+                                    <i class="ph ph-plugs"></i><span th:text="#{settings.assistant.state.NOT_CONNECTED}">Not connected yet</span>
+                                </span>
+                            </div>
+                            <div class="text-xs text-pretty text-ink/60" th:text="#{|settings.assistant.${choice}.hint|}">Every request, Auto-apply included.</div>
+                            <div class="mt-1 text-xs text-pretty text-ink/60" th:if="${state.folder() != null}"
+                                 th:text="#{settings.assistant.state.folder(${state.folder()})}">Connected in /Users/robert/jobwarden alone…</div>
+                            <div class="mt-1 text-xs text-pretty text-ink/70" th:if="${other}"
+                                 th:text="#{|settings.assistant.state.other.${choice}|(${state.profile()})}">Set up for another profile…</div>
+                        </div>
+                        <div class="text-xs text-ink/60" th:text="#{|settings.assistant.${choice}.command|}">In a terminal, run:</div>
+                        <div class="flex items-start gap-2" th:with="connection=${assistantConnection.get(choice)}">
+                            <code class="query-box min-h-0 flex-1 py-2 text-[12px] whitespace-pre-wrap" th:text="${connection}">claude mcp add --scope user --transport http jobwarden http://localhost:8080/mcp</code>
+                            <button th:replace="~{settings/settings :: copy(${connection})}"></button>
+                        </div>
+                        <div class="text-xs text-ink/60" th:text="#{settings.assistant.then(${choice.product()})}">Then ask Claude Code, e.g. “Check my open applications…”.</div>
+                    </div>
+                </div>
+                <div class="card flex flex-col gap-2 p-3">
+                    <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+                        <dt class="text-ink/55" th:text="#{settings.assistant.address}">MCP address</dt>
+                        <dd class="min-w-0 truncate font-mono" th:text="${mcpUrl}">http://localhost:8080/mcp</dd>
+                    </dl>
+                    <div class="text-xs text-pretty text-ink/60" th:text="#{settings.assistant.body}">Lets your assistant do what you ask on the pages…</div>
+                    <div class="text-xs text-pretty text-ink/60" th:text="#{settings.assistant.chatgpt}">The ChatGPT app can’t connect…</div>
+                </div>
+                <!--/* The main one: Run it here, the terminal commands and the loop use it */-->
+                <form class="card flex flex-col gap-3 p-3" method="post" th:action="@{/settings/assistant}" th:if="${currentProfile}">
+                    <fieldset class="flex flex-col gap-2">
+                        <legend class="mb-0.5 font-medium" th:text="#{settings.assistant.choose}">Your main assistant</legend>
+                        <p class="mb-1 text-xs text-pretty text-ink/60" th:text="#{settings.assistant.main.hint}">Run it here, the terminal commands and the loop use it.</p>
+                        <label class="flex cursor-pointer items-center gap-2.5 rounded-lg border border-line p-2.5 has-checked:border-accent has-checked:bg-accent/6"
+                               th:each="choice : ${assistants}">
+                            <input class="accent-[var(--jw-accent)]" type="radio" name="assistant" th:value="${choice}"
+                                   th:checked="${choice == assistant}">
+                            <span class="text-[13px] font-medium" th:text="${choice.product()}">Claude Code</span>
+                        </label>
+                    </fieldset>
+                    <div>
+                        <button class="btn btn-primary" type="submit">
+                            <i class="ph ph-floppy-disk"></i><span th:text="#{settings.inbox.save}">Save</span>
+                        </button>
+                    </div>
+                </form>
+            </section>
+        </div>
     </div>
 </main>
+
+<!--/* A button that copies the text (app.js: data-copy-text), and says so */-->
+<button th:fragment="copy(text)" class="btn btn-secondary px-2 py-1 text-xs" type="button" th:data-copy-text="${text}">
+    <span class="inline-flex items-center gap-1.5" data-copy-idle><i class="ph ph-copy"></i><span th:text="#{search.copy}">Copy</span></span>
+    <span class="inline-flex items-center gap-1.5" data-copy-done hidden><i class="ph ph-check text-success"></i><span th:text="#{search.copied}">Copied</span></span>
+</button>
 </body>
 </html>

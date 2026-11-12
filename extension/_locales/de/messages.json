@@ -81,10 +81,10 @@
     "message": "Wo JobWarden läuft. Auf diesem Computer meist http://localhost:8080."
   },
   "profileIdHint": {
-    "message": "JobWarden zeigt sie auf der Seite Profile."
+    "message": "JobWarden zeigt sie in den Einstellungen unter Dein Profil, mit einem Knopf zum Kopieren."
   },
   "openProfiles": {
-    "message": "Seite Profile öffnen"
+    "message": "Einstellungen von JobWarden öffnen"
   },
   "save": {
     "message": "Speichern"
@@ -94,6 +94,9 @@
   },
   "notSaved": {
     "message": "Die Einstellungen konnten nicht gespeichert werden."
+  },
+  "profileNotFound": {
+    "message": "Kein Profil hat diese ID auf diesem Server. Kopiere sie aus den Einstellungen von JobWarden, unter Dein Profil."
   },
   "serverUrlInvalid": {
     "message": "Gib eine Adresse ein, die mit http:// oder https:// beginnt."
