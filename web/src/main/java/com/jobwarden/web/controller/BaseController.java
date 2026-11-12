@@ -23,6 +23,7 @@ import com.jobwarden.web.user.CurrentUser;
 import com.jobwarden.web.user.ProfileNotSelectedException;
 import com.jobwarden.web.view.AssistantPrompts;
 import com.jobwarden.web.view.AssistantPrompts.Prompt;
+import com.jobwarden.web.view.AssistantPrompts.RunRefusal;
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -171,8 +172,16 @@ abstract class BaseController {
 	protected Prompt prompt(Model model, List<Long> requestIds) {
 		User profile = requireProfile(model);
 		Prompt prompt = AssistantPrompts.forRequests(profile.assistant(), requestIds, profile.id());
-		return connected((this.runner == null) ? prompt
-				: prompt.run(this.runner.canRun(profile.assistant()), this.runner.isRunning(requestIds)));
+		if (this.runner == null) {
+			return connected(prompt);
+		}
+		// Why Run last refused them, kept a while, so the card keeps saying it as it asks again
+		RunRefusal refused = this.runner.refusal(requestIds)
+			.map(refusal -> new RunRefusal(refusal.reason().name(), refusal.assistant().product(),
+					AssistantRunner.signInCommand(refusal.assistant())))
+			.orElse(null);
+		return connected(prompt.run(this.runner.canRun(profile.assistant()), this.runner.isRunning(requestIds))
+			.refused(refused));
 	}
 
 	/**

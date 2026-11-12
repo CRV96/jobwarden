@@ -6,8 +6,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -62,6 +64,9 @@ public class AssistantRunner {
 	/** How long it may take to say: it's quick, a tenth of a second. */
 	private static final Duration SIGN_IN_STATUS_TIMEOUT = Duration.ofSeconds(10);
 
+	/** How long the cards keep saying why Run refused, for a request still waiting. */
+	static final Duration REFUSAL_SHOWN = Duration.ofMinutes(10);
+
 	/** How much of what a run printed last says why it stopped. */
 	private static final int REASON_MAX_LENGTH = 300;
 
@@ -77,6 +82,9 @@ public class AssistantRunner {
 
 	/** The runs going on, by request: one each at most. */
 	private final Map<Long, Process> running = new ConcurrentHashMap<>();
+
+	/** Why Run last refused each request, which the cards keep saying a while. */
+	private final Map<Long, Refusal> refusals = new ConcurrentHashMap<>();
 
 	/**
 	 * @param claudeCommand where Claude Code is, when it isn't on the PATH or in a usual place
@@ -133,10 +141,10 @@ public class AssistantRunner {
 	public void run(Assistant assistant, long userId, List<Long> requestIds, String mcpUrl) {
 		Path executable = this.executables.get(assistant)
 			.filter(path -> this.enabled)
-			.orElseThrow(() -> new RunRefusedException(RunRefusedException.Reason.UNAVAILABLE));
+			.orElseThrow(() -> refuse(assistant, requestIds, new RunRefusedException(RunRefusedException.Reason.UNAVAILABLE)));
 		// Asked first, so a run that couldn't do anything doesn't fail the requests: they keep waiting, to run again
 		if (!signedIn(assistant, executable)) {
-			throw new RunRefusedException(RunRefusedException.Reason.SIGNED_OUT);
+			throw refuse(assistant, requestIds, new RunRefusedException(RunRefusedException.Reason.SIGNED_OUT));
 		}
 		List<String> command = new ArrayList<>(AssistantPrompts.background(assistant, requestIds, userId, mcpUrl));
 		command.set(0, executable.toString());
@@ -158,10 +166,11 @@ public class AssistantRunner {
 				// Nothing to read: codex exec and claude -p would otherwise wait for what's piped in
 				process.getOutputStream().close();
 			} catch (IOException couldNotStart) {
-				throw new RunRefusedException(RunRefusedException.Reason.FAILED, couldNotStart);
+				throw refuse(assistant, requestIds, new RunRefusedException(RunRefusedException.Reason.FAILED, couldNotStart));
 			}
 			requestIds.forEach(id -> this.running.put(id, process));
 		}
+		requestIds.forEach(this.refusals::remove);
 		log.info("Started {} on requests {} of profile {}", assistant.product(), requestIds, userId);
 		process.onExit()
 			.orTimeout(this.timeout.toMillis(), TimeUnit.MILLISECONDS)
@@ -209,11 +218,40 @@ public class AssistantRunner {
 	}
 
 	/**
+	 * Why Run last refused these requests, while it's recent: the card that shows them asks again every few seconds,
+	 * and keeps saying it, until a run starts or the requests are done.
+	 */
+	public Optional<Refusal> refusal(List<Long> requestIds) {
+		Instant shownSince = Instant.now().minus(REFUSAL_SHOWN);
+		return requestIds.stream()
+			.map(this.refusals::get)
+			.filter(refusal -> refusal != null && refusal.at().isAfter(shownSince))
+			.max(Comparator.comparing(Refusal::at));
+	}
+
+	/**
+	 * Why Run didn't start a request: the assistant isn't here, isn't signed in, or didn't start.
+	 *
+	 * @param assistant the one it was asked to run
+	 * @param at when
+	 */
+	public record Refusal(RunRefusedException.Reason reason, Assistant assistant, Instant at) {
+	}
+
+	/** Keeps why, for the requests' card to keep saying it; it says it was busy only as it happens. */
+	private RunRefusedException refuse(Assistant assistant, List<Long> requestIds, RunRefusedException refused) {
+		Refusal refusal = new Refusal(refused.getReason(), assistant, Instant.now());
+		requestIds.forEach(id -> this.refusals.put(id, refusal));
+		return refused;
+	}
+
+	/**
 	 * Forgets the runs of these requests, as their profile is deleted: stops those going on, without failing their
 	 * requests, and deletes what they printed.
 	 */
 	public void forget(Collection<Long> requestIds) {
 		for (long requestId : requestIds) {
+			this.refusals.remove(requestId);
 			Process process = this.running.remove(requestId);
 			if (process != null) {
 				process.descendants().forEach(ProcessHandle::destroy);

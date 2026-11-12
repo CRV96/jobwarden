@@ -76,6 +76,13 @@
                   th:text="#{ai.run.started(${prompt.assistant})}">Started: Claude Code works on it in the background.</span>
         </th:block>
     </div>
+    <!--/* Why Run last refused, kept a while (AssistantRunner), so the card says it through every refresh, until a run
+           starts: not signed in, say, and how to sign in */-->
+    <p class="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/8 px-3 py-2 text-xs text-pretty text-danger"
+       role="alert" th:if="${prompt.refused != null and !prompt.running}">
+        <i class="ph ph-warning-circle mt-px text-sm"></i>
+        <span th:text="#{|ai.run.${prompt.refused.reason}|(${prompt.refused.assistant}, ${prompt.refused.signIn})}">Claude Code isn’t signed in on this computer…</span>
+    </p>
     <p class="text-xs text-pretty text-ink/60">
         <span th:text="#{ai.open.hint}">Opens the app with the request typed in a new session: send it to start.</span>
         <span th:if="${prompt.runnable and !prompt.running}" th:text="#{ai.run.hint(${prompt.assistant})}">Run it here starts Claude Code…</span>
@@ -98,12 +105,17 @@
 </div>
 
 <!--/* What Run answers, in place of the button: that the assistant started, or why not (runRefused, a
-       RunRefusedException.Reason), with the prompt still there to paste. */-->
-<span th:fragment="run-result" class="inline-flex flex-wrap items-center gap-2" data-run>
+       RunRefusedException.Reason), with the prompt still there to paste. As the card asks again, the prompt says why
+       itself, with Run back to try again. */-->
+<span th:fragment="run-result" class="inline-flex flex-wrap items-center gap-2" data-run
+      th:classappend="${runStarted} ? '' : 'w-full'">
     <span class="text-xs text-success" role="status" th:if="${runStarted}"
           th:text="#{ai.run.started(${runAssistant})}">Started: Claude Code works on it in the background.</span>
-    <span class="text-xs text-danger" role="alert" th:unless="${runStarted}"
-          th:text="#{|ai.run.${runRefused}|(${runAssistant}, ${runSignIn})}">Claude Code isn’t on this computer.</span>
+    <span class="flex w-full items-start gap-2 rounded-lg border border-danger/30 bg-danger/8 px-3 py-2 text-xs text-pretty text-danger"
+          role="alert" th:unless="${runStarted}">
+        <i class="ph ph-warning-circle mt-px text-sm"></i>
+        <span th:text="#{|ai.run.${runRefused}|(${runAssistant}, ${runSignIn})}">Claude Code isn’t on this computer.</span>
+    </span>
 </span>
 
 <!--/* A text the AI Assistant wrote, to copy as it is: an email, what to say on a call. label names it. */-->

@@ -31,6 +31,7 @@ import com.jobwarden.web.assistant.AssistantConnections.Connection;
 import com.jobwarden.web.assistant.AssistantConnections.State;
 import com.jobwarden.web.assistant.AssistantConnections;
 import com.jobwarden.web.assistant.AssistantRunner;
+import com.jobwarden.web.assistant.RunRefusedException;
 import com.jobwarden.web.user.CurrentUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -181,6 +182,24 @@ class DiscoverControllerTests {
 					"Codex isn’t connected to JobWarden yet", "href=\"/settings#assistant\"", "Connect it in Settings",
 					"Open anyway")
 			.doesNotContain("open-CLAUDE_CODE-12-connect");
+	}
+
+	@Test
+	void keepsSayingWhyRunWasRefusedAsTheCardAsksAgain() {
+		given(this.runner.canRun(Assistant.CLAUDE_CODE)).willReturn(true);
+		given(this.runner.refusal(List.of(12L))).willReturn(Optional.of(new AssistantRunner.Refusal(
+				RunRefusedException.Reason.SIGNED_OUT, Assistant.CLAUDE_CODE, Instant.now())));
+		given(this.discovery.findRequests(eq(1L), any(Integer.class))).willReturn(List.of(
+				request(12, AiRequestKind.FIND_JOBS_FOR_CV, AiRequestStatus.WAITING, 0, null)));
+
+		// The page, and the requests' card as it asks again every few seconds
+		for (String uri : List.of("/discover", "/discover/requests")) {
+			assertThat(this.mvc.get().uri(uri)).bodyText()
+				.contains("role=\"alert\"",
+						"Claude Code isn’t signed in on this computer: run claude auth login in a terminal once, then Run it here again.",
+						// Run is there again, to try once signed in
+						"hx-post=\"/assistant/run?requests=12\"");
+		}
 	}
 
 	@Test

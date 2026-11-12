@@ -102,15 +102,22 @@ public final class AssistantPrompts {
 	 * @param requestIds the requests it does, which Run hands to JobWarden
 	 * @param runnable whether JobWarden can run the assistant itself, on its own computer: the page then offers Run
 	 * @param running whether JobWarden is running it already, for these requests
+	 * @param refused why Run last refused them, while it's recent, for the card to keep saying; {@code null} for none
 	 */
 	public record Prompt(String text, String command, String assistant, List<AppLink> apps, List<Long> requestIds,
-			boolean runnable, boolean running) {
+			boolean runnable, boolean running, @Nullable RunRefusal refused) {
+
+		public Prompt(String text, String command, String assistant, List<AppLink> apps, List<Long> requestIds,
+				boolean runnable, boolean running) {
+			this(text, command, assistant, apps, requestIds, runnable, running, null);
+		}
 
 		/**
 		 * @return the same prompt, saying whether JobWarden can run it, and does
 		 */
 		public Prompt run(boolean canRun, boolean isRunning) {
-			return new Prompt(this.text, this.command, this.assistant, this.apps, this.requestIds, canRun, isRunning);
+			return new Prompt(this.text, this.command, this.assistant, this.apps, this.requestIds, canRun, isRunning,
+					this.refused);
 		}
 
 		/**
@@ -118,9 +125,24 @@ public final class AssistantPrompts {
 		 */
 		public Prompt withApps(List<AppLink> apps) {
 			return new Prompt(this.text, this.command, this.assistant, List.copyOf(apps), this.requestIds, this.runnable,
-					this.running);
+					this.running, this.refused);
 		}
 
+		/**
+		 * @return the same prompt, saying why Run last refused it
+		 */
+		public Prompt refused(@Nullable RunRefusal refusal) {
+			return new Prompt(this.text, this.command, this.assistant, this.apps, this.requestIds, this.runnable,
+					this.running, refusal);
+		}
+
+	}
+
+	/**
+	 * Why Run didn't start the assistant: RunRefusedException's reason (e.g. SIGNED_OUT), the assistant's name, and
+	 * how one signs it in, for the message.
+	 */
+	public record RunRefusal(String reason, String assistant, String signIn) {
 	}
 
 	public static Prompt forRequest(Assistant assistant, long requestId, long profileId) {

@@ -91,6 +91,11 @@ class AssistantRunnerTests {
 					refused -> assertThat(refused.getReason()).isEqualTo(RunRefusedException.Reason.SIGNED_OUT));
 		assertThat(claude.resolveSibling("ran")).doesNotExist();
 		assertThat(runner.isRunning(List.of(17L))).isFalse();
+		// Kept, for the card to keep saying it as it asks again
+		assertThat(runner.refusal(List.of(16L, 17L))).hasValueSatisfying(refusal -> {
+			assertThat(refusal.reason()).isEqualTo(RunRefusedException.Reason.SIGNED_OUT);
+			assertThat(refusal.assistant()).isEqualTo(Assistant.CLAUDE_CODE);
+		});
 		then(this.discovery).should(never()).finishRequest(anyLong(), anyLong(), anyBoolean(), anyString());
 		assertThat(AssistantRunner.signInCommand(Assistant.CLAUDE_CODE)).isEqualTo("claude auth login");
 		assertThat(AssistantRunner.signInCommand(Assistant.CODEX)).isEqualTo("codex login");
@@ -128,6 +133,23 @@ class AssistantRunnerTests {
 			.finishRequest(1, 14, false, "Claude Code was stopped: it took over 1 seconds.");
 		then(this.discovery).should(timeout(5000))
 			.finishRequest(1, 15, false, "Claude Code was stopped: it took over 1 seconds.");
+	}
+
+	@Test
+	void forgetsWhyItRefusedOnceARunStarts() throws IOException {
+		// Signed in once the file's there, as after claude auth login
+		Path claude = script("""
+				if [ "$1 $2" = "auth status" ]; then [ -f "$(dirname "$0")/signed-in" ]; exit $?; fi
+				sleep 30""");
+		AssistantRunner runner = runner(claude, Duration.ofMinutes(1));
+		assertThatThrownBy(() -> runner.run(Assistant.CLAUDE_CODE, 1, List.of(19L), MCP)).isInstanceOf(RunRefusedException.class);
+		assertThat(runner.refusal(List.of(19L))).isPresent();
+
+		Files.createFile(claude.resolveSibling("signed-in"));
+		runner.run(Assistant.CLAUDE_CODE, 1, List.of(19L), MCP);
+
+		assertThat(runner.refusal(List.of(19L))).isEmpty();
+		runner.forget(List.of(19L));
 	}
 
 	@Test
