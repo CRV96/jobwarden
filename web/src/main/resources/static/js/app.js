@@ -212,13 +212,15 @@ document.addEventListener('click', (event) => {
 		return;
 	}
 
-	// data-remove-row: removes the row it's in
+	// data-remove-row: removes the row it's in, and says the form changed, so one that saves as it changes (the
+	// offer's terms) saves without it
 	const rowRemover = target.closest('[data-remove-row]');
 	if (rowRemover) {
 		const rows = rowRemover.closest('[data-rows]');
 		rowRemover.closest('[data-row]')?.remove();
 		if (rows) {
 			numberRows(rows);
+			rows.dispatchEvent(new Event('change', {bubbles: true}));
 		}
 		return;
 	}
@@ -371,6 +373,14 @@ document.addEventListener('beforetoggle', (event) => {
 	menu.style.top = `${anchor.bottom + 6}px`;
 	menu.style.left = `${Math.max(8, anchor.right - width)}px`;
 }, true);
+
+// A card that asks again every few seconds (a request waiting for the assistant) waits while a popover in it is open,
+// e.g. the one saying to connect the assistant first: swapping the card would close it under the reader
+document.addEventListener('htmx:beforeRequest', (event) => {
+	if (event.detail.elt instanceof Element && event.detail.elt.querySelector(':popover-open')) {
+		event.preventDefault();
+	}
+});
 
 // The side panel opens once HTMX has loaded an application into it. When it closes, its row stops being marked.
 // Reloaded rows come unticked, so the selection starts over.
@@ -1006,4 +1016,20 @@ document.addEventListener('click', (event) => {
 	}
 	preferences.set('folded', [...folded].join(','));
 	showFolded();
+});
+
+/*
+ * The AI Assistant's overview under a job's facts links to its cards (data-jump="<card's id>"): a click scrolls to the
+ * card, in the page or the side panel, and unfolds it when it's folded.
+ */
+document.addEventListener('click', (event) => {
+	const link = event.target instanceof Element ? event.target.closest('[data-jump]') : null;
+	const card = link ? document.getElementById(link.dataset.jump) : null;
+	if (!card) {
+		return;
+	}
+	event.preventDefault();
+	const folded = card.closest('[data-collapsed]');
+	folded?.querySelector('[data-collapse-toggle]')?.click();
+	card.scrollIntoView({ behavior: 'smooth', block: 'start' });
 });

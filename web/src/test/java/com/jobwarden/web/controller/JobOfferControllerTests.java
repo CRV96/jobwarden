@@ -1,5 +1,6 @@
 package com.jobwarden.web.controller;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -15,9 +16,16 @@ import com.jobwarden.identity.service.UserService;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.JobOffer;
 import com.jobwarden.jobs.dto.NegotiationBrief;
+import com.jobwarden.jobs.dto.OfferExtra;
+import com.jobwarden.jobs.dto.OfferTotal;
+import com.jobwarden.jobs.dto.SalaryRange;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.OfferExtraKind;
+import com.jobwarden.jobs.enums.PayFrequency;
+import com.jobwarden.jobs.enums.SalaryPeriod;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.jobs.service.OfferService;
+import com.jobwarden.jobs.service.SalaryService;
 import com.jobwarden.web.user.CurrentUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,6 +65,9 @@ class JobOfferControllerTests {
 	@MockitoBean
 	private UserService users;
 
+	@MockitoBean
+	private SalaryService salaries;
+
 	@BeforeEach
 	void selectRobertWithAnOffer() {
 		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
@@ -69,36 +80,129 @@ class JobOfferControllerTests {
 			.timeline(List.of())
 			.build()));
 		given(this.offers.find(1, 7)).willReturn(JobOffer.NONE);
+		given(this.salaries.currencies()).willReturn(List.of("EUR", "RON", "USD"));
 	}
 
 	@Test
-	void showsTheTermsToFillIn() {
-		given(this.offers.find(1, 7)).willReturn(JobOffer.builder().baseSalary("90,000 EUR").timeOff("25 days").build());
+	void showsTheTermsToFillInWithTheBaseSalaryAsAFigure() {
+		given(this.offers.find(1, 7)).willReturn(JobOffer.builder()
+			.baseSalaryAmount(new BigDecimal("8000.00"))
+			.baseSalaryCurrency("RON")
+			.baseSalaryPeriod(SalaryPeriod.MONTH)
+			.timeOff("25 days")
+			.build());
 
 		assertThat(this.mvc.get().uri("/applications/7/offer").header("HX-Request", "true")).hasStatusOk()
 			.bodyText()
-			.contains("The offer", "value=\"90,000 EUR\"", "value=\"25 days\"", "Compare offers", "hx-put=\"/applications/7/offer\"");
+			.contains("The offer", "name=\"baseSalaryAmount\"", "value=\"8000\"", "value=\"25 days\"", "Compare offers",
+					"hx-put=\"/applications/7/offer\"")
+			.containsPattern("value=\"RON\"[^>]*selected")
+			.containsPattern("value=\"MONTH\"[^>]*selected")
+			.doesNotContain("Saved before as");
 	}
 
 	@Test
-	void savesTheTermsAndReloadsWhatListsThem() {
+	void showsTheExtrasARowEachAndWhatTheOfferPaysAllIn() {
+		JobOffer offer = JobOffer.builder()
+			.baseSalaryAmount(new BigDecimal("60000"))
+			.baseSalaryCurrency("EUR")
+			.extras(List.of(new OfferExtra(OfferExtraKind.MEAL_VOUCHERS, BigDecimal.TEN, "EUR", PayFrequency.WORKING_DAY, null),
+					new OfferExtra(OfferExtraKind.BONUS, BigDecimal.TEN, "%", PayFrequency.YEAR, "On targets")))
+			.build();
+		given(this.offers.find(1, 7)).willReturn(offer);
+		given(this.offers.total(offer)).willReturn(Optional.of(new OfferTotal("EUR", new BigDecimal("60000"),
+				new BigDecimal("8200"), new BigDecimal("68200"), new BigDecimal("5000"), BigDecimal.ZERO, 1)));
+
+		assertThat(this.mvc.get().uri("/applications/7/offer").header("HX-Request", "true")).hasStatusOk()
+			.bodyText()
+			.contains("On top of the salary", "name=\"extras[0].kind\"", "name=\"extras[1].note\"", "value=\"On targets\"",
+					"Meal vouchers", "per working day", "% of base", "data-remove-row",
+					// A blank row to add, numbered by app.js
+					"name=\"extras[i].amount\"", "data-add-row=\"offer-extras-7\"",
+					"id=\"offer-total-7\"", "All in, a year", "€68,200", "€60,000 base salary + €8,200 on top",
+					"And €5,000 once", "1 extra isn’t counted")
+			.containsPattern("value=\"MEAL_VOUCHERS\"[^>]*selected")
+			.containsPattern("value=\"WORKING_DAY\"[^>]*selected")
+			.containsPattern("value=\"%\"[^>]*selected")
+			.doesNotContain("each event");
+	}
+
+	@Test
+	void startsTheFigureFromTheWordsSavedBefore() {
+		given(this.offers.find(1, 7)).willReturn(JobOffer.builder().baseSalary("70000 eur per year").build());
+		given(this.salaries.read("70000 eur per year")).willReturn(Optional.of(new SalaryRange(new BigDecimal("70000"),
+				new BigDecimal("70000"), "EUR", SalaryPeriod.YEAR, null)));
+		// All in, from the figure the card starts from
+		JobOffer shown = JobOffer.builder()
+			.baseSalaryAmount(new BigDecimal("70000"))
+			.baseSalaryCurrency("EUR")
+			.baseSalaryPeriod(SalaryPeriod.YEAR)
+			.build();
+		given(this.offers.total(shown)).willReturn(Optional.of(new OfferTotal("EUR", new BigDecimal("70000"),
+				BigDecimal.ZERO, new BigDecimal("70000"), BigDecimal.ZERO, BigDecimal.ZERO, 0)));
+
+		assertThat(this.mvc.get().uri("/applications/7/offer").header("HX-Request", "true")).bodyText()
+			.contains("value=\"70000\"", "Saved before as: 70000 eur per year.", "All in, a year", "€70,000")
+			.containsPattern("value=\"YEAR\"[^>]*selected");
+	}
+
+	@Test
+	void savesTheTermsAndReloadsWhatListsThemAndTheTotal() {
+		JobOffer saved = JobOffer.builder().baseSalaryAmount(new BigDecimal("90000")).baseSalaryCurrency("EUR").build();
+		given(this.offers.save(anyLong(), anyLong(), any())).willReturn(saved);
+		given(this.offers.total(saved)).willReturn(Optional.of(new OfferTotal("EUR", new BigDecimal("90000"),
+				new BigDecimal("8800"), new BigDecimal("98800"), BigDecimal.ZERO, BigDecimal.ZERO, 0)));
+
 		assertThat(this.mvc.put()
 			.uri("/applications/7/offer")
-			.param("baseSalary", " 90,000 EUR ")
-			.param("bonus", "")
+			.param("baseSalaryAmount", "90000")
+			.param("baseSalaryCurrency", "EUR")
+			.param("baseSalaryPeriod", "YEAR")
+			.param("extras[0].kind", "MEAL_VOUCHERS")
+			.param("extras[0].amount", "40")
+			.param("extras[0].unit", "RON")
+			.param("extras[0].frequency", "WORKING_DAY")
+			.param("extras[0].note", "")
+			.param("extras[1].kind", "EQUITY")
+			.param("extras[1].amount", "")
+			.param("extras[1].unit", "EUR")
+			.param("extras[1].frequency", "YEAR")
+			.param("extras[1].note", "0.05%, over 4 years")
 			.param("respondBy", "2026-11-20")
 			.header("HX-Request", "true")).hasStatusOk()
 			.hasHeader("HX-Trigger", "applications-changed")
 			.bodyText()
-			.contains("Saved");
-		then(this.offers).should().save(1, 7, JobOffer.builder().baseSalary("90,000 EUR").respondBy(LocalDate.of(2026, 11, 20)).build());
+			// The total changes in its place, out of band
+			.contains("Saved", "id=\"offer-total-7\"", "hx-swap-oob=\"true\"", "€98,800");
+		then(this.offers).should().save(1, 7, JobOffer.builder()
+			.baseSalaryAmount(new BigDecimal("90000"))
+			.baseSalaryCurrency("EUR")
+			.baseSalaryPeriod(SalaryPeriod.YEAR)
+			.extras(List.of(
+					new OfferExtra(OfferExtraKind.MEAL_VOUCHERS, new BigDecimal("40"), "RON", PayFrequency.WORKING_DAY, null),
+					new OfferExtra(OfferExtraKind.EQUITY, null, "EUR", PayFrequency.YEAR, "0.05%, over 4 years")))
+			.respondBy(LocalDate.of(2026, 11, 20))
+			.build());
+	}
+
+	@Test
+	void refusesABaseSalaryThatIsntAFigureAboveZero() {
+		assertThat(this.mvc.put()
+			.uri("/applications/7/offer")
+			.param("baseSalaryAmount", "-5")
+			.param("baseSalaryCurrency", "EUR")
+			.header("HX-Request", "true")).bodyText()
+			.contains("Type the amounts as numbers above zero");
+		then(this.offers).should(never()).save(anyLong(), anyLong(), any());
 	}
 
 	@Test
 	void refusesTermsTooLong() {
 		assertThat(this.mvc.put()
 			.uri("/applications/7/offer")
-			.param("bonus", "x".repeat(201))
+			.param("extras[0].kind", "BONUS")
+			.param("extras[0].frequency", "YEAR")
+			.param("extras[0].note", "x".repeat(201))
 			.header("HX-Request", "true")).hasStatusOk()
 			.bodyText()
 			.contains("at most 200 characters");

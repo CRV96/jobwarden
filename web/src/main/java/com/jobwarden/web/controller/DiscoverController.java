@@ -1,5 +1,6 @@
 package com.jobwarden.web.controller;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -8,6 +9,7 @@ import java.util.stream.Collectors;
 import com.jobwarden.cv.dto.Cv;
 import com.jobwarden.cv.service.CvService;
 import com.jobwarden.discover.dto.AiRequest;
+import com.jobwarden.discover.dto.AiRequirements;
 import com.jobwarden.discover.dto.SavedSearch;
 import com.jobwarden.discover.dto.SearchCount;
 import com.jobwarden.discover.enums.AiRequestKind;
@@ -23,6 +25,7 @@ import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.constants.AppConstants.Views;
 import com.jobwarden.search.Recency;
+import com.jobwarden.search.SearchCriteria;
 import com.jobwarden.search.WorkType;
 import com.jobwarden.web.dto.AiRequestForm;
 import com.jobwarden.web.dto.SearchFilters;
@@ -115,7 +118,7 @@ class DiscoverController extends BaseController {
 	String ask(@Valid AiRequestForm form, BindingResult result, Model model, Locale locale) {
 		long userId = requireProfile(model).id();
 		if (result.hasErrors()) {
-			log.debug("Request to Claude not made, fields with errors: {}", fieldErrors(result).keySet());
+			log.debug("Request not made, fields with errors: {}", fieldErrors(result).keySet());
 			model.addAttribute(ModelAttributes.AI_ERROR, errorMessage(result));
 		} else {
 			AiRequest request = this.discovery.createRequest(userId, form.kind(), form.toRequirements());
@@ -189,6 +192,46 @@ class DiscoverController extends BaseController {
 		// The saved filters' menu shows it at once
 		SearchController.addSavedFilters(model, this.discovery, userId);
 		return Views.SEARCH_SAVED_FRAGMENT;
+	}
+
+	/**
+	 * From the homepage: asks the assistant to find jobs with a saved search's filters, and goes to this page, where
+	 * the request waits with what to paste, the apps to open and Run.
+	 */
+	@PostMapping("/searches/{id}/ask")
+	String askWithSearch(@PathVariable long id, Model model) {
+		long userId = requireProfile(model).id();
+		SavedSearch search = this.discovery.findSearch(userId, id);
+		this.discovery.createRequest(userId, AiRequestKind.FIND_JOBS, requirements(search));
+		log.info("Profile {} asked the assistant to find jobs with saved search {}", userId, id);
+		return redirectTo(ControllerConstants.DISCOVER);
+	}
+
+	/**
+	 * A saved search's filters, as what to look for: the job boards and the kinds of contract it names go in the notes,
+	 * which the assistant reads.
+	 */
+	static AiRequirements requirements(SavedSearch search) {
+		SearchCriteria criteria = search.criteria();
+		List<String> notes = new ArrayList<>();
+		if (!criteria.sites().isEmpty()) {
+			notes.add("On these job boards: " + String.join(", ", criteria.sites()) + ".");
+		}
+		if (!criteria.employmentTypes().isEmpty()) {
+			notes.add("Employment: " + criteria.employmentTypes()
+				.stream()
+				.map(type -> type.name().toLowerCase(Locale.ROOT).replace('_', ' '))
+				.collect(Collectors.joining(", ")) + ".");
+		}
+		return AiRequirements.builder()
+			.titles(criteria.titles())
+			.locations(criteria.locations())
+			.skills(criteria.skills())
+			.excludes(criteria.excludes())
+			.workTypes(criteria.workTypes())
+			.recency(criteria.recency())
+			.notes(notes.isEmpty() ? null : "From the saved search " + search.name() + ". " + String.join(" ", notes))
+			.build();
 	}
 
 	@PostMapping("/searches/{id}/delete")

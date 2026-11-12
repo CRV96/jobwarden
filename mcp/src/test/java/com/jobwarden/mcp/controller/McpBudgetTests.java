@@ -51,10 +51,13 @@ import com.jobwarden.jobs.dto.ComparedOffer;
 import com.jobwarden.jobs.dto.FollowUp;
 import com.jobwarden.jobs.dto.JobOffer;
 import com.jobwarden.jobs.dto.OfferComparison;
+import com.jobwarden.jobs.dto.OfferExtra;
 import com.jobwarden.jobs.dto.SalaryEntry;
 import com.jobwarden.jobs.dto.TimelineEvent;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.enums.InterviewFormat;
+import com.jobwarden.jobs.enums.OfferExtraKind;
+import com.jobwarden.jobs.enums.PayFrequency;
 import com.jobwarden.jobs.enums.SalaryPeriod;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.jobs.service.InterviewBriefService;
@@ -235,9 +238,11 @@ class McpBudgetTests {
 		given(this.offers.compare(1, "EUR", SalaryPeriod.YEAR)).willReturn(OfferComparison.builder()
 			.currency("EUR")
 			.period(SalaryPeriod.YEAR)
-			.offers(List.of(new ComparedOffer(offer, JobOffer.builder().baseSalary("70,000 EUR").bonus("10%").build(),
-					"70,000 EUR", new SalaryEntry(offer, new BigDecimal("70000.00"), new BigDecimal("70000.00"), "EUR", false,
-							null), false, null, false)))
+			.offers(List.of(new ComparedOffer(offer, JobOffer.builder()
+				.baseSalary("70,000 EUR")
+				.extras(List.of(new OfferExtra(OfferExtraKind.BONUS, BigDecimal.TEN, "%", PayFrequency.YEAR, null)))
+				.build(), "70,000 EUR", new SalaryEntry(offer, new BigDecimal("70000.00"), new BigDecimal("70000.00"), "EUR", false,
+						null), false, null, null, false)))
 			.currencies(List.of("EUR"))
 			.build());
 		given(this.letters.findBaseLetter(1)).willReturn(Optional.of(new BaseLetter(text(1800), now)));

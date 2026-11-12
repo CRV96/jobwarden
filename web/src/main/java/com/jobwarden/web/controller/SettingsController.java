@@ -3,7 +3,9 @@ package com.jobwarden.web.controller;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.LinkedHashSet;
+import java.util.EnumMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 import com.jobwarden.identity.dto.User;
@@ -15,6 +17,7 @@ import com.jobwarden.inbox.service.InboxService;
 import com.jobwarden.market.enums.AdzunaKeyCheck;
 import com.jobwarden.market.service.AdzunaKeyService;
 import com.jobwarden.web.constants.AppConstants.ControllerConstants;
+import com.jobwarden.web.assistant.AssistantConnections.Connection;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.constants.AppConstants.Views;
 import com.jobwarden.web.dto.AdzunaKeyForm;
@@ -57,6 +60,9 @@ class SettingsController extends BaseController {
 	/** Where the page shows the AI assistant, and how to connect it */
 	private static final String ASSISTANT_SECTION = ControllerConstants.SETTINGS + "#assistant";
 
+	/** Who made JobWarden, by their GitHub name: About names them, with a link to their GitHub profile. */
+	static final String AUTHOR = "CRV";
+
 	private final AdzunaKeyService adzunaKeys;
 
 	private final InboxService inbox;
@@ -65,12 +71,19 @@ class SettingsController extends BaseController {
 
 	private final String mcpPath;
 
+	private final String repository;
+
+	/**
+	 * @param repository where JobWarden's code is on GitHub, the repository its releases come from, e.g. CRV96/jobwarden
+	 */
 	SettingsController(AdzunaKeyService adzunaKeys, InboxService inbox, UserService users,
-			@Value("${jobwarden.mcp.path:/mcp}") String mcpPath) {
+			@Value("${jobwarden.mcp.path:/mcp}") String mcpPath,
+			@Value("${jobwarden.updates.repository:CRV96/jobwarden}") String repository) {
 		this.adzunaKeys = adzunaKeys;
 		this.inbox = inbox;
 		this.users = users;
 		this.mcpPath = mcpPath;
+		this.repository = repository;
 	}
 
 	@GetMapping
@@ -84,10 +97,25 @@ class SettingsController extends BaseController {
 		String mcpUrl = serverUrl + this.mcpPath;
 		model.addAttribute(ModelAttributes.MCP_URL, mcpUrl);
 		model.addAttribute(ModelAttributes.ASSISTANTS, Assistant.values());
-		User chosen = (model.getAttribute(ModelAttributes.CURRENT_PROFILE) instanceof User profile) ? profile : null;
-		model.addAttribute(ModelAttributes.ASSISTANT_CONNECTION, AssistantPrompts.connection(
-				(chosen != null) ? chosen.assistant() : Assistant.DEFAULT, mcpUrl, (chosen != null) ? chosen.id() : null));
+		// How to connect each assistant: the profile may work with both
+		String profileKey = (model.getAttribute(ModelAttributes.CURRENT_PROFILE) instanceof User profile)
+				? profile.publicId().toString() : null;
+		Map<Assistant, String> connections = new EnumMap<>(Assistant.class);
+		for (Assistant assistant : Assistant.values()) {
+			connections.put(assistant, AssistantPrompts.connection(assistant, mcpUrl, profileKey));
+		}
+		model.addAttribute(ModelAttributes.ASSISTANT_CONNECTION, connections);
+		// Whether each has it already, from its own configuration on this computer
+		Map<Assistant, Connection> states = new EnumMap<>(Assistant.class);
+		for (Assistant assistant : Assistant.values()) {
+			states.put(assistant, connection(assistant));
+		}
+		model.addAttribute(ModelAttributes.ASSISTANT_STATES, states);
 		model.addAttribute(ModelAttributes.ADZUNA_KEY, this.adzunaKeys.find());
+		model.addAttribute(ModelAttributes.REPOSITORY, this.repository);
+		model.addAttribute(ModelAttributes.AUTHOR, AUTHOR);
+		// The repository's owner, e.g. CRV96 of CRV96/jobwarden
+		model.addAttribute(ModelAttributes.AUTHOR_URL, "https://github.com/" + this.repository.split("/")[0]);
 		model.addAttribute(ModelAttributes.PROFILE_IMAGE_MAX_BYTES, UserService.MAX_IMAGE_BYTES);
 		if (model.getAttribute(ModelAttributes.CURRENT_PROFILE) instanceof User profile) {
 			Optional<MailAccount> mailbox = this.inbox.findAccount(profile.id());

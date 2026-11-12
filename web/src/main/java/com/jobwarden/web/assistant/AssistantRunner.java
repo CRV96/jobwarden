@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -34,8 +35,8 @@ import org.springframework.stereotype.Component;
  * plan, signed in as the user JobWarden runs as; in Docker there's no assistant to run, and the pages keep only their
  * prompts to paste.
  * <p>
- * A run that stops before ending its requests (not signed in, a crash, too long) fails them, saying why, so the page
- * doesn't wait forever. What it printed is kept in the runs directory, a file per run.
+ * It asks the assistant first whether it's signed in, and when it isn't, the page says how to sign it in. A run that
+ * stops before ending its requests (a crash, too long) fails them, saying why, so the page doesn't wait forever. What it printed is kept in the runs directory, a file per run.
  */
 @Component
 @CustomLog
@@ -44,9 +45,22 @@ public class AssistantRunner {
 	/** The most runs at once: each is an assistant, with its own share of the plan's limits. */
 	static final int MAX_RUNNING = 3;
 
-	/** Where an assistant's command usually is, besides the PATH JobWarden was started with, which an IDE trims. */
+	/**
+	 * Where an assistant's command usually is, besides the PATH JobWarden was started with, which an IDE trims; last,
+	 * the Codex that comes inside the ChatGPT (or Codex) app on a Mac, signed in with the app.
+	 */
 	private static final List<String> USUAL_DIRECTORIES = List.of("/opt/homebrew/bin", "/usr/local/bin",
-			"~/.local/bin", "~/.claude/local", "~/.npm-global/bin", "~/.volta/bin", "~/.bun/bin");
+			"~/.local/bin", "~/.claude/local", "~/.npm-global/bin", "~/.volta/bin", "~/.bun/bin",
+			"/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin",
+			"/Applications/Codex.app/Contents/Resources/codex-cli/bin",
+			"~/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin");
+
+	/** How each says whether it's signed in: it ends with 0 when it is. */
+	private static final Map<Assistant, List<String>> SIGN_IN_STATUS = Map.of(Assistant.CLAUDE_CODE,
+			List.of("auth", "status"), Assistant.CODEX, List.of("login", "status"));
+
+	/** How long it may take to say: it's quick, a tenth of a second. */
+	private static final Duration SIGN_IN_STATUS_TIMEOUT = Duration.ofSeconds(10);
 
 	/** How much of what a run printed last says why it stopped. */
 	private static final int REASON_MAX_LENGTH = 300;
@@ -99,17 +113,31 @@ public class AssistantRunner {
 	}
 
 	/**
+	 * How one signs the assistant in on this computer, in a terminal, for Run to work.
+	 */
+	public static String signInCommand(Assistant assistant) {
+		return switch (assistant) {
+			case CLAUDE_CODE -> "claude auth login";
+			case CODEX -> "codex login";
+		};
+	}
+
+	/**
 	 * Starts the assistant on the requests, which must wait for it. It ends them itself, through the MCP server; when
 	 * it stops without, they fail.
 	 *
 	 * @param mcpUrl the MCP server's address, e.g. http://localhost:8080/mcp
-	 * @throws RunRefusedException when the assistant isn't here, the requests are already being run, or too many runs
-	 * are going on
+	 * @throws RunRefusedException when the assistant isn't here, isn't signed in, the requests are already being run,
+	 * or too many runs are going on
 	 */
 	public void run(Assistant assistant, long userId, List<Long> requestIds, String mcpUrl) {
 		Path executable = this.executables.get(assistant)
 			.filter(path -> this.enabled)
 			.orElseThrow(() -> new RunRefusedException(RunRefusedException.Reason.UNAVAILABLE));
+		// Asked first, so a run that couldn't do anything doesn't fail the requests: they keep waiting, to run again
+		if (!signedIn(assistant, executable)) {
+			throw new RunRefusedException(RunRefusedException.Reason.SIGNED_OUT);
+		}
 		List<String> command = new ArrayList<>(AssistantPrompts.background(assistant, requestIds, userId, mcpUrl));
 		command.set(0, executable.toString());
 		Process process;
@@ -143,8 +171,61 @@ public class AssistantRunner {
 					process.descendants().forEach(ProcessHandle::destroy);
 					process.destroy();
 				}
-				finish(assistant, userId, requestIds, output, tooLong ? null : process.exitValue());
+				finish(assistant, userId, requestIds, process, output, tooLong ? null : process.exitValue());
 			});
+	}
+
+	/**
+	 * Whether the assistant is signed in here, as its status says (claude auth status, codex login status). When it
+	 * can't say, the run goes ahead, and says itself what's wrong.
+	 */
+	private boolean signedIn(Assistant assistant, Path executable) {
+		List<String> command = new ArrayList<>();
+		command.add(executable.toString());
+		command.addAll(SIGN_IN_STATUS.get(assistant));
+		try {
+			ProcessBuilder builder = new ProcessBuilder(command).redirectErrorStream(true)
+				.redirectOutput(ProcessBuilder.Redirect.DISCARD);
+			builder.environment().put("PATH", path(executable.getParent(), builder.environment().get("PATH")));
+			Process process = builder.start();
+			process.getOutputStream().close();
+			if (!process.waitFor(SIGN_IN_STATUS_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)) {
+				process.destroy();
+				log.warn("{} didn't say whether it's signed in within {}", assistant.product(), SIGN_IN_STATUS_TIMEOUT);
+				return true;
+			}
+			boolean signedIn = process.exitValue() == 0;
+			if (!signedIn) {
+				log.warn("{} isn't signed in on this computer: {} signs it in", assistant.product(), signInCommand(assistant));
+			}
+			return signedIn;
+		} catch (IOException couldNotAsk) {
+			log.warn("Couldn't ask {} whether it's signed in: {}", assistant.product(), couldNotAsk.getMessage());
+			return true;
+		} catch (InterruptedException interrupted) {
+			Thread.currentThread().interrupt();
+			return true;
+		}
+	}
+
+	/**
+	 * Forgets the runs of these requests, as their profile is deleted: stops those going on, without failing their
+	 * requests, and deletes what they printed.
+	 */
+	public void forget(Collection<Long> requestIds) {
+		for (long requestId : requestIds) {
+			Process process = this.running.remove(requestId);
+			if (process != null) {
+				process.descendants().forEach(ProcessHandle::destroy);
+				process.destroy();
+				log.info("Stopped the run of request {}: its profile is deleted", requestId);
+			}
+			try {
+				Files.deleteIfExists(this.directory.resolve("request-" + requestId + ".log"));
+			} catch (IOException couldNotDelete) {
+				log.warn("Couldn't delete what the run of request {} printed: {}", requestId, couldNotDelete.getMessage());
+			}
+		}
 	}
 
 	/**
@@ -152,13 +233,18 @@ public class AssistantRunner {
 	 *
 	 * @param exitValue {@code null} when it was stopped for taking too long
 	 */
-	private void finish(Assistant assistant, long userId, List<Long> requestIds, Path output, @Nullable Integer exitValue) {
-		requestIds.forEach(this.running::remove);
+	private void finish(Assistant assistant, long userId, List<Long> requestIds, Process process, Path output,
+			@Nullable Integer exitValue) {
+		// Those forgotten meanwhile, as their profile was deleted, are gone: nothing to fail
+		List<Long> ours = requestIds.stream().filter(id -> this.running.remove(id, process)).toList();
 		log.info("{} ended on requests {} of profile {}: {}", assistant.product(), requestIds, userId,
 				(exitValue == null) ? "stopped after " + this.timeout : "exit " + exitValue);
+		if (ours.isEmpty()) {
+			return;
+		}
 		String reason = (exitValue == null) ? assistant.product() + " was stopped: it took over " + duration(this.timeout) + "."
 				: assistant.product() + " stopped before finishing" + lastLine(output).map(line -> ": " + line).orElse(".");
-		for (long requestId : requestIds) {
+		for (long requestId : ours) {
 			try {
 				if (this.discovery.findRequest(userId, requestId).status().isOpen()) {
 					this.discovery.finishRequest(userId, requestId, false, reason);

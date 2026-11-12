@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.common.image.Images;
@@ -20,6 +21,7 @@ import com.jobwarden.identity.repository.ProfileImageRepository;
 import com.jobwarden.identity.repository.UserRepository;
 import com.jobwarden.identity.service.UserService;
 import lombok.CustomLog;
+import org.jspecify.annotations.Nullable;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.Sort;
@@ -68,6 +70,22 @@ class DefaultUserService implements UserService {
 	}
 
 	@Override
+	public Optional<User> findByKey(@Nullable String key) {
+		if (key == null || key.isBlank()) {
+			return Optional.empty();
+		}
+		String trimmed = key.strip();
+		if (trimmed.chars().allMatch(Character::isDigit) && trimmed.length() <= 18) {
+			return findById(Long.parseLong(trimmed));
+		}
+		try {
+			return this.users.findByPublicId(UUID.fromString(trimmed)).map(UserMapper::toUser);
+		} catch (IllegalArgumentException notAUuid) {
+			return Optional.empty();
+		}
+	}
+
+	@Override
 	public Optional<User> findById(long id) {
 		Optional<User> user = this.users.findById(id).map(UserMapper::toUser);
 		log.debug("Profile {} {}", id, user.isPresent() ? "found" : "not found");
@@ -107,6 +125,29 @@ class DefaultUserService implements UserService {
 		user.imageChanged(null);
 		log.info("Removed the photo of profile {}", id);
 		return UserMapper.toUser(user);
+	}
+
+	@Override
+	@Transactional
+	public User rename(long id, String name) {
+		UserEntity user = getUser(id);
+		String trimmedName = name.strip();
+		if (this.users.existsByNameIgnoreCaseAndIdNot(trimmedName, id)) {
+			throw new BusinessRuleException(IdentityErrorCode.USER_NAME_TAKEN, "A profile with this name already exists",
+					trimmedName);
+		}
+		user.rename(trimmedName);
+		log.info("Renamed profile {}", id);
+		return UserMapper.toUser(user);
+	}
+
+	@Override
+	@Transactional
+	public void delete(long id) {
+		UserEntity user = getUser(id);
+		this.users.delete(user);
+		this.users.flush();
+		log.info("Deleted profile {} and everything of it", id);
 	}
 
 	@Override

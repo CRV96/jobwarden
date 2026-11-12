@@ -161,7 +161,8 @@ class LettersController extends BaseController {
 					asked.add(id);
 				}
 			}
-			log.info("Profile {} asked Claude for {} cover letters at once", userId, asked.size());
+			log.info("Profile {} asked {} for {} cover letters at once", userId, requireProfile(model).assistant().product(),
+					asked.size());
 		}
 		return showAsked(model, userId, asked, selected);
 	}

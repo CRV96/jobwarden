@@ -11,6 +11,10 @@ import com.jobwarden.jobs.dto.ComparedOffer;
 import com.jobwarden.jobs.dto.JobOffer;
 import com.jobwarden.jobs.dto.NegotiationBrief;
 import com.jobwarden.jobs.dto.OfferComparison;
+import com.jobwarden.jobs.dto.OfferExtra;
+import com.jobwarden.jobs.dto.OfferTotal;
+import com.jobwarden.jobs.enums.OfferExtraKind;
+import com.jobwarden.jobs.enums.PayFrequency;
 import com.jobwarden.jobs.enums.SalaryPeriod;
 import com.jobwarden.jobs.service.OfferService;
 import com.jobwarden.market.dto.MarketCountry;
@@ -63,9 +67,10 @@ class OfferTools implements McpToolSet {
 
 	private McpTool listOffers() {
 		return new McpTool("list_offers", "List the offers",
-				"The profile's jobs at Offer: the terms typed in (base salary, bonus, equity, signing bonus, time off, "
-						+ "benefits, start, answer-by date, notes) and the yearly salary in one currency (the posting's when "
-						+ "the terms give none).",
+				"The profile's jobs at Offer: the terms typed in (base salary; extras on top, each an amount in a "
+						+ "currency or % of the base, and how often; time off, benefits, start, answer-by date, notes), the "
+						+ "yearly salary in one currency (the posting's when the terms give none), and all in: a year of the "
+						+ "salary and recurring extras, plus what's paid once or per event.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
 						"currency", string("ISO 4217; default EUR"))),
 				true, false, call -> {
@@ -159,12 +164,24 @@ class OfferTools implements McpToolSet {
 
 	private static OfferRow row(ComparedOffer offer) {
 		JobOffer terms = offer.terms();
+		// All in only when there's something on top of the salary: else it's the salary again
+		OfferTotal total = (offer.total() != null && offer.total().hasExtras()) ? offer.total() : null;
 		return new OfferRow(offer.application().id(), offer.application().title(), offer.application().company(),
 				offer.application().location(), offer.salaryText(), offer.salaryFromPosting(),
 				(offer.salary() != null) ? rounded(offer.salary().low()) : null,
-				(offer.salary() != null) ? rounded(offer.salary().high()) : null, terms.bonus(), terms.equity(),
-				terms.signingBonus(), terms.timeOff(), terms.benefits(), terms.startDate(), terms.respondBy(),
-				terms.notes(), offer.fitScore());
+				(offer.salary() != null) ? rounded(offer.salary().high()) : null,
+				terms.extras().stream().map(OfferTools::extra).toList(),
+				(total != null) ? rounded(total.yearly()) : null,
+				(total != null) ? positive(total.once()) : null, (total != null) ? positive(total.perEvent()) : null,
+				terms.timeOff(), terms.benefits(), terms.startDate(), terms.respondBy(), terms.notes(), offer.fitScore());
+	}
+
+	private static ExtraView extra(OfferExtra extra) {
+		return new ExtraView(extra.kind(), extra.amount(), extra.unit(), extra.frequency(), extra.note());
+	}
+
+	private static @Nullable BigDecimal positive(BigDecimal amount) {
+		return (amount.signum() > 0) ? rounded(amount) : null;
 	}
 
 	private static CountryView country(MarketCountry country) {
@@ -196,14 +213,28 @@ class OfferTools implements McpToolSet {
 	 * @param salary the text the yearly figures are read from: the offer's base salary, or the posting's
 	 * @param salaryFromPosting whether it's the posting's, as the offer's terms give none
 	 * @param yearlyLow the salary per year in the currency asked for; none when it can't be read
+	 * @param extras what it pays on top of the salary
+	 * @param allInYearly a year of the salary (its middle) and the extras paid again and again, in the currency asked
+	 * for; none without extras to count
+	 * @param once what's paid once, e.g. a signing bonus, in that currency
+	 * @param perEvent what's paid each time something happens, in that currency
 	 * @param fitScore how well the profile fits the job, from 1 to 5, when scored
 	 */
 	record OfferRow(long jobId, String title, @Nullable String company, @Nullable String location,
 			@Nullable String salary, boolean salaryFromPosting, @Nullable BigDecimal yearlyLow,
-			@Nullable BigDecimal yearlyHigh, @Nullable String bonus, @Nullable String equity,
-			@Nullable String signingBonus, @Nullable String timeOff, @Nullable String benefits,
+			@Nullable BigDecimal yearlyHigh, List<ExtraView> extras, @Nullable BigDecimal allInYearly,
+			@Nullable BigDecimal once, @Nullable BigDecimal perEvent, @Nullable String timeOff, @Nullable String benefits,
 			@Nullable LocalDate startDate, @Nullable LocalDate respondBy, @Nullable String notes,
 			@Nullable BigDecimal fitScore) {
+	}
+
+	/**
+	 * @param amount one payment; none when only the note says
+	 * @param unit an ISO 4217 code, or % for a percentage of the base salary
+	 * @param frequency how often: WORKING_DAY, MONTH, QUARTER, YEAR, ONCE, EVENT
+	 */
+	record ExtraView(OfferExtraKind kind, @Nullable BigDecimal amount, @Nullable String unit, PayFrequency frequency,
+			@Nullable String note) {
 	}
 
 	/**

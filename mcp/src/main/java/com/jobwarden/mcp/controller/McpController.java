@@ -57,6 +57,12 @@ class McpController {
 	/** The profile for tools that aren't given one: set once in the client's configuration. */
 	static final String PROFILE_HEADER = "X-JobWarden-Profile";
 
+	/** Who's calling, for the logs, when the User-Agent doesn't say. */
+	static final String UNKNOWN_CLIENT = "An MCP client";
+
+	/** The most of a client's own name the logs keep, when it's neither Claude Code nor Codex. */
+	private static final int CLIENT_MAX_LENGTH = 40;
+
 	/** The protocol versions it speaks, newest first. */
 	static final List<String> PROTOCOL_VERSIONS = List.of("2025-06-18", "2025-03-26", "2024-11-05");
 
@@ -112,7 +118,8 @@ class McpController {
 
 	@PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
 	ResponseEntity<JsonNode> call(@RequestBody String body, @RequestHeader(name = HttpHeaders.ORIGIN, required = false)
-			@Nullable String origin, @RequestHeader(name = PROFILE_HEADER, required = false) @Nullable Long profile) {
+			@Nullable String origin, @RequestHeader(name = PROFILE_HEADER, required = false) @Nullable String profile,
+			@RequestHeader(name = HttpHeaders.USER_AGENT, required = false) @Nullable String userAgent) {
 		if (!isLocal(origin)) {
 			log.warn("Refused an MCP request from {}", origin);
 			return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -137,7 +144,7 @@ class McpController {
 			case "initialize" -> result(id, initialize(params));
 			case "ping" -> result(id, JsonNodeFactory.instance.objectNode());
 			case "tools/list" -> result(id, toolList());
-			case "tools/call" -> callTool(id, params, profile);
+			case "tools/call" -> callTool(id, params, profile, client(userAgent));
 			default -> error(id, -32601, "Method not found: " + method);
 		});
 	}
@@ -187,14 +194,15 @@ class McpController {
 	 * A tool that fails because of what it was asked, such as a missing argument or a job that doesn't exist, answers
 	 * with isError and the reason, which the assistant reads; an unknown tool is a protocol error.
 	 */
-	private ObjectNode callTool(JsonNode id, JsonNode params, @Nullable Long profile) {
+	private ObjectNode callTool(JsonNode id, JsonNode params, @Nullable String profile, String client) {
 		String name = params.path("name").asString("");
 		McpTool tool = this.tools.get(name);
 		if (tool == null) {
 			return error(id, -32602, "Unknown tool: " + name);
 		}
 		JsonNode arguments = params.path("arguments");
-		ToolCall call = new ToolCall(arguments.isObject() ? arguments : JsonNodeFactory.instance.objectNode(), profile);
+		ToolCall call = new ToolCall(arguments.isObject() ? arguments : JsonNodeFactory.instance.objectNode(), profile, client);
+		log.debug("{} calls {}", client, name);
 		try {
 			return result(id, toolResult(this.json.writeValueAsString(tool.handler().call(call)), false));
 		} catch (ToolException | JobWardenException | IllegalArgumentException refused) {
@@ -229,6 +237,27 @@ class McpController {
 
 	private static ResponseEntity<JsonNode> answer(ObjectNode response) {
 		return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(response);
+	}
+
+	/**
+	 * Who's calling, from its User-Agent, so the logs say which assistant did what: Claude Code sends
+	 * claude-code/2.1.311 (…), Codex codex-mcp-client/0.1.0. Another client goes by the first word it sends, kept to
+	 * letters, digits and a few signs, as it lands in the logs.
+	 */
+	static String client(@Nullable String userAgent) {
+		if (userAgent == null || userAgent.isBlank()) {
+			return UNKNOWN_CLIENT;
+		}
+		String agent = userAgent.strip().toLowerCase(Locale.ROOT);
+		if (agent.startsWith("claude-code") || agent.startsWith("claude_code")) {
+			return "Claude Code";
+		}
+		if (agent.startsWith("codex")) {
+			return "Codex";
+		}
+		String product = userAgent.strip().split("[/\\s]", 2)[0].replaceAll("[^A-Za-z0-9._-]", "");
+		return product.isEmpty() ? UNKNOWN_CLIENT
+				: product.substring(0, Math.min(product.length(), CLIENT_MAX_LENGTH));
 	}
 
 	/** No Origin is a client that isn't a browser page, like Claude Code or Codex; a page must be on this machine. */

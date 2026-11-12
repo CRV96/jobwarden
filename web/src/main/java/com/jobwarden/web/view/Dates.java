@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 
@@ -65,6 +66,22 @@ public class Dates {
 		Locale locale = LocaleContextHolder.getLocale();
 		String pattern = this.messages.getMessage("format.dateTime", null, locale);
 		return DateTimeFormatter.ofPattern(pattern, locale).format(instant.atZone(ZoneId.systemDefault()));
+	}
+
+	/**
+	 * The day written out in full, as the language does, e.g. Thursday, 12 November 2026.
+	 */
+	public String longDate(LocalDate day) {
+		return DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(LocaleContextHolder.getLocale()).format(day);
+	}
+
+	/**
+	 * The day without its year, in the language's format.date pattern, e.g. 28 Sep: for a chart of the last weeks.
+	 */
+	public String dayAndMonth(LocalDate day) {
+		Locale locale = LocaleContextHolder.getLocale();
+		String pattern = this.messages.getMessage("format.date", null, locale).replaceAll("[\\s,./-]*y+\\.?", "").strip();
+		return DateTimeFormatter.ofPattern(pattern, locale).format(day);
 	}
 
 	/**

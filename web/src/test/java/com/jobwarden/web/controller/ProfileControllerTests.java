@@ -105,6 +105,63 @@ class ProfileControllerTests {
 	}
 
 	@Test
+	void renamesTheCurrentProfileAndSaysSoOnTheSettingsPage() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+
+		assertThat(this.mvc.post().uri("/profiles/rename").param("name", "Rob")).hasRedirectedUrl("/settings#profile")
+			.flash()
+			.containsEntry("profileNameSaved", true);
+		then(this.users).should().rename(1, "Rob");
+	}
+
+	@Test
+	void keepsATakenOrBlankNameAsTypedWithWhy() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+		given(this.users.rename(1, "Ana")).willThrow(new BusinessRuleException(IdentityErrorCode.USER_NAME_TAKEN,
+				"A profile with this name already exists", "Ana"));
+
+		assertThat(this.mvc.post().uri("/profiles/rename").param("name", "Ana")).hasRedirectedUrl("/settings#profile")
+			.flash()
+			.containsEntry("profileNameError", "A profile named Ana already exists.")
+			.containsEntry("profileNameTyped", "Ana");
+		assertThat(this.mvc.post().uri("/profiles/rename").param("name", " ")).flash()
+			.containsEntry("profileNameError", "A profile needs a name.");
+		then(this.users).should(never()).rename(1, " ");
+	}
+
+	@Test
+	void deletesTheCurrentProfileOnceItsNameIsTypedAndSaysSo() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+
+		assertThat(this.mvc.post().uri("/profiles/delete").param("confirm", " Robert ")).hasRedirectedUrl("/profiles")
+			.flash()
+			.containsEntry("profileDeleted", "Robert");
+		then(this.users).should().delete(1);
+		then(this.currentUser).should().forget();
+	}
+
+	@Test
+	void deletesNothingWhenTheNameTypedIsAnother() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+
+		assertThat(this.mvc.post().uri("/profiles/delete").param("confirm", "robert")).hasRedirectedUrl("/settings#delete-profile")
+			.flash()
+			.containsEntry("profileDeleteError", true);
+		assertThat(this.mvc.post().uri("/profiles/delete")).hasRedirectedUrl("/settings#delete-profile");
+		then(this.users).should(never()).delete(anyLong());
+		then(this.currentUser).should(never()).forget();
+	}
+
+	@Test
+	void saysOnTheProfilesPageThatOneWasDeleted() {
+		given(this.users.findAll()).willReturn(List.of());
+
+		assertThat(this.mvc.get().uri("/profiles").flashAttr("profileDeleted", "Robert")).hasStatusOk()
+			.bodyText()
+			.contains("Deleted Robert and everything of it.");
+	}
+
+	@Test
 	void listsTheProfiles() {
 		given(this.users.findAll()).willReturn(List.of(ROBERT));
 
@@ -115,7 +172,7 @@ class ProfileControllerTests {
 	void createsTheProfileAndSelectsIt() {
 		given(this.users.create("Robert")).willReturn(ROBERT);
 
-		assertThat(this.mvc.post().uri("/profiles").param("name", "Robert")).hasRedirectedUrl("/applications");
+		assertThat(this.mvc.post().uri("/profiles").param("name", "Robert")).hasRedirectedUrl("/");
 		then(this.currentUser).should().select(1);
 	}
 
@@ -144,12 +201,12 @@ class ProfileControllerTests {
 		given(this.users.findAll()).willReturn(List.of(ROBERT));
 		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
 
-		assertThat(this.mvc.get().uri("/profiles")).hasStatusOk().bodyText().contains("Profile id 1");
+		assertThat(this.mvc.get().uri("/profiles")).hasStatusOk().bodyText().contains("Profile ID " + ROBERT.publicId());
 	}
 
 	@Test
 	void selectsAProfile() {
-		assertThat(this.mvc.post().uri("/profiles/1/select")).hasRedirectedUrl("/applications");
+		assertThat(this.mvc.post().uri("/profiles/1/select")).hasRedirectedUrl("/");
 		then(this.currentUser).should().select(1);
 	}
 

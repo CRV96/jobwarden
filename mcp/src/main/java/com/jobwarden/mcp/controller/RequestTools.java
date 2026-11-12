@@ -30,6 +30,7 @@ import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.search.WorkType;
 import com.jobwarden.watchlist.dto.WatchedCompany;
 import com.jobwarden.watchlist.service.WatchlistService;
+import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
@@ -53,6 +54,7 @@ import static com.jobwarden.mcp.controller.Schemas.string;
  * postings at once. They name no assistant: Claude Code and Codex read the same.
  */
 @Component
+@CustomLog
 @RequiredArgsConstructor
 class RequestTools implements McpToolSet {
 
@@ -125,6 +127,7 @@ class RequestTools implements McpToolSet {
 				false, false, call -> {
 					long userId = this.profiles.of(call);
 					AiRequest request = this.discovery.startRequest(userId, call.requiredNumber("request_id"));
+					log.info("{} started request {} ({}) of profile {}", call.client(), request.id(), request.kind(), userId);
 					return details(userId, request);
 				});
 	}
@@ -143,6 +146,8 @@ class RequestTools implements McpToolSet {
 					AiRequest request = this.discovery.finishRequest(userId, call.requiredNumber("request_id"),
 							call.arguments().path("done").asBoolean(true),
 							(summary.length() <= SUMMARY_MAX_LENGTH) ? summary : summary.substring(0, SUMMARY_MAX_LENGTH - 1) + "…");
+					log.info("{} finished request {} ({}) of profile {}: {}", call.client(), request.id(), request.kind(), userId,
+							request.status());
 					return row(request);
 				});
 	}

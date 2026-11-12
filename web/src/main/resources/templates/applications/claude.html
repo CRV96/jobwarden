@@ -21,43 +21,90 @@
                 th:hx-target="${target}" hx-swap="outerHTML" th:text="#{ai.cancel}">Cancel</button>
     </div>
     <th:block th:if="${status == 'WAITING'}">
-        <div class="text-xs text-ink/60" th:text="#{ai.prompt(${prompt.assistant})}">Paste this into Claude Code:</div>
-        <div class="flex items-start gap-2">
-            <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${prompt.text}">Do JobWarden request 12…</code>
-            <button th:replace="~{discover/discover :: copy-button(${prompt.text})}"></button>
-        </div>
-        <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
-        <div class="flex items-start gap-2">
-            <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${prompt.command}">claude "Do JobWarden request 12…"</code>
-            <button th:replace="~{discover/discover :: copy-button(${prompt.command})}"></button>
-        </div>
-        <div th:replace="~{applications/claude :: run(${prompt})}"></div>
+        <div th:replace="~{applications/claude :: prompt(${prompt})}"></div>
     </th:block>
 </th:block>
 
-<!--/* Run, under a prompt (prompt, an AssistantPrompts.Prompt): JobWarden starts the profile's assistant itself, here, in
-       the background (AssistantRunController), when it found it on this computer; nothing otherwise. Once started, and
-       as the card asks again until the assistant picks the request up, it says so instead. */-->
-<div th:fragment="run(prompt)" class="flex flex-wrap items-center gap-2" th:if="${prompt.runnable}" data-run>
-    <th:block th:unless="${prompt.running}">
-        <button class="btn btn-primary px-2.5 py-1 text-xs" type="button"
-                th:hx-post="@{/assistant/run(requests=${prompt.requestIds})}" hx-target="closest [data-run]" hx-swap="outerHTML">
-            <i class="ph ph-play"></i><span th:text="#{ai.run}">Run it here</span>
-        </button>
-        <span class="text-xs text-pretty text-ink/60" th:text="#{ai.run.hint(${prompt.assistant})}">Starts Claude Code on this computer…</span>
-    </th:block>
-    <span class="text-xs text-success" role="status" th:if="${prompt.running}"
-          th:text="#{ai.run.started(${prompt.assistant})}">Started: Claude Code works on it in the background.</span>
+<!--/* A request waiting, and how to start it (prompt, an AssistantPrompts.Prompt). First, plainly: Open in Claude and
+       Open in Codex, links that open each desktop app with the request typed in a new session, to send (the profile's
+       main assistant first; Auto-apply's in Claude alone). One whose assistant hasn't JobWarden's MCP server on this
+       computer (AssistantConnections) says so first, in a popover, with where to connect it, or opens anyway; and Run it here, where JobWarden starts the main assistant
+       itself, in the background (AssistantRunController), when it found it on this computer. Run's part (data-run) is
+       what its answer replaces; once started, and as the card asks again until the assistant picks the request up, it
+       says so instead. Then, folded away, the prompt to paste and the terminal command. */-->
+<div th:fragment="prompt(prompt)" class="flex flex-col gap-2">
+    <div class="flex flex-wrap items-center gap-2">
+        <th:block th:each="app : ${prompt.apps}" th:with="openId=|open-${app.assistant}-${prompt.requestIds[0]}|">
+            <a class="btn btn-primary" th:if="${app.connected}" th:href="${app.href}">
+                <i class="ph ph-arrow-square-out"></i><span th:text="#{ai.open(${app.app})}">Open in Claude</span>
+            </a>
+            <!--/* Not connected: the button says so first, and where to connect it; or opens it anyway */-->
+            <th:block th:unless="${app.connected}">
+                <button class="btn btn-primary" type="button" th:id="${openId}" th:popovertarget="|${openId}-connect|"
+                        aria-haspopup="dialog">
+                    <i class="ph ph-arrow-square-out"></i><span th:text="#{ai.open(${app.app})}">Open in Claude</span>
+                </button>
+                <!--/* No display class here: one would show the popover while it's closed */-->
+                <div class="menu w-[320px] max-w-[calc(100vw-16px)] p-3" popover role="dialog"
+                     th:id="|${openId}-connect|" th:data-anchor="${openId}" th:aria-labelledby="|${openId}-title|">
+                    <div class="flex flex-col gap-2">
+                        <div class="flex items-start gap-2">
+                            <i class="ph ph-plugs text-lg text-accent"></i>
+                            <div class="flex flex-col gap-1">
+                                <div class="font-medium" th:id="|${openId}-title|"
+                                     th:text="#{ai.open.unconnected.title(${app.assistant.product()})}">Claude Code isn’t connected to JobWarden yet</div>
+                                <p class="text-xs text-pretty text-ink/65"
+                                   th:text="#{ai.open.unconnected.body(${app.assistant.product()})}">Without JobWarden’s MCP server…</p>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <a class="btn btn-primary px-2 py-1 text-xs" th:href="@{/settings#assistant}">
+                                <i class="ph ph-gear"></i><span th:text="#{ai.open.unconnected.settings}">Connect it in Settings</span>
+                            </a>
+                            <a class="btn btn-ghost px-2 py-1 text-xs" th:href="${app.href}" th:text="#{ai.open.unconnected.anyway}">Open anyway</a>
+                        </div>
+                    </div>
+                </div>
+            </th:block>
+        </th:block>
+        <th:block th:if="${prompt.runnable}">
+            <button class="btn btn-secondary" type="button" th:unless="${prompt.running}" data-run
+                    th:hx-post="@{/assistant/run(requests=${prompt.requestIds})}" hx-target="this" hx-swap="outerHTML">
+                <i class="ph ph-play"></i><span th:text="#{ai.run}">Run it here</span>
+            </button>
+            <span class="text-xs text-success" role="status" th:if="${prompt.running}" data-run
+                  th:text="#{ai.run.started(${prompt.assistant})}">Started: Claude Code works on it in the background.</span>
+        </th:block>
+    </div>
+    <p class="text-xs text-pretty text-ink/60">
+        <span th:text="#{ai.open.hint}">Opens the app with the request typed in a new session: send it to start.</span>
+        <span th:if="${prompt.runnable and !prompt.running}" th:text="#{ai.run.hint(${prompt.assistant})}">Run it here starts Claude Code…</span>
+    </p>
+    <details class="rounded-lg border border-line px-3 py-2">
+        <summary class="cursor-pointer text-xs text-ink/60 select-none" th:text="#{ai.paste}">Or paste it, or run it in a terminal</summary>
+        <div class="mt-2 flex flex-col gap-1.5">
+            <div class="text-xs text-ink/60" th:text="#{ai.prompt(${prompt.assistant})}">Paste this into Claude Code:</div>
+            <div class="flex items-start gap-2">
+                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${prompt.text}">Do JobWarden request 12…</code>
+                <button th:replace="~{discover/discover :: copy-button(${prompt.text})}"></button>
+            </div>
+            <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
+            <div class="flex items-start gap-2">
+                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${prompt.command}">claude "Do JobWarden request 12…"</code>
+                <button th:replace="~{discover/discover :: copy-button(${prompt.command})}"></button>
+            </div>
+        </div>
+    </details>
 </div>
 
 <!--/* What Run answers, in place of the button: that the assistant started, or why not (runRefused, a
        RunRefusedException.Reason), with the prompt still there to paste. */-->
-<div th:fragment="run-result" class="flex flex-wrap items-center gap-2" data-run>
+<span th:fragment="run-result" class="inline-flex flex-wrap items-center gap-2" data-run>
     <span class="text-xs text-success" role="status" th:if="${runStarted}"
           th:text="#{ai.run.started(${runAssistant})}">Started: Claude Code works on it in the background.</span>
     <span class="text-xs text-danger" role="alert" th:unless="${runStarted}"
-          th:text="#{|ai.run.${runRefused}|(${runAssistant})}">Claude Code isn’t on this computer.</span>
-</div>
+          th:text="#{|ai.run.${runRefused}|(${runAssistant}, ${runSignIn})}">Claude Code isn’t on this computer.</span>
+</span>
 
 <!--/* A text the AI Assistant wrote, to copy as it is: an email, what to say on a call. label names it. */-->
 <div th:fragment="copyable(label, text)" class="flex flex-col gap-1">

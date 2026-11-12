@@ -94,6 +94,8 @@
         <dt class="text-ink/55" th:text="#{jobs.column.added}">Added</dt>
         <dd th:text="${@dates.relativeDay(jobApplication.capturedAt)}" th:title="${@dates.date(jobApplication.capturedAt)}">Today</dd>
     </dl>
+    <!--/* What the AI Assistant has for the job: the fit, and each card's state, links to them */-->
+    <div th:replace="~{applications/overview :: loader(${jobApplication.id})}"></div>
 
     <form class="flex flex-col gap-3 rounded-md p-3 shadow-sm" th:id="${formId}" th:hidden="${!open}"
           th:hx-post="@{/applications/{id}/details(id=${jobApplication.id})}"

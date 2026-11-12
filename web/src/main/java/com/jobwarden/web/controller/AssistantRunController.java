@@ -81,6 +81,7 @@ class AssistantRunController extends BaseController {
 			}
 		}
 		model.addAttribute(ModelAttributes.RUN_ASSISTANT, profile.assistant().product());
+		model.addAttribute(ModelAttributes.RUN_SIGN_IN, AssistantRunner.signInCommand(profile.assistant()));
 		try {
 			this.runner.run(profile.assistant(), profile.id(), ids, server + this.mcpPath);
 			model.addAttribute(ModelAttributes.RUN_STARTED, true);

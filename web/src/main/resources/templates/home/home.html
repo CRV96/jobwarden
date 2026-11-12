@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: page(~{::title}, ~{::main}, 'home')}">
+<head>
+    <title th:text="|#{nav.home} · JobWarden|">Home · JobWarden</title>
+</head>
+<body>
+<!--/* The homepage (HomeController): how the job hunt goes lately and what waits. activity is a JobActivity (day by day,
+       today, this week and this month, the latest timeline entries, the follow-ups due), statistics a JobStatistics (the
+       answers), jobsByStatus the jobs by status with mostInAStatus, comingUp the next days' calendar entries,
+       openRequests how many requests wait for the assistant, offerCount the jobs at Offer; discoverCount and inboxCount come with every page. Each
+       chart is one series in the accent colour, titled, its exact counts in each bar's tooltip. */-->
+<main class="flex flex-col gap-5"
+      th:with="stats=${statistics}">
+    <h1 class="sr-only" th:text="#{nav.home}">Home</h1>
+
+    <!--/* The banner: across the content, edge to edge, and low. The logo, the name and what it's for; whose it is,
+           and the day. A large shield, faint, behind. */-->
+    <section class="relative -mx-8 -mt-6 overflow-hidden bg-[linear-gradient(115deg,#1a8cff_0%,#3e5cf0_55%,#4b3fe0_100%)] px-8 py-5 text-white max-md:-mx-4 max-md:px-4"
+             th:aria-label="#{home.banner}">
+        <svg class="pointer-events-none absolute -top-10 right-[18%] size-56 opacity-[0.09] max-md:hidden" viewBox="0 0 64 64" aria-hidden="true">
+            <path d="M32 9.5 51 16.5v14.2c0 12.1-8 20.7-19 24.8-11-4.1-19-12.7-19-24.8V16.5z" fill="#fff"/>
+        </svg>
+        <div class="relative flex flex-wrap items-center gap-x-6 gap-y-3">
+            <div class="flex min-w-0 flex-1 items-center gap-3.5">
+                <span class="flex flex-none rounded-[14px] shadow-[0_0_0_1.5px_rgb(255_255_255/0.35),0_6px_18px_rgb(0_0_0/0.18)]">
+                    <svg th:replace="~{layout :: logo('jw-logo-banner', 'size-12')}"></svg>
+                </span>
+                <div class="min-w-0">
+                    <div class="text-[22px] leading-tight font-bold tracking-[-0.02em]">JobWarden</div>
+                    <div class="text-[13px] text-white/80" th:text="#{home.tagline}">Your job hunt, kept in one place</div>
+                </div>
+            </div>
+            <div class="flex flex-col items-end text-right max-sm:items-start max-sm:text-left">
+                <div class="text-[15px] font-semibold" th:text="#{home.greeting(${currentProfile.name})}">Hi, Robert</div>
+                <div class="text-[13px] text-white/75" th:text="${@dates.longDate(today)}">Thursday, 12 November 2026</div>
+            </div>
+        </div>
+    </section>
+
+    <!--/* A new profile, with nothing yet: where to start */-->
+    <div class="card flex flex-wrap items-center gap-4 p-5" th:if="${jobsByStatus.isEmpty() and activity.recent.isEmpty()}">
+        <i class="ph ph-hand-waving text-[28px] text-accent"></i>
+        <div class="flex min-w-[240px] flex-1 flex-col gap-1">
+            <div class="font-medium" th:text="#{home.welcome.title}">Welcome to JobWarden</div>
+            <p class="text-[13px] text-pretty text-ink/65" th:text="#{home.welcome.body}">Save the jobs you like…</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+            <a class="btn btn-primary" th:href="@{/applications}">
+                <i class="ph ph-plus"></i><span th:text="#{home.welcome.jobs}">Add a job</span>
+            </a>
+            <a class="btn btn-secondary" th:href="@{/settings}">
+                <i class="ph ph-puzzle-piece"></i><span th:text="#{home.welcome.extension}">Get the browser extension</span>
+            </a>
+        </div>
+    </div>
+
+    <!--/* The applications sent today, this week and this month, with the jobs saved, and the share answered */-->
+    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <th:block th:with="lastWeek=#{home.lastWeek(${activity.lastWeek.applied})}, lastMonth=#{home.lastMonth(${activity.lastMonth.applied})}">
+            <div th:replace="~{home/home :: tally(#{home.sent.today}, ${activity.today}, null)}"></div>
+            <div th:replace="~{home/home :: tally(#{home.sent.week}, ${activity.week}, ${lastWeek})}"></div>
+            <div th:replace="~{home/home :: tally(#{home.sent.month}, ${activity.month}, ${lastMonth})}"></div>
+        </th:block>
+        <a class="card flex flex-col gap-1 p-4 transition-colors hover:bg-ink/3" th:href="@{/statistics}">
+            <span class="flex items-center gap-1.5 text-xs text-ink/60">
+                <span th:text="#{home.answers}">Got an answer</span><i class="ph ph-caret-right text-[10px] text-ink/40"></i>
+            </span>
+            <span class="text-[26px] leading-none font-bold tabular-nums"
+                  th:text="${stats.sent > 0} ? |${stats.replyPercent()}%| : '—'">38%</span>
+            <span class="text-xs text-ink/55" th:text="#{home.answers.count(${stats.replied}, ${stats.interviewed})}">16 answers, 5 interviews</span>
+        </a>
+    </div>
+
+    <div class="grid items-start gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div class="flex min-w-0 flex-col gap-4">
+            <!--/* Day by day: two charts one above the other, each its own scale and title */-->
+            <section class="card flex flex-col gap-4 p-4" aria-labelledby="home-chart-title">
+                <h2 id="home-chart-title" class="section-title flex items-center gap-1.5">
+                    <i class="ph ph-chart-bar text-accent"></i><span th:text="#{home.chart.title}">The last 30 days</span>
+                </h2>
+                <figure th:replace="~{home/home :: days-chart(#{home.chart.sent}, 'applied', ${activity.mostApplied()})}"></figure>
+                <figure th:replace="~{home/home :: days-chart(#{home.chart.saved}, 'saved', ${activity.mostSaved()})}"></figure>
+            </section>
+
+            <!--/* The latest entries on the jobs' timelines */-->
+            <section class="card flex flex-col gap-3 p-4" aria-labelledby="home-recent-title">
+                <h2 id="home-recent-title" class="section-title flex items-center gap-1.5">
+                    <i class="ph ph-clock-counter-clockwise text-accent"></i><span th:text="#{home.recent}">Recent activity</span>
+                </h2>
+                <p class="text-[13px] text-ink/60" th:if="${activity.recent.isEmpty()}" th:text="#{home.recent.empty}">Nothing yet.</p>
+                <ol class="flex flex-col divide-y divide-line" th:unless="${activity.recent.isEmpty()}">
+                    <li th:each="entry : ${activity.recent}">
+                        <a class="-mx-2 flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-ink/3"
+                           th:href="@{/applications/{id}(id=${entry.applicationId})}">
+                            <span th:replace="~{applications/fragments :: company-logo(${entry.applicationId}, ${entry.company}, 28)}"></span>
+                            <span class="flex min-w-0 flex-1 flex-col">
+                                <span class="truncate text-[13px] font-medium" th:text="${entry.title}">Java Developer</span>
+                                <span class="truncate text-xs text-ink/55" th:with="company=${entry.company} ?: #{application.unknownCompany}"
+                                      th:text="${entry.stageLabel != null} ? |${company} · ${entry.stageLabel}| : ${company}">Acme · Technical interview</span>
+                            </span>
+                            <span th:replace="~{applications/fragments :: status-badge(${entry.status})}"></span>
+                            <span class="w-20 flex-none text-right text-xs text-ink/50" th:text="${@dates.relativeDay(entry.addedAt)}">Today</span>
+                        </a>
+                    </li>
+                </ol>
+            </section>
+        </div>
+
+        <div class="flex min-w-0 flex-col gap-4">
+            <!--/* What waits: each a link to where it's done; follow-ups due, a job each */-->
+            <section class="card flex flex-col gap-2 p-4" aria-labelledby="home-waiting-title"
+                     th:with="review=${discoverCount ?: 0}, inbox=${inboxCount ?: 0}, offering=${offerCount},
+                              nothing=${review == 0 and inbox == 0 and openRequests == 0 and offering == 0 and activity.followUps.isEmpty()}">
+                <h2 id="home-waiting-title" class="section-title flex items-center gap-1.5">
+                    <i class="ph ph-tray text-accent"></i><span th:text="#{home.waiting}">Waiting for you</span>
+                </h2>
+                <p class="flex items-center gap-2 text-[13px] text-ink/60" th:if="${nothing}">
+                    <i class="ph ph-check-circle text-success"></i><span th:text="#{home.waiting.none}">All caught up.</span>
+                </p>
+                <ul class="flex flex-col gap-1" th:unless="${nothing}">
+                    <li th:if="${review > 0}" th:with="href=@{/discover}, label=#{home.waiting.review(${review})}">
+                        <a th:replace="~{home/home :: waiting(${href}, 'ph-sparkle', ${label})}"></a></li>
+                    <li th:if="${inbox > 0}" th:with="href=@{/inbox}, label=#{home.waiting.inbox(${inbox})}">
+                        <a th:replace="~{home/home :: waiting(${href}, 'ph-envelope-simple', ${label})}"></a></li>
+                    <li th:if="${openRequests > 0}" th:with="href=@{/discover}, label=#{home.waiting.requests(${openRequests})}">
+                        <a th:replace="~{home/home :: waiting(${href}, 'ph-robot', ${label})}"></a></li>
+                    <li th:if="${offering > 0}" th:with="href=@{/offers}, label=#{home.waiting.offers(${offering})}">
+                        <a th:replace="~{home/home :: waiting(${href}, 'ph-handshake', ${label})}"></a></li>
+                    <li th:each="due : ${activity.followUps}" th:with="href=@{/applications/{id}(id=${due.applicationId})},
+                            label=#{home.waiting.followUp(${due.title}, ${@dates.relativeDay(due.on)})}">
+                        <a th:replace="~{home/home :: waiting(${href}, 'ph-bell-ringing', ${label})}"></a>
+                    </li>
+                </ul>
+            </section>
+
+            <!--/* The next days: interviews, the days applications close, follow-ups */-->
+            <section class="card flex flex-col gap-2 p-4" aria-labelledby="home-coming-title">
+                <div class="flex items-center gap-2">
+                    <h2 id="home-coming-title" class="section-title flex flex-1 items-center gap-1.5">
+                        <i class="ph ph-calendar-dots text-accent"></i><span th:text="#{home.comingUp}">Coming up</span>
+                    </h2>
+                    <a class="link text-xs" th:href="@{/calendar}" th:text="#{home.calendar}">Open the calendar</a>
+                </div>
+                <p class="text-[13px] text-ink/60" th:if="${comingUp.isEmpty()}" th:text="#{home.comingUp.none}">Nothing in the next 7 days.</p>
+                <ul class="flex flex-col gap-1" th:unless="${comingUp.isEmpty()}">
+                    <li th:each="entry : ${comingUp}" th:with="kind=${entry.kind.name()}">
+                        <a class="-mx-2 flex items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-ink/3"
+                           th:href="@{/applications/{id}(id=${entry.applicationId})}">
+                            <span class="flex w-14 flex-none flex-col items-center rounded-md bg-accent/10 py-1 leading-tight text-accent">
+                                <span class="text-[11px] font-semibold" th:text="${@dates.dayAndMonth(entry.date)}">14 Nov</span>
+                                <span class="text-[11px] tabular-nums" th:if="${entry.time}" th:text="${#temporals.format(entry.time, 'HH:mm')}">10:00</span>
+                            </span>
+                            <span class="flex min-w-0 flex-1 flex-col">
+                                <span class="truncate text-[13px] font-medium" th:text="${entry.title}">Java Developer</span>
+                                <span class="truncate text-xs text-ink/55"
+                                      th:text="${kind == 'EVENT'} ? (${entry.stageLabel} ?: #{${'status.' + entry.status}}) : #{|calendar.kind.${kind}|}">Technical interview</span>
+                            </span>
+                        </a>
+                    </li>
+                </ul>
+            </section>
+
+            <!--/* The jobs by status, each a bar against the status with the most */-->
+            <section class="card flex flex-col gap-2 p-4" aria-labelledby="home-jobs-title" th:unless="${jobsByStatus.isEmpty()}">
+                <div class="flex items-center gap-2">
+                    <h2 id="home-jobs-title" class="section-title flex flex-1 items-center gap-1.5">
+                        <i class="ph ph-kanban text-accent"></i><span th:text="#{home.jobs}">Your jobs</span>
+                    </h2>
+                    <a class="link text-xs" th:href="@{/pipeline}" th:text="#{home.jobs.pipeline}">Open the pipeline</a>
+                </div>
+                <dl class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2">
+                    <th:block th:each="status : ${jobsByStatus}">
+                        <dt><span th:replace="~{applications/fragments :: status-badge(${status.key})}"></span></dt>
+                        <dd><span th:replace="~{statistics/statistics :: bar(${status.value * 100 / mostInAStatus})}"></span></dd>
+                        <dd class="text-right text-[13px] font-medium tabular-nums" th:text="${status.value}">12</dd>
+                    </th:block>
+                </dl>
+            </section>
+
+            <!--/* The searches saved in the Search Builder (savedSearches, the latest first, searchUrls the address of
+                   each there): to run again, or to hand to the assistant with the same filters */-->
+            <section class="card flex flex-col gap-2 p-4" aria-labelledby="home-searches-title">
+                <div class="flex items-center gap-2">
+                    <h2 id="home-searches-title" class="section-title flex flex-1 items-center gap-1.5">
+                        <i class="ph ph-list-magnifying-glass text-accent"></i><span th:text="#{home.searches}">Your searches</span>
+                    </h2>
+                    <a class="link text-xs" th:href="@{/search}" th:text="#{home.searches.builder}">Open the Search Builder</a>
+                </div>
+                <p class="text-[13px] text-pretty text-ink/60" th:if="${savedSearches.isEmpty()}" th:text="#{home.searches.none}">No saved searches yet.</p>
+                <ul class="flex flex-col divide-y divide-line" th:unless="${savedSearches.isEmpty()}">
+                    <li class="flex flex-col gap-1.5 py-2" th:each="search : ${savedSearches}" th:with="criteria=${search.criteria}">
+                        <div class="min-w-0">
+                            <div class="truncate text-[13px] font-medium" th:text="${search.name}">Java in Bucharest</div>
+                            <div class="truncate text-xs text-ink/55"
+                                 th:text="${criteria.titles.isEmpty()} ? #{home.searches.any} : ${#strings.listJoin(criteria.titles, ', ')}
+                                          + (${criteria.locations.isEmpty()} ? '' : ' · ' + ${#strings.listJoin(criteria.locations, ', ')})">Java Developer · Bucharest</div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <a class="btn btn-secondary px-2 py-1 text-xs" th:href="@{${searchUrls.get(search.id)}}">
+                                <i class="ph ph-arrow-counter-clockwise"></i><span th:text="#{home.searches.again}">Search again</span>
+                            </a>
+                            <form method="post" th:action="@{/discover/searches/{id}/ask(id=${search.id})}">
+                                <button class="btn btn-primary px-2 py-1 text-xs" type="submit">
+                                    <i class="ph ph-sparkle"></i><span th:text="#{home.searches.ask}">Ask the AI Assistant</span>
+                                </button>
+                            </form>
+                        </div>
+                    </li>
+                </ul>
+            </section>
+        </div>
+    </div>
+</main>
+
+<!--/* A count of the applications sent in a stretch of days (tally, a JobActivity.Tally), and the jobs saved in it; with
+       the stretch before to compare (before), or null */-->
+<div th:fragment="tally(label, tally, before)" class="card flex flex-col gap-1 p-4">
+    <span class="text-xs text-ink/60" th:text="${label}">Sent this week</span>
+    <span class="text-[26px] leading-none font-bold tabular-nums" th:text="${tally.applied}">4</span>
+    <span class="text-xs text-ink/55">
+        <span th:text="#{home.saved(${tally.saved})}">6 jobs saved</span><th:block th:if="${before}"> · <span th:text="${before}">Last week: 3</span></th:block>
+    </span>
+</div>
+
+<!--/* One series of the last 30 days, as columns (kind: applied or saved, a JobActivity.Day's count), against the most in
+       a day (most). A day with none is a thin line on the baseline; each column's tooltip says the day and the count. */-->
+<figure th:fragment="days-chart(title, kind, most)" class="flex flex-col gap-1.5"
+        th:with="total=${kind == 'applied'} ? ${activity.totalApplied()} : ${activity.totalSaved()}">
+    <figcaption class="flex flex-wrap items-baseline justify-between gap-x-3 text-xs">
+        <span><span class="font-medium text-ink/80" th:text="${title}">Applications sent</span>
+            <span class="text-ink/55" th:text="#{home.chart.total(${total})}">12 in 30 days</span></span>
+        <span class="text-ink/50" th:if="${total > 0}" th:text="#{home.chart.most(${most})}">Most in a day: 4</span>
+    </figcaption>
+    <div class="flex h-24 items-end gap-[2px] border-b border-line" role="img"
+         th:aria-label="|${title}: #{home.chart.total(${total})}|">
+        <div class="group relative flex h-full min-w-0 flex-1 items-end" th:each="day, iter : ${activity.days}"
+             th:with="count=${day.__${kind}__}">
+            <div class="w-full rounded-t-[4px] bg-accent transition-opacity group-hover:opacity-80" th:if="${count > 0}"
+                 th:style="|height: ${count * 100 / most < 4 ? 4 : count * 100 / most}%|"></div>
+            <div class="h-[2px] w-full rounded-[1px] bg-ink/10" th:unless="${count > 0}"></div>
+            <div class="pointer-events-none absolute bottom-full z-10 mb-1.5 hidden rounded-md bg-surface px-2 py-1 text-[11px] whitespace-nowrap text-ink shadow-md group-hover:block"
+                 th:classappend="${iter.index >= 25} ? 'right-0' : (${iter.index < 5} ? 'left-0' : 'left-1/2 -translate-x-1/2')"
+                 th:text="#{home.chart.day(${@dates.dayAndMonth(day.date)}, ${count})}">12 Nov: 3</div>
+        </div>
+    </div>
+    <div class="flex justify-between text-[11px] text-ink/50">
+        <span th:text="${@dates.dayAndMonth(activity.days[0].date)}">14 Oct</span>
+        <span th:text="#{date.today}">Today</span>
+    </div>
+    <p class="text-xs text-ink/55" th:if="${total == 0}" th:text="#{home.chart.empty}">Nothing in the last 30 days yet.</p>
+</figure>
+
+<!--/* Something waiting: an icon, what it is, a link to where it's done */-->
+<a th:fragment="waiting(href, icon, label)" class="-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-[13px] hover:bg-ink/3"
+   th:href="${href}">
+    <i class="ph text-[17px] text-accent" th:classappend="${icon}"></i>
+    <span class="min-w-0 flex-1 truncate" th:text="${label}">3 jobs to review</span>
+    <i class="ph ph-caret-right text-xs text-ink/40"></i>
+</a>
+</body>
+</html>

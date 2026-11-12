@@ -191,7 +191,7 @@ class ApplyController extends BaseController {
 		Optional<AiRequest> latest = latestRun(userId);
 		model.addAttribute(ModelAttributes.APPLY_RUN, latest.orElse(null));
 		model.addAttribute(ModelAttributes.APPLY_PROMPT,
-				latest.map(run -> AssistantPrompts.forApplying(run.id(), userId)).orElse(null));
+				latest.map(run -> connected(AssistantPrompts.forApplying(run.id(), userId))).orElse(null));
 		return latest.orElse(null);
 	}
 

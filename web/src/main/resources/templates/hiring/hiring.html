@@ -258,17 +258,7 @@
                     hx-target="#hiring-ask" hx-swap="outerHTML" th:text="#{ai.cancel}">Cancel</button>
         </div>
         <th:block th:if="${status == 'WAITING'}">
-            <div class="text-xs text-ink/60" th:text="#{ai.prompt(${hiringPrompt.assistant})}">Paste this into Claude Code:</div>
-            <div class="flex items-start gap-2">
-                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${hiringPrompt.text}">Do JobWarden request 12…</code>
-                <button th:replace="~{discover/discover :: copy-button(${hiringPrompt.text})}"></button>
-            </div>
-            <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
-            <div class="flex items-start gap-2">
-                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${hiringPrompt.command}">claude "Do JobWarden request 12…"</code>
-                <button th:replace="~{discover/discover :: copy-button(${hiringPrompt.command})}"></button>
-            </div>
-            <div th:replace="~{applications/claude :: run(${hiringPrompt})}"></div>
+            <div th:replace="~{applications/claude :: prompt(${hiringPrompt})}"></div>
         </th:block>
     </th:block>
     <p class="text-xs whitespace-pre-line text-ink/70" th:if="${request != null and !open and request.summary != null}"

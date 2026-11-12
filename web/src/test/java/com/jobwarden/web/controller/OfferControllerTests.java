@@ -13,8 +13,12 @@ import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.dto.ComparedOffer;
 import com.jobwarden.jobs.dto.JobOffer;
 import com.jobwarden.jobs.dto.OfferComparison;
+import com.jobwarden.jobs.dto.OfferExtra;
+import com.jobwarden.jobs.dto.OfferTotal;
 import com.jobwarden.jobs.dto.SalaryEntry;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.OfferExtraKind;
+import com.jobwarden.jobs.enums.PayFrequency;
 import com.jobwarden.jobs.enums.SalaryPeriod;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.jobs.service.OfferService;
@@ -95,8 +99,10 @@ class OfferControllerTests {
 
 		assertThat(this.mvc.get().uri("/offers")).hasStatusOk()
 			.bodyText()
-			.contains("Java Developer", "Globex", "90,000 EUR gross per year", "€90K", "Pays the most", "10% yearly",
-					"25 days", "Can’t be read as an amount", "/applications/7/drawer", "Read the brief",
+			.contains("Java Developer", "Globex", "90,000 EUR gross per year", "€90K", "Pays the most",
+					// What it pays on top, and all in
+					"On top of the salary", "10% of the base salary", "yearly", "On targets", "Meal vouchers", "€10",
+					"per working day", "All in, a year", "€101K", "And €5K once", "25 days", "Can’t be read as an amount", "/applications/7/drawer", "Read the brief",
 					"Ask the AI Assistant how to negotiate")
 			// Answer due in two days
 			.contains("2 days left")
@@ -149,13 +155,16 @@ class OfferControllerTests {
 			.offers(List.of(
 					new ComparedOffer(ACME, JobOffer.builder()
 						.baseSalary("90,000 EUR gross per year")
-						.bonus("10% yearly")
+						.extras(List.of(new OfferExtra(OfferExtraKind.BONUS, BigDecimal.TEN, "%", PayFrequency.YEAR, "On targets"),
+								new OfferExtra(OfferExtraKind.MEAL_VOUCHERS, BigDecimal.TEN, "EUR", PayFrequency.WORKING_DAY, null)))
 						.timeOff("25 days")
 						.respondBy(LocalDate.now().plusDays(2))
 						.build(), "90,000 EUR gross per year",
 							new SalaryEntry(ACME, new BigDecimal("90000"), new BigDecimal("90000"), "EUR", false, null), false,
+							new OfferTotal("EUR", new BigDecimal("90000"), new BigDecimal("11200"), new BigDecimal("101200"),
+									new BigDecimal("5000"), BigDecimal.ZERO, 0),
 							new BigDecimal("4.2"), true),
-					new ComparedOffer(GLOBEX, JobOffer.NONE, "Competitive", null, true, null, false),
+					new ComparedOffer(GLOBEX, JobOffer.NONE, "Competitive", null, true, null, null, false),
 					new ComparedOffer(ApplicationSummary.builder()
 						.id(9)
 						.title("Platform Engineer")
@@ -163,7 +172,7 @@ class OfferControllerTests {
 						.status(ApplicationStatus.OFFER)
 						.capturedAt(Instant.now())
 						.build(), JobOffer.NONE, "70,000 EUR", new SalaryEntry(ACME, new BigDecimal("70000"),
-								new BigDecimal("70000"), "EUR", false, null), true, null, false)))
+								new BigDecimal("70000"), "EUR", false, null), true, null, null, false)))
 			.currencies(List.of("EUR", "USD"))
 			.build();
 	}

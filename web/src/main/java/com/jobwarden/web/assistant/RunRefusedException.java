@@ -14,11 +14,12 @@ public class RunRefusedException extends RuntimeException {
 	private static final long serialVersionUID = 1L;
 
 	/**
-	 * Why: the assistant isn't on this computer (or runs are turned off), it's already running, or it didn't start.
+	 * Why: the assistant isn't on this computer (or runs are turned off), it isn't signed in here, it's already running,
+	 * or it didn't start.
 	 */
 	public enum Reason {
 
-		UNAVAILABLE, BUSY, FAILED
+		UNAVAILABLE, SIGNED_OUT, BUSY, FAILED
 
 	}
 

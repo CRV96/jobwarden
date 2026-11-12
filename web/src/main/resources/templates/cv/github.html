@@ -112,17 +112,7 @@
                 </button>
             </div>
             <th:block th:if="${status == 'WAITING'}">
-                <div class="text-xs text-ink/60" th:text="#{ai.prompt(${projectsPrompt.assistant})}">Paste this into Claude Code:</div>
-                <div class="flex items-start gap-2">
-                    <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${projectsPrompt.text}">Do JobWarden request 12…</code>
-                    <button th:replace="~{discover/discover :: copy-button(${projectsPrompt.text})}"></button>
-                </div>
-                <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
-                <div class="flex items-start gap-2">
-                    <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${projectsPrompt.command}">claude "Do JobWarden request 12…"</code>
-                    <button th:replace="~{discover/discover :: copy-button(${projectsPrompt.command})}"></button>
-                </div>
-                <div th:replace="~{applications/claude :: run(${projectsPrompt})}"></div>
+                <div th:replace="~{applications/claude :: prompt(${projectsPrompt})}"></div>
             </th:block>
             <p class="text-xs text-pretty text-ink/65" th:if="${status == 'DONE'}">
                 <span th:text="#{cv.github.write.done(${projectsRequest.summary} ?: '')}">The AI Assistant wrote 3 projects.</span>

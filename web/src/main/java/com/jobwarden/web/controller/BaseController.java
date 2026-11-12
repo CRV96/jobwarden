@@ -6,12 +6,16 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.jobwarden.common.exception.JobWardenException;
+import com.jobwarden.discover.dto.AiRequest;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
+import com.jobwarden.identity.enums.Assistant;
 import com.jobwarden.identity.service.UserService;
 import com.jobwarden.inbox.service.InboxService;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.updates.service.UpdateService;
+import com.jobwarden.web.assistant.AssistantConnections;
+import com.jobwarden.web.assistant.AssistantConnections.Connection;
 import com.jobwarden.web.assistant.AssistantRunner;
 import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
@@ -49,6 +53,8 @@ abstract class BaseController {
 	private @Nullable InboxService inbox;
 
 	private @Nullable AssistantRunner runner;
+
+	private @Nullable AssistantConnections connections;
 
 	/**
 	 * Setters rather than a constructor, so subclasses keep their Lombok constructors: those can't pass arguments up
@@ -101,6 +107,14 @@ abstract class BaseController {
 	@Autowired(required = false)
 	final void setRunner(AssistantRunner runner) {
 		this.runner = runner;
+	}
+
+	/**
+	 * Optional too: without it, the pages open the apps without asking whether they're connected.
+	 */
+	@Autowired(required = false)
+	final void setConnections(AssistantConnections connections) {
+		this.connections = connections;
 	}
 
 	/**
@@ -157,8 +171,30 @@ abstract class BaseController {
 	protected Prompt prompt(Model model, List<Long> requestIds) {
 		User profile = requireProfile(model);
 		Prompt prompt = AssistantPrompts.forRequests(profile.assistant(), requestIds, profile.id());
-		return (this.runner == null) ? prompt
-				: prompt.run(this.runner.canRun(profile.assistant()), this.runner.isRunning(requestIds));
+		return connected((this.runner == null) ? prompt
+				: prompt.run(this.runner.canRun(profile.assistant()), this.runner.isRunning(requestIds)));
+	}
+
+	/**
+	 * Whether the assistant has JobWarden's MCP server on this computer; unknown without a way to tell.
+	 */
+	protected Connection connection(Assistant assistant) {
+		Connection connection = (this.connections == null) ? null : this.connections.find(assistant);
+		return (connection == null) ? Connection.UNKNOWN : connection;
+	}
+
+	/**
+	 * The prompt, its apps knowing whether each assistant has JobWarden's MCP server on this computer: one that hasn't
+	 * says to connect it first, in Settings.
+	 */
+	protected Prompt connected(Prompt prompt) {
+		if (this.connections == null) {
+			return prompt;
+		}
+		return prompt.withApps(prompt.apps().stream().map(link -> {
+			Connection connection = connection(link.assistant());
+			return link.checked(!connection.isMissing(), connection.folder());
+		}).toList());
 	}
 
 	/**
@@ -172,6 +208,19 @@ abstract class BaseController {
 
 	protected void selectProfile(long userId) {
 		this.currentUser.select(userId);
+	}
+
+	/**
+	 * Deletes the profile and everything of it (UserService.delete), stops the assistant's runs on its requests and
+	 * deletes what they printed, and selects no profile in this browser session.
+	 */
+	protected void deleteProfile(long userId) {
+		List<Long> requestIds = this.discovery.findRequests(userId, Integer.MAX_VALUE).stream().map(AiRequest::id).toList();
+		if (this.runner != null) {
+			this.runner.forget(requestIds);
+		}
+		this.users.delete(userId);
+		this.currentUser.forget();
 	}
 
 	protected static String redirectTo(String path) {

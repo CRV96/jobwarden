@@ -12,11 +12,14 @@ import org.jspecify.annotations.Nullable;
  * without either
  * @param salary that salary in the comparison's currency and period; {@code null} without one, or when it can't be read
  * @param salaryFromPosting whether it's the posting's salary, as the offer's terms give none
- * @param fitScore how well the profile fits the job, from 1 to 5, when Claude scored it
- * @param hasBrief whether Claude wrote a brief to negotiate it
+ * @param total what it pays all in, that salary and the extras, in the comparison's currency; {@code null} with
+ * nothing to count
+ * @param fitScore how well the profile fits the job, from 1 to 5, when the AI Assistant scored it
+ * @param hasBrief whether the AI Assistant wrote a brief to negotiate it
  */
 public record ComparedOffer(ApplicationSummary application, JobOffer terms, @Nullable String salaryText,
-		@Nullable SalaryEntry salary, boolean salaryFromPosting, @Nullable BigDecimal fitScore, boolean hasBrief) {
+		@Nullable SalaryEntry salary, boolean salaryFromPosting, @Nullable OfferTotal total, @Nullable BigDecimal fitScore,
+		boolean hasBrief) {
 
 	/**
 	 * @return whether there's a salary that couldn't be read: no amount, or a currency there's no rate for

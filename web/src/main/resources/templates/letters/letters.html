@@ -248,17 +248,7 @@
                     th:text="#{letters.cancelAll}">Cancel them</button>
         </div>
         <th:block th:if="${lettersPrompt}">
-            <div class="text-xs text-ink/60" th:text="#{ai.prompt(${lettersPrompt.assistant})}">Paste this into Claude Code:</div>
-            <div class="flex items-start gap-2">
-                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${lettersPrompt.text}">Do JobWarden requests 12, 13…</code>
-                <button th:replace="~{discover/discover :: copy-button(${lettersPrompt.text})}"></button>
-            </div>
-            <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
-            <div class="flex items-start gap-2">
-                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${lettersPrompt.command}">claude "Do JobWarden requests 12, 13…"</code>
-                <button th:replace="~{discover/discover :: copy-button(${lettersPrompt.command})}"></button>
-            </div>
-            <div th:replace="~{applications/claude :: run(${lettersPrompt})}"></div>
+            <div th:replace="~{applications/claude :: prompt(${lettersPrompt})}"></div>
         </th:block>
     </th:block>
 </section>

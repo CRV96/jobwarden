@@ -21,7 +21,7 @@
     "message": "Link"
   },
   "profileId": {
-    "message": "Identificador do perfil"
+    "message": "ID do perfil"
   },
   "includeTime": {
     "message": "Incluir a hora"
@@ -81,10 +81,10 @@
     "message": "Onde o JobWarden está a correr. Neste computador, normalmente é http://localhost:8080."
   },
   "profileIdHint": {
-    "message": "O JobWarden mostra-o na página Perfis."
+    "message": "O JobWarden mostra-o nas Definições, em O seu perfil, com um botão para o copiar."
   },
   "openProfiles": {
-    "message": "Abrir a página Perfis"
+    "message": "Abrir as Definições do JobWarden"
   },
   "save": {
     "message": "Guardar"
@@ -94,6 +94,9 @@
   },
   "notSaved": {
     "message": "Não foi possível guardar as definições."
+  },
+  "profileNotFound": {
+    "message": "Nenhum perfil tem esse ID neste servidor. Copie-o das Definições do JobWarden, em O seu perfil."
   },
   "serverUrlInvalid": {
     "message": "Introduza um endereço que comece por http:// ou https://."

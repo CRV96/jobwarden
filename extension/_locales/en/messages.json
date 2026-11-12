@@ -21,7 +21,7 @@
     "message": "Link"
   },
   "profileId": {
-    "message": "Profile id"
+    "message": "Profile ID"
   },
   "includeTime": {
     "message": "Include the time"
@@ -81,10 +81,10 @@
     "message": "Where JobWarden runs. On this computer, that’s usually http://localhost:8080."
   },
   "profileIdHint": {
-    "message": "JobWarden shows it on its Profiles page."
+    "message": "JobWarden shows it in Settings, under Your profile, with a button to copy it."
   },
   "openProfiles": {
-    "message": "Open the Profiles page"
+    "message": "Open JobWarden’s Settings"
   },
   "save": {
     "message": "Save"
@@ -94,6 +94,9 @@
   },
   "notSaved": {
     "message": "Couldn’t save the settings."
+  },
+  "profileNotFound": {
+    "message": "No profile has that ID on this server. Copy it from JobWarden’s Settings, under Your profile."
   },
   "serverUrlInvalid": {
     "message": "Enter an address that starts with http:// or https://."

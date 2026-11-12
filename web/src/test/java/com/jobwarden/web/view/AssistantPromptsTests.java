@@ -1,5 +1,6 @@
 package com.jobwarden.web.view;
 
+import java.nio.file.Path;
 import java.util.List;
 
 import com.jobwarden.identity.enums.Assistant;
@@ -106,6 +107,39 @@ class AssistantPromptsTests {
 	}
 
 	@Test
+	void opensEachAssistantsAppWithThePromptTypedIn() {
+		assertThat(AssistantPrompts.appLink(Assistant.CLAUDE_CODE, AssistantPrompts.forRequest(Assistant.CODEX, 12, 1).text()))
+			.isEqualTo("claude://code/new?q=Do%20JobWarden%20request%2012%3A%20call%20get_request%20with%20request_id%2012%20and"
+					+ "%20profile_id%201%2C%20follow%20its%20instructions%2C%20and%20end%20with%20finish_request.");
+		// Either app, the main assistant's first: the profile may have both
+		assertThat(AssistantPrompts.forRequest(Assistant.CODEX, 12, 1).apps()).satisfiesExactly(
+				codex -> assertThat(codex.href()).startsWith("codex://threads/new?prompt=Do%20JobWarden%20request%2012%3A"),
+				claude -> assertThat(claude.app()).isEqualTo("Claude"));
+		assertThat(AssistantPrompts.forRequest(Assistant.CLAUDE_CODE, 12, 1).apps()).extracting(AssistantPrompts.AppLink::app)
+			.containsExactly("Claude", "Codex");
+		// Auto-apply in Claude alone: Codex can't drive the browser
+		assertThat(AssistantPrompts.forApplying(30, 1).apps()).singleElement()
+			.satisfies(claude -> assertThat(claude.href()).startsWith("claude://code/new?q=Do%20JobWarden%20request%2030"));
+	}
+
+	@Test
+	void opensClaudeInTheFolderItHasJobWardenInAndSaysWhenAnAppHasntIt() {
+		AssistantPrompts.AppLink claude = AssistantPrompts.forRequest(Assistant.CLAUDE_CODE, 12, 1).apps().getFirst();
+		AssistantPrompts.AppLink codex = AssistantPrompts.forRequest(Assistant.CLAUDE_CODE, 12, 1).apps().getLast();
+
+		assertThat(claude.connected()).isTrue();
+		assertThat(claude.checked(true, Path.of("/Users/ana/my jobs")).href())
+			.startsWith("claude://code/new?q=Do%20JobWarden%20request%2012")
+			.endsWith("&folder=%2FUsers%2Fana%2Fmy%20jobs");
+		// Codex reads one configuration, whatever the folder
+		assertThat(codex.checked(true, Path.of("/Users/ana")).href()).isEqualTo(codex.href());
+		assertThat(codex.checked(false, null)).satisfies(unconnected -> {
+			assertThat(unconnected.connected()).isFalse();
+			assertThat(unconnected.href()).isEqualTo(codex.href());
+		});
+	}
+
+	@Test
 	void offersNoRunUntilTheCallerKnowsJobWardenCanRunIt() {
 		Prompt prompt = AssistantPrompts.forRequest(Assistant.CODEX, 12, 1);
 
@@ -118,13 +152,14 @@ class AssistantPromptsTests {
 
 	@Test
 	void connectsEachAssistantToTheMcpServerWithTheProfile() {
-		assertThat(AssistantPrompts.connection(Assistant.CLAUDE_CODE, "http://localhost:8080/mcp", 1L))
+		String profile = "5b1f3c2e-8a4d-4c6e-9f10-2d7b8e3a6c41";
+		assertThat(AssistantPrompts.connection(Assistant.CLAUDE_CODE, "http://localhost:8080/mcp", profile))
 			.isEqualTo("claude mcp add --scope user --transport http jobwarden http://localhost:8080/mcp --header "
-					+ "\"X-JobWarden-Profile: 1\"");
-		assertThat(AssistantPrompts.connection(Assistant.CODEX, "http://localhost:8080/mcp", 1L)).isEqualTo("""
+					+ "\"X-JobWarden-Profile: 5b1f3c2e-8a4d-4c6e-9f10-2d7b8e3a6c41\"");
+		assertThat(AssistantPrompts.connection(Assistant.CODEX, "http://localhost:8080/mcp", profile)).isEqualTo("""
 				[mcp_servers.jobwarden]
 				url = "http://localhost:8080/mcp"
-				http_headers = { "X-JobWarden-Profile" = "1" }""");
+				http_headers = { "X-JobWarden-Profile" = "5b1f3c2e-8a4d-4c6e-9f10-2d7b8e3a6c41" }""");
 		assertThat(AssistantPrompts.connection(Assistant.CODEX, "http://localhost:8080/mcp", null))
 			.isEqualTo("[mcp_servers.jobwarden]\nurl = \"http://localhost:8080/mcp\"");
 	}

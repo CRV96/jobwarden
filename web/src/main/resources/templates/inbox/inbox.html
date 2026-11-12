@@ -139,17 +139,7 @@
             </button>
         </div>
         <th:block th:if="${status == 'WAITING'}">
-            <div class="text-xs text-ink/60" th:text="#{ai.prompt(${sortPrompt.assistant})}">Paste this into Claude Code:</div>
-            <div class="flex items-start gap-2">
-                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${sortPrompt.text}">Do JobWarden request 12…</code>
-                <button th:replace="~{discover/discover :: copy-button(${sortPrompt.text})}"></button>
-            </div>
-            <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
-            <div class="flex items-start gap-2">
-                <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${sortPrompt.command}">claude "Do JobWarden request 12…"</code>
-                <button th:replace="~{discover/discover :: copy-button(${sortPrompt.command})}"></button>
-            </div>
-            <div th:replace="~{applications/claude :: run(${sortPrompt})}"></div>
+            <div th:replace="~{applications/claude :: prompt(${sortPrompt})}"></div>
         </th:block>
         <p class="text-xs text-pretty text-ink/65" th:if="${status == 'DONE' and sortRequest.summary != null}"
            th:text="#{inbox.sort.done(${sortRequest.summary})}">The AI Assistant sorted them: applied 5, dismissed 2.</p>

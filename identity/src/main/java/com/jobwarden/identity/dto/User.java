@@ -3,8 +3,10 @@ package com.jobwarden.identity.dto;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Objects;
+import java.util.UUID;
 
 import com.jobwarden.identity.enums.Assistant;
 
@@ -13,13 +15,24 @@ import com.jobwarden.identity.enums.Assistant;
  * already has full access to the database, so there is no real permission boundary to enforce.
  */
 @Builder
-public record User(long id, String name, Instant createdAt, @Nullable Instant imageChangedAt, Assistant assistant) {
+public record User(long id, String name, Instant createdAt, @Nullable Instant imageChangedAt, Assistant assistant,
+		UUID publicId) {
 
 	/**
 	 * @param assistant the AI assistant it works with; the default one when it chose none
+	 * @param publicId the id it shows, to copy into the browser extension and an assistant's settings: made when it was
+	 * created; one made from its id when none is given
 	 */
 	public User {
 		assistant = Objects.requireNonNullElse(assistant, Assistant.DEFAULT);
+		publicId = (publicId != null) ? publicId : UUID.nameUUIDFromBytes(("profile-" + id).getBytes(StandardCharsets.UTF_8));
+	}
+
+	/**
+	 * A profile with the public id made from its id.
+	 */
+	public User(long id, String name, Instant createdAt, @Nullable Instant imageChangedAt, Assistant assistant) {
+		this(id, name, createdAt, imageChangedAt, assistant, null);
 	}
 
 	/**

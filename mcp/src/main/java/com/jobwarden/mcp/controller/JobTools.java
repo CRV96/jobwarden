@@ -349,7 +349,7 @@ class JobTools implements McpToolSet {
 						.appliedBy((status == ApplicationStatus.APPLIED) ? appliedBy(call) : null)
 						.build());
 					ApplicationStatus after = this.applications.findById(userId, jobId).orElseThrow().status();
-					log.info("The assistant moved application {} of profile {} from {} to {}", jobId, userId, before, after);
+					log.info("{} moved application {} of profile {} from {} to {}", call.client(), jobId, userId, before, after);
 					return Map.of("job_id", jobId, "previous_status", before, "status", after);
 				});
 	}
@@ -386,7 +386,7 @@ class JobTools implements McpToolSet {
 						.followUpOn(call.arguments().has("follow_up_on") ? call.date("follow_up_on") : before.followUpOn())
 						.build();
 					this.applications.updateFollowUp(userId, jobId, after);
-					log.info("The assistant updated the follow-up of application {} of profile {}", jobId, userId);
+					log.info("{} updated the follow-up of application {} of profile {}", call.client(), jobId, userId);
 					return Map.of("job_id", jobId, "follow_up", followUp(after));
 				});
 	}

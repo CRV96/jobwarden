@@ -46,8 +46,10 @@
             <div th:replace="~{applications/fragments :: archived-note}"></div>
         </div>
 
-        <!--/* From 1280 pixels wide, the description and the timeline scroll on the left, the facts and notes on the right */-->
-        <div class="grid min-h-0 flex-1 items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(280px,1fr)] xl:grid-rows-[minmax(0,1fr)] xl:items-stretch">
+        <!--/* From 1024 pixels wide, the description and the timeline on the left, 45% of the width, and the facts and the
+               cards on the right, the rest: the cards hold more than the timeline needs room for. From 1280, each scrolls
+               apart. */-->
+        <div class="grid min-h-0 flex-1 items-start gap-4 lg:grid-cols-[minmax(0,45fr)_minmax(0,55fr)] xl:grid-rows-[minmax(0,1fr)] xl:items-stretch">
             <div class="scroll-panel flex min-h-0 min-w-0 flex-col gap-4">
                 <div class="card p-4" th:if="${jobApplication.description}">
                     <section th:replace="~{applications/fragments :: description}"></section>

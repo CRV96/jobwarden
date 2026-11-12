@@ -12,11 +12,17 @@ import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 
 /**
- * A tool's arguments, with the profile the client named in its header, if any.
+ * A tool's arguments, with the profile the client named in its header, if any, and who's calling.
  *
  * @param profileHeader the {@code X-JobWarden-Profile} header: the profile to use when the arguments don't name one
+ * @param client the assistant calling, as the logs name it, e.g. Codex
  */
-record ToolCall(JsonNode arguments, @Nullable Long profileHeader) {
+record ToolCall(JsonNode arguments, @Nullable String profileHeader, String client) {
+
+	/** A call from a client that didn't say who it is. */
+	ToolCall(JsonNode arguments, @Nullable String profileHeader) {
+		this(arguments, profileHeader, McpController.UNKNOWN_CLIENT);
+	}
 
 	@Nullable String string(String name) {
 		JsonNode value = this.arguments.get(name);
@@ -160,7 +166,7 @@ record ToolCall(JsonNode arguments, @Nullable Long profileHeader) {
 		if (value == null || !value.isObject()) {
 			throw new ToolException(name + " is required, as an object");
 		}
-		return new ToolCall(value, this.profileHeader);
+		return new ToolCall(value, this.profileHeader, this.client);
 	}
 
 	/**
@@ -184,7 +190,7 @@ record ToolCall(JsonNode arguments, @Nullable Long profileHeader) {
 		if (!item.isObject()) {
 			throw new ToolException("Each item must be an object");
 		}
-		return new ToolCall(item, this.profileHeader);
+		return new ToolCall(item, this.profileHeader, this.client);
 	}
 
 	private static <E extends Enum<E>> E constant(String name, String value, Class<E> type) {

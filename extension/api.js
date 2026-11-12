@@ -34,6 +34,23 @@ export class ServerError extends Error {
 }
 
 /**
+ * Which profile an id names: the id the profile shows in JobWarden's Settings (a UUID), or the number given before.
+ *
+ * @returns {Promise<{id: number, publicId: string, name: string} | null>} null if it names none
+ */
+export async function findProfile(serverUrl, key) {
+  try {
+    const response = await send(serverUrl, '/profile', { query: { key } });
+    return await response.json();
+  } catch (error) {
+    if (error instanceof ServerError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
  * @param {Settings} settings
  * @returns {Promise<CapturedApplication | null>} null if the profile doesn't track the link
  */

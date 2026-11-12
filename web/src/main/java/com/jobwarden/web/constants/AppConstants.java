@@ -151,6 +151,8 @@ public final class AppConstants {
 		public static final String DISCOVER = "discover/discover";
 		/** The card to review and what changes with it, which HTMX swaps after a decision. */
 		public static final String DISCOVER_REVIEW_FRAGMENT = DISCOVER + " :: review";
+		/** What the AI Assistant has for a job, under its facts: the fit, and each card's state. */
+		public static final String JOB_ASSISTANT_FRAGMENT = "applications/overview :: overview";
 		/** What Run answers: that the assistant started, or why not, in place of the button. */
 		public static final String ASSISTANT_RUN_FRAGMENT = "applications/claude :: run-result";
 		/** The requests to Claude, which HTMX swaps as one is made, cancelled, or changes while it's open. */
@@ -179,6 +181,8 @@ public final class AppConstants {
 		public static final String OFFERS_MARKET_FRAGMENT = "offers/market :: market";
 
 		public static final String STATISTICS = "statistics/statistics";
+
+		public static final String HOME = "home/home";
 		/** The salaries page's market section, which HTMX loads after the page and swaps as its choices change. */
 		public static final String SALARIES_MARKET_FRAGMENT = "salaries/market :: market";
 		public static final String SEARCH = "search/search";
@@ -228,6 +232,13 @@ public final class AppConstants {
 		public static final String PROFILE_IMAGE_SAVED = "profileImageSaved";
 		public static final String PROFILE_IMAGE_REMOVED = "profileImageRemoved";
 		public static final String PROFILE_IMAGE_ERROR = "profileImageError";
+		/** The profile's new name, said once back on the settings page; or why not, with the name typed. */
+		public static final String PROFILE_NAME_SAVED = "profileNameSaved";
+		public static final String PROFILE_NAME_ERROR = "profileNameError";
+		public static final String PROFILE_NAME_TYPED = "profileNameTyped";
+		/** A profile deleted (its name, said once on the Profiles page), or not, as its name wasn't typed to confirm. */
+		public static final String PROFILE_DELETED = "profileDeleted";
+		public static final String PROFILE_DELETE_ERROR = "profileDeleteError";
 		/** The largest photo file, in bytes, which the page checks before sending one. */
 		public static final String PROFILE_IMAGE_MAX_BYTES = "profileImageMaxBytes";
 		/** Claude's latest sorting of the updates waiting, and its prompt; what JobWarden and Claude decided lately. */
@@ -335,6 +346,17 @@ public final class AppConstants {
 		/** Today's date, for the pages that mark it. */
 		public static final String TODAY = "today";
 		/**
+		 * The homepage: what the profile did lately (a {@code JobActivity}), its jobs by status (an
+		 * {@code ApplicationStatus} → how many, in order) and the most in one, the next days' interviews, deadlines and
+		 * follow-ups ({@code CalendarEntry}), how many requests are open for the assistant, and how many jobs are at Offer.
+		 */
+		public static final String ACTIVITY = "activity";
+		public static final String JOBS_BY_STATUS = "jobsByStatus";
+		public static final String MOST_IN_A_STATUS = "mostInAStatus";
+		public static final String COMING_UP = "comingUp";
+		public static final String OPEN_REQUESTS = "openRequests";
+		public static final String OFFER_COUNT = "offerCount";
+		/**
 		 * The pipeline's columns: each status with the first page of its applications (a {@code Page}), in the order of
 		 * the statuses. A column's next cards are a page too, of the status, for the search, or {@code null}.
 		 */
@@ -396,10 +418,17 @@ public final class AppConstants {
 		/**
 		 * A job's offer: its id, its terms (a {@code JobOffer}), and its negotiation brief card: the brief (a
 		 * {@code NegotiationBrief}) or {@code null}, the latest request for one or {@code null}, and while that waits,
-		 * what to paste into Claude Code.
+		 * what to paste into the assistant.
 		 */
 		public static final String OFFER_JOB_ID = "offerJobId";
 		public static final String JOB_OFFER = "jobOffer";
+		/**
+		 * What an offer pays all in (an {@code OfferTotal}, or {@code null}), and the choices of its extras' rows: their
+		 * kinds ({@code OfferExtraKind}) and how often they're paid ({@code PayFrequency}).
+		 */
+		public static final String OFFER_TOTAL = "offerTotal";
+		public static final String OFFER_EXTRA_KINDS = "offerExtraKinds";
+		public static final String PAY_FREQUENCIES = "payFrequencies";
 		public static final String NEGOTIATION_BRIEF = "negotiationBrief";
 		public static final String NEGOTIATION_REQUEST = "negotiationRequest";
 		public static final String NEGOTIATION_PROMPT = "negotiationPrompt";
@@ -569,12 +598,27 @@ public final class AppConstants {
 		/** The AI assistants a profile can work with, each an {@code Assistant}, and whether its choice was just saved. */
 		public static final String ASSISTANTS = "assistants";
 		public static final String ASSISTANT_SAVED = "assistantSaved";
-		/** How to connect the profile's assistant to the MCP server: a command, or what to add to its configuration. */
+		/** How to connect each assistant to the MCP server (an {@code Assistant} → a command, or what to add to its configuration). */
 		public static final String ASSISTANT_CONNECTION = "assistantConnection";
+		/** Whether each assistant has JobWarden's MCP server on this computer (an {@code Assistant} → a {@code Connection}). */
+		public static final String ASSISTANT_STATES = "assistantStates";
+		/** About JobWarden: its repository on GitHub (e.g. CRV96/jobwarden), and who made it, with their GitHub profile. */
+		public static final String REPOSITORY = "repository";
+		public static final String AUTHOR = "author";
+		public static final String AUTHOR_URL = "authorUrl";
 		/**
 		 * What Run did: the assistant's name, and whether it started, or else why not ({@code RunRefusedException.Reason}).
 		 */
 		public static final String RUN_ASSISTANT = "runAssistant";
+		/** How one signs the assistant in on this computer, e.g. claude auth login: when Run finds it signed out. */
+		public static final String RUN_SIGN_IN = "runSignIn";
+		/**
+		 * A job's AI Assistant overview: the job, its cards ({@code AssistantCard}), and whether the assistant is on
+		 * one, so the overview asks again; with the job's fit as {@code jobFit}.
+		 */
+		public static final String OVERVIEW_JOB_ID = "overviewJobId";
+		public static final String OVERVIEW_CARDS = "overviewCards";
+		public static final String OVERVIEW_WORKING = "overviewWorking";
 		public static final String RUN_STARTED = "runStarted";
 		public static final String RUN_REFUSED = "runRefused";
 		/** What the search page searches for, a {@code SearchCriteria}. */

@@ -21,7 +21,7 @@
     "message": "Lien"
   },
   "profileId": {
-    "message": "Identifiant du profil"
+    "message": "ID du profil"
   },
   "includeTime": {
     "message": "Inclure l’heure"
@@ -81,10 +81,10 @@
     "message": "Là où JobWarden tourne. Sur cet ordinateur, c’est en général http://localhost:8080."
   },
   "profileIdHint": {
-    "message": "JobWarden l’affiche sur sa page Profils."
+    "message": "JobWarden l’affiche dans les Paramètres, sous Votre profil, avec un bouton pour le copier."
   },
   "openProfiles": {
-    "message": "Ouvrir la page Profils"
+    "message": "Ouvrir les Paramètres de JobWarden"
   },
   "save": {
     "message": "Enregistrer"
@@ -94,6 +94,9 @@
   },
   "notSaved": {
     "message": "Impossible d’enregistrer les paramètres."
+  },
+  "profileNotFound": {
+    "message": "Aucun profil n’a cet ID sur ce serveur. Copiez-le depuis les Paramètres de JobWarden, sous Votre profil."
   },
   "serverUrlInvalid": {
     "message": "Saisissez une adresse qui commence par http:// ou https://."

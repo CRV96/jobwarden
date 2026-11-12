@@ -116,17 +116,7 @@
                             </div>
                             <!--/* Waiting: the prompt for the profile's assistant, to paste, or to run as a command */-->
                             <th:block th:if="${status == 'WAITING'}" th:with="prompt=${aiPrompts.get(request.id)}">
-                                <div class="text-xs text-ink/60" th:text="#{ai.prompt(${prompt.assistant})}">Paste this into Claude Code:</div>
-                                <div class="flex items-start gap-2">
-                                    <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${prompt.text}">Do JobWarden request 12…</code>
-                                    <button th:replace="~{discover/discover :: copy-button(${prompt.text})}"></button>
-                                </div>
-                                <div class="text-xs text-ink/60" th:text="#{ai.command}">Or run it in a terminal:</div>
-                                <div class="flex items-start gap-2">
-                                    <code class="query-box min-h-0 flex-1 py-2 text-[12px]" th:text="${prompt.command}">claude "Do JobWarden request 12…"</code>
-                                    <button th:replace="~{discover/discover :: copy-button(${prompt.command})}"></button>
-                                </div>
-                                <div th:replace="~{applications/claude :: run(${prompt})}"></div>
+                                <div th:replace="~{applications/claude :: prompt(${prompt})}"></div>
                             </th:block>
                             <p class="text-[13px] whitespace-pre-line text-ink/80" th:if="${request.summary}" th:text="${request.summary}">Added 8 jobs from LinkedIn and Lever.</p>
                             <th:block th:if="${aiRequestJobs.containsKey(request.id)}">

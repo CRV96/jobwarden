@@ -59,6 +59,33 @@ class UserServiceTests {
 	}
 
 	@Test
+	void givesEachProfileAPublicIdAndFindsItByThatOrItsId() {
+		User robert = this.users.create("Robert");
+		User ana = this.users.create("Ana");
+
+		assertThat(robert.publicId()).isNotNull().isNotEqualTo(ana.publicId());
+		assertThat(this.users.findById(robert.id())).hasValueSatisfying(found -> assertThat(found.publicId()).isEqualTo(robert.publicId()));
+		assertThat(this.users.findByKey(" " + robert.publicId() + " ")).hasValueSatisfying(found -> assertThat(found.id()).isEqualTo(robert.id()));
+		assertThat(this.users.findByKey(Long.toString(ana.id()))).hasValueSatisfying(found -> assertThat(found.name()).isEqualTo("Ana"));
+		assertThat(this.users.findByKey("not-an-id")).isEmpty();
+		assertThat(this.users.findByKey("00000000-0000-4000-8000-000000000000")).isEmpty();
+		assertThat(this.users.findByKey(null)).isEmpty();
+	}
+
+	@Test
+	void renamesAProfileToANameNoOtherHasIgnoringCase() {
+		User robert = this.users.create("Robert");
+		this.users.create("Ana");
+
+		// Its own name in other letters, trimmed
+		assertThat(this.users.rename(robert.id(), "  ROBERT ").name()).isEqualTo("ROBERT");
+		assertThat(this.users.rename(robert.id(), "Rob").name()).isEqualTo("Rob");
+		assertThat(this.users.findById(robert.id())).hasValueSatisfying(found -> assertThat(found.name()).isEqualTo("Rob"));
+		assertThatThrownBy(() -> this.users.rename(robert.id(), "ana")).isInstanceOfSatisfying(BusinessRuleException.class,
+				exception -> assertThat(exception.getErrorCode()).isEqualTo(IdentityErrorCode.USER_NAME_TAKEN));
+	}
+
+	@Test
 	void theDatabaseAlsoRejectsANameTakenIgnoringCase() {
 		this.users.create("Robert");
 

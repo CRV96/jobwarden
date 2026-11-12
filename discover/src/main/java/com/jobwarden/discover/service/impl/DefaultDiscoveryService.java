@@ -219,7 +219,7 @@ class DefaultDiscoveryService implements DiscoveryService {
 			throw new IllegalArgumentException(kind + " is about one job, which the request must name");
 		}
 		AiRequestEntity request = this.requests.save(new AiRequestEntity(userId, kind, requirements, null));
-		log.info("Profile {} asked Claude for {} (request {})", userId, kind, request.getId());
+		log.info("Profile {} asked for {} (request {})", userId, kind, request.getId());
 		return toAiRequests(userId, List.of(request)).getFirst();
 	}
 
@@ -236,7 +236,7 @@ class DefaultDiscoveryService implements DiscoveryService {
 			throw new ApplicationNotFoundException(applicationId);
 		}
 		AiRequestEntity request = this.requests.save(new AiRequestEntity(userId, kind, AiRequirements.NONE, applicationId));
-		log.info("Profile {} asked Claude for {} about application {} (request {})", userId, kind, applicationId,
+		log.info("Profile {} asked for {} about application {} (request {})", userId, kind, applicationId,
 				request.getId());
 		return toAiRequests(userId, List.of(request)).getFirst();
 	}
@@ -287,7 +287,7 @@ class DefaultDiscoveryService implements DiscoveryService {
 		AiRequestEntity request = getOpenRequest(userId, requestId);
 		if (request.getStatus() == AiRequestStatus.WAITING) {
 			request.start();
-			log.info("Claude started request {} of profile {}", requestId, userId);
+			log.debug("Request {} of profile {} started", requestId, userId);
 		}
 		return toAiRequests(userId, List.of(request)).getFirst();
 	}
@@ -302,7 +302,7 @@ class DefaultDiscoveryService implements DiscoveryService {
 		AiRequestEntity request = getOpenRequest(userId, requestId);
 		request.finish(done ? AiRequestStatus.DONE : AiRequestStatus.FAILED,
 				(summary == null || summary.isBlank()) ? null : summary.strip());
-		log.info("Claude finished request {} of profile {}: {}", requestId, userId, request.getStatus());
+		log.info("Request {} of profile {} ended: {}", requestId, userId, request.getStatus());
 		return toAiRequests(userId, List.of(request)).getFirst();
 	}
 

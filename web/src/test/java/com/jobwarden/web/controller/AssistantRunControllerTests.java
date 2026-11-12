@@ -85,6 +85,16 @@ class AssistantRunControllerTests {
 	}
 
 	@Test
+	void saysHowToSignTheAssistantInWhenItIsnt() {
+		willThrow(new RunRefusedException(RunRefusedException.Reason.SIGNED_OUT)).given(this.runner)
+			.run(any(), anyLong(), any(), anyString());
+
+		assertThat(run("12", null)).hasStatusOk()
+			.bodyText()
+			.contains("Codex isn’t signed in on this computer: run codex login in a terminal once, then Run it here again.");
+	}
+
+	@Test
 	void runsOnlyForThisAppsOwnPages() {
 		// A form on another site can send neither HTMX's header nor this server's origin
 		assertThat(this.mvc.post().uri("/assistant/run").param("requests", "12")).hasStatus(HttpStatus.FORBIDDEN);

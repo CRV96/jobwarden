@@ -117,7 +117,7 @@ class InboxControllerTests {
 			.param("folder", "Labels/Jobs")
 			.header("HX-Request", "true")).hasStatusOk()
 			.bodyText()
-			.contains("Nothing answers at 127.0.0.1, port 1143. If it’s Proton Mail Bridge, open it",
+			.contains("Nothing answers at 127.0.0.1, port 1143. If your mail comes through an app on this computer, such as Proton Mail Bridge",
 					"data-local=\"true\"\n                        selected=\"selected\">Proton Mail (Bridge)",
 					"value=\"127.0.0.1\"", "value=\"1143\"", "value=\"Labels/Jobs\"")
 			.doesNotContain("bridge password");
@@ -131,7 +131,7 @@ class InboxControllerTests {
 
 		assertThat(this.mvc.get().uri("/inbox")).hasStatusOk()
 			.bodyText()
-			.contains("nothing answered on this computer. If it’s Proton Mail Bridge, open it",
+			.contains("nothing answered on this computer. If your mail comes through an app here, such as Proton Mail Bridge",
 					"JobWarden trusts only the certificate it showed", "SHA-256 49:BF:C9")
 			.doesNotContain("Connection refused");
 	}

@@ -67,11 +67,15 @@ import com.jobwarden.jobs.dto.JobOffer;
 import com.jobwarden.jobs.dto.NegotiationBrief;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
 import com.jobwarden.jobs.dto.OfferComparison;
+import com.jobwarden.jobs.dto.OfferExtra;
+import com.jobwarden.jobs.dto.OfferTotal;
 import com.jobwarden.jobs.dto.SalaryEntry;
 import com.jobwarden.jobs.dto.TidyResult;
-import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.InterviewFormat;
+import com.jobwarden.jobs.enums.OfferExtraKind;
+import com.jobwarden.jobs.enums.PayFrequency;
 import com.jobwarden.jobs.enums.RequirementImportance;
 import com.jobwarden.jobs.enums.RequirementMatch;
 import com.jobwarden.jobs.enums.SalaryPeriod;
@@ -255,6 +259,16 @@ class McpControllerTests {
 	}
 
 	@Test
+	void namesTheAssistantCallingFromItsUserAgent() {
+		assertThat(McpController.client("claude-code/2.1.311 (claude-desktop, agent-sdk/0.3.321)")).isEqualTo("Claude Code");
+		assertThat(McpController.client("codex-mcp-client/0.140.0")).isEqualTo("Codex");
+		assertThat(McpController.client("cursor/1.7 (darwin)")).isEqualTo("cursor");
+		// What lands in the logs is a name, nothing else
+		assertThat(McpController.client("evil\r\nINFO fake line/1")).isEqualTo("evil");
+		assertThat(McpController.client(null)).isEqualTo(McpController.UNKNOWN_CLIENT);
+	}
+
+	@Test
 	void savesWhoSentAnApplicationTheAssistantByItsOldName() {
 		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.SAVED)),
 				Optional.of(job(ApplicationStatus.APPLIED)), Optional.of(job(ApplicationStatus.SAVED)),
@@ -307,19 +321,31 @@ class McpControllerTests {
 	}
 
 	@Test
-	void takesTheProfileFromTheHeader() {
+	void takesTheProfileFromTheHeaderByItsPublicIdOrItsId() {
 		given(this.users.findAll()).willReturn(List.of(ROBERT, WORK));
-		given(this.users.exists(2)).willReturn(true);
+		given(this.users.findByKey(WORK.publicId().toString())).willReturn(Optional.of(WORK));
+		given(this.users.findByKey("2")).willReturn(Optional.of(WORK));
 		given(this.applications.find(eq(2L), any())).willReturn(new PageImpl<>(List.of()));
 
+		for (String key : List.of(WORK.publicId().toString(), "2")) {
+			assertThat(this.mvc.post()
+				.uri("/mcp")
+				.header(McpController.PROFILE_HEADER, key)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(request("tools/call", "{\"name\": \"list_jobs\", \"arguments\": {}}")))
+				.bodyJson()
+				.satisfies(body -> assertThat(result(body)).extractingPath("$.total").isEqualTo(0));
+		}
+		// One that names no profile says so
 		assertThat(this.mvc.post()
 			.uri("/mcp")
-			.header(McpController.PROFILE_HEADER, "2")
+			.header(McpController.PROFILE_HEADER, "6f1c2a8e-0000-4000-8000-000000000000")
 			.contentType(MediaType.APPLICATION_JSON)
 			.content(request("tools/call", "{\"name\": \"list_jobs\", \"arguments\": {}}")))
 			.bodyJson()
-			.satisfies(body -> assertThat(result(body)).extractingPath("$.total")
-			.isEqualTo(0));
+			.satisfies(body -> assertThat(body).extractingPath("$.result.content[0].text")
+				.asString()
+				.contains("There's no profile 6f1c2a8e-0000-4000-8000-000000000000"));
 	}
 
 	@Test
@@ -1387,16 +1413,24 @@ class McpControllerTests {
 		given(this.offers.compare(1, "EUR", SalaryPeriod.YEAR)).willReturn(OfferComparison.builder()
 			.currency("EUR")
 			.period(SalaryPeriod.YEAR)
-			.offers(List.of(new ComparedOffer(acme, JobOffer.builder().baseSalary("90,000 EUR").bonus("10%").build(),
-					"90,000 EUR", new SalaryEntry(acme, new BigDecimal("90000.00"), new BigDecimal("90000.00"), "EUR", false,
-							null), false, null, false)))
+			.offers(List.of(new ComparedOffer(acme, JobOffer.builder()
+				.baseSalary("90,000 EUR")
+				.extras(List.of(new OfferExtra(OfferExtraKind.BONUS, BigDecimal.TEN, "%", PayFrequency.YEAR, "On targets")))
+				.build(), "90,000 EUR", new SalaryEntry(acme, new BigDecimal("90000.00"), new BigDecimal("90000.00"), "EUR", false,
+						null), false, new OfferTotal("EUR", new BigDecimal("90000"), new BigDecimal("9000"),
+								new BigDecimal("99000.00"), BigDecimal.ZERO, BigDecimal.ZERO, 0), null, false)))
 			.currencies(List.of("EUR"))
 			.build());
 
 		assertThat(callTool("list_offers", "{}")).bodyJson().satisfies(body -> {
 			assertThat(result(body)).extractingPath("$.offers[0].job_id").isEqualTo(7);
 			assertThat(result(body)).extractingPath("$.offers[0].yearly_low").isEqualTo(90000);
-			assertThat(result(body)).extractingPath("$.offers[0].bonus").isEqualTo("10%");
+			assertThat(result(body)).extractingPath("$.offers[0].extras[0].kind").isEqualTo("BONUS");
+			assertThat(result(body)).extractingPath("$.offers[0].extras[0].unit").isEqualTo("%");
+			assertThat(result(body)).extractingPath("$.offers[0].extras[0].frequency").isEqualTo("YEAR");
+			assertThat(result(body)).extractingPath("$.offers[0].all_in_yearly").isEqualTo(99000);
+			// Nothing paid once or per event: not said
+			assertThat(result(body)).extractingPath("$.offers[0]").asMap().doesNotContainKeys("once", "per_event");
 		});
 	}
 
