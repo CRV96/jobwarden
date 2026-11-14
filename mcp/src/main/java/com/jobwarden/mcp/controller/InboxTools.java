@@ -11,6 +11,7 @@ import com.jobwarden.jobs.enums.ApplicationStatus;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
+import org.springframework.lang.Contract;
 import org.springframework.stereotype.Component;
 
 import static com.jobwarden.mcp.controller.JobTools.properties;
@@ -102,8 +103,9 @@ class InboxTools implements McpToolSet {
 				(update.applicationId() != null) ? new JobRef(update.applicationId(), update.jobTitle(), update.company()) : null);
 	}
 
+	@Contract("null -> null; !null -> !null")
 	private static @Nullable String shortened(@Nullable String text) {
-		return (text == null || text.length() <= TEXT_MAX_LENGTH) ? text : text.substring(0, TEXT_MAX_LENGTH - 1) + "…";
+		return Texts.shortened(text, TEXT_MAX_LENGTH);
 	}
 
 	/**

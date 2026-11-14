@@ -3,7 +3,7 @@
  * checkboxes and the side panel, and the search page's fields of chips. Elements ask for it with data- attributes, and
  * one listener per event on the document handles them all, so it works the same for the parts HTMX swaps in.
  *
- * The theme and the sidebar are also read by the script in layout.html's <head>, before the page paints.
+ * The theme and the sidebar are also read by theme.js, in layout.html’s <head>, before the page paints.
  */
 'use strict';
 
@@ -55,6 +55,18 @@ document.addEventListener('click', (event) => {
 	const closer = target.closest('[data-close-dialog]');
 	if (closer) {
 		closer.closest('dialog')?.close();
+		return;
+	}
+
+	// data-clear-previous: empties the field right before the button, e.g. a time: one emptied only in part is invalid,
+	// and the browser wouldn't send the form
+	const clearer = target.closest('[data-clear-previous]');
+	if (clearer) {
+		const field = clearer.previousElementSibling;
+		if (field instanceof HTMLInputElement) {
+			field.value = '';
+			field.dispatchEvent(new Event('input', { bubbles: true }));
+		}
 		return;
 	}
 

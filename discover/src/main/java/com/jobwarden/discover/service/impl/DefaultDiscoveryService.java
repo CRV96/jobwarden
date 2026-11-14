@@ -1,6 +1,7 @@
 package com.jobwarden.discover.service.impl;
 
 import java.net.URI;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -64,6 +65,8 @@ class DefaultDiscoveryService implements DiscoveryService {
 	private final AiRequestRepository requests;
 
 	private final ApplicationService applications;
+
+	private final Clock clock;
 
 	@Override
 	@Transactional(readOnly = true)
@@ -378,7 +381,7 @@ class DefaultDiscoveryService implements DiscoveryService {
 			.location(job.getLocation())
 			.salary(job.getSalary())
 			.initialStatus(status)
-			.initialStatusDate(LocalDate.now())
+			.initialStatusDate(LocalDate.now(this.clock))
 			.build()).id();
 	}
 
@@ -426,7 +429,7 @@ class DefaultDiscoveryService implements DiscoveryService {
 					.stream()
 					.collect(Collectors.toMap(SavedSearchEntity::getId, SavedSearchEntity::getName))
 				: Map.of();
-		Function<FoundJobEntity, String> searchName = job -> (job.getSavedSearchId() != null)
+		Function<FoundJobEntity, @Nullable String> searchName = job -> (job.getSavedSearchId() != null)
 				? names.getOrDefault(job.getSavedSearchId(), job.getSearchLabel()) : job.getSearchLabel();
 		return jobs.stream()
 			.map(job -> FoundJob.builder()

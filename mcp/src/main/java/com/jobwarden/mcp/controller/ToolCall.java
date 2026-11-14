@@ -71,7 +71,7 @@ record ToolCall(JsonNode arguments, @Nullable String profileHeader, String clien
 
 	int limit(String name, int byDefault, int max) {
 		Long value = number(name);
-		return (value == null) ? byDefault : (int) Math.clamp(value, 1, max);
+		return (value == null) ? byDefault : Math.clamp(value, 1, max);
 	}
 
 	@Nullable LocalDate date(String name) {
@@ -95,6 +95,10 @@ record ToolCall(JsonNode arguments, @Nullable String profileHeader, String clien
 	<E extends Enum<E>> @Nullable E constant(String name, Class<E> type) {
 		String value = string(name);
 		return (value == null) ? null : constant(name, value, type);
+	}
+
+	<E extends Enum<E>> E requiredConstant(String name, Class<E> type) {
+		return constant(name, requiredString(name), type);
 	}
 
 	List<String> strings(String name) {

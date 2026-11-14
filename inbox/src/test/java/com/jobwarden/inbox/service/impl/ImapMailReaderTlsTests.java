@@ -9,6 +9,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ExecutorService;
@@ -46,7 +47,7 @@ class ImapMailReaderTlsTests {
 	static GreenMailExtension greenMail = new GreenMailExtension(
 			new ServerSetup[] { ServerSetupTest.SMTP, ServerSetupTest.IMAP, ServerSetupTest.IMAPS });
 
-	private final ImapMailReader reader = new ImapMailReader(5000, true);
+	private final ImapMailReader reader = new ImapMailReader(new InboxProperties(5000, true), Clock.systemUTC());
 
 	@Test
 	void trustsTheCertificateAServerOnThisComputerShowedWhenItWasConnected() {

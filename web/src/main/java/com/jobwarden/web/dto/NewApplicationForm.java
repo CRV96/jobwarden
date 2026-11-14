@@ -1,5 +1,6 @@
 package com.jobwarden.web.dto;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
@@ -45,8 +46,11 @@ public record NewApplicationForm(
 		return this.status == null || !this.status.hasRejectionReason() || this.rejectionReason != null;
 	}
 
-	public NewApplication toNewApplication(long userId) {
-		FormValues.Moment since = momentOrNow(this.statusDate, this.statusTime);
+	/**
+	 * @param clock what "now" is, when the form sends no date
+	 */
+	public NewApplication toNewApplication(long userId, Clock clock) {
+		FormValues.Moment since = momentOrNow(this.statusDate, this.statusTime, clock);
 		return NewApplication.builder()
 			.userId(userId)
 			.title(this.title.strip())

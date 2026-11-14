@@ -32,10 +32,14 @@ public class AdzunaKeyEntity {
 
 	public AdzunaKeyEntity(String appId, String appKey) {
 		this.id = ID;
-		replace(appId, appKey);
+		set(appId, appKey);
 	}
 
 	public void replace(String appId, String appKey) {
+		set(appId, appKey);
+	}
+
+	private void set(String appId, String appKey) {
 		this.appId = appId;
 		this.appKey = appKey;
 		this.savedAt = Instant.now();

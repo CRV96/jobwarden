@@ -6,6 +6,7 @@ import java.util.List;
 import com.jobwarden.discover.dto.AiRequirements;
 import com.jobwarden.discover.enums.AiRequestKind;
 import com.jobwarden.search.Recency;
+import jakarta.validation.constraints.NotNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -18,7 +19,7 @@ import org.jspecify.annotations.Nullable;
  * @param places e.g. Romania, Remote in Europe
  * @param count how many recruiters to find, at most
  */
-public record HiringRequestForm(@Nullable AiRequestKind kind, @Nullable String roles, @Nullable String places,
+public record HiringRequestForm(@NotNull @Nullable AiRequestKind kind, @Nullable String roles, @Nullable String places,
 		@Nullable Recency recency, @Nullable Integer count) {
 
 	/** The counts the page offers for recruiters */
@@ -41,6 +42,11 @@ public record HiringRequestForm(@Nullable AiRequestKind kind, @Nullable String r
 	private static List<String> list(@Nullable String text) {
 		return (text == null) ? List.of()
 				: Arrays.stream(text.split(",")).map(String::strip).filter(value -> !value.isEmpty()).distinct().toList();
+	}
+
+	/** What the page asks the assistant for, once the form is valid. */
+	public AiRequestKind requiredKind() {
+		return FormValues.validated(this.kind, "kind");
 	}
 
 }

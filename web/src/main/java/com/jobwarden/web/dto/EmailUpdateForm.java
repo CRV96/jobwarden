@@ -10,4 +10,15 @@ import org.jspecify.annotations.Nullable;
  */
 public record EmailUpdateForm(@NotNull(message = "{validation.emailUpdate.job.required}") @Nullable Long job,
 		@NotNull(message = "{validation.emailUpdate.status.required}") @Nullable ApplicationStatus status) {
+
+	/** The job the update goes to, once the form is valid. */
+	public long requiredJob() {
+		return FormValues.validated(this.job, "job");
+	}
+
+	/** The job's new status, once the form is valid. */
+	public ApplicationStatus requiredStatus() {
+		return FormValues.validated(this.status, "status");
+	}
+
 }

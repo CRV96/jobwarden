@@ -9,6 +9,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -26,7 +27,6 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -69,9 +69,12 @@ class AdzunaSalaries {
 
 	private final Map<String, Answer> answers = new ConcurrentHashMap<>();
 
-	AdzunaSalaries(AdzunaKeys keys, @Value("${jobwarden.market.adzuna.url:https://api.adzuna.com/v1/api}") URI api) {
+	private final Clock clock;
+
+	AdzunaSalaries(AdzunaKeys keys, MarketProperties properties, Clock clock) {
 		this.keys = keys;
-		this.api = api;
+		this.clock = clock;
+		this.api = properties.adzuna().url();
 	}
 
 	boolean configured() {
@@ -89,12 +92,13 @@ class AdzunaSalaries {
 	 */
 	Optional<AdsFigure> find(String country, String search) {
 		Key appKey = this.keys.current().orElse(null);
-		if (appKey == null || !covers(country)) {
+		String currency = CURRENCIES.get(country);
+		if (appKey == null || currency == null) {
 			return Optional.empty();
 		}
 		String key = country + "|" + search.toLowerCase(Locale.ROOT);
 		Answer kept = this.answers.get(key);
-		if (kept != null && Instant.now().isBefore(kept.renewAt())) {
+		if (kept != null && this.clock.instant().isBefore(kept.renewAt())) {
 			return Optional.ofNullable(kept.figure());
 		}
 		try {
@@ -103,15 +107,15 @@ class AdzunaSalaries {
 				// The address has the key: only the status goes in the log
 				throw new IOException("Adzuna answered " + response.statusCode());
 			}
-			AdsFigure figure = fromHistogram(this.json.readTree(response.body()), CURRENCIES.get(country));
-			this.answers.put(key, new Answer(figure, Instant.now().plus(KEPT)));
+			AdsFigure figure = fromHistogram(this.json.readTree(response.body()), currency);
+			this.answers.put(key, new Answer(figure, this.clock.instant().plus(KEPT)));
 			return Optional.ofNullable(figure);
 		} catch (IOException | JacksonException ex) {
 			log.warn("Couldn't load Adzuna's salaries for {} in {}: {}", search, country, ex.toString());
 		} catch (InterruptedException ex) {
 			Thread.currentThread().interrupt();
 		}
-		this.answers.put(key, new Answer(null, Instant.now().plus(RETRY_AFTER)));
+		this.answers.put(key, new Answer(null, this.clock.instant().plus(RETRY_AFTER)));
 		return Optional.empty();
 	}
 
@@ -176,14 +180,19 @@ class AdzunaSalaries {
 			return null;
 		}
 		List<Double> starts = List.copyOf(bands.keySet());
-		return new AdsFigure(currency, total, at(bands, starts, total * 0.25), at(bands, starts, total * 0.5),
-				at(bands, starts, total * 0.75));
+		List<Integer> counts = List.copyOf(bands.values());
+		return new AdsFigure(currency, total, at(starts, counts, total * 0.25), at(starts, counts, total * 0.5),
+				at(starts, counts, total * 0.75));
 	}
 
-	private static BigDecimal at(TreeMap<Double, Integer> bands, List<Double> starts, double rank) {
+	/**
+	 * @param starts where each band starts, in order
+	 * @param counts how many ads each band has
+	 */
+	private static BigDecimal at(List<Double> starts, List<Integer> counts, double rank) {
 		double before = 0;
 		for (int i = 0; i < starts.size(); i++) {
-			int ads = bands.get(starts.get(i));
+			int ads = counts.get(i);
 			if (before + ads >= rank) {
 				double width = (i + 1 < starts.size()) ? starts.get(i + 1) - starts.get(i)
 						: (i > 0) ? starts.get(i) - starts.get(i - 1) : 0;

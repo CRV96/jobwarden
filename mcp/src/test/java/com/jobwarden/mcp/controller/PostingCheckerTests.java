@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
@@ -24,7 +25,7 @@ class PostingCheckerTests {
 
 	private static HttpServer server;
 
-	private final PostingChecker checker = new PostingChecker(address -> true);
+	private final PostingChecker checker = new PostingChecker(address -> true, Clock.systemDefaultZone());
 
 	@BeforeAll
 	static void startServer() throws IOException {
@@ -136,7 +137,7 @@ class PostingCheckerTests {
 
 	@Test
 	void neverChecksThisMachine() {
-		PostingCheck check = new PostingChecker().check(address("/open"));
+		PostingCheck check = new PostingChecker(Clock.systemDefaultZone()).check(address("/open"));
 
 		assertThat(check.verdict()).isEqualTo(Verdict.UNKNOWN);
 		assertThat(check.reason()).contains("not on the public internet");

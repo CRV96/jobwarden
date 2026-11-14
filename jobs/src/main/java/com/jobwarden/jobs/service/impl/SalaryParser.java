@@ -2,6 +2,7 @@ package com.jobwarden.jobs.service.impl;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -51,7 +52,7 @@ final class SalaryParser {
 			Map.entry("रुपये", "INR"), Map.entry("रुपए", "INR"));
 
 	/** The words for each period, in the order they're looked for: "$50 an hour" is per hour, not per year. */
-	private static final Map<SalaryPeriod, Pattern> PERIODS = Map.of(
+	private static final Map<SalaryPeriod, Pattern> PERIODS = new EnumMap<>(Map.of(
 			SalaryPeriod.HOUR, words("hours?", "hourly", "hrs?", "stunden?", "std", "stündlich", "heures?", "horas?",
 					"godz\\.?", "godzin[ęay]?", "godzinowo", "oră", "ora", "घंटा", "घंटे", "/\\s*h"),
 			SalaryPeriod.DAY, words("days?", "daily", "tag", "täglich", "tagessatz", "jours?", "journée", "día", "dia",
@@ -64,10 +65,7 @@ final class SalaryParser {
 			SalaryPeriod.YEAR, words("years?", "yearly", "yr", "annum", "annual", "annually", "p\\.\\s?a\\.", "jahr",
 					"jährlich", "année", "annuel", "año", "anual", "ano", "rok", "rocznie", "(?:par|pe|per|/)\\s*an", "वर्ष", "साल",
 					"सालाना", "वार्षिक",
-					"/\\s*y"));
-
-	private static final List<SalaryPeriod> PERIOD_ORDER = List.of(SalaryPeriod.HOUR, SalaryPeriod.DAY,
-			SalaryPeriod.WEEK, SalaryPeriod.MONTH, SalaryPeriod.YEAR);
+					"/\\s*y")));
 
 	private static final Pattern NET = words("net", "netto", "neto", "líquido", "liquido", "na rękę", "na reke", "नेट",
 			"शुद्ध");
@@ -159,7 +157,12 @@ final class SalaryParser {
 	}
 
 	private static @Nullable SalaryPeriod period(String lowerCase) {
-		return PERIOD_ORDER.stream().filter(period -> PERIODS.get(period).matcher(lowerCase).find()).findFirst().orElse(null);
+		return PERIODS.entrySet()
+			.stream()
+			.filter(period -> period.getValue().matcher(lowerCase).find())
+			.map(Map.Entry::getKey)
+			.findFirst()
+			.orElse(null);
 	}
 
 	private static @Nullable PayBasis basis(String lowerCase) {

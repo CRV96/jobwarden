@@ -10,6 +10,7 @@ import com.jobwarden.jobs.service.InterviewBriefService;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
+import org.springframework.lang.Contract;
 import org.springframework.stereotype.Component;
 
 import static com.jobwarden.mcp.controller.JobTools.properties;
@@ -85,8 +86,9 @@ class PrepTools implements McpToolSet {
 		return items.stream().limit(ITEMS_MAX).map(PrepTools::shortened).toList();
 	}
 
+	@Contract("null -> null; !null -> !null")
 	private static @Nullable String shortened(@Nullable String text) {
-		return (text == null || text.length() <= TEXT_MAX_LENGTH) ? text : text.substring(0, TEXT_MAX_LENGTH - 1) + "…";
+		return Texts.shortened(text, TEXT_MAX_LENGTH);
 	}
 
 }

@@ -3,6 +3,7 @@ package com.jobwarden.inbox.service.impl;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.security.cert.CertificateException;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,7 +34,6 @@ import lombok.CustomLog;
 import org.jsoup.Jsoup;
 import org.jspecify.annotations.Nullable;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -56,10 +56,12 @@ class ImapMailReader implements MailReader {
 	 */
 	private final boolean tls;
 
-	ImapMailReader(@Value("${jobwarden.inbox.timeout-millis:20000}") int timeoutMillis,
-			@Value("${jobwarden.inbox.tls:true}") boolean tls) {
-		this.timeoutMillis = Integer.toString(timeoutMillis);
-		this.tls = tls;
+	private final Clock clock;
+
+	ImapMailReader(InboxProperties properties, Clock clock) {
+		this.clock = clock;
+		this.timeoutMillis = Integer.toString(properties.timeoutMillis());
+		this.tls = properties.tls();
 	}
 
 	@Override
@@ -98,8 +100,11 @@ class ImapMailReader implements MailReader {
 			try {
 				UIDFolder uids = (UIDFolder) folder;
 				long validity = uids.getUIDValidity();
-				boolean goOn = lastUid != null && uidValidity != null && uidValidity == validity;
-				Message[] found = goOn ? uids.getMessagesByUID(lastUid + 1, UIDFolder.MAXUID)
+				// The last email read, while the mailbox keeps its numbering (UIDVALIDITY); else it's read anew from since
+				Long goOnAfter = (uidValidity != null && uidValidity == validity) ? lastUid : null;
+				boolean goOn = goOnAfter != null;
+				long after = (goOnAfter != null) ? goOnAfter : 0;
+				Message[] found = goOn ? uids.getMessagesByUID(after + 1, UIDFolder.MAXUID)
 						: folder.search(new ReceivedDateTerm(ComparisonTerm.GE, Date.from(since)));
 				FetchProfile profile = new FetchProfile();
 				profile.add(FetchProfile.Item.ENVELOPE);
@@ -107,7 +112,7 @@ class ImapMailReader implements MailReader {
 				folder.fetch(found, profile);
 				// A range from past the last UID still gives the last email: only the newer ones count
 				List<Message> fresh = Arrays.stream(found)
-					.filter(message -> !goOn || uid(uids, message) > lastUid)
+					.filter(message -> !goOn || uid(uids, message) > after)
 					.sorted(Comparator.comparingLong(message -> uid(uids, message)))
 					.toList();
 				List<Message> kept = fresh.subList(Math.max(0, fresh.size() - max), fresh.size());
@@ -115,7 +120,6 @@ class ImapMailReader implements MailReader {
 				for (Message message : kept) {
 					messages.add(read(message, validity, uid(uids, message)));
 				}
-				long after = goOn ? lastUid : 0;
 				long newest = fresh.isEmpty() ? newestUid(folder, uids, after) : uid(uids, fresh.getLast());
 				log.debug("Read {} new emails from {}", messages.size(), server);
 				return new Fetched(validity, newest, messages);
@@ -159,13 +163,13 @@ class ImapMailReader implements MailReader {
 		return store;
 	}
 
-	private static MailMessage read(Message message, long validity, long uid) throws MessagingException, IOException {
+	private MailMessage read(Message message, long validity, long uid) throws MessagingException, IOException {
 		String messageId = (message instanceof MimeMessage mime && mime.getMessageID() != null) ? mime.getMessageID()
 				: "uid:" + validity + ":" + uid;
 		Date received = (message.getReceivedDate() != null) ? message.getReceivedDate() : message.getSentDate();
 		InternetAddress from = firstAddress(message.getFrom());
 		String text = text(message);
-		return new MailMessage(messageId, (received != null) ? received.toInstant() : Instant.now(),
+		return new MailMessage(messageId, (received != null) ? received.toInstant() : this.clock.instant(),
 				(from != null) ? from.getPersonal() : null, (from != null) ? from.getAddress() : null,
 				(message.getSubject() != null) ? message.getSubject() : "",
 				(text.length() > TEXT_MAX_LENGTH) ? text.substring(0, TEXT_MAX_LENGTH) : text);

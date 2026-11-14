@@ -6,6 +6,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -46,35 +47,47 @@ class EcbExchangeRates implements ExchangeRates {
 		.followRedirects(HttpClient.Redirect.NORMAL)
 		.build();
 
+	private final Clock clock;
+
 	private @Nullable RateTable rates;
 
 	private Instant renewAt = Instant.MIN;
 
-	@Override
-	public synchronized RateTable current() {
-		if (this.rates != null && Instant.now().isBefore(this.renewAt)) {
-			return this.rates;
-		}
-		try {
-			this.rates = parse(download());
-			this.renewAt = Instant.now().plus(KEPT);
-			log.info("Loaded the ECB's exchange rates of {}", this.rates.date());
-		} catch (IOException | IllegalArgumentException ex) {
-			keepWhatThereIs(ex);
-		} catch (InterruptedException ex) {
-			Thread.currentThread().interrupt();
-			keepWhatThereIs(ex);
-		}
-		return this.rates;
+	EcbExchangeRates(Clock clock) {
+		this.clock = clock;
 	}
 
-	private void keepWhatThereIs(Exception ex) {
-		log.warn("Couldn't load the ECB's exchange rates, using {}: {}",
-				(this.rates != null) ? "the last ones" : "approximate ones", ex.toString());
-		if (this.rates == null) {
-			this.rates = RateTable.APPROXIMATE;
+	@Override
+	public synchronized RateTable current() {
+		RateTable known = this.rates;
+		if (known != null && this.clock.instant().isBefore(this.renewAt)) {
+			return known;
 		}
-		this.renewAt = Instant.now().plus(RETRY_AFTER);
+		try {
+			RateTable loaded = parse(download());
+			this.rates = loaded;
+			this.renewAt = this.clock.instant().plus(KEPT);
+			log.info("Loaded the ECB's exchange rates of {}", loaded.date());
+			return loaded;
+		} catch (IOException | IllegalArgumentException ex) {
+			return keepWhatThereIs(ex);
+		} catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			return keepWhatThereIs(ex);
+		}
+	}
+
+	/**
+	 * @return the last rates loaded, or approximate ones before any could be
+	 */
+	private RateTable keepWhatThereIs(Exception ex) {
+		RateTable last = this.rates;
+		log.warn("Couldn't load the ECB's exchange rates, using {}: {}",
+				(last != null) ? "the last ones" : "approximate ones", ex.toString());
+		RateTable kept = (last != null) ? last : RateTable.APPROXIMATE;
+		this.rates = kept;
+		this.renewAt = this.clock.instant().plus(RETRY_AFTER);
+		return kept;
 	}
 
 	private String download() throws IOException, InterruptedException {

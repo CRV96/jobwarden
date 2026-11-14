@@ -3,12 +3,12 @@ package com.jobwarden.search;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import lombok.AccessLevel;
@@ -257,7 +257,11 @@ public final class Regions {
 
 	@SafeVarargs
 	private static Set<String> union(Set<String>... sets) {
-		return Arrays.stream(sets).flatMap(Set::stream).collect(Collectors.toUnmodifiableSet());
+		Set<String> all = new HashSet<>();
+		for (Set<String> set : sets) {
+			all.addAll(set);
+		}
+		return Set.copyOf(all);
 	}
 
 }

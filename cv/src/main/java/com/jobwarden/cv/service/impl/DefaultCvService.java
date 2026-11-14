@@ -228,18 +228,18 @@ class DefaultCvService implements CvService {
 			.github(text(details.github()))
 			.summary(text(details.summary()))
 			.skills(keywords(details.skills()))
-			.experience(entries(details.experience(), job -> new CvExperience(text(job.role()), text(job.company()),
-					text(job.location()), text(job.start()), text(job.end()), text(job.description())), CvExperience::role))
-			.projects(entries(details.projects(), project -> new CvProject(text(project.name()), text(project.link()),
-					text(project.technologies()), text(project.description())), CvProject::name))
-			.education(entries(details.education(), school -> new CvEducation(text(school.degree()), text(school.school()),
-					text(school.location()), text(school.start()), text(school.end()), text(school.description())),
-					CvEducation::degree))
-			.languages(entries(details.languages(), language -> new CvLanguage(text(language.language()),
-					text(language.level())), CvLanguage::language))
-			.certifications(entries(details.certifications(), certification -> new CvCertification(
-					text(certification.name()), text(certification.issuer()), text(certification.year())),
-					CvCertification::name))
+			.experience(entries(details.experience(), CvExperience::role, job -> new CvExperience(job.role().strip(),
+					text(job.company()), text(job.location()), text(job.start()), text(job.end()), text(job.description()))))
+			.projects(entries(details.projects(), CvProject::name, project -> new CvProject(project.name().strip(),
+					text(project.link()), text(project.technologies()), text(project.description()))))
+			.education(entries(details.education(), CvEducation::degree, school -> new CvEducation(
+					school.degree().strip(), text(school.school()), text(school.location()), text(school.start()),
+					text(school.end()), text(school.description()))))
+			.languages(entries(details.languages(), CvLanguage::language,
+					language -> new CvLanguage(language.language().strip(), text(language.level()))))
+			.certifications(entries(details.certifications(), CvCertification::name,
+					certification -> new CvCertification(certification.name().strip(), text(certification.issuer()),
+							text(certification.year()))))
 			.build();
 	}
 
@@ -261,9 +261,13 @@ class DefaultCvService implements CvService {
 			.build();
 	}
 
-	private static <T> List<T> entries(List<T> entries, UnaryOperator<T> tidied, Function<T, @Nullable String> mainField) {
-		Predicate<T> hasMainField = entry -> mainField.apply(entry) != null;
-		return entries.stream().filter(entry -> entry != null).map(tidied).filter(hasMainField).toList();
+	/**
+	 * The entries whose main field (a job's role, a school's degree...) isn't blank, tidied. A form or the assistant
+	 * may send one without it, whatever the record says: those are left out before they're tidied.
+	 */
+	private static <T> List<T> entries(List<T> entries, Function<T, @Nullable String> mainField, UnaryOperator<T> tidied) {
+		Predicate<@Nullable T> hasMainField = entry -> entry != null && text(mainField.apply(entry)) != null;
+		return entries.stream().filter(hasMainField).map(tidied).toList();
 	}
 
 	private static @Nullable String text(@Nullable String text) {

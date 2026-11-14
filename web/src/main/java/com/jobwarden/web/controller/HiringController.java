@@ -1,5 +1,6 @@
 package com.jobwarden.web.controller;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.EnumMap;
@@ -32,6 +33,7 @@ import com.jobwarden.web.dto.HiringRequestForm;
 import com.jobwarden.web.enums.HiringTab;
 import com.jobwarden.web.enums.RecruiterFilter;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
@@ -71,6 +73,8 @@ class HiringController extends BaseController {
 
 	private final DiscoveryService discovery;
 
+	private final Clock clock;
+
 	@GetMapping
 	String page(@ModelAttribute(ModelAttributes.HIRING_PARAMS) HiringParams params, Model model) {
 		long userId = requireProfile(model).id();
@@ -101,10 +105,11 @@ class HiringController extends BaseController {
 	 * Asks Claude for posts, or for recruiters. The page then shows the prompt that hands the request to Claude Code.
 	 */
 	@PostMapping("/requests")
-	String ask(HiringRequestForm form, Model model) {
+	String ask(@Valid HiringRequestForm form, Model model) {
 		long userId = requireProfile(model).id();
-		this.discovery.createRequest(userId, form.kind(), form.toRequirements());
-		addRequest(model, userId, form.kind());
+		AiRequestKind kind = form.requiredKind();
+		this.discovery.createRequest(userId, kind, form.toRequirements());
+		addRequest(model, userId, kind);
 		return Views.HIRING_ASK_FRAGMENT;
 	}
 
@@ -195,7 +200,7 @@ class HiringController extends BaseController {
 			.description(post.text())
 			.link(post.link())
 			.initialStatus(ApplicationStatus.SAVED)
-			.initialStatusDate(LocalDate.now())
+			.initialStatusDate(LocalDate.now(this.clock))
 			.build()).id();
 		model.addAttribute(ModelAttributes.POST, this.hiring.markSaved(userId, id, applicationId));
 		model.addAttribute(ModelAttributes.HIRING_PARAMS, HiringParams.defaults());

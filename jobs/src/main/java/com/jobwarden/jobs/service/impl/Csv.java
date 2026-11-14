@@ -60,7 +60,7 @@ final class Csv {
 	/**
 	 * Writes one record, and the line's end.
 	 */
-	static void write(Appendable out, List<@Nullable String> values) throws IOException {
+	static void write(Appendable out, List<? extends @Nullable String> values) throws IOException {
 		for (int i = 0; i < values.size(); i++) {
 			if (i > 0) {
 				out.append(',');

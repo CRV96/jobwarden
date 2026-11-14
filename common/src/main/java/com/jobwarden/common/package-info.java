@@ -7,4 +7,7 @@
  * {@code @NamedInterface}.
  * Business logic never goes here; it belongs in a domain module.
  */
+@NullMarked
 package com.jobwarden.common;
+
+import org.jspecify.annotations.NullMarked;

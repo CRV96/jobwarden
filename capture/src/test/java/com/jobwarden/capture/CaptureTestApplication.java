@@ -1,6 +1,9 @@
 package com.jobwarden.capture;
 
+import java.time.Clock;
+
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
 
 /**
  * Web tests like {@code @WebMvcTest} start from a {@code @SpringBootApplication} class. The real one lives
@@ -8,5 +11,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication
 class CaptureTestApplication {
+
+	/** "Now", as the app's own JobWardenApplication gives it to every module. */
+	@Bean
+	Clock clock() {
+		return Clock.systemDefaultZone();
+	}
 
 }

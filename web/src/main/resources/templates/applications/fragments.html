@@ -301,7 +301,7 @@
                    wouldn't send the form. Keep it right after the input. */-->
             <input class="input w-auto flex-[0_1_110px]" type="time" name="eventTime" th:value="${#temporals.format(now, 'HH:mm')}"
                    th:aria-label="#{application.event.time}">
-            <button class="btn btn-ghost" type="button" onclick="this.previousElementSibling.value = ''"
+            <button class="btn btn-ghost" type="button" data-clear-previous
                     th:text="#{form.clearTime}">Clear time</button>
         </div>
         <select class="input" name="stageCategory" required data-status-select th:aria-label="#{application.event.stage}">

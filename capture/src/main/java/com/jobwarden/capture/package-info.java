@@ -6,4 +6,7 @@
  * A thin adapter that turns these into calls on the jobs, identity, updates, apply and cv modules; it owns no tables
  * and holds no domain logic. No other module depends on it.
  */
+@NullMarked
 package com.jobwarden.capture;
+
+import org.jspecify.annotations.NullMarked;

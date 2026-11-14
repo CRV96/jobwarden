@@ -1,5 +1,6 @@
 package com.jobwarden.web.dto;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
@@ -60,8 +61,11 @@ public record NewEventForm(
 		return this.stageCategory == null || !this.stageCategory.hasRejectionReason() || this.rejectionReason != null;
 	}
 
-	public NewTimelineEvent toNewTimelineEvent() {
-		FormValues.Moment moment = momentOrNow(this.eventDate, this.eventTime);
+	/**
+	 * @param clock what "now" is, when the form sends no date (the status buttons)
+	 */
+	public NewTimelineEvent toNewTimelineEvent(Clock clock) {
+		FormValues.Moment moment = momentOrNow(this.eventDate, this.eventTime, clock);
 		return NewTimelineEvent.builder()
 			.eventDate(moment.date())
 			.eventTime(moment.time())

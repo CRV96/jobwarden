@@ -1,5 +1,6 @@
 package com.jobwarden.web.view;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Locale;
@@ -14,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class DatesTests {
 
-	private final Dates dates = new Dates(messages());
+	private final Dates dates = new Dates(messages(), Clock.systemDefaultZone());
 
 	@AfterEach
 	void resetLocale() {

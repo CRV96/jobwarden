@@ -31,10 +31,17 @@ public record OfferComparison(String currency, SalaryPeriod period, List<Compare
 	 * of them gross, all net, or none saying, as a gross salary and a net one aren't the same amount
 	 */
 	public Optional<ComparedOffer> best() {
-		List<ComparedOffer> paid = this.offers.stream().filter(offer -> offer.salary() != null).toList();
+		record Paid(ComparedOffer offer, SalaryEntry salary) {
+		}
+		List<Paid> paid = this.offers.stream().<Paid>mapMulti((offer, kept) -> {
+			SalaryEntry salary = offer.salary();
+			if (salary != null) {
+				kept.accept(new Paid(offer, salary));
+			}
+		}).toList();
 		long bases = paid.stream().map(offer -> Optional.ofNullable(offer.salary().basis())).distinct().count();
 		return (paid.size() < 2 || bases > 1) ? Optional.empty()
-				: paid.stream().max(Comparator.comparing(offer -> offer.salary().midpoint()));
+				: paid.stream().max(Comparator.comparing(offer -> offer.salary().midpoint())).map(Paid::offer);
 	}
 
 	public boolean isEmpty() {

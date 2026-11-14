@@ -49,7 +49,8 @@ class BoardFeedsTests {
 		this.boards.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
 		this.boards.start();
 		URI here = URI.create("http://127.0.0.1:" + this.boards.getAddress().getPort());
-		this.feeds = new BoardFeeds("1.2.3", here, here, URI.create(here + "/eu"), here, Duration.ofSeconds(1));
+		this.feeds = new BoardFeeds("1.2.3",
+				new WatchlistProperties(Duration.ofHours(6), here, here, URI.create(here + "/eu"), here), Duration.ofSeconds(1));
 	}
 
 	@AfterEach

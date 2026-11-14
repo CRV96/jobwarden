@@ -1,7 +1,7 @@
 package com.jobwarden.identity.service.impl;
 
 import java.io.IOException;
-import java.time.Instant;
+import java.time.Clock;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
@@ -21,8 +21,8 @@ import com.jobwarden.identity.repository.ProfileImageRepository;
 import com.jobwarden.identity.repository.UserRepository;
 import com.jobwarden.identity.service.UserService;
 import lombok.CustomLog;
-import org.jspecify.annotations.Nullable;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -45,6 +45,8 @@ class DefaultUserService implements UserService {
 	private final UserRepository users;
 
 	private final ProfileImageRepository images;
+
+	private final Clock clock;
 
 	/**
 	 * @throws BusinessRuleException if a profile already has this name, ignoring case
@@ -109,7 +111,7 @@ class DefaultUserService implements UserService {
 		this.images.findById(id).ifPresentOrElse(image -> image.replace(png),
 				() -> this.images.save(new ProfileImageEntity(id, png)));
 		// To the microsecond, as PostgreSQL keeps it: the profile returned and the one read back say the same moment
-		user.imageChanged(Instant.now().truncatedTo(ChronoUnit.MICROS));
+		user.imageChanged(this.clock.instant().truncatedTo(ChronoUnit.MICROS));
 		log.info("Changed the photo of profile {}", id);
 		return UserMapper.toUser(user);
 	}
@@ -176,7 +178,8 @@ class DefaultUserService implements UserService {
 		try {
 			return Images.squarePng(Images.read(content), IMAGE_SIZE);
 		} catch (TooLargeImageException tooLarge) {
-			throw new BusinessRuleException(IdentityErrorCode.IMAGE_TOO_LARGE, tooLarge.getMessage(),
+			throw new BusinessRuleException(IdentityErrorCode.IMAGE_TOO_LARGE,
+					"The photo is too large: " + tooLarge.getMessage(),
 					String.valueOf(MAX_IMAGE_BYTES / (1024 * 1024)));
 		} catch (IOException | RuntimeException unreadable) {
 			// Java's image readers throw more than IOException on a broken file

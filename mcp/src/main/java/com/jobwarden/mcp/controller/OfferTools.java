@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 import com.jobwarden.jobs.dto.ComparedOffer;
 import com.jobwarden.jobs.dto.JobOffer;
@@ -27,6 +28,7 @@ import com.jobwarden.market.service.MarketSalaryService;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
+import org.springframework.lang.Contract;
 import org.springframework.stereotype.Component;
 
 import static com.jobwarden.mcp.controller.JobTools.properties;
@@ -108,8 +110,8 @@ class OfferTools implements McpToolSet {
 					if (countries.isEmpty()) {
 						throw new ToolException("countries needs at least one ISO 3166 two-letter code, e.g. DE");
 					}
-					SalaryPeriod period = (call.string("period") != null) ? call.constant("period", SalaryPeriod.class)
-							: SalaryPeriod.YEAR;
+					SalaryPeriod period = Objects.requireNonNullElse(call.constant("period", SalaryPeriod.class),
+							SalaryPeriod.YEAR);
 					MarketSalaries found = this.market.find(new MarketQuery(role, skill, countries),
 							currency(call.string("currency")), period);
 					List<String> roles = this.market.roles();
@@ -194,6 +196,7 @@ class OfferTools implements McpToolSet {
 				rounded(figure.middle()), rounded(figure.upperQuartile()), figure.sampleSize());
 	}
 
+	@Contract("null -> null; !null -> !null")
 	private static @Nullable BigDecimal rounded(@Nullable BigDecimal amount) {
 		return (amount == null) ? null : amount.setScale(0, RoundingMode.HALF_UP);
 	}
@@ -202,8 +205,9 @@ class OfferTools implements McpToolSet {
 		return items.stream().limit(ITEMS_MAX).map(OfferTools::shortened).toList();
 	}
 
+	@Contract("null -> null; !null -> !null")
 	private static @Nullable String shortened(@Nullable String text) {
-		return (text == null || text.length() <= TEXT_MAX_LENGTH) ? text : text.substring(0, TEXT_MAX_LENGTH - 1) + "…";
+		return Texts.shortened(text, TEXT_MAX_LENGTH);
 	}
 
 	record OffersView(String currency, List<OfferRow> offers) {

@@ -8,7 +8,7 @@ JobWarden is open-source software owned by Robert-Vasile Ciapă and released und
 
 1. For anything beyond a small fix, open an issue first so the approach can be agreed on before you write code.
 2. Fork the repository and create a branch from `main`.
-3. Make sure the build passes: `./mvnw verify`.
+3. Make sure the build passes, with the null-safety checks CI runs: `./mvnw verify -Pnullaway`.
 4. Open a pull request describing what changed and why.
 5. Sign the CLA by posting this exact comment on your pull request:
 

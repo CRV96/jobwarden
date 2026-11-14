@@ -23,7 +23,6 @@ import java.util.Map;
 import lombok.CustomLog;
 import org.jspecify.annotations.Nullable;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -61,10 +60,9 @@ class StackOverflowSurvey {
 		.followRedirects(HttpClient.Redirect.NORMAL)
 		.build();
 
-	StackOverflowSurvey(@Value("${jobwarden.market.stack-overflow.url}") URI address,
-			@Value("${jobwarden.market.stack-overflow.year}") int year) {
-		this.address = address;
-		this.year = year;
+	StackOverflowSurvey(MarketProperties properties) {
+		this.address = properties.stackOverflow().url();
+		this.year = properties.stackOverflow().year();
 	}
 
 	int year() {

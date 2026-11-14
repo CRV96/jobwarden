@@ -116,7 +116,7 @@ class ApplyTools implements McpToolSet {
 						"item_id", "result"),
 				false, false, call -> {
 					long userId = this.profiles.of(call);
-					ApplyStatus result = call.constant("result", ApplyStatus.class);
+					ApplyStatus result = call.requiredConstant("result", ApplyStatus.class);
 					return row(userId, this.autoApply.report(userId, call.requiredNumber("item_id"), result,
 							call.string("site"), call.string("note"), call.string("question")));
 				});

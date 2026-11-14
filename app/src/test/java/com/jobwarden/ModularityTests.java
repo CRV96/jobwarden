@@ -1,6 +1,7 @@
 package com.jobwarden;
 
 import org.junit.jupiter.api.Test;
+
 import org.springframework.modulith.core.ApplicationModules;
 
 /**

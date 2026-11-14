@@ -51,10 +51,14 @@ public class Secrets {
 	/**
 	 * @param configuredKey 32 bytes in Base64, or empty for the key file's
 	 * @param keyFile read, or made the first time, when no key is configured
+	 * @throws IllegalStateException when the configured key isn't 32 bytes in Base64: the app doesn't start with it
 	 */
 	public Secrets(String configuredKey, Path keyFile) {
 		this.configuredKey = configuredKey.strip();
 		this.keyFile = keyFile;
+		if (!this.configuredKey.isEmpty()) {
+			this.key = new SecretKeySpec(decode(this.configuredKey), "AES");
+		}
 	}
 
 	/**
@@ -102,7 +106,12 @@ public class Secrets {
 	}
 
 	private static byte[] decode(String key) {
-		byte[] bytes = Base64.getDecoder().decode(key);
+		byte[] bytes;
+		try {
+			bytes = Base64.getDecoder().decode(key);
+		} catch (IllegalArgumentException notBase64) {
+			throw new IllegalStateException("jobwarden.secret-key must be " + KEY_BYTES + " bytes in Base64", notBase64);
+		}
 		if (bytes.length != KEY_BYTES) {
 			throw new IllegalStateException("jobwarden.secret-key must be " + KEY_BYTES + " bytes in Base64");
 		}

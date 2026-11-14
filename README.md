@@ -49,6 +49,15 @@ volumes:
 
 The `jobwarden-key` volume keeps the key that encrypts the mailboxes' passwords and the GitHub token; without it, a new container means connecting them again. JobWarden has no sign-in, so the port is published on this computer only: see [SECURITY.md](SECURITY.md#running-jobwarden-safely).
 
+### Running it day to day
+
+[docs/operations.md](docs/operations.md) has it all: the settings, the health endpoints and metrics, the logs, backups, upgrading, and what to do when something's wrong. In short:
+
+- **Health:** `/actuator/health` says `UP` or `DOWN`, with `/actuator/health/liveness` and `/actuator/health/readiness` (the database too) for Docker, whose `HEALTHCHECK` asks the first, and for orchestrators. `/actuator/info` gives the version, the commit and the Java running, `/actuator/metrics` the requests', the scheduled checks' and the JVM's metrics. Nothing else of Actuator is exposed, as JobWarden has no sign-in.
+- **Logs:** every line logged while answering a request carries its id, e.g. `[3f9c2a71d04e8b65]`, which the `X-Request-Id` response header gives too; each run of a scheduled check has one of its own. For JSON logs (a log collector), set `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`. Levels and codes: see *Logging* under [Project structure](#project-structure).
+- **Stopping** lets the requests under way finish, for up to 20 seconds.
+- **Which libraries:** the jar carries its software bill of materials (CycloneDX) at `META-INF/sbom/application.cdx.json`, for vulnerability scanners.
+
 ### Frontend
 
 Pages are server-rendered with Thymeleaf; HTMX handles partial updates without a page reload. The menu lists the Search Builder, Who's hiring, AI Assistant, Auto-apply, Jobs, Pipeline, Calendar, Salaries and CV; Settings are in the profile menu at its foot. From 1024 pixels wide every page fills the window (`page-full` in `app.css`), and its lists and panels scroll on their own: the jobs under their header row, each pipeline column, the calendar. Pages of two panels side by side (the AI Assistant, the CV, the salaries, a job's page) do so from 1280 pixels (`page-split`, with `scroll-panel` for each panel); narrower, their panels stack and the page scrolls. Tailwind CSS is compiled during the Maven build, which downloads its own Node into `web/target/`, so nothing extra needs installing. While editing templates, keep the CSS up to date with:
@@ -230,6 +239,8 @@ The cards of a job's page and side panel (fit, AI-proof CV, interview prep, remi
 
 ## Project structure
 
+Why it's built this way: the [architecture decision records](docs/adr/README.md). What's being improved next: the [code quality roadmap](docs/quality-roadmap.md).
+
 A modular monolith: one Spring Boot application split into Maven modules. The domain modules hold the business logic and know nothing about the web. Two adapter modules expose them: `web` to the browser, `capture` to the extension. `common` holds the little code they all share.
 
 | Module | Responsibility | Depends on |
@@ -267,12 +278,15 @@ Every module groups its classes by type, with the same package names everywhere:
 | `logging` | `JobWardenLogger` | `common` |
 | `controller` | Controllers and their exception handlers | `web`, `capture` |
 | `constants`, `user` | Route paths; `CurrentUser` | `web` |
-| `config` | Spring configuration, e.g. `LocaleConfiguration` | `web` |
+| `config` | Spring configuration, e.g. `LocaleConfiguration`, and the filters every request goes through: `RequestIdFilter`, `SecurityHeadersFilter` | `web` |
 
 In the domain modules, `dto`, `enums`, `service` and `exception` are the public API. Each is marked `@NamedInterface` in its `package-info.java`, which tells Spring Modulith that other modules may use it. `service` uses `propagate = false`, so `service.impl` stays internal, as do `entity` and `repository`. In `common`, `exception` and `logging` are marked the same way.
 
 Conventions:
 
+- **Null-safety:** every package is `@NullMarked` (JSpecify) in its `package-info.java`: nothing is `null` unless its type says `@Nullable`. IntelliJ checks it as you type; NullAway checks it as the code compiles, with `./mvnw verify -Pnullaway`, which CI always runs (it's a profile because Error Prone needs the JVM flags in `.mvn/jvm.config`, which IntelliJ's own compiler doesn't get). A form field that validation requires is still `@Nullable` (binding leaves out what a request didn't send): read it with the form's `required…()` method, after validation. A helper that keeps a non-null argument non-null says so with Spring's `@Contract("!null -> !null")`. A new package needs its `package-info.java`, with `@NullMarked`.
+- **Time:** "now" comes from the `Clock` bean (`JobWardenApplication`): a class that needs it takes a `Clock` in its constructor and calls `Instant.now(this.clock)`, `LocalDate.now(this.clock)`, `this.clock.getZone()`, so a test can fix the moment. Entities stamp their own audit times (`updatedAt`...) with the system's clock.
+- **Settings:** a domain module's settings are one `@ConfigurationProperties` record in its `service.impl` (e.g. `WatchlistProperties`, `jobwarden.watchlist.*`), with its defaults (`@DefaultValue`) and constraints, registered by the module's `*Configuration` and checked as the app starts. Elsewhere, `@Value` goes on a `private final` field, which Lombok copies onto the constructor (`lombok.config`); never on a setter.
 - **Records for DTOs:** they need no constructors, getters or `equals`. Records with more than three fields also get Lombok's `@Builder`: build them with `NewApplication.builder().title(...).build()` rather than a constructor call full of `null`s, and leave out the fields that have no value. The records the modules take as input (`NewApplication`, `NewTimelineEvent`) check their required fields in their constructor, since a builder can't make sure every required field is set.
 - **Lombok for entities:** only `@Getter` and `@NoArgsConstructor(access = PROTECTED)`. Never use `@Data`, `@EqualsAndHashCode` or `@ToString` on entities. They trigger lazy loading, and on the two-way `ApplicationEntity` ↔ `TimelineEventEntity` link `toString` would recurse forever.
 - **Package-private controllers and service implementations:** only the service interfaces can be called from Java code.
@@ -303,15 +317,17 @@ Conventions:
   - `ErrorCode.PROPERTY_NAME` is the one name for the error code, in logs and in error responses.
 - **Dates and times:** a timeline event has a date, and a time of day only when it's known (`LocalDate` + `LocalTime`; `DATE` + `TIME` columns). Within a day, events without a time come first. They're wall-clock values, as entered; "now" is taken in the server's time zone, so set `TZ` when running in Docker (which defaults to UTC). Moments that are only ever recorded, like `capturedAt`, are instants (`Instant`, `TIMESTAMPTZ`). The forms have a date field and an optional time field with a Clear time button (a time emptied only in part is invalid, and the browser won't send the form); a form that sends no date, like the status buttons, means now, with the time. The capture API adds the time too, unless the request says `"includeTime": false`. Display patterns are the `format.date` and `format.dateTime` messages, so each language has its own.
 - **Entities guard their own rules:** `ApplicationEntity.getEvents()` is read-only and `TimelineEventEntity`'s constructor is package-private, so events can only be added through `addEvent`, which keeps the status in step with the timeline.
-- **Formatting:** [.editorconfig](.editorconfig) sets tabs for Java and XML plus the import order. In IntelliJ, *Code → Reformat Code* with *Optimize imports* applies it.
+- **Formatting:** [.editorconfig](.editorconfig) sets tabs for Java and XML plus the import order. In IntelliJ, *Code → Reformat Code* with *Optimize imports* applies it. The build checks the imports (Spotless: `java`, `javax`, the rest, `org.springframework`, then static, none unused) and `./mvnw spotless:apply` puts them in order.
+- **The build** also stops on an older Java or Maven than the project needs, a dependency declared twice, or a version range (Maven Enforcer), and shows every compiler warning (`-Xlint:all`): don't add new ones.
 
-Templates live in `web/src/main/resources/templates/<feature>/`, and all pages share [layout.html](web/src/main/resources/templates/layout.html). Never name a model attribute `application`, `session` or `param`: Thymeleaf reserves those names, so the template would read something else. HTMX endpoints return a fragment of the page's template, e.g. `applications/detail :: application`.
+Templates live in `web/src/main/resources/templates/<feature>/`, and all pages share [layout.html](web/src/main/resources/templates/layout.html). Never name a model attribute `application`, `session` or `param`: Thymeleaf reserves those names, so the template would read something else. HTMX endpoints return a fragment of the page's template, e.g. `applications/detail :: application`. Pages run under a Content Security Policy (`SecurityHeadersFilter`): no inline `<script>`, no `onclick=` and the like, no `hx-on` or `js:` values. Behaviour goes in `static/js/app.js`, asked for with a `data-` attribute.
 
 Rules:
 
 - A module's public API is its root package plus the packages marked `@NamedInterface`. Everything else is private to that module. Other modules never touch another module's entities or repositories.
 - Domain modules never depend on the adapters. Business logic belongs in a domain module, never in a controller.
 - [ModularityTests](app/src/test/java/com/jobwarden/ModularityTests.java) (Spring Modulith) fails the build if a module uses another module's internals or if module dependencies form a cycle.
+- [ConventionsTests](app/src/test/java/com/jobwarden/ConventionsTests.java) (ArchUnit) fails it if the code leaves these conventions: package-private `Default*Service` implementations and controllers, records for public DTOs, constructor injection (no setter injection, `@Value` only on final fields), logging through `JobWardenLogger`, no `System.out`, no generic exceptions, no transactions in controllers, entities without `toString`/`equals`/`hashCode`, exceptions with an error code, `java.time` only, "now" from the `Clock`, and every error code unique and prefixed with its module's name, and every package `@NullMarked`.
 - Each module keeps its own Flyway migrations in `src/main/resources/db/migration`, named `V<n>__<module>_<description>.sql`. Version numbers are shared by all modules: a new migration takes the next free number across the whole project, not just its own module. Hibernate only validates the schema; it never changes it.
 
 ## Languages
@@ -346,6 +362,7 @@ Each kind of test has one place:
 | Controller tests (`@WebMvcTest`) | `web` and `capture`, next to the controller | [ApplicationControllerTests](web/src/test/java/com/jobwarden/web/controller/ApplicationControllerTests.java), [CaptureControllerTests](capture/src/test/java/com/jobwarden/capture/controller/CaptureControllerTests.java), [CaptureExceptionHandlerTests](capture/src/test/java/com/jobwarden/capture/controller/CaptureExceptionHandlerTests.java) |
 | Service tests against a real database (`@ApplicationModuleTest`) | `app`, in the module's package, e.g. `app/src/test/java/com/jobwarden/jobs/` | [ApplicationServiceTests](app/src/test/java/com/jobwarden/jobs/ApplicationServiceTests.java) |
 | Whole application and module boundaries | `app` | [ModularityTests](app/src/test/java/com/jobwarden/ModularityTests.java) |
+| The code's conventions (ArchUnit) | `app` | [ConventionsTests](app/src/test/java/com/jobwarden/ConventionsTests.java) |
 | What the AI assistant reads: the tool list and each kind of request, in characters, with budgets | `mcp` | [McpBudgetTests](mcp/src/test/java/com/jobwarden/mcp/controller/McpBudgetTests.java), which prints the table and writes it to `mcp/target/mcp-budget.tsv` |
 
 Why database tests live in `app`: the migrations only run there, and `jobs`' tables reference `identity`'s. `@ApplicationModuleTest` still starts just the one module, which also proves the module doesn't depend on other modules' beans.

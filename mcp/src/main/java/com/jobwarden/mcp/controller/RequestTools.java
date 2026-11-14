@@ -374,7 +374,7 @@ class RequestTools implements McpToolSet {
 				break;
 			}
 		}
-		return details;
+		return Objects.requireNonNull(details, "the first round always makes the details");
 	}
 
 	private JsonMapper results() {

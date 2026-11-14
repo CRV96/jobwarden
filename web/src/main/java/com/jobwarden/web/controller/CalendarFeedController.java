@@ -1,7 +1,7 @@
 package com.jobwarden.web.controller;
 
+import java.time.Clock;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -40,6 +40,8 @@ class CalendarFeedController {
 
 	private final CalendarIcs ics;
 
+	private final Clock clock;
+
 	/**
 	 * @param token the profile's secret, from the address the calendar page gives
 	 * @param download true to save it as a file, e.g. to import it once into a calendar that can't subscribe
@@ -55,7 +57,7 @@ class CalendarFeedController {
 			log.debug("A calendar feed asked for with an unknown secret");
 			return ResponseEntity.notFound().build();
 		}
-		LocalDate today = LocalDate.now();
+		LocalDate today = LocalDate.now(this.clock);
 		Set<CalendarEntryType> types = CalendarEntryType.parse((show != null) ? show : List.of());
 		String calendar = this.ics.write(
 				this.applications.findCalendar(owner.get(), today.minusDays(CalendarIcs.DAYS_BEFORE),
@@ -65,7 +67,7 @@ class CalendarFeedController {
 					.path(ControllerConstants.APPLICATIONS + "/{id}")
 					.buildAndExpand(id)
 					.toUriString(),
-				ZoneId.systemDefault(), locale);
+				this.clock.getZone(), locale);
 		log.debug("Calendar feed of profile {} read", owner.get());
 		ContentDisposition disposition = (download ? ContentDisposition.attachment() : ContentDisposition.inline())
 			.filename("jobwarden.ics")

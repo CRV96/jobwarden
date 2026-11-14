@@ -22,6 +22,7 @@ import static com.jobwarden.mcp.controller.JobTools.properties;
 import static com.jobwarden.mcp.controller.Schemas.list;
 import static com.jobwarden.mcp.controller.Schemas.object;
 import static com.jobwarden.mcp.controller.Schemas.string;
+import static com.jobwarden.mcp.controller.Texts.shortened;
 
 /**
  * The CV's personal projects, from the profile's GitHub: the repositories it chose on the CV page, which JobWarden
@@ -120,10 +121,6 @@ class ProjectTools implements McpToolSet {
 		text = BLANK_LINES.matcher(text.lines().map(String::stripTrailing).collect(Collectors.joining("\n"))).replaceAll("\n\n")
 			.strip();
 		return text.isEmpty() ? null : shortened(text, README_MAX_LENGTH);
-	}
-
-	private static @Nullable String shortened(@Nullable String text, int maxLength) {
-		return (text == null || text.length() <= maxLength) ? text : text.substring(0, maxLength - 1) + "…";
 	}
 
 	/**

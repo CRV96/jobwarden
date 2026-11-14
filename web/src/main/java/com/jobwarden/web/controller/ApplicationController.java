@@ -8,6 +8,7 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -30,8 +31,8 @@ import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.jobs.service.JobFitService;
 import com.jobwarden.jobs.service.SalaryService;
 import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
 import com.jobwarden.web.constants.AppConstants.HtmxEvents;
+import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.constants.AppConstants.Views;
 import com.jobwarden.web.dto.ApplicationListParams;
@@ -89,6 +90,8 @@ class ApplicationController extends BaseController {
 
 	private final SalaryService salaries;
 
+	private final Clock clock;
+
 	/**
 	 * The list, searched, filtered, sorted and paged as its address says. An address past the last page (e.g. after
 	 * deleting the last rows of a page) goes to the last page.
@@ -118,7 +121,7 @@ class ApplicationController extends BaseController {
 	ResponseEntity<byte[]> export(Model model) throws IOException {
 		StringWriter csv = new StringWriter();
 		this.csv.export(requireProfile(model).id(), csv);
-		return attachment(csv.toString().getBytes(StandardCharsets.UTF_8), CSV, "jobwarden-jobs-" + LocalDate.now() + ".csv");
+		return attachment(csv.toString().getBytes(StandardCharsets.UTF_8), CSV, "jobwarden-jobs-" + LocalDate.now(this.clock) + ".csv");
 	}
 
 	/**
@@ -168,7 +171,7 @@ class ApplicationController extends BaseController {
 			log.debug("New application not added, fields with errors: {}", errors.keySet());
 			return showNewApplicationForm(model, form, errors);
 		}
-		long id = this.applications.create(form.toNewApplication(user.id()));
+		long id = this.applications.create(form.toNewApplication(user.id(), this.clock));
 		return redirectTo(ControllerConstants.APPLICATIONS + "/" + id);
 	}
 
@@ -340,7 +343,7 @@ class ApplicationController extends BaseController {
 	 */
 	private @Nullable String tryAddEvent(long userId, long applicationId, NewEventForm form) {
 		try {
-			this.applications.addEvent(userId, applicationId, form.toNewTimelineEvent());
+			this.applications.addEvent(userId, applicationId, form.toNewTimelineEvent(this.clock));
 			return null;
 		} catch (BusinessRuleException exception) {
 			return message(exception);
@@ -404,11 +407,11 @@ class ApplicationController extends BaseController {
 	 * What the forms on these pages offer: statuses, rejection reasons, interview formats, and now as the default date
 	 * and time.
 	 */
-	private static void addFormChoices(Model model) {
+	private void addFormChoices(Model model) {
 		model.addAttribute(ModelAttributes.STATUSES, ApplicationStatus.values());
 		model.addAttribute(ModelAttributes.REJECTION_REASONS, RejectionReason.values());
 		model.addAttribute(ModelAttributes.INTERVIEW_FORMATS, InterviewFormat.values());
-		model.addAttribute(ModelAttributes.NOW, LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES));
+		model.addAttribute(ModelAttributes.NOW, LocalDateTime.now(this.clock).truncatedTo(ChronoUnit.MINUTES));
 	}
 
 	private static ResponseEntity<Void> refresh() {

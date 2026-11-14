@@ -1,5 +1,6 @@
 package com.jobwarden.inbox.service.impl;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
@@ -24,7 +25,7 @@ class ImapMailReaderTests {
 	@RegisterExtension
 	static GreenMailExtension greenMail = new GreenMailExtension(ServerSetupTest.SMTP_IMAP);
 
-	private final ImapMailReader reader = new ImapMailReader(5000, false);
+	private final ImapMailReader reader = new ImapMailReader(new InboxProperties(5000, false), Clock.systemUTC());
 
 	private GreenMailUser robert;
 

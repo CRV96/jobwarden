@@ -1,7 +1,7 @@
 package com.jobwarden.web.view;
 
+import java.time.Clock;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.Locale;
 import java.util.Map;
 
@@ -26,12 +26,14 @@ public class LetterPdf {
 
 	private final Dates dates;
 
+	private final Clock clock;
+
 	/**
 	 * What the letter's template reads: today's date is written out here, as the PDF has no beans to ask.
 	 */
 	public Map<String, Object> variables(CoverLetter letter, CvDetails cv, ApplicationDetails job) {
 		return Map.of(ModelAttributes.COVER_LETTER, letter, ModelAttributes.CV_DETAILS, cv,
-				ModelAttributes.JOB_APPLICATION, job, ModelAttributes.LETTER_DATE, this.dates.date(LocalDate.now(ZoneId.systemDefault())));
+				ModelAttributes.JOB_APPLICATION, job, ModelAttributes.LETTER_DATE, this.dates.date(LocalDate.now(this.clock)));
 	}
 
 	public byte[] render(CoverLetter letter, CvDetails cv, ApplicationDetails job, Locale locale) {
