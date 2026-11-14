@@ -103,7 +103,8 @@ class BoardFeedsTests {
 			assertThat(posting.title()).isEqualTo("Platform Engineer");
 			assertThat(posting.location()).isEqualTo("NYC; London");
 			assertThat(posting.countries()).containsExactlyInAnyOrder("US", "GB");
-			assertThat(posting.workType()).isEqualTo(WorkType.REMOTE);
+			// isRemote is true for a hybrid job too: the workplace type says which
+			assertThat(posting.workType()).isEqualTo(WorkType.HYBRID);
 			assertThat(posting.employmentType()).isEqualTo(EmploymentType.FULL_TIME);
 			assertThat(posting.salary()).isEqualTo("$160K - $275K");
 			assertThat(posting.description()).isEqualTo("Build the platform.");

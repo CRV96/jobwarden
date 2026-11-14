@@ -26,7 +26,8 @@ COPY --from=build /extracted/application/ ./
 VOLUME /home/jobwarden/.jobwarden
 EXPOSE 8080
 # Healthy once /actuator/health/liveness says UP. The image has no curl: bash's /dev/tcp asks instead, on the port the
-# server listens on (SERVER_PORT when set).
+# server listens on. In Docker, change that port with SERVER_PORT only: the check reads it, but not --server.port or a
+# properties file. (Publishing the port elsewhere, -p 9090:8080, needs no change at all.)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
     CMD ["bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/${SERVER_PORT:-8080} && printf 'GET /actuator/health/liveness HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && grep -q '\"status\":\"UP\"' <&3"]
 # The heap as a share of the container's memory rather than of the machine's, and a clean exit (for Docker to restart

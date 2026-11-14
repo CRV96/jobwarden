@@ -1,7 +1,9 @@
 package com.jobwarden.watchlist.service.impl;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 
@@ -49,6 +51,10 @@ final class FeedJson {
 		return array.values().stream().filter(JsonNode::isString).map(JsonNode::asString).filter(s -> !s.isBlank()).toList();
 	}
 
+	/**
+	 * @return the moment, e.g. 2026-10-12T13:48:36.560+00:00 or 2026-10-12T13:48:36Z; one without an offset as UTC;
+	 * {@code null} for anything else
+	 */
 	static @Nullable Instant instant(@Nullable String text) {
 		if (text == null) {
 			return null;
@@ -58,7 +64,7 @@ final class FeedJson {
 		} catch (DateTimeParseException _) {
 			// Without its offset: as UTC
 			try {
-				return Instant.parse(text);
+				return LocalDateTime.parse(text).toInstant(ZoneOffset.UTC);
 			} catch (DateTimeParseException _) {
 				return null;
 			}

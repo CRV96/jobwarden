@@ -54,13 +54,13 @@ public class ApplicationEntity {
 
 	private String link;
 
-	private String location;
+	private @Nullable String location;
 
-	private String salary;
+	private @Nullable String salary;
 
 	private String employmentType;
 
-	private String source;
+	private @Nullable String source;
 
 	@JdbcTypeCode(SqlTypes.JSON)
 	private String rawPayload;

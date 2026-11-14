@@ -7,6 +7,7 @@ import com.jobwarden.discover.dto.AiRequirements;
 import com.jobwarden.discover.enums.AiRequestKind;
 import com.jobwarden.search.Recency;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -19,8 +20,13 @@ import org.jspecify.annotations.Nullable;
  * @param places e.g. Romania, Remote in Europe
  * @param count how many recruiters to find, at most
  */
-public record HiringRequestForm(@NotNull @Nullable AiRequestKind kind, @Nullable String roles, @Nullable String places,
+public record HiringRequestForm(@NotNull @Nullable AiRequestKind kind,
+		@Size(max = HiringRequestForm.TEXT_MAX_LENGTH) @Nullable String roles,
+		@Size(max = HiringRequestForm.TEXT_MAX_LENGTH) @Nullable String places,
 		@Nullable Recency recency, @Nullable Integer count) {
+
+	/** The most the roles and the places may have; also their fields' maxlength in hiring/hiring.html. */
+	public static final int TEXT_MAX_LENGTH = 500;
 
 	/** The counts the page offers for recruiters */
 	public static final List<Integer> COUNTS = List.of(10, 20, 30);

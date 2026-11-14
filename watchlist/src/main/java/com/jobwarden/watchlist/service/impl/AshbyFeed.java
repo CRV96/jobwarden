@@ -47,7 +47,7 @@ final class AshbyFeed implements BoardFeed {
 			.collect(Collectors.joining("; "));
 		Set<String> countries = new LinkedHashSet<>();
 		Stream.concat(Stream.of(job), secondary.stream())
-			.map(place -> text(place.path("address").path("postalAddress"), "addressCountry"))
+			.map(AshbyFeed::country)
 			.filter(country -> country != null)
 			.forEach(country -> countries.addAll(Regions.countriesOf(country)));
 		Employment employment = Employment.of(text(job, "employmentType"));
@@ -58,7 +58,7 @@ final class AshbyFeed implements BoardFeed {
 			.title(title)
 			.location(location.isEmpty() ? null : location)
 			.countries(countries)
-			.workType(job.path("isRemote").asBoolean(false) ? WorkType.REMOTE : workType(text(job, "workplaceType")))
+			.workType(workTypeOf(job))
 			.employmentStated(employment.stated())
 			.employmentType(employment.type())
 			.link(link)
@@ -66,6 +66,29 @@ final class AshbyFeed implements BoardFeed {
 			.salary((salary != null) ? salary : text(compensation, "compensationTierSummary"))
 			.description(shortened(text(job, "descriptionPlain")))
 			.build();
+	}
+
+	/**
+	 * Where a location's country is: the job's own address has it under {@code postalAddress}, a secondary location's
+	 * address has it right under {@code address}, as Ashby documents them. Each is read for both, in case a board's
+	 * answer differs.
+	 */
+	private static @Nullable String country(JsonNode place) {
+		JsonNode address = place.path("address");
+		String country = text(address.path("postalAddress"), "addressCountry");
+		return (country != null) ? country : text(address, "addressCountry");
+	}
+
+	/**
+	 * {@code workplaceType} says Remote, Hybrid or OnSite. {@code isRemote} is true for Hybrid as well, so it only counts
+	 * when there's no workplace type to go by.
+	 */
+	private static @Nullable WorkType workTypeOf(JsonNode job) {
+		WorkType stated = workType(text(job, "workplaceType"));
+		if (stated != null) {
+			return stated;
+		}
+		return job.path("isRemote").asBoolean(false) ? WorkType.REMOTE : null;
 	}
 
 }

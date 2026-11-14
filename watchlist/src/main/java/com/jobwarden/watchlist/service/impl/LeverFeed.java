@@ -1,5 +1,6 @@
 package com.jobwarden.watchlist.service.impl;
 
+import java.math.BigDecimal;
 import java.net.URI;
 import java.time.Instant;
 import java.util.List;
@@ -76,18 +77,40 @@ final class LeverFeed implements BoardFeed {
 		return shortened(text.toString().strip());
 	}
 
-	/** {"currency": "EUR", "interval": "per-year-salary", "min": 60000, "max": 80000}: EUR 60,000–80,000 per year. */
+	/**
+	 * {"currency": "EUR", "interval": "per-year-salary", "min": 60000, "max": 80000}: EUR 60,000–80,000 per year;
+	 * {"currency": "USD", "interval": "per-hour-wage", "min": 23.75, "max": 28.5}: USD 23.75–28.50 per hour wage.
+	 */
 	private static @Nullable String leverSalary(JsonNode range) {
-		long min = range.path("min").asLong(0);
-		long max = range.path("max").asLong(0);
-		if (min <= 0 && max <= 0) {
+		BigDecimal min = amount(range.path("min"));
+		BigDecimal max = amount(range.path("max"));
+		if (min.signum() <= 0 && max.signum() <= 0) {
 			return null;
 		}
 		String currency = range.path("currency").asString("");
 		String interval = range.path("interval").asString("").replace("-salary", "").replace('-', ' ');
-		String amount = (min > 0 && max > 0 && min != max) ? "%,d–%,d".formatted(min, max)
-				: "%,d".formatted(Math.max(min, max));
+		String amount = (min.signum() > 0 && max.signum() > 0 && min.compareTo(max) != 0)
+				? formatted(min) + "–" + formatted(max) : formatted(min.max(max));
 		return (currency + " " + amount + " " + interval).strip();
+	}
+
+	/** The field's amount, a number or a number written as text; zero without one. */
+	private static BigDecimal amount(JsonNode value) {
+		if (value.isNumber()) {
+			return value.decimalValue();
+		}
+		try {
+			return value.isString() ? new BigDecimal(value.asString().strip()) : BigDecimal.ZERO;
+		} catch (NumberFormatException _) {
+			return BigDecimal.ZERO;
+		}
+	}
+
+	/** With thousands separators, whatever the server's language, and cents only when it has them: 60,000 or 23.75. */
+	private static String formatted(BigDecimal amount) {
+		BigDecimal plain = amount.stripTrailingZeros();
+		return (plain.scale() <= 0) ? String.format(Locale.ROOT, "%,d", plain.toBigInteger())
+				: String.format(Locale.ROOT, "%,.2f", amount);
 	}
 
 }

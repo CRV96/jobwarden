@@ -11,6 +11,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -244,7 +245,7 @@ class ConventionsTests {
 
 		assertThat(codeEnums).isNotEmpty();
 		for (JavaClass codeEnum : codeEnums) {
-			String module = codeEnum.getPackageName().split("\\.")[2].toUpperCase();
+			String module = codeEnum.getPackageName().split("\\.")[2].toUpperCase(Locale.ROOT);
 			for (Object constant : codeEnum.reflect().getEnumConstants()) {
 				String code = ((ErrorCode) constant).getCode();
 				String owner = codeEnum.getSimpleName() + "." + constant;
