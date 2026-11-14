@@ -8,4 +8,7 @@
  * Public API: the {@code dto}, {@code enums} and {@code service} packages, marked with {@code @NamedInterface}.
  * {@code entity}, {@code repository} and {@code service.impl} are internal to the module.
  */
+@NullMarked
 package com.jobwarden.market;
+
+import org.jspecify.annotations.NullMarked;

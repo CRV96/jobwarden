@@ -18,6 +18,7 @@ import static com.jobwarden.mcp.controller.Schemas.list;
 import static com.jobwarden.mcp.controller.Schemas.object;
 import static com.jobwarden.mcp.controller.Schemas.string;
 import static com.jobwarden.mcp.controller.Schemas.strings;
+import static com.jobwarden.mcp.controller.Texts.shortened;
 
 /**
  * The profile's story bank, kept with its CV: what it did, told the STAR way (situation, task, action, result), for
@@ -126,10 +127,6 @@ class StoryTools implements McpToolSet {
 	private static StoryView view(Story story) {
 		return new StoryView(story.id(), story.title(), story.skills(), story.situation(), story.task(), story.action(),
 				story.result());
-	}
-
-	private static @Nullable String shortened(@Nullable String text, int max) {
-		return (text == null || text.length() <= max) ? text : text.substring(0, max - 1) + "…";
 	}
 
 	record StoryView(long id, String title, List<String> skills, @Nullable String situation, @Nullable String task,

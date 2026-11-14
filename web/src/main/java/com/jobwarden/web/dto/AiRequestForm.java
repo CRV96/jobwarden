@@ -2,6 +2,7 @@ package com.jobwarden.web.dto;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import com.jobwarden.discover.dto.AiRequirements;
@@ -60,7 +61,7 @@ public record AiRequestForm(
 			.seniority(FormValues.blankToNull(this.seniority))
 			.minSalary(FormValues.blankToNull(this.minSalary))
 			.notes(FormValues.blankToNull(this.notes))
-			.recency(this.recency)
+			.recency(Objects.requireNonNullElse(this.recency, Recency.ANY))
 			.useCv(Boolean.TRUE.equals(this.useCv))
 			.maxJobs((this.maxJobs != null) ? this.maxJobs : AiRequirements.DEFAULT_MAX_JOBS)
 			.build();

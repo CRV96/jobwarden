@@ -36,10 +36,11 @@ jobs:
           distribution: temurin
           java-version: 25
           cache: maven
-      # Compiles every module, builds the CSS and runs all tests, the module boundary check among them, with JaCoCo
-      # measuring what they cover. Testcontainers uses the Docker that GitHub's Ubuntu runners come with.
+      # Compiles every module with NullAway checking its null-safety, builds the CSS and runs all tests, the module
+      # boundary and convention checks among them, with JaCoCo measuring what they cover. Testcontainers uses the Docker
+      # that GitHub's Ubuntu runners come with.
       - name: Build and test
-        run: ./mvnw -B verify -Pcoverage
+        run: ./mvnw -B verify -Pcoverage,nullaway
       - name: Keep the test reports
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -15,8 +15,8 @@ import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.dto.PngImage;
 import com.jobwarden.jobs.dto.TimelineEvent;
 import com.jobwarden.jobs.dto.TrackedApplication;
-import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.exception.JobsErrorCode;
 import com.jobwarden.jobs.service.ApplicationService;
@@ -35,9 +35,9 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 
 @WebMvcTest(CaptureController.class)

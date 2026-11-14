@@ -4,8 +4,8 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Objects;
 
-import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.InterviewFormat;
 import com.jobwarden.jobs.enums.RejectionReason;
 import lombok.Builder;

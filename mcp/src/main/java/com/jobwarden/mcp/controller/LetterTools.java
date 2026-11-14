@@ -15,7 +15,6 @@ import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.service.ApplicationService;
-import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.annotation.Value;

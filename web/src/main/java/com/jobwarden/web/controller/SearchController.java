@@ -65,9 +65,10 @@ class SearchController extends BaseController {
 			@RequestHeader(name = HtmxHeaders.REQUEST, required = false) @Nullable String htmx, Model model) {
 		SearchFilters filters = SearchFilters.from(parameters);
 		SearchCriteria criteria = filters.criteria();
-		boolean described = describe != null && !describe.isBlank();
-		if (described) {
-			criteria = this.descriptions.parse(describe).toBuilder().sites(criteria.sites()).build();
+		String description = (describe != null && !describe.isBlank()) ? describe : null;
+		boolean described = description != null;
+		if (description != null) {
+			criteria = this.descriptions.parse(description).toBuilder().sites(criteria.sites()).build();
 		}
 		GeneratedQueries generated = this.queries.generate(criteria);
 

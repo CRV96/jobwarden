@@ -222,11 +222,11 @@
         <input type="hidden" name="kind" th:value="${askKind}">
         <label class="flex flex-col gap-1">
             <span class="field-label" th:text="${forRecruiters} ? #{hiring.recruiters.ask.roles} : #{hiring.ask.roles}">Roles</span>
-            <input class="input" type="text" name="roles" th:placeholder="#{hiring.ask.roles.placeholder}" autocomplete="off">
+            <input class="input" type="text" name="roles" maxlength="500" th:placeholder="#{hiring.ask.roles.placeholder}" autocomplete="off">
         </label>
         <label class="flex flex-col gap-1">
             <span class="field-label" th:text="#{hiring.ask.places}">Where</span>
-            <input class="input" type="text" name="places" th:placeholder="#{hiring.ask.places.placeholder}" autocomplete="off">
+            <input class="input" type="text" name="places" maxlength="500" th:placeholder="#{hiring.ask.places.placeholder}" autocomplete="off">
         </label>
         <label class="flex flex-col gap-1" th:unless="${forRecruiters}">
             <span class="field-label" th:text="#{hiring.ask.recency}">Posted in the last</span>

@@ -36,6 +36,11 @@
 			<groupId>org.springframework.modulith</groupId>
 			<artifactId>spring-modulith-api</artifactId>
 		</dependency>
+		<!-- The constraints on the module's configuration (@ConfigurationProperties), checked as the app starts -->
+		<dependency>
+			<groupId>jakarta.validation</groupId>
+			<artifactId>jakarta.validation-api</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>

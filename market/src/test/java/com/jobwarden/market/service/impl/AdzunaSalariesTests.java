@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
+import static com.jobwarden.market.service.impl.MarketPropertiesFixtures.adzunaAt;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -60,9 +62,9 @@ class AdzunaSalariesTests {
 		List<String> asked = new ArrayList<>();
 		URI api = serve(200, HISTOGRAM, asked);
 
-		assertThat(new AdzunaSalaries(keys(null), api).find("GB", "java developer")).isEmpty();
+		assertThat(new AdzunaSalaries(keys(null), adzunaAt(api), Clock.systemUTC()).find("GB", "java developer")).isEmpty();
 
-		AdzunaSalaries adzuna = new AdzunaSalaries(keys(new Key("id", "key")), api);
+		AdzunaSalaries adzuna = new AdzunaSalaries(keys(new Key("id", "key")), adzunaAt(api), Clock.systemUTC());
 		assertThat(adzuna.find("GB", "java developer")).hasValueSatisfying(figure -> assertThat(figure.ads()).isEqualTo(40));
 		assertThat(adzuna.find("GB", "Java developer")).isPresent();
 		// Romania has no Adzuna site
@@ -75,7 +77,7 @@ class AdzunaSalariesTests {
 	void asksAgainWithANewKey() throws IOException {
 		List<String> asked = new ArrayList<>();
 		AdzunaKeys keys = keys(new Key("old", "key"));
-		AdzunaSalaries adzuna = new AdzunaSalaries(keys, serve(200, HISTOGRAM, asked));
+		AdzunaSalaries adzuna = new AdzunaSalaries(keys, adzunaAt(serve(200, HISTOGRAM, asked)), Clock.systemUTC());
 		adzuna.find("GB", "java developer");
 
 		given(keys.current()).willReturn(Optional.of(new Key("new", "key")));
@@ -90,21 +92,21 @@ class AdzunaSalariesTests {
 		List<String> asked = new ArrayList<>();
 		Key key = new Key("id", "key");
 
-		assertThat(new AdzunaSalaries(keys(null), serve(200, HISTOGRAM, asked)).check(key))
+		assertThat(new AdzunaSalaries(keys(null), adzunaAt(serve(200, HISTOGRAM, asked)), Clock.systemUTC()).check(key))
 			.isEqualTo(AdzunaKeyCheck.ACCEPTED);
 		assertThat(asked).singleElement().asString().startsWith("/v1/api/jobs/gb/histogram?app_id=id&app_key=key&");
 		this.server.stop(0);
 
-		assertThat(new AdzunaSalaries(keys(null), serve(401, "Unauthorized", asked)).check(key))
+		assertThat(new AdzunaSalaries(keys(null), adzunaAt(serve(401, "Unauthorized", asked)), Clock.systemUTC()).check(key))
 			.isEqualTo(AdzunaKeyCheck.REFUSED);
 		this.server.stop(0);
-		assertThat(new AdzunaSalaries(keys(null), serve(400, "{\"exception\": \"AUTH_FAIL\"}", asked)).check(key))
+		assertThat(new AdzunaSalaries(keys(null), adzunaAt(serve(400, "{\"exception\": \"AUTH_FAIL\"}", asked)), Clock.systemUTC()).check(key))
 			.isEqualTo(AdzunaKeyCheck.REFUSED);
 		this.server.stop(0);
-		assertThat(new AdzunaSalaries(keys(null), serve(503, "Down for maintenance", asked)).check(key))
+		assertThat(new AdzunaSalaries(keys(null), adzunaAt(serve(503, "Down for maintenance", asked)), Clock.systemUTC()).check(key))
 			.isEqualTo(AdzunaKeyCheck.UNCHECKED);
 		// Nothing listens there
-		assertThat(new AdzunaSalaries(keys(null), URI.create("http://127.0.0.1:1/v1/api")).check(key))
+		assertThat(new AdzunaSalaries(keys(null), adzunaAt(URI.create("http://127.0.0.1:1/v1/api")), Clock.systemUTC()).check(key))
 			.isEqualTo(AdzunaKeyCheck.UNCHECKED);
 	}
 

@@ -10,9 +10,9 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.StringJoiner;
-import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -188,7 +188,9 @@ class DefaultSalaryService implements SalaryService {
 		return midpoints.entrySet()
 			.stream()
 			.map(status -> new StatusSalary(status.getKey(),
-					percentile(status.getValue().stream().sorted().toList(), 0.5), status.getValue().size()))
+					Objects.requireNonNull(percentile(status.getValue().stream().sorted().toList(), 0.5),
+							"a status is grouped by its salaries, so it has one"),
+					status.getValue().size()))
 			.toList();
 	}
 

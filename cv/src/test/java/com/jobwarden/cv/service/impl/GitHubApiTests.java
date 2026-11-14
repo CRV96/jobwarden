@@ -39,7 +39,7 @@ class GitHubApiTests {
 		this.github = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
 		this.github.createContext("/", this::answer);
 		this.github.start();
-		this.api = new GitHubApi(URI.create("http://127.0.0.1:" + this.github.getAddress().getPort()));
+		this.api = new GitHubApi(new CvProperties(URI.create("http://127.0.0.1:" + this.github.getAddress().getPort())));
 	}
 
 	@AfterEach

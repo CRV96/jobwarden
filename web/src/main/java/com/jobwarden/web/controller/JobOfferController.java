@@ -131,7 +131,7 @@ class JobOfferController extends BaseController {
 		if (form.baseSalaryAmount() != null && base != null && !currencies.contains(base.toUpperCase(Locale.ROOT))) {
 			errors.put("baseSalaryCurrency", text("validation.offer.currency"));
 		}
-		List<OfferForm.ExtraRow> extras = (form.extras() == null) ? List.of() : form.extras();
+		List<OfferForm.@Nullable ExtraRow> extras = (form.extras() == null) ? List.of() : form.extras();
 		for (int i = 0; i < extras.size(); i++) {
 			OfferForm.ExtraRow extra = extras.get(i);
 			String unit = (extra == null) ? null : blankToNull(extra.unit());

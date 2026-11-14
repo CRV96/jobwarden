@@ -1,7 +1,7 @@
 package com.jobwarden.capture.enums;
 
-import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.AppliedBy;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;

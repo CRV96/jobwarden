@@ -7,4 +7,7 @@
  * Adapter only, like {@code capture}: no business logic and no tables. It calls the identity, jobs, search and
  * discover modules.
  */
+@NullMarked
 package com.jobwarden.mcp;
+
+import org.jspecify.annotations.NullMarked;

@@ -1,11 +1,11 @@
 package com.jobwarden.identity.service;
 
+import java.util.List;
+import java.util.Optional;
+
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.enums.Assistant;
 import org.jspecify.annotations.Nullable;
-
-import java.util.List;
-import java.util.Optional;
 
 public interface UserService {
 

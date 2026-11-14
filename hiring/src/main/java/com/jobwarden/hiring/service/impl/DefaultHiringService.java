@@ -1,8 +1,8 @@
 package com.jobwarden.hiring.service.impl;
 
 import java.net.URI;
+import java.time.Clock;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -57,18 +57,14 @@ class DefaultHiringService implements HiringService {
 
 	private static final int MAX_TAGS = 12;
 
-	/** The latest first: by the day posted, or found when that isn't known */
-	private static final Comparator<HiringPost> LATEST_FIRST = Comparator
-		.comparing((HiringPost post) -> post.day(ZoneId.systemDefault()))
-		.thenComparing(HiringPost::foundAt)
-		.thenComparing(HiringPost::id)
-		.reversed();
 
 	private final RecruiterRepository recruiters;
 
 	private final HiringPostRepository posts;
 
 	private final ApplicationService applications;
+
+	private final Clock clock;
 
 	@Override
 	@Transactional
@@ -103,7 +99,7 @@ class DefaultHiringService implements HiringService {
 		return visible.stream()
 			.map(post -> toHiringPost(post, counts))
 			.filter(matching(query))
-			.sorted(LATEST_FIRST)
+			.sorted(latestFirst())
 			.toList();
 	}
 
@@ -282,10 +278,19 @@ class DefaultHiringService implements HiringService {
 		return counts;
 	}
 
-	private static Predicate<HiringPost> matching(HiringPostQuery query) {
-		LocalDate since = query.postedWithin().since(LocalDate.now());
+	/** The latest first: by the day posted, or found when that isn't known */
+	private Comparator<HiringPost> latestFirst() {
+		return Comparator
+			.comparing((HiringPost post) -> post.day(this.clock.getZone()))
+			.thenComparing(HiringPost::foundAt)
+			.thenComparing(HiringPost::id)
+			.reversed();
+	}
+
+	private Predicate<HiringPost> matching(HiringPostQuery query) {
+		LocalDate since = query.postedWithin().since(LocalDate.now(this.clock));
 		String search = (query.search() != null) ? query.search().strip().toLowerCase(Locale.ROOT) : "";
-		return post -> (since == null || !post.day(ZoneId.systemDefault()).isBefore(since))
+		return post -> (since == null || !post.day(this.clock.getZone()).isBefore(since))
 				&& (query.country() == null || query.country().equalsIgnoreCase(post.country()))
 				&& (query.tag() == null || post.tags().contains(query.tag().toLowerCase(Locale.ROOT)))
 				&& (!query.followedOnly() || post.recruiter().followed())

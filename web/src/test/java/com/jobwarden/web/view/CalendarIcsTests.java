@@ -1,6 +1,7 @@
 package com.jobwarden.web.view;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -22,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class CalendarIcsTests {
 
-	private final CalendarIcs ics = new CalendarIcs(messages());
+	private final CalendarIcs ics = new CalendarIcs(messages(), Clock.systemDefaultZone());
 
 	@Test
 	void writesTheInterviewsDeadlinesAndDaysToFollowUpWithTheirReminders() {

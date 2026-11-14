@@ -11,7 +11,6 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import com.jobwarden.jobs.enums.SalaryPeriod;
-
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 

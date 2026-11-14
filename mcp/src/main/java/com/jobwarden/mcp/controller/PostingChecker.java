@@ -9,6 +9,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
@@ -25,6 +26,7 @@ import com.jobwarden.mcp.enums.Verdict;
 import lombok.CustomLog;
 import org.jspecify.annotations.Nullable;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -97,15 +99,19 @@ class PostingChecker {
 
 	private final Predicate<InetAddress> allowed;
 
-	PostingChecker() {
-		this(PublicAddresses::isPublic);
+	private final Clock clock;
+
+	@Autowired
+	PostingChecker(Clock clock) {
+		this(PublicAddresses::isPublic, clock);
 	}
 
 	/**
 	 * @param allowed which addresses it may fetch from: the tests' own server is on this machine
 	 */
-	PostingChecker(Predicate<InetAddress> allowed) {
+	PostingChecker(Predicate<InetAddress> allowed, Clock clock) {
 		this.allowed = allowed;
+		this.clock = clock;
 	}
 
 	PostingCheck check(String link) {
@@ -180,7 +186,7 @@ class PostingChecker {
 	}
 
 	/** What the page says: its job data first, then its words. */
-	private static PostingCheck read(URI start, String html, int status, @Nullable String finalUrl) {
+	private PostingCheck read(URI start, String html, int status, @Nullable String finalUrl) {
 		boolean hasJobPosting = false;
 		Matcher script = JSON_LD.matcher(html);
 		while (script.find()) {
@@ -189,7 +195,7 @@ class PostingChecker {
 				hasJobPosting = true;
 				Matcher validThrough = VALID_THROUGH.matcher(data);
 				if (validThrough.find()
-						&& LocalDate.parse(validThrough.group(1).replace('/', '-')).isBefore(LocalDate.now())) {
+						&& LocalDate.parse(validThrough.group(1).replace('/', '-')).isBefore(LocalDate.now(this.clock))) {
 					return result(start, Verdict.CLOSED, true, "Its job data says it ran until " + validThrough.group(1),
 							status, finalUrl, "\"validThrough\": \"" + validThrough.group(1) + "\"");
 				}

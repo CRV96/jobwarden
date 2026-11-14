@@ -1,5 +1,6 @@
 package com.jobwarden.web.controller;
 
+import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -11,7 +12,6 @@ import java.util.List;
 import java.util.Set;
 
 import com.jobwarden.jobs.dto.CalendarEntry;
-
 import com.jobwarden.jobs.enums.CalendarEntryKind;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.jobs.service.CalendarFeedService;
@@ -69,6 +69,8 @@ class CalendarController extends BaseController {
 
 	private final CalendarFeedService feeds;
 
+	private final Clock clock;
+
 	/**
 	 * @param view {@code month}, {@code week} or {@code day}; the month without one
 	 * @param date a day of the month, week or day to show, as {@code 2026-10-27}; today without one, or with one that
@@ -83,7 +85,7 @@ class CalendarController extends BaseController {
 			@RequestParam(required = false) @Nullable String date, @RequestParam(required = false) @Nullable String month,
 			HttpServletRequest request, HttpSession session, Model model) {
 		long userId = requireProfile(model).id();
-		LocalDate today = LocalDate.now();
+		LocalDate today = LocalDate.now(this.clock);
 		CalendarView shownView = CalendarView.parse(view).orElse(CalendarView.MONTH);
 		LocalDate shown = parseDate(date, parseMonth(month, today));
 		String[] show = request.getParameterValues(SHOW);
@@ -166,7 +168,7 @@ class CalendarController extends BaseController {
 
 	private void addDays(Model model, long userId, LocalDate first, int count, LocalDate today,
 			Set<CalendarEntryType> types) {
-		model.addAttribute(ModelAttributes.CALENDAR_DAYS, CalendarDays.of(first, count, today, LocalTime.now(),
+		model.addAttribute(ModelAttributes.CALENDAR_DAYS, CalendarDays.of(first, count, today, LocalTime.now(this.clock),
 				entries(userId, first, first.plusDays(count - 1L), types)));
 	}
 

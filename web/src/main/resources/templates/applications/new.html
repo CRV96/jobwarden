@@ -84,7 +84,7 @@
                         <span class="flex items-center gap-1.5">
                             <input id="statusTime" class="input min-w-0 flex-1" type="time" name="statusTime"
                                    th:value="${form != null} ? ${form.statusTime} : ${#temporals.format(now, 'HH:mm')}">
-                            <button class="btn btn-ghost" type="button" onclick="this.previousElementSibling.value = ''"
+                            <button class="btn btn-ghost" type="button" data-clear-previous
                                     th:text="#{form.clearTime}">Clear time</button>
                         </span>
                         <p class="field-error" th:if="${fieldErrors['statusTime']}" th:text="${fieldErrors['statusTime']}">This value isn’t valid.</p>

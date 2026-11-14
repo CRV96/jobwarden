@@ -274,10 +274,12 @@ class McpControllerTests {
 
 	@Test
 	void savesWhoSentAnApplicationTheAssistantByItsOldName() {
-		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.SAVED)),
-				Optional.of(job(ApplicationStatus.APPLIED)), Optional.of(job(ApplicationStatus.SAVED)),
-				Optional.of(job(ApplicationStatus.APPLIED)), Optional.of(job(ApplicationStatus.SAVED)),
-				Optional.of(job(ApplicationStatus.APPLIED)));
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.SAVED)))
+			.willReturn(Optional.of(job(ApplicationStatus.APPLIED)))
+			.willReturn(Optional.of(job(ApplicationStatus.SAVED)))
+			.willReturn(Optional.of(job(ApplicationStatus.APPLIED)))
+			.willReturn(Optional.of(job(ApplicationStatus.SAVED)))
+			.willReturn(Optional.of(job(ApplicationStatus.APPLIED)));
 
 		callTool("update_job_status", "{\"job_id\": 7, \"status\": \"APPLIED\", \"applied_by\": \"ASSISTANT\"}");
 		callTool("update_job_status", "{\"job_id\": 7, \"status\": \"APPLIED\"}");
@@ -354,8 +356,8 @@ class McpControllerTests {
 
 	@Test
 	void movesAJobToAnotherStatus() {
-		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.APPLIED)),
-				Optional.of(job(ApplicationStatus.POSITION_CLOSED)));
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.APPLIED)))
+			.willReturn(Optional.of(job(ApplicationStatus.POSITION_CLOSED)));
 
 		assertThat(callTool("update_job_status",
 				"{\"job_id\": 7, \"status\": \"POSITION_CLOSED\", \"note\": \"The posting is gone\"}"))
@@ -373,8 +375,8 @@ class McpControllerTests {
 
 	@Test
 	void logsAnInterviewWithItsTimeAndPlace() {
-		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.APPLIED)),
-				Optional.of(job(ApplicationStatus.INTERVIEWING)));
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.APPLIED)))
+			.willReturn(Optional.of(job(ApplicationStatus.INTERVIEWING)));
 
 		assertThat(callTool("update_job_status", """
 				{"job_id": 7, "status": "INTERVIEWING", "date": "2026-11-03", "time": "14:30", "stage": "HR call",
@@ -444,7 +446,8 @@ class McpControllerTests {
 	void saysWhereTheRestOfABriefCvFilesTextIs() {
 		given(this.cvs.find(1)).willReturn(new Cv(new CvFile("cv.pdf", "application/pdf", 40_000, 10_000, Instant.now()),
 				CvDetails.NONE));
-		given(this.cvs.fileText(1)).willReturn(Optional.of("x".repeat(10_000)), Optional.of("x".repeat(CvTools.BRIEF_TEXT_LENGTH)));
+		given(this.cvs.fileText(1)).willReturn(Optional.of("x".repeat(10_000)))
+			.willReturn(Optional.of("x".repeat(CvTools.BRIEF_TEXT_LENGTH)));
 
 		// Cut to its start, the text says get_cv full=true has the rest; whole, it says nothing
 		assertThat(callTool("get_cv", "{}")).bodyJson()

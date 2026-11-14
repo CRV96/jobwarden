@@ -3,6 +3,7 @@ package com.jobwarden.common.logging;
 import com.jobwarden.common.exception.ErrorCode;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
@@ -32,19 +33,19 @@ public final class JobWardenLogger {
 		return new JobWardenLogger(LoggerFactory.getLogger(type));
 	}
 
-	public void debug(String format, Object... args) {
+	public void debug(String format, @Nullable Object... args) {
 		event(Level.DEBUG).log(format, args);
 	}
 
-	public void info(String format, Object... args) {
+	public void info(String format, @Nullable Object... args) {
 		event(Level.INFO).log(format, args);
 	}
 
-	public void warn(String format, Object... args) {
+	public void warn(String format, @Nullable Object... args) {
 		event(Level.WARN).log(format, args);
 	}
 
-	public void error(ErrorCode errorCode, String format, Object... args) {
+	public void error(ErrorCode errorCode, String format, @Nullable Object... args) {
 		// In the message for the console, and as its own field for structured (JSON) logs
 		event(Level.ERROR).addKeyValue(ErrorCode.PROPERTY_NAME, errorCode.getCode())
 			.log("[" + errorCode.getCode() + "] " + format, args);

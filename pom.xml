@@ -14,22 +14,39 @@
 	<packaging>pom</packaging>
 	<name>JobWarden</name>
 	<description>Personal job application tracker with a browser extension for one-click capture</description>
-	<url/>
+	<url>https://github.com/CRV96/jobwarden</url>
+	<inceptionYear>2026</inceptionYear>
 	<licenses>
 		<license>
 			<name>MIT License</name>
 			<url>https://opensource.org/license/mit</url>
+			<distribution>repo</distribution>
 		</license>
 	</licenses>
 	<developers>
-		<developer/>
+		<developer>
+			<id>CRV96</id>
+			<name>Robert-Vasile Ciapă</name>
+			<url>https://github.com/CRV96</url>
+			<roles>
+				<role>owner</role>
+			</roles>
+		</developer>
 	</developers>
 	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
+		<connection>scm:git:https://github.com/CRV96/jobwarden.git</connection>
+		<developerConnection>scm:git:git@github.com:CRV96/jobwarden.git</developerConnection>
+		<tag>HEAD</tag>
+		<url>https://github.com/CRV96/jobwarden</url>
 	</scm>
+	<issueManagement>
+		<system>GitHub Issues</system>
+		<url>https://github.com/CRV96/jobwarden/issues</url>
+	</issueManagement>
+	<ciManagement>
+		<system>GitHub Actions</system>
+		<url>https://github.com/CRV96/jobwarden/actions</url>
+	</ciManagement>
 
 	<modules>
 		<module>common</module>
@@ -59,7 +76,15 @@
 		<greenmail.version>2.1.5</greenmail.version>
 		<!-- Only the app module is runnable; lets `./mvnw -pl app -am spring-boot:run` work from the root. -->
 		<spring-boot.run.skip>true</spring-boot.run.skip>
+		<!-- The time every file in the jars carries, so the same commit always builds the same jars (reproducible builds).
+		     Set it to the release's date with each release. -->
+		<project.build.outputTimestamp>2026-11-14T00:00:00Z</project.build.outputTimestamp>
+		<!-- The oldest Java and Maven that build the project; the Maven Enforcer fails the build on older ones. -->
+		<maven.minimum.version>3.9.0</maven.minimum.version>
 		<jacoco.version>0.8.16</jacoco.version>
+		<spotless.version>3.11.0</spotless.version>
+		<error-prone.version>2.51.0</error-prone.version>
+		<nullaway.version>0.14.3</nullaway.version>
 		<sonar-maven-plugin.version>5.8.0.7211</sonar-maven-plugin.version>
 
 		<!-- SonarCloud, as CI runs it after the build (.github/workflows/ci.yml) -->
@@ -193,18 +218,88 @@
 			</plugins>
 		</pluginManagement>
 		<plugins>
-			<!-- Lombok runs as an annotation processor. Since JDK 23 processors must be listed explicitly. -->
+			<!-- Fails fast on a build that can't be trusted: an older Java or Maven than the project needs, a dependency
+			     declared twice in one pom, or a version range, which builds something else each time. Each rule works
+			     on a partial build too (-pl web). -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>enforce-build-rules</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<requireJavaVersion>
+									<version>[${java.version},)</version>
+								</requireJavaVersion>
+								<requireMavenVersion>
+									<version>[${maven.minimum.version},)</version>
+								</requireMavenVersion>
+								<banDuplicatePomDependencyVersions/>
+								<banDynamicVersions/>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<!-- Lombok and the configuration metadata (what IDEs complete in application.properties) run as annotation
+			     processors. Since JDK 23 processors must be listed explicitly. Every lint warning fails the build, so none
+			     creeps in; `processing` would only say Lombok's annotations aren't claimed, `serial` that exceptions have
+			     no serialVersionUID, which nothing here serializes. -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<configuration>
+					<showWarnings>true</showWarnings>
+					<failOnWarning>true</failOnWarning>
+					<compilerArgs>
+						<arg>-Xlint:all,-processing,-serial</arg>
+					</compilerArgs>
 					<annotationProcessorPaths>
 						<path>
 							<groupId>org.projectlombok</groupId>
 							<artifactId>lombok</artifactId>
 						</path>
+						<path>
+							<groupId>org.springframework.boot</groupId>
+							<artifactId>spring-boot-configuration-processor</artifactId>
+						</path>
 					</annotationProcessorPaths>
 				</configuration>
+			</plugin>
+			<!-- The imports as .editorconfig orders them (java, javax, the rest, Spring, then static), with none unused.
+			     `./mvnw verify` checks them; `./mvnw spotless:apply` puts them in order. -->
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<version>${spotless.version}</version>
+				<configuration>
+					<java>
+						<includes>
+							<include>src/main/java/**/*.java</include>
+							<include>src/test/java/**/*.java</include>
+						</includes>
+						<removeUnusedImports>
+							<engine>cleanthat-javaparser-unnecessaryimport</engine>
+						</removeUnusedImports>
+						<importOrder>
+							<order>java,javax,,org.springframework,\#</order>
+						</importOrder>
+						<trimTrailingWhitespace/>
+						<endWithNewline/>
+					</java>
+				</configuration>
+				<executions>
+					<execution>
+						<id>check-imports</id>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>
@@ -224,6 +319,54 @@
 								<goals>
 									<goal>prepare-agent</goal>
 								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<!-- ./mvnw verify -Pnullaway: NullAway (on Error Prone) checks the null-safety the code declares. Every package is
+		     @NullMarked (JSpecify): nothing is null unless it says @Nullable, and the compiler refuses code that could
+		     hand a null where none is expected. CI turns it on by itself (GitHub Actions sets CI). It's a profile rather
+		     than the default build because Error Prone needs the JVM flags in .mvn/jvm.config, which IntelliJ's own
+		     compiler doesn't get; IntelliJ checks @NullMarked code in the editor anyway. -->
+		<profile>
+			<id>nullaway</id>
+			<activation>
+				<property>
+					<name>env.CI</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-compiler-plugin</artifactId>
+						<configuration>
+							<annotationProcessorPaths combine.children="append">
+								<path>
+									<groupId>com.google.errorprone</groupId>
+									<artifactId>error_prone_core</artifactId>
+									<version>${error-prone.version}</version>
+								</path>
+								<path>
+									<groupId>com.uber.nullaway</groupId>
+									<artifactId>nullaway</artifactId>
+									<version>${nullaway.version}</version>
+								</path>
+							</annotationProcessorPaths>
+						</configuration>
+						<executions>
+							<!-- The application's code only: tests hand nulls on purpose, to see them refused -->
+							<execution>
+								<id>default-compile</id>
+								<configuration>
+									<compilerArgs combine.children="append">
+										<arg>-XDcompilePolicy=simple</arg>
+										<arg>--should-stop=ifError=FLOW</arg>
+										<arg>-Xplugin:ErrorProne -XepDisableAllChecks -Xep:NullAway:ERROR -XepOpt:NullAway:OnlyNullMarked=true -XepOpt:NullAway:JSpecifyMode=true -XepOpt:NullAway:ExcludedClassAnnotations=jakarta.persistence.Entity,jakarta.persistence.Embeddable -XepOpt:NullAway:CustomContractAnnotations=org.springframework.lang.Contract</arg>
+									</compilerArgs>
+								</configuration>
 							</execution>
 						</executions>
 					</plugin>

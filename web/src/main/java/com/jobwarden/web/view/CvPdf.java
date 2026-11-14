@@ -53,7 +53,6 @@ public class CvPdf {
 		String html = this.templates.process(view, new Context(locale, variables));
 		ByteArrayOutputStream pdf = new ByteArrayOutputStream();
 		PdfRendererBuilder builder = new PdfRendererBuilder();
-		builder.useFastMode();
 		FONTS.forEach((file, face) -> builder.useFont(() -> font(file), FONT_FAMILY, face.weight(), face.style(), true));
 		builder.withW3cDocument(new W3CDom().fromJsoup(Jsoup.parse(html)), null);
 		builder.toStream(pdf);

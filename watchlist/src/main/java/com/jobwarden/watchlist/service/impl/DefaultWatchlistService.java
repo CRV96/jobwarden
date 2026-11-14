@@ -1,9 +1,9 @@
 package com.jobwarden.watchlist.service.impl;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -45,7 +45,6 @@ import com.jobwarden.watchlist.service.WatchlistService;
 import lombok.CustomLog;
 import org.jspecify.annotations.Nullable;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -97,19 +96,19 @@ class DefaultWatchlistService implements WatchlistService {
 
 	private final ReentrantLock reading = new ReentrantLock();
 
-	/**
-	 * @param every how often each board is read on its own
-	 */
+	private final Clock clock;
+
 	DefaultWatchlistService(WatchedCompanyRepository companies, WatchedCompanyFindRepository finds,
 			DiscoveryService discovery, ApplicationService applications, BoardFeeds feeds,
-			PlatformTransactionManager transactionManager, @Value("${jobwarden.watchlist.every:PT6H}") Duration every) {
+			PlatformTransactionManager transactionManager, WatchlistProperties properties, Clock clock) {
+		this.clock = clock;
 		this.companies = companies;
 		this.finds = finds;
 		this.discovery = discovery;
 		this.applications = applications;
 		this.feeds = feeds;
 		this.transactions = new TransactionTemplate(transactionManager);
-		this.every = every;
+		this.every = properties.every();
 	}
 
 	@Override
@@ -212,7 +211,7 @@ class DefaultWatchlistService implements WatchlistService {
 	WatchlistCheck checkDue() {
 		this.reading.lock();
 		try {
-			Instant now = Instant.now();
+			Instant now = this.clock.instant();
 			Map<Board, List<WatchedCompanyEntity>> byBoard = byBoard(this.companies.findAllByOrderByAtsAscBoardAscIdAsc());
 			List<WatchedCompanyEntity> due = byBoard.values()
 				.stream()
@@ -307,7 +306,7 @@ class DefaultWatchlistService implements WatchlistService {
 		try {
 			return board.get();
 		} catch (ExecutionException failed) {
-			log.warn("Couldn't read a watched board: {}", failed.getCause().toString());
+			log.warn("Couldn't read a watched board: {}", Objects.requireNonNullElse(failed.getCause(), failed).toString());
 			return WatchlistCheck.NONE;
 		}
 	}
@@ -320,7 +319,7 @@ class DefaultWatchlistService implements WatchlistService {
 		} catch (RuntimeException failed) {
 			// BoardFailure, or a board's answer JobWarden didn't expect
 			String reason = shortened(failed.getMessage(), ERROR_MAX_LENGTH);
-			Instant now = Instant.now();
+			Instant now = this.clock.instant();
 			this.transactions.executeWithoutResult(status -> watching
 				.forEach(company -> this.companies.findById(company.getId()).ifPresent(still -> still.failed(reason, now))));
 			log.warn("Couldn't read the watched board {}: {}", board, reason);
@@ -338,7 +337,7 @@ class DefaultWatchlistService implements WatchlistService {
 		int newJobs = 0;
 		int failed = 0;
 		for (WatchedCompanyEntity company : watching) {
-			Instant now = Instant.now();
+			Instant now = this.clock.instant();
 			try {
 				List<SavedSearch> mine = searches.computeIfAbsent(company.getUserId(), this.discovery::findSearches);
 				// Reading descriptions talks to the board: outside the transaction that saves what it found
@@ -419,7 +418,7 @@ class DefaultWatchlistService implements WatchlistService {
 		return description.map(text -> posting.toBuilder().description(text).build()).orElse(posting);
 	}
 
-	private static NewFoundJob toFoundJob(Posting posting, WatchedCompanyEntity company, SavedSearch search) {
+	private NewFoundJob toFoundJob(Posting posting, WatchedCompanyEntity company, SavedSearch search) {
 		String description = posting.description();
 		return NewFoundJob.builder()
 			.title(posting.title())
@@ -430,7 +429,7 @@ class DefaultWatchlistService implements WatchlistService {
 			.description((description == null || description.length() <= DESCRIPTION_MAX_LENGTH) ? description
 					: description.substring(0, DESCRIPTION_MAX_LENGTH - 1) + "…")
 			.note("From " + company.getName() + "'s job board on " + company.getAts().label() + ", which you watch.")
-			.postedOn((posting.publishedAt() != null) ? LocalDate.ofInstant(posting.publishedAt(), ZoneId.systemDefault())
+			.postedOn((posting.publishedAt() != null) ? LocalDate.ofInstant(posting.publishedAt(), this.clock.getZone())
 					: null)
 			.searchId(search.id())
 			.build();
@@ -447,7 +446,7 @@ class DefaultWatchlistService implements WatchlistService {
 		Map<Long, Long> thisWeek = new HashMap<>();
 		if (!entities.isEmpty()) {
 			for (Object[] count : this.finds.countSince(entities.stream().map(WatchedCompanyEntity::getId).toList(),
-					Instant.now().minus(WEEK))) {
+					this.clock.instant().minus(WEEK))) {
 				thisWeek.put((Long) count[0], (Long) count[1]);
 			}
 		}

@@ -21,7 +21,8 @@ public record MailAccountForm(@NotBlank(message = "{validation.mail.host.require
 
 	public NewMailAccount toNewMailAccount() {
 		String inFolder = FormValues.blankToNull(this.folder);
-		return new NewMailAccount(this.host.strip(), this.port, this.username.strip(), this.password,
+		return new NewMailAccount(FormValues.validated(this.host, "host").strip(), FormValues.validated(this.port, "port"),
+				FormValues.validated(this.username, "username").strip(), FormValues.validated(this.password, "password"),
 				(inFolder != null) ? inFolder : "INBOX");
 	}
 
