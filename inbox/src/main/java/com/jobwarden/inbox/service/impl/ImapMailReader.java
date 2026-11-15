@@ -51,9 +51,7 @@ class ImapMailReader implements MailReader {
 
 	private final String timeoutMillis;
 
-	/**
-	 * @param tls false for a server without TLS, only for the tests' own
-	 */
+	/** False for a server without TLS, only for the tests' own. */
 	private final boolean tls;
 
 	private final Clock clock;

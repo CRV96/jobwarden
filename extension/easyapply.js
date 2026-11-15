@@ -997,7 +997,6 @@
   function settle(root, quietMillis = 400, maxMillis = 3000) {
     return new Promise((resolve) => {
       let quiet;
-      let longest;
       const observer = new MutationObserver(() => {
         clearTimeout(quiet);
         quiet = setTimeout(done, quietMillis);
@@ -1010,7 +1009,8 @@
       }
       observer.observe(root, { childList: true, subtree: true, attributes: true, characterData: true });
       quiet = setTimeout(done, quietMillis);
-      longest = setTimeout(done, maxMillis);
+      // done runs later, from a timer or the observer, once this is set
+      const longest = setTimeout(done, maxMillis);
     });
   }
 

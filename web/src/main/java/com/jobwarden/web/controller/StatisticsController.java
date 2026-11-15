@@ -13,25 +13,27 @@ import com.jobwarden.jobs.dto.JobStatistics;
 import com.jobwarden.jobs.dto.JobStatistics.ReplyRate;
 import com.jobwarden.jobs.enums.FitVerdict;
 import com.jobwarden.jobs.service.StatisticsService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
+import com.jobwarden.web.view.JobImages;
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+
+import static com.jobwarden.web.controller.Pages.requireProfile;
 
 /**
  * How the profile's applications went, without AI: how often they got an answer, and an interview, by site and by who
  * applied; whether the jobs Claude scored high led to interviews more often than the others (the calibration); what the
  * fits and the tailored CVs found missing most often; and why the profile was turned down.
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.STATISTICS)
 @RequiredArgsConstructor
-class StatisticsController extends BaseController {
+class StatisticsController {
 
 	/** How many applications a group needs before the calibration compares it: fewer say little. */
 	static final int CALIBRATION_MIN_SENT = 3;
@@ -46,6 +48,8 @@ class StatisticsController extends BaseController {
 
 	private final CvService cvs;
 
+	private final JobImages jobImages;
+
 	@GetMapping
 	String page(Model model) {
 		long userId = requireProfile(model).id();
@@ -53,7 +57,7 @@ class StatisticsController extends BaseController {
 		model.addAttribute(ModelAttributes.STATISTICS, found);
 		model.addAttribute(ModelAttributes.CALIBRATION, calibration(found.byFit()));
 		model.addAttribute(ModelAttributes.MISSING_KEYWORDS, missingKeywords(this.cvs.findAllTailored(userId)));
-		addImages(model, userId);
+		this.jobImages.addImages(model, userId);
 		return Views.STATISTICS;
 	}
 

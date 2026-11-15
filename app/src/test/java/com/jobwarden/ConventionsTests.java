@@ -1,5 +1,6 @@
 package com.jobwarden;
 
+import java.net.http.HttpClient;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
@@ -37,7 +38,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.RestController;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
@@ -72,9 +72,9 @@ class ConventionsTests {
 
 	@ArchTest
 	static final ArchRule controllersArePackagePrivate = classes().that()
-		.areAnnotatedWith(Controller.class)
-		.or()
-		.areAnnotatedWith(RestController.class)
+		.areMetaAnnotatedWith(Controller.class)
+		.and()
+		.areNotAnnotations()
 		.should()
 		.notBePublic()
 		.because("Spring calls the controllers; no Java code should");
@@ -113,13 +113,10 @@ class ConventionsTests {
 		.because("@Value goes on a final field, which Lombok copies onto the constructor (lombok.config)");
 
 	@ArchTest
-	static final ArchRule noSetterInjection = noMethods().that()
-		.areDeclaredInClassesThat()
-		.doNotHaveSimpleName("BaseController")
-		.should()
+	static final ArchRule noSetterInjection = noMethods().should()
 		.beAnnotatedWith(Autowired.class)
 		.because("a setting goes into the constructor too: @Value on a final field, which Lombok copies there "
-				+ "(lombok.config); BaseController's setters wait for its composition refactor (docs/quality-roadmap.md)");
+				+ "(lombok.config)");
 
 	@ArchTest
 	static final ArchRule logsThroughJobWardenLogger = noClasses().that()
@@ -138,6 +135,15 @@ class ConventionsTests {
 	@ArchTest
 	static final ArchRule noGenericExceptions = NO_CLASSES_SHOULD_THROW_GENERIC_EXCEPTIONS
 		.because("the modules throw their own exceptions, with an error code");
+
+	@ArchTest
+	static final ArchRule oneWayToMakeAnHttpClient = noClasses().that()
+		.resideOutsideOfPackage("com.jobwarden.common.net")
+		.should()
+		.callMethod(HttpClient.class, "newBuilder")
+		.orShould()
+		.callMethod(HttpClient.class, "newHttpClient")
+		.because("HttpClients gives every call out its timeout, its redirects and its threads, in one place");
 
 	@ArchTest
 	static final ArchRule springTransactionsOnly = noClasses().should()

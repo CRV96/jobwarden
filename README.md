@@ -66,6 +66,8 @@ Pages are server-rendered with Thymeleaf; HTMX handles partial updates without a
 ./mvnw -pl web frontend:npm@tailwind-watch
 ```
 
+The pages' JavaScript is plain ES modules, with no bundler: [static/js/app.js](web/src/main/resources/static/js/app.js) imports one module per feature from `static/js/app/` (dialogs, forms, the list's selection, fields of chips, the calendar, reminders, the pipeline...). A module listens for the events only it handles; a click, change or input that several features might claim goes through one ordered chain in `app.js`, where the first handler that says it was its own ends it. ESLint checks it, and the extension's, on `./mvnw verify` (`web/eslint.config.mjs`); in `web/`, `npm run lint` runs it alone.
+
 ### Browser extension
 
 The same `extension/` folder works in Chrome and Firefox (128 or later):
@@ -306,13 +308,13 @@ Conventions:
   - **ERROR:** only unexpected failures, always with a code.
 
   Log ids, never names or job details.
-- **Page controllers extend `BaseController`:**
-  - Before every handler it puts the selected profile in the model as `currentProfile`, which the header shows. That's the only time a request looks the profile up.
+- **Page controllers are made by composition, not inheritance:**
+  - A controller whose pages render in the layout is a `@PageController`. Before each of its handlers, `LayoutAdvice` (a `@ControllerAdvice`) puts the selected profile in the model as `currentProfile`, which the header shows, and what the sidebar counts. That's the only time a request looks the profile up. The other controllers (images, downloads, the calendar feed) are plain `@Controller`s and skip it.
   - Handlers that need a profile call `requireProfile(model)`. With no profile selected it throws `ProfileNotSelectedException`, and `WebExceptionHandler` sends the browser to `/profiles` (HTMX requests get an `HX-Redirect` header instead of a redirect).
-  - It also has `redirectTo(path)` and `fieldErrors(result)`, which maps each form field to its first validation message.
-  - It gets `CurrentUser` through a setter, so the subclasses keep their Lombok constructors. Its `@WebMvcTest`s need a `@MockitoBean CurrentUser`.
+  - `Pages` has that and the other static helpers, `redirectTo(path)` and `attachment(...)`, imported statically. What needs a bean is a component the controller takes in its constructor like anything else: `FormTexts` (an exception's or a form's messages, in the user's language: `fieldErrors(result)` maps each field to its first validation message), `PromptCards` (the cards that ask the AI assistant), `JobImages` (the sites' icons and companies' logos). Optional beans (the runner, the update check) come through `ObjectProvider`.
+  - Their `@WebMvcTest`s need `@MockitoBean`s of what `LayoutAdvice` reads: `CurrentUser`, `UserService`, `ApplicationService`, `DiscoveryService`. `WebTestApplication` imports the components.
 - **Constants instead of repeated strings:**
-  - `web`'s `AppConstants` holds the routes, template names, model attribute names and HTMX headers.
+  - `web`'s `constants` package holds the routes (`ControllerConstants`), template names (`Views`), model attribute names (`ModelAttributes`) and HTMX's headers and events (`HtmxHeaders`, `HtmxEvents`).
   - A form's length limits are constants on the form record (e.g. `NewEventForm.STAGE_LABEL_MAX_LENGTH`), and its validation messages use `{max}`.
   - `ErrorCode.PROPERTY_NAME` is the one name for the error code, in logs and in error responses.
 - **Dates and times:** a timeline event has a date, and a time of day only when it's known (`LocalDate` + `LocalTime`; `DATE` + `TIME` columns). Within a day, events without a time come first. They're wall-clock values, as entered; "now" is taken in the server's time zone, so set `TZ` when running in Docker (which defaults to UTC). Moments that are only ever recorded, like `capturedAt`, are instants (`Instant`, `TIMESTAMPTZ`). The forms have a date field and an optional time field with a Clear time button (a time emptied only in part is invalid, and the browser won't send the form); a form that sends no date, like the status buttons, means now, with the time. The capture API adds the time too, unless the request says `"includeTime": false`. Display patterns are the `format.date` and `format.dateTime` messages, so each language has its own.
@@ -370,6 +372,8 @@ Why database tests live in `app`: the migrations only run there, and `jobs`' tab
 `web` and `capture` can't see the real application class, so each has a small `*TestApplication` in its test sources for `@WebMvcTest` to start from.
 
 ## Versions and releases
+
+What changed from one release to the next is in [CHANGELOG.md](CHANGELOG.md): each change adds its line under *Unreleased*.
 
 The app and the extension share one version: the Maven projects' (`<version>` in every `pom.xml`) and `version` in `extension/manifest.json`; [VersionTests](app/src/test/java/com/jobwarden/VersionTests.java) fails when they differ. Maven writes it into `jobwarden.version`, which Settings, the MCP server and the extension show.
 

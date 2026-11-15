@@ -2,10 +2,14 @@
   "private": true,
   "scripts": {
     "build": "tailwindcss -i src/main/frontend/app.css -o target/classes/static/css/app.css --minify --silent",
-    "watch": "tailwindcss -i src/main/frontend/app.css -o target/classes/static/css/app.css --watch=always"
+    "watch": "tailwindcss -i src/main/frontend/app.css -o target/classes/static/css/app.css --watch=always",
+    "lint": "cd .. && eslint --config web/eslint.config.mjs --max-warnings 0 web/src/main/resources/static/js extension"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
     "@tailwindcss/cli": "4.3.3",
+    "eslint": "10.14.0",
+    "globals": "17.13.0",
     "tailwindcss": "4.3.3"
   }
 }

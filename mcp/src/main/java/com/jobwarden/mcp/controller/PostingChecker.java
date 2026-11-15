@@ -20,6 +20,7 @@ import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.jobwarden.common.net.HttpClients;
 import com.jobwarden.common.net.PublicAddresses;
 import com.jobwarden.mcp.dto.PostingCheck;
 import com.jobwarden.mcp.enums.Verdict;
@@ -91,11 +92,8 @@ class PostingChecker {
 
 	private static final Pattern CHARSET = Pattern.compile("charset=\"?([\\w-]+)", Pattern.CASE_INSENSITIVE);
 
-	private final HttpClient http = HttpClient.newBuilder()
-		.connectTimeout(TIMEOUT)
-		// Followed by hand, so each address is checked, and the last one known
-		.followRedirects(HttpClient.Redirect.NEVER)
-		.build();
+	// Followed by hand, so each address is checked, and the last one known
+	private final HttpClient http = HttpClients.notFollowingRedirects(TIMEOUT);
 
 	private final Predicate<InetAddress> allowed;
 

@@ -6,7 +6,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.constants.Views;
 import com.openhtmltopdf.outputdevice.helper.BaseRendererBuilder.FontStyle;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import lombok.RequiredArgsConstructor;

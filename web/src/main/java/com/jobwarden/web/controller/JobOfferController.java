@@ -20,19 +20,20 @@ import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.jobs.service.OfferService;
 import com.jobwarden.jobs.service.SalaryService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.HtmxEvents;
-import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.assistant.PromptCards;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.HtmxEvents;
+import com.jobwarden.web.constants.HtmxHeaders;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
 import com.jobwarden.web.dto.OfferForm;
+import com.jobwarden.web.view.FormTexts;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,16 +42,18 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import static com.jobwarden.web.controller.Pages.requireProfile;
+
 /**
  * A job's offer, on its page and in its side panel while it's at Offer: the terms, saved as they're typed, which the
  * offers page compares; and the brief Claude writes to negotiate it, with the market salaries JobWarden has. The page
  * asks Claude for the brief with a request, which Claude Code does through the MCP server (save_negotiation_brief).
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.APPLICATIONS + "/{id}")
 @CustomLog
 @RequiredArgsConstructor
-class JobOfferController extends BaseController {
+class JobOfferController {
 
 	/** What an offer's base salary can pay for: a salary, or a contractor's rate. */
 	private static final List<SalaryPeriod> OFFER_PERIODS = List.of(SalaryPeriod.YEAR, SalaryPeriod.MONTH, SalaryPeriod.DAY,
@@ -63,6 +66,10 @@ class JobOfferController extends BaseController {
 	private final DiscoveryService discovery;
 
 	private final SalaryService salaries;
+
+	private final FormTexts formTexts;
+
+	private final PromptCards promptCards;
 
 	/**
 	 * The terms card: HTMX loads it after the job.
@@ -106,7 +113,7 @@ class JobOfferController extends BaseController {
 	String saveTerms(@PathVariable long id, @Valid OfferForm form, BindingResult result, Model model,
 			HttpServletResponse response) {
 		long userId = requireProfile(model).id();
-		Map<String, String> errors = fieldErrors(result);
+		Map<String, String> errors = this.formTexts.fieldErrors(result);
 		errors.putAll(currencyErrors(form));
 		if (!errors.isEmpty()) {
 			log.debug("Offer terms of application {} not saved, fields with errors: {}", id, errors.keySet());
@@ -129,7 +136,7 @@ class JobOfferController extends BaseController {
 		Map<String, String> errors = new LinkedHashMap<>();
 		String base = blankToNull(form.baseSalaryCurrency());
 		if (form.baseSalaryAmount() != null && base != null && !currencies.contains(base.toUpperCase(Locale.ROOT))) {
-			errors.put("baseSalaryCurrency", text("validation.offer.currency"));
+			errors.put("baseSalaryCurrency", this.formTexts.text("validation.offer.currency"));
 		}
 		List<OfferForm.@Nullable ExtraRow> extras = (form.extras() == null) ? List.of() : form.extras();
 		for (int i = 0; i < extras.size(); i++) {
@@ -137,7 +144,7 @@ class JobOfferController extends BaseController {
 			String unit = (extra == null) ? null : blankToNull(extra.unit());
 			if (extra != null && extra.amount() != null && unit != null && !OfferExtra.SHARE_OF_BASE.equals(unit)
 					&& !currencies.contains(unit.toUpperCase(Locale.ROOT))) {
-				errors.put("extras[" + i + "].unit", text("validation.offer.currency"));
+				errors.put("extras[" + i + "].unit", this.formTexts.text("validation.offer.currency"));
 			}
 		}
 		return errors;
@@ -185,7 +192,7 @@ class JobOfferController extends BaseController {
 		model.addAttribute(ModelAttributes.NEGOTIATION_BRIEF, this.offers.findBrief(userId, applicationId).orElse(null));
 		model.addAttribute(ModelAttributes.NEGOTIATION_REQUEST, request.orElse(null));
 		model.addAttribute(ModelAttributes.NEGOTIATION_PROMPT,
-				request.map(asked -> prompt(model, asked.id())).orElse(null));
+				request.map(asked -> this.promptCards.prompt(requireProfile(model), asked.id())).orElse(null));
 		return Views.NEGOTIATION_FRAGMENT;
 	}
 
@@ -194,8 +201,9 @@ class JobOfferController extends BaseController {
 	}
 
 	private void requireApplication(long userId, long applicationId) {
-		this.applications.findById(userId, applicationId)
-			.orElseThrow(() -> new ApplicationNotFoundException(applicationId));
+		if (this.applications.findById(userId, applicationId).isEmpty()) {
+			throw new ApplicationNotFoundException(applicationId);
+		}
 	}
 
 }

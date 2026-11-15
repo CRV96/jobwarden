@@ -28,6 +28,8 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan.Filter;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -39,7 +41,8 @@ import static org.mockito.BDDMockito.given;
 /**
  * With the real PDF renderer. No session: Claude downloads it.
  */
-@WebMvcTest(ClaudeFilesController.class)
+// Not a page: it answers without the layout, so LayoutAdvice, and what it reads, stays out
+@WebMvcTest(controllers = ClaudeFilesController.class, excludeFilters = @Filter(type = FilterType.ASSIGNABLE_TYPE, classes = LayoutAdvice.class))
 @Import({ CvPdf.class, LetterPdf.class })
 class ClaudeFilesControllerTests {
 

@@ -12,17 +12,17 @@ import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.web.assistant.AssistantRunner;
 import com.jobwarden.web.assistant.RunRefusedException;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.HtmxHeaders;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
 import lombok.CustomLog;
+import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -31,6 +31,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import static com.jobwarden.web.controller.Pages.requireProfile;
+
 /**
  * Run, next to a request's prompt: JobWarden starts the profile's AI assistant itself, on this computer, in the
  * background, rather than the profile pasting the prompt. The card then follows the request as it would.
@@ -38,10 +40,11 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
  * It starts a program, so only this app's own pages may ask: HTMX's header, which a form on another site can't send,
  * and the page's Origin, when there is one. Auto-apply isn't run: the profile is needed at the browser.
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.ASSISTANT_RUN)
 @CustomLog
-class AssistantRunController extends BaseController {
+@RequiredArgsConstructor
+class AssistantRunController {
 
 	/** The most requests one Run starts the assistant on. */
 	static final int MAX_REQUESTS = 20;
@@ -50,14 +53,8 @@ class AssistantRunController extends BaseController {
 
 	private final DiscoveryService discovery;
 
+	@Value("${jobwarden.mcp.path:/mcp}")
 	private final String mcpPath;
-
-	AssistantRunController(AssistantRunner runner, DiscoveryService discovery,
-			@Value("${jobwarden.mcp.path:/mcp}") String mcpPath) {
-		this.runner = runner;
-		this.discovery = discovery;
-		this.mcpPath = mcpPath;
-	}
 
 	/**
 	 * Starts the assistant on the requests, which must be the profile's, waiting, and not Auto-apply; answers, in place

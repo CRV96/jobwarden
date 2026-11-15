@@ -23,8 +23,11 @@ SonarCloud and Dependabot. What follows is what was missing.
 - [x] JSpecify `@NullMarked` on all 102 packages, and NullAway (on Error Prone) in the `nullaway` profile, which CI
       runs: the 110 places where a `null` could reach code that didn't expect one are fixed. A profile because Error
       Prone needs `.mvn/jvm.config`'s flags, which IntelliJ's own compiler doesn't get.
-- [ ] More Error Prone checks beyond NullAway (e.g. `MissingOverride`, `ReferenceEquality`, `UnusedVariable`), each
-      turned on once the code passes it.
+- [x] Error Prone's own checks beyond NullAway, its warnings failing the build. The ~40 findings are fixed: a
+      `BigDecimal.equals` that compared scale (`SalaryParser`), background futures whose failures vanished
+      (`AssistantRunner`, now logged), boxing comparators, wrong Javadoc tags, a lock taken before what it guards.
+      Four checks are off, with the reason in the pom: MissingSummary, ImmutableEnumChecker, StringSplitter,
+      MultipleNullnessAnnotations.
 
 ## 2. Operations (production readiness)
 
@@ -37,10 +40,11 @@ SonarCloud and Dependabot. What follows is what was missing.
 - [x] Virtual threads for request handling and scheduled tasks.
 - [x] Docker: a `HEALTHCHECK` (bash's `/dev/tcp`, as the JRE image has no curl), and JVM settings for a container
       (heap as a share of the container's memory, exit on `OutOfMemoryError`).
-- [ ] One way to make outbound HTTP calls: seven classes build their own `java.net.http.HttpClient`, with their own
-      timeouts and `User-Agent`. Spring's `RestClient` on the JDK client would give them one configuration, Micrometer
-      metrics (`http.client.requests`) and `MockRestServiceServer` in tests. Keep the hand-checked redirects of
-      `LogoDownloader` and `PostingChecker`, which refuse private addresses at every hop.
+- [x] One way to make outbound HTTP calls: `HttpClients` (common) makes every client, with its connect timeout, its
+      redirect policy (followed for the APIs; not for pages' addresses, checked hop by hop, nor Adzuna's, whose address
+      has the key) and virtual threads; `ConventionsTests` refuses a client built elsewhere. Not `RestClient`: what the
+      nine callers do (streaming within a deadline, size caps, each redirect's address checked) is the JDK client's,
+      and wrapping it would add nothing.
 - [x] Metrics: `/actuator/metrics` exposed; each scheduled check's runs, time and outcome are
       `tasks.scheduled.execution`, which Spring records once Actuator is there.
 - [x] Each run of a scheduled check logs with an id of its own, like a request (`LogContext`, set by an observation
@@ -57,10 +61,10 @@ SonarCloud and Dependabot. What follows is what was missing.
 - [x] No inline scripts or event handlers in the templates (the theme script is `theme.js`; `onclick` became
       `data-clear-previous`), and HTMX told never to evaluate code from the page.
 - [x] Hiring's request form is validated (`@Valid`): one sent without its kind answered 500, now 400.
-- [ ] **Decision needed:** a `Host` header allow-list against DNS rebinding. A page on a domain that resolves to
-      127.0.0.1 is same-origin with the server, so CORS and the MCP server's `Origin` check don't stop it. Allowing
-      `localhost`, IP literals and the hosts in `jobwarden.allowed-hosts` would, but a server reached by a LAN host
-      name would then need that setting.
+- [x] A `Host` allow-list against DNS rebinding (`HostCheckFilter`): IP addresses, `localhost`, LAN names (no dot,
+      `.local`, `.lan`, `.home.arpa`, `.internal`), the computer's own name and `jobwarden.allowed-hosts`; anything else
+      gets 403. The defaults keep every setup the docs describe working; the calendar feed, behind its proxy, answers any
+      host.
 - [x] The configuration is checked as the app starts: the domain modules' `@Validated` properties (section 4), and a
       `JOBWARDEN_SECRET_KEY` that isn't 32 bytes in Base64, which only failed at the first password before.
 
@@ -78,17 +82,29 @@ SonarCloud and Dependabot. What follows is what was missing.
       `cv`): typed, validated, documented, registered by each module. The adapters keep `@Value` for the route paths
       their `@RequestMapping`s share, on final fields Lombok copies onto the constructor; `DiscoverController`'s setter
       injection is gone, and `ConventionsTests` refuses new setter injection.
-- [ ] Tests that use the `Clock`: the reminders, follow-ups and statistics at a fixed moment, rather than relative to
-      the real one.
-- [ ] `BaseController`'s setter injection replaced by composition: the layout's model attributes from a
-      `@ControllerAdvice`, the prompt helpers from a component. The layout makes four queries per page; one would do.
+- [x] Tests at a moment of their choosing: `MutableClock` replaces the application's `Clock` (Spring's `@TestBean`).
+      `ReminderTimingTests` pins when a reminder comes (an hour before, not a minute earlier), that it comes once, and
+      when it's deleted (half an hour after the interview starts), where the real-clock tests could only hedge.
+- [x] The same for the home page's activity: `ActivityService` takes the day, so `ActivityServiceTests` counts this
+      week and last from a Wednesday of its choosing, and lists the follow-ups due by then. The statistics don't depend
+      on the day.
+- [x] `BaseController` (nine setter-injected beans, 27 subclasses) replaced by composition: `@PageController` marks
+      the controllers whose pages render in the layout, and `LayoutAdvice` (a `@ControllerAdvice`) gives only them the
+      sidebar's model; `FormTexts`, `PromptCards` and `JobImages` are constructor-injected components; `Pages` holds
+      the static helpers. Optional beans come through `ObjectProvider`; `ConventionsTests` now refuses setter injection
+      everywhere.
+- [x] ~~The layout's four queries per page as one.~~ Dropped: the four counts are four modules' (identity, jobs,
+      discover, inbox), and one query would read across their tables, which the module boundaries forbid. Four indexed
+      counts on a server one person uses aren't worth that.
 - [x] Strategy pattern for the job boards: a sealed `BoardFeed` with `GreenhouseFeed`, `LeverFeed` and `AshbyFeed`,
       each with its addresses and JSON; `BoardFeeds` (514 lines, now 329) does the reading the same for all, and an
       exhaustive `switch` makes a new ATS name its feed.
 - [ ] Split the largest classes along their responsibilities: `RequestTools` (835 lines), `AppConstants` (649),
       `JobTools`, `DefaultApplicationService`, `DefaultApplicationCsvService`, `DefaultWatchlistService`.
-- [ ] Domain events (Spring Modulith `@ApplicationModuleListener`) where one module now calls another only to tell it
-      something happened.
+- [x] ~~Domain events where one module calls another only to tell it something happened.~~ None does: every
+      cross-module call is a query or a command whose result is needed at once, and what a deletion leaves the database
+      cascades in the same transaction (42 foreign keys). Recorded in [ADR 0006](adr/0006-modules-call-not-publish.md),
+      with when events would be worth it.
 
 ## 5. Tests
 
@@ -98,13 +114,23 @@ SonarCloud and Dependabot. What follows is what was missing.
       `toString`/`equals`/`hashCode`, exceptions with an error code, `java.time` only, unique module-prefixed error
       codes, every package `@NullMarked`.
 - [x] Tests for the new filters (`RequestIdFilterTests`, `SecurityHeadersFilterTests`).
-- [ ] Unit tests in the modules that have none of their own (`identity`, `discover`, `hiring`, `apply`).
-- [ ] A coverage floor in the `coverage` profile (JaCoCo `check`), raised as tests are added.
+- [x] Unit tests in the modules that had none of their own (`identity`, `discover`, `hiring`, `apply`): their pure
+      rules (which assistant applies in the browser, which requests need requirements or a job, the requirements'
+      defaults and caps, how far back "posted within" reaches, which Auto-apply statuses are open or retryable).
+- [ ] **Blocked:** a coverage floor. JaCoCo's `check` can't hold the aggregate of every module's tests (most run in
+      `app`); SonarCloud's quality gate can ("Coverage on New Code"), but it gets no coverage yet: the repository has no
+      `SONAR_TOKEN` secret, so CI's analysis step is skipped and SonarCloud's Automatic Analysis, which can't import
+      coverage, runs instead. Add the secret, turn Automatic Analysis off, then set the gate's condition.
 
 ## 6. Frontend (`web` templates and `app.js`, `extension/`)
 
-- [ ] `app.js` (1,044 lines, one global script) split into ES modules by feature.
-- [ ] ESLint and Prettier for `web` and `extension`, run by the build.
+- [x] `app.js` (1,044 lines, one global script) split into 14 ES modules by feature (`static/js/app/`); the events
+      several features share go through one ordered chain of handlers (Chain of Responsibility) in `app.js`.
+- [x] ESLint for `web` and `extension` (`web/eslint.config.mjs`), run by `./mvnw verify`. It found a missing import and
+      six spots in the extension; formatting stays `.editorconfig`'s (no Prettier, which would rewrite every file).
+- [x] `TemplatesTests`: no template asks for what the Content Security Policy refuses (inline scripts or handlers,
+      HTMX trigger filters, `hx-on`, `js:` values). The jobs list had one: a trigger filter, which the policy turned into
+      "every click", so ticking a row's box opened it in the side panel; the row now fires its own `row-click`.
 - [ ] Accessibility pass: labels, focus order, keyboard use of the swipe cards and the pipeline's drag and drop.
 - [ ] `extension/easyapply.js` (1,194 lines) and `extract.js` (770) split by site and step.
 
@@ -112,4 +138,4 @@ SonarCloud and Dependabot. What follows is what was missing.
 
 - [x] Architecture decision records ([docs/adr](adr/README.md)): modular monolith, no sign-in, the assistant through
       MCP, null-safety, time and configuration.
-- [ ] `CHANGELOG.md`, kept per release.
+- [x] [CHANGELOG.md](../CHANGELOG.md), with what's unreleased since v1.0.1; CONTRIBUTING.md asks each change for its line.

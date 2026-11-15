@@ -20,19 +20,20 @@ import com.jobwarden.discover.enums.AiRequestKind;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.service.ApplicationService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.assistant.PromptCards;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.HtmxHeaders;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
 import com.jobwarden.web.dto.ApplyAnswersForm;
 import com.jobwarden.web.view.AssistantPrompts;
+import com.jobwarden.web.view.FormTexts;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,16 +43,19 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import static com.jobwarden.web.controller.Pages.redirectTo;
+import static com.jobwarden.web.controller.Pages.requireProfile;
+
 /**
  * Auto-apply: Claude applies to the profile's Saved jobs in its browser, with the CV and the answers saved here. The
  * page queues jobs and asks Claude with a request, which Claude Code does through the MCP server (list_apply_queue,
  * report_apply_result); it shows how each job went, and takes the answers Claude asked for.
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.APPLY)
 @CustomLog
 @RequiredArgsConstructor
-class ApplyController extends BaseController {
+class ApplyController {
 
 	/** How many queued jobs the page shows, the latest first. */
 	static final int ITEMS_SHOWN = 50;
@@ -63,6 +67,10 @@ class ApplyController extends BaseController {
 	private final DiscoveryService discovery;
 
 	private final CvService cvs;
+
+	private final FormTexts formTexts;
+
+	private final PromptCards promptCards;
 
 	@GetMapping
 	String page(Model model) {
@@ -77,7 +85,7 @@ class ApplyController extends BaseController {
 	String saveAnswers(@Valid ApplyAnswersForm form, BindingResult result, Model model) {
 		long userId = requireProfile(model).id();
 		if (result.hasErrors()) {
-			return showPage(model, userId, form.toAnswers(), fieldErrors(result));
+			return showPage(model, userId, form.toAnswers(), this.formTexts.fieldErrors(result));
 		}
 		this.autoApply.saveAnswers(userId, form.toAnswers());
 		return redirectTo(ControllerConstants.APPLY + "?saved");
@@ -191,7 +199,7 @@ class ApplyController extends BaseController {
 		Optional<AiRequest> latest = latestRun(userId);
 		model.addAttribute(ModelAttributes.APPLY_RUN, latest.orElse(null));
 		model.addAttribute(ModelAttributes.APPLY_PROMPT,
-				latest.map(run -> connected(AssistantPrompts.forApplying(run.id(), userId), requireProfile(model)))
+				latest.map(run -> this.promptCards.connected(AssistantPrompts.forApplying(run.id(), userId), requireProfile(model)))
 					.orElse(null));
 		return latest.orElse(null);
 	}

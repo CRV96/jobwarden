@@ -1,6 +1,6 @@
 package com.jobwarden.web.enums;
 
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.constants.Views;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 

@@ -3,13 +3,17 @@ package com.jobwarden.web.controller;
 import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.identity.enums.IdentityErrorCode;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
+import com.jobwarden.jobs.service.ApplicationService;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan.Filter;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,12 +21,17 @@ import org.springframework.web.bind.annotation.PathVariable;
 import static org.assertj.core.api.Assertions.assertThat;
 
 // Spring Boot leaves a test's nested classes out of component scanning, so the controller is imported
-@WebMvcTest(WebExceptionHandlerTests.ThrowingController.class)
+// Not a page: it answers without the layout, so LayoutAdvice, and what it reads, stays out
+@WebMvcTest(controllers = WebExceptionHandlerTests.ThrowingController.class, excludeFilters = @Filter(type = FilterType.ASSIGNABLE_TYPE, classes = LayoutAdvice.class))
 @Import(WebExceptionHandlerTests.ThrowingController.class)
 class WebExceptionHandlerTests {
 
 	@Autowired
 	private MockMvcTester mvc;
+
+	// The page helpers WebTestApplication imports for every web test read it (JobImages)
+	@MockitoBean
+	private ApplicationService applications;
 
 	@Test
 	void answersNotFoundWith404() {

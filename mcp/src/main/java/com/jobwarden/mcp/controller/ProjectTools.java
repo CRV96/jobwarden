@@ -79,14 +79,14 @@ class ProjectTools implements McpToolSet {
 				"description", string("What it does and what the person built, 1-3 sentences")),
 				"name");
 		return new McpTool("save_cv_projects", "Save the CV's projects",
-				"Replaces the CV's projects, for the profile to review on the CV page. Max " + RequestTools.PROJECTS_MAX
+				"Replaces the CV's projects, for the profile to review on the CV page. Max " + RequestInstructions.PROJECTS_MAX
 						+ ".",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(), "projects", list(project, "Best first")),
 						"projects"),
 				false, false, call -> {
 					List<CvProject> projects = call.items("projects").stream().map(ProjectTools::project).toList();
-					if (projects.size() > RequestTools.PROJECTS_MAX) {
-						throw new ToolException("At most " + RequestTools.PROJECTS_MAX + " projects");
+					if (projects.size() > RequestInstructions.PROJECTS_MAX) {
+						throw new ToolException("At most " + RequestInstructions.PROJECTS_MAX + " projects");
 					}
 					CvDetails saved = this.cvs.saveProjects(this.profiles.of(call), projects);
 					return Map.of("projects", saved.projects().size(), "page", "/cv");

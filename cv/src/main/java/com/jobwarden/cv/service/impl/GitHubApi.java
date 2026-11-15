@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import com.jobwarden.common.net.HttpClients;
 import com.jobwarden.cv.dto.GitHubProject;
 import com.jobwarden.cv.dto.GitHubRepository;
 import org.jspecify.annotations.Nullable;
@@ -46,10 +47,7 @@ class GitHubApi {
 
 	private final JsonMapper json = JsonMapper.builder().build();
 
-	private final HttpClient http = HttpClient.newBuilder()
-		.connectTimeout(TIMEOUT)
-		.followRedirects(HttpClient.Redirect.NORMAL)
-		.build();
+	private final HttpClient http = HttpClients.followingRedirects(TIMEOUT);
 
 	GitHubApi(CvProperties properties) {
 		this.api = properties.githubApi();

@@ -15,11 +15,13 @@ import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.service.ApplicationService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.HtmxEvents;
-import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.assistant.PromptCards;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.HtmxEvents;
+import com.jobwarden.web.constants.HtmxHeaders;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
+import com.jobwarden.web.view.FormTexts;
 import com.jobwarden.web.view.LetterPdf;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.CustomLog;
@@ -27,13 +29,15 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+
+import static com.jobwarden.web.controller.Pages.attachment;
+import static com.jobwarden.web.controller.Pages.requireProfile;
 
 /**
  * A job's cover letter: written by Claude from the CV and the posting, changed by the profile on the job's page, and
@@ -42,11 +46,11 @@ import org.springframework.web.bind.annotation.RequestParam;
  * also be written there without Claude, starting from the profile's base letter (the Cover letters page,
  * LettersController) when it has one. The same card shows on that page, beside its list of jobs.
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.APPLICATIONS + "/{id}/letter")
 @CustomLog
 @RequiredArgsConstructor
-class CoverLetterController extends BaseController {
+class CoverLetterController {
 
 	private final ApplicationService applications;
 
@@ -57,6 +61,10 @@ class CoverLetterController extends BaseController {
 	private final DiscoveryService discovery;
 
 	private final LetterPdf pdf;
+
+	private final FormTexts formTexts;
+
+	private final PromptCards promptCards;
 
 	/**
 	 * The card: HTMX loads it after the job, and again every few seconds while Claude is on it.
@@ -92,7 +100,7 @@ class CoverLetterController extends BaseController {
 			this.letters.changeLetter(userId, id, body);
 		} catch (BusinessRuleException refused) {
 			log.debug("Cover letter of application {} not saved: {}", id, refused.getMessage());
-			model.addAttribute(ModelAttributes.LETTER_ERROR, message(refused));
+			model.addAttribute(ModelAttributes.LETTER_ERROR, this.formTexts.message(refused));
 			model.addAttribute(ModelAttributes.LETTER_DRAFT, body);
 			return showCard(model, userId, id, true);
 		}
@@ -167,7 +175,7 @@ class CoverLetterController extends BaseController {
 		}
 		model.addAttribute(ModelAttributes.LETTER_REQUEST, request.orElse(null));
 		model.addAttribute(ModelAttributes.LETTER_PROMPT,
-				request.map(asked -> prompt(model, asked.id())).orElse(null));
+				request.map(asked -> this.promptCards.prompt(requireProfile(model), asked.id())).orElse(null));
 		model.addAttribute(ModelAttributes.LETTER_EDITING, editing);
 		return Views.COVER_LETTER_FRAGMENT;
 	}

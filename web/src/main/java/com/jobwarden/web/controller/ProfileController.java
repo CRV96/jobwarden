@@ -2,23 +2,29 @@ package com.jobwarden.web.controller;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.List;
 
 import com.jobwarden.common.exception.BusinessRuleException;
+import com.jobwarden.discover.dto.AiRequest;
+import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.service.UserService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.assistant.AssistantRunner;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
 import com.jobwarden.web.dto.NewProfileForm;
+import com.jobwarden.web.user.CurrentUser;
+import com.jobwarden.web.view.FormTexts;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,11 +35,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-@Controller
+import static com.jobwarden.web.controller.Pages.redirectTo;
+import static com.jobwarden.web.controller.Pages.requireProfile;
+
+@PageController
 @RequestMapping(ControllerConstants.PROFILES)
 @CustomLog
 @RequiredArgsConstructor
-class ProfileController extends BaseController {
+class ProfileController {
 
 	/** Where the settings page shows the profile's photo */
 	private static final String PROFILE_SECTION = ControllerConstants.SETTINGS + "#profile";
@@ -49,6 +58,15 @@ class ProfileController extends BaseController {
 
 	private final UserService users;
 
+	private final CurrentUser currentUser;
+
+	private final DiscoveryService discovery;
+
+	/** Optional: without it, e.g. in a test of one controller, there are no runs to stop. */
+	private final ObjectProvider<AssistantRunner> runner;
+
+	private final FormTexts formTexts;
+
 	@GetMapping
 	String list(Model model) {
 		return showProfiles(model, null, null);
@@ -61,13 +79,13 @@ class ProfileController extends BaseController {
 	String create(@Valid NewProfileForm form, BindingResult result, Model model) {
 		if (result.hasErrors()) {
 			log.debug("Profile not created: the name is blank or too long");
-			return showProfiles(model, form.name(), errorMessage(result));
+			return showProfiles(model, form.name(), this.formTexts.errorMessage(result));
 		}
 		try {
-			selectProfile(this.users.create(form.name()).id());
+			this.currentUser.select(this.users.create(form.name()).id());
 		} catch (BusinessRuleException exception) {
 			log.debug("Profile not created: the name is taken");
-			return showProfiles(model, form.name(), message(exception));
+			return showProfiles(model, form.name(), this.formTexts.message(exception));
 		}
 		return redirectTo(ControllerConstants.HOMEPAGE);
 	}
@@ -81,7 +99,7 @@ class ProfileController extends BaseController {
 		long userId = requireProfile(model).id();
 		if (result.hasErrors()) {
 			log.debug("Profile {} not renamed: the name is blank or too long", userId);
-			redirect.addFlashAttribute(ModelAttributes.PROFILE_NAME_ERROR, errorMessage(result));
+			redirect.addFlashAttribute(ModelAttributes.PROFILE_NAME_ERROR, this.formTexts.errorMessage(result));
 			redirect.addFlashAttribute(ModelAttributes.PROFILE_NAME_TYPED, form.name());
 			return redirectTo(PROFILE_SECTION);
 		}
@@ -90,7 +108,7 @@ class ProfileController extends BaseController {
 			redirect.addFlashAttribute(ModelAttributes.PROFILE_NAME_SAVED, true);
 		} catch (BusinessRuleException exception) {
 			log.debug("Profile {} not renamed: the name is taken", userId);
-			redirect.addFlashAttribute(ModelAttributes.PROFILE_NAME_ERROR, message(exception));
+			redirect.addFlashAttribute(ModelAttributes.PROFILE_NAME_ERROR, this.formTexts.message(exception));
 			redirect.addFlashAttribute(ModelAttributes.PROFILE_NAME_TYPED, form.name());
 		}
 		return redirectTo(PROFILE_SECTION);
@@ -115,7 +133,7 @@ class ProfileController extends BaseController {
 
 	@PostMapping("/{id}/select")
 	String select(@PathVariable long id) {
-		selectProfile(id);
+		this.currentUser.select(id);
 		return redirectTo(ControllerConstants.HOMEPAGE);
 	}
 
@@ -143,7 +161,7 @@ class ProfileController extends BaseController {
 			redirect.addFlashAttribute(ModelAttributes.PROFILE_IMAGE_SAVED, true);
 		} catch (BusinessRuleException exception) {
 			log.debug("Photo of profile {} not saved: {}", userId, exception.getErrorCode());
-			redirect.addFlashAttribute(ModelAttributes.PROFILE_IMAGE_ERROR, message(exception));
+			redirect.addFlashAttribute(ModelAttributes.PROFILE_IMAGE_ERROR, this.formTexts.message(exception));
 		}
 		return redirectTo(PROFILE_SECTION);
 	}
@@ -160,6 +178,17 @@ class ProfileController extends BaseController {
 		model.addAttribute(ModelAttributes.NAME, name);
 		model.addAttribute(ModelAttributes.NAME_ERROR, nameError);
 		return Views.PROFILE_LIST;
+	}
+
+	/**
+	 * Deletes the profile and everything of it (UserService.delete), stops the assistant's runs on its requests and
+	 * deletes what they printed, and selects no profile in this browser session.
+	 */
+	private void deleteProfile(long userId) {
+		List<Long> requestIds = this.discovery.findRequests(userId, Integer.MAX_VALUE).stream().map(AiRequest::id).toList();
+		this.runner.ifAvailable(runner -> runner.forget(requestIds));
+		this.users.delete(userId);
+		this.currentUser.forget();
 	}
 
 }

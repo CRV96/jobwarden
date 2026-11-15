@@ -15,20 +15,22 @@ import com.jobwarden.jobs.service.OfferService;
 import com.jobwarden.market.dto.MarketQuery;
 import com.jobwarden.market.dto.MarketSalaries;
 import com.jobwarden.market.service.MarketSalaryService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
 import com.jobwarden.web.dto.MarketForm;
+import com.jobwarden.web.view.JobImages;
 import com.jobwarden.web.view.OfferMarket;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.util.UriComponentsBuilder;
+
+import static com.jobwarden.web.controller.Pages.requireProfile;
 
 /**
  * The profile's offers side by side: each job at Offer with the terms typed in on its page, its salary in one currency
@@ -36,10 +38,10 @@ import org.springframework.web.util.UriComponentsBuilder;
  * the page (HTMX), as the market's sources may take a moment to answer. A click on an offer opens its job in the side
  * panel, where its terms are changed and Claude writes the brief to negotiate it.
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.OFFERS)
 @RequiredArgsConstructor
-class OfferController extends BaseController {
+class OfferController {
 
 	/** The periods to show salaries per, like the salaries page. */
 	private static final List<SalaryPeriod> PERIODS = List.of(SalaryPeriod.YEAR, SalaryPeriod.MONTH, SalaryPeriod.HOUR);
@@ -51,6 +53,8 @@ class OfferController extends BaseController {
 	private final MarketSalaryService market;
 
 	private final Clock clock;
+
+	private final JobImages jobImages;
 
 	/**
 	 * @param currency an ISO 4217 code; without one, euros
@@ -78,7 +82,7 @@ class OfferController extends BaseController {
 			.build()
 			.toUriString());
 		model.addAttribute(ModelAttributes.TODAY, LocalDate.now(this.clock));
-		addImages(model, userId);
+		this.jobImages.addImages(model, userId);
 		return Views.OFFERS;
 	}
 

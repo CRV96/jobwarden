@@ -22,6 +22,7 @@ defaults suit a server on your own computer.
 | `SPRING_DATASOURCE_URL`, `_USERNAME`, `_PASSWORD` | the Docker Compose database, when run from the sources | The PostgreSQL database |
 | `SERVER_PORT` | `8080` | The port. In Docker, set it this way only: the image's health check reads it. To publish the server on another port, `-p 9090:8080` is enough |
 | `SERVER_ADDRESS` | every address | `127.0.0.1` keeps the server to this computer |
+| `JOBWARDEN_ALLOWED_HOSTS` | none | Host names it answers to besides its local ones (IP addresses, `localhost`, LAN names), comma-separated: a name a reverse proxy serves it as. Any other is refused with 403 |
 | `TZ` | the machine's (UTC in Docker) | The time zone "today" and every time on the pages are in |
 | `JOBWARDEN_SECRET_KEY` | a key file made in `~/.jobwarden` | The key (32 bytes, Base64) the passwords and tokens are encrypted with. A wrong one stops the server from starting |
 | `JOBWARDEN_UPDATES_CHECK` | `true` | Whether to ask GitHub for a newer release, at start and every six hours |

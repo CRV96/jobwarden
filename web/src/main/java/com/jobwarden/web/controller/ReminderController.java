@@ -2,28 +2,29 @@ package com.jobwarden.web.controller;
 
 import com.jobwarden.jobs.enums.ReminderLead;
 import com.jobwarden.jobs.service.ReminderService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
 import com.jobwarden.web.dto.ReminderForm;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+
+import static com.jobwarden.web.controller.Pages.requireProfile;
 
 /**
  * The reminders of what the calendar shows: set from the calendar's Coming up list, and from a job's side panel and
  * page, which list its interviews, deadline and day to follow up from today on. They come as notifications, which
  * {@link ReminderNoticeController} gives the pages.
  */
-@Controller
+@PageController
 @RequiredArgsConstructor
-class ReminderController extends BaseController {
+class ReminderController {
 
 	private final ReminderService reminders;
 

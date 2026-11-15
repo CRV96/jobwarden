@@ -8,7 +8,6 @@ import com.jobwarden.market.enums.AdzunaKeyCheck;
 import com.jobwarden.market.enums.AdzunaKeySource;
 import com.jobwarden.market.repository.AdzunaKeyRepository;
 import com.jobwarden.market.service.AdzunaKeyService;
-import com.jobwarden.market.service.impl.AdzunaKeys.Key;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 
@@ -48,7 +47,7 @@ class DefaultAdzunaKeyService implements AdzunaKeyService {
 		if (appId.isBlank() || appKey.isBlank()) {
 			throw new IllegalArgumentException("An Adzuna key needs its app ID and its app key");
 		}
-		Key key = new Key(appId.strip(), appKey.strip());
+		AdzunaKeys.Key key = new AdzunaKeys.Key(appId.strip(), appKey.strip());
 		AdzunaKeyCheck check = this.adzuna.check(key);
 		if (check == AdzunaKeyCheck.REFUSED) {
 			log.info("Adzuna refused the key with app ID {}: not saved", key.appId());

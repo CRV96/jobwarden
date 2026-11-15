@@ -325,7 +325,12 @@
 				</plugins>
 			</build>
 		</profile>
-		<!-- ./mvnw verify -Pnullaway: NullAway (on Error Prone) checks the null-safety the code declares. Every package is
+		<!-- ./mvnw verify -Pnullaway: Error Prone's checks, its warnings failing the build like the compiler's, and NullAway
+		     on it, which checks the null-safety the code declares. Four of Error Prone's are off: MissingSummary (a
+		     Javadoc style: the comments here are prose), ImmutableEnumChecker and StringSplitter (they ask for Guava's
+		     types, which the project doesn't use), MultipleNullnessAnnotations (it takes bean validation's @NotNull for a
+		     nullness annotation, while a form field is @NotNull @Nullable on purpose: validation requires it, binding may
+		     leave it out). Every package is
 		     @NullMarked (JSpecify): nothing is null unless it says @Nullable, and the compiler refuses code that could
 		     hand a null where none is expected. CI turns it on by itself (GitHub Actions sets CI). It's a profile rather
 		     than the default build because Error Prone needs the JVM flags in .mvn/jvm.config, which IntelliJ's own
@@ -364,7 +369,7 @@
 									<compilerArgs combine.children="append">
 										<arg>-XDcompilePolicy=simple</arg>
 										<arg>--should-stop=ifError=FLOW</arg>
-										<arg>-Xplugin:ErrorProne -XepDisableAllChecks -Xep:NullAway:ERROR -XepOpt:NullAway:OnlyNullMarked=true -XepOpt:NullAway:JSpecifyMode=true -XepOpt:NullAway:ExcludedClassAnnotations=jakarta.persistence.Entity,jakarta.persistence.Embeddable -XepOpt:NullAway:CustomContractAnnotations=org.springframework.lang.Contract</arg>
+										<arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -Xep:MissingSummary:OFF -Xep:ImmutableEnumChecker:OFF -Xep:StringSplitter:OFF -Xep:MultipleNullnessAnnotations:OFF -XepOpt:NullAway:OnlyNullMarked=true -XepOpt:NullAway:JSpecifyMode=true -XepOpt:NullAway:ExcludedClassAnnotations=jakarta.persistence.Entity,jakarta.persistence.Embeddable -XepOpt:NullAway:CustomContractAnnotations=org.springframework.lang.Contract</arg>
 									</compilerArgs>
 								</configuration>
 							</execution>

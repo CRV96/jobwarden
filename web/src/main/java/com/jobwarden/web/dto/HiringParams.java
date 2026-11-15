@@ -5,7 +5,7 @@ import java.util.Map;
 
 import com.jobwarden.hiring.dto.HiringPostQuery;
 import com.jobwarden.hiring.enums.PostedWithin;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
+import com.jobwarden.web.constants.ControllerConstants;
 import com.jobwarden.web.enums.HiringTab;
 import com.jobwarden.web.enums.RecruiterFilter;
 import org.jspecify.annotations.Nullable;

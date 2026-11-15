@@ -9,7 +9,7 @@ import java.util.Set;
 import com.jobwarden.jobs.dto.ApplicationQuery;
 import com.jobwarden.jobs.enums.ApplicationSort;
 import com.jobwarden.jobs.enums.ApplicationStatus;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
+import com.jobwarden.web.constants.ControllerConstants;
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.data.domain.Sort;

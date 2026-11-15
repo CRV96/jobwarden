@@ -21,6 +21,7 @@ public class JobWardenApplication {
 	 * runs in UTC). A test that needs a moment of its own gives its class a fixed one ({@code Clock.fixed}).
 	 */
 	@Bean
+	@SuppressWarnings("JavaTimeDefaultTimeZone") // The server's time zone, on purpose: TZ sets it, and only here
 	Clock clock() {
 		return Clock.systemDefaultZone();
 	}

@@ -166,7 +166,7 @@ public class CalendarIcs {
 			return (lead == ReminderLead.AT_TIME) ? "PT0M" : "-PT" + lead.minutes() + "M";
 		}
 		long minutes = ReminderLead.ALL_DAY_START.toSecondOfDay() / 60L - lead.minutes();
-		return (minutes >= 0) ? "PT" + minutes + "M" : "-PT" + (-minutes) + "M";
+		return (minutes >= 0) ? "PT" + minutes + "M" : "-PT" + Math.abs(minutes) + "M";
 	}
 
 	private static String utc(LocalDateTime time, ZoneId zone) {

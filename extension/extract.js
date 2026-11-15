@@ -490,6 +490,7 @@
       // Some sites put raw line breaks inside strings, which JSON doesn't allow
     }
     try {
+      // eslint-disable-next-line no-control-regex -- the control characters are what it takes out
       return JSON.parse(text.replace(/[\u0000-\u001f]+/g, ' '));
     } catch {
       return null;

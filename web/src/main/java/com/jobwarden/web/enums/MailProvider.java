@@ -7,9 +7,9 @@ import org.jspecify.annotations.Nullable;
  * made in the provider's security settings; Proton Mail the password of Proton Mail Bridge, which serves the mailbox
  * on this computer. Outlook and Microsoft 365 aren't among them: they let apps in with OAuth alone, which JobWarden
  * doesn't have.
- *
- * @param host the IMAP server; {@code null} for another provider, whose server the profile types
- * @param port its port: IMAP over TLS, or, for Bridge, the port it shows (STARTTLS, which connecting finds out)
+ * <p>
+ * Each has its IMAP server ({@code null} for another provider, whose server the profile types) and its port: IMAP over
+ * TLS, or, for Bridge, the port it shows (STARTTLS, which connecting finds out).
  */
 public enum MailProvider {
 

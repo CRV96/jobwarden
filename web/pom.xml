@@ -158,6 +158,18 @@
 							<arguments>run build</arguments>
 						</configuration>
 					</execution>
+					<!-- ESLint, on the pages' JavaScript and the browser extension's (eslint.config.mjs): with the other checks
+					     at verify, and not in a plain package, such as the Docker image's build, which has no extension. -->
+					<execution>
+						<id>eslint</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>npm</goal>
+						</goals>
+						<configuration>
+							<arguments>run lint</arguments>
+						</configuration>
+					</execution>
 					<!-- Not part of the build. Run `./mvnw -pl web frontend:npm@tailwind-watch`
 					     to recompile the CSS whenever a template changes. -->
 					<execution>
