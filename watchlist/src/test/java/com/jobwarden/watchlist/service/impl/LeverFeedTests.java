@@ -39,6 +39,8 @@ class LeverFeedTests {
 		// Written out, or rounded to cents, each would be a number of a billion digits
 		assertTimeoutPreemptively(Duration.ofSeconds(2), () -> {
 			assertThat(salary("{\"currency\": \"USD\", \"min\": \"1E+1000000000\"}")).isNull();
+			// Its digits before the point, counted in an int, would wrap below the limit
+			assertThat(salary("{\"currency\": \"USD\", \"min\": \"1E+2147483647\"}")).isNull();
 			assertThat(salary("{\"currency\": \"USD\", \"min\": \"1E-1000000000\"}")).isNull();
 			assertThat(salary("{\"currency\": \"USD\", \"min\": 1e400}")).isNull();
 			assertThat(salary("{\"currency\": \"USD\", \"min\": \"9999999999999\"}")).isNull();

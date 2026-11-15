@@ -123,9 +123,12 @@ final class LeverFeed implements BoardFeed {
 		}
 	}
 
-	/** Up to a trillion, with no more decimals than a double writes: read without any arithmetic. */
+	/**
+	 * Up to a trillion, with no more decimals than a double writes: read without any arithmetic on the amount. The
+	 * digits before the point are counted in a long: 1E+2147483647 has a scale of -2147483647, which an int would wrap.
+	 */
 	private static boolean isSalary(BigDecimal amount) {
-		return amount.precision() - amount.scale() <= MAX_WHOLE_DIGITS && amount.scale() <= MAX_DECIMALS;
+		return (long) amount.precision() - amount.scale() <= MAX_WHOLE_DIGITS && amount.scale() <= MAX_DECIMALS;
 	}
 
 	/** With thousands separators, whatever the server's language, and cents only when it has them: 60,000 or 23.75. */
