@@ -1,9 +1,13 @@
 package com.jobwarden.watchlist.service.impl;
 
+import java.time.Duration;
+
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 class LeverFeedTests {
 
@@ -30,7 +34,19 @@ class LeverFeedTests {
 		assertThat(salary("{\"currency\": \"GBP\", \"min\": 0, \"max\": \"not an amount\"}")).isNull();
 	}
 
-	private String salary(String range) {
+	@Test
+	void leavesOutAnAmountNoSalaryCouldBeQuicklyHoweverItsWritten() {
+		// Written out, or rounded to cents, each would be a number of a billion digits
+		assertTimeoutPreemptively(Duration.ofSeconds(2), () -> {
+			assertThat(salary("{\"currency\": \"USD\", \"min\": \"1E+1000000000\"}")).isNull();
+			assertThat(salary("{\"currency\": \"USD\", \"min\": \"1E-1000000000\"}")).isNull();
+			assertThat(salary("{\"currency\": \"USD\", \"min\": 1e400}")).isNull();
+			assertThat(salary("{\"currency\": \"USD\", \"min\": \"9999999999999\"}")).isNull();
+		});
+		assertThat(salary("{\"currency\": \"USD\", \"min\": \"999999999999\"}")).isEqualTo("USD 999,999,999,999");
+	}
+
+	private @Nullable String salary(String range) {
 		Posting posting = this.feed.posting(JsonMapper.builder()
 			.build()
 			.readTree("{\"text\": \"Backend Developer\", \"hostedUrl\": \"https://jobs.lever.co/acme/1\", \"salaryRange\": "
