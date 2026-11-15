@@ -58,8 +58,11 @@ final class Csv {
 	}
 
 	/**
-	 * Writes one record, and the line's end.
+	 * Writes one record, and the line's end. The values may be {@code null}: an empty cell. The wildcard is needed for
+	 * all that, though String is final (Sonar's S4968): under JSpecify a {@code List<String>} isn't a
+	 * {@code List<@Nullable String>}, so callers with values that are all there couldn't pass theirs.
 	 */
+	@SuppressWarnings("java:S4968")
 	static void write(Appendable out, List<? extends @Nullable String> values) throws IOException {
 		for (int i = 0; i < values.size(); i++) {
 			if (i > 0) {
