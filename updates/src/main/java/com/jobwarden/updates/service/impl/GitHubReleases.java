@@ -17,7 +17,6 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -38,8 +37,8 @@ class GitHubReleases {
 		.followRedirects(HttpClient.Redirect.NORMAL)
 		.build();
 
-	GitHubReleases(@Value("${jobwarden.updates.api:https://api.github.com}") URI api) {
-		this.api = api;
+	GitHubReleases(UpdatesProperties properties) {
+		this.api = properties.api();
 	}
 
 	/**

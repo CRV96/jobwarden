@@ -26,6 +26,7 @@ import com.jobwarden.jobs.dto.TrackedApplication;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.search.Recency;
+import com.jobwarden.web.dto.HiringRequestForm;
 import com.jobwarden.web.user.CurrentUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,15 +34,18 @@ import org.mockito.ArgumentCaptor;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 
 @WebMvcTest(HiringController.class)
@@ -93,6 +97,17 @@ class HiringControllerTests {
 		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
 		given(this.hiring.findPosts(eq(1L), any())).willReturn(List.of(POST));
 		given(this.hiring.findRecruiters(1)).willReturn(List.of(ANA));
+	}
+
+	@Test
+	void refusesRolesOrPlacesLongerThanTheFieldsAllow() {
+		String tooLong = "x".repeat(HiringRequestForm.TEXT_MAX_LENGTH + 1);
+
+		assertThat(this.mvc.post().uri("/hiring/requests").param("kind", "FIND_RECRUITERS").param("roles", tooLong))
+			.hasStatus(HttpStatus.BAD_REQUEST);
+		assertThat(this.mvc.post().uri("/hiring/requests").param("kind", "FIND_RECRUITERS").param("places", tooLong))
+			.hasStatus(HttpStatus.BAD_REQUEST);
+		then(this.discovery).should(never()).createRequest(anyLong(), any(), any());
 	}
 
 	@Test

@@ -5,4 +5,7 @@
  * <p>
  * Public API: the types in this package. Sub-packages are internal to the module.
  */
+@NullMarked
 package com.jobwarden.search;
+
+import org.jspecify.annotations.NullMarked;

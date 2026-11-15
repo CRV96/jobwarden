@@ -7,7 +7,6 @@ import com.jobwarden.market.entity.AdzunaKeyEntity;
 import com.jobwarden.market.repository.AdzunaKeyRepository;
 import org.jspecify.annotations.Nullable;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -25,9 +24,10 @@ class AdzunaKeys {
 	/** The saved key once read: empty when there's none; null until it's read */
 	private final AtomicReference<@Nullable Optional<Key>> saved = new AtomicReference<>();
 
-	AdzunaKeys(AdzunaKeyRepository repository, @Value("${jobwarden.market.adzuna.app-id:}") String appId,
-			@Value("${jobwarden.market.adzuna.app-key:}") String appKey) {
+	AdzunaKeys(AdzunaKeyRepository repository, MarketProperties properties) {
 		this.repository = repository;
+		String appId = properties.adzuna().appId();
+		String appKey = properties.adzuna().appKey();
 		this.environment = (appId.isBlank() || appKey.isBlank()) ? null : new Key(appId.strip(), appKey.strip());
 	}
 

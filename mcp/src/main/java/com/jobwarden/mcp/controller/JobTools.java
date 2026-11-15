@@ -1,5 +1,6 @@
 package com.jobwarden.mcp.controller;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -25,8 +26,8 @@ import com.jobwarden.jobs.dto.NewTimelineEvent;
 import com.jobwarden.jobs.dto.TidyResult;
 import com.jobwarden.jobs.dto.TimelineEvent;
 import com.jobwarden.jobs.enums.ApplicationSort;
-import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.InterviewFormat;
 import com.jobwarden.jobs.enums.RejectionReason;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
@@ -40,6 +41,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
+import org.springframework.lang.Contract;
 import org.springframework.stereotype.Component;
 
 import static com.jobwarden.mcp.controller.Schemas.bool;
@@ -90,6 +92,8 @@ class JobTools implements McpToolSet {
 	private final ApplicationService applications;
 
 	private final PostingChecker checker;
+
+	private final Clock clock;
 
 	@Override
 	public List<McpTool> tools() {
@@ -154,7 +158,7 @@ class JobTools implements McpToolSet {
 		String descriptionWith = !cut ? null
 				: (job.link() != null) ? DESCRIPTION_WITH_LINK : (max < DESCRIPTION_MAX_LENGTH) ? "get_job" : null;
 		return new JobDetails(job.id(), job.title(), job.company(), job.location(), job.salary(), job.employmentType(),
-				job.status(), job.link(), job.notes(), followUp(job.followUp()), shortened(job.description(), max),
+				job.status(), job.link(), job.notes(), followUp(job.followUp()), Texts.shortened(job.description(), max),
 				descriptionWith, job.timeline().stream().map(JobTools::step).toList());
 	}
 
@@ -196,14 +200,15 @@ class JobTools implements McpToolSet {
 		Semaphore slots = new Semaphore(PARALLEL_CHECKS);
 		try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
 			for (ApplicationSummary job : jobs.stream().limit(MAX_CHECKS).toList()) {
-				if (job.link() == null || !job.link().startsWith("http")) {
+				String link = job.link();
+				if (link == null || !link.startsWith("http")) {
 					skipped.add(Map.of("job_id", job.id(), "reason", "no link to check"));
 					continue;
 				}
 				running.put(job, executor.submit(() -> {
 					slots.acquire();
 					try {
-						return this.checker.check(job.link());
+						return this.checker.check(link);
 					} finally {
 						slots.release();
 					}
@@ -310,8 +315,8 @@ class JobTools implements McpToolSet {
 		String note = "The posting is no longer up: " + result.reason()
 				+ (result.evidence() != null ? " (\"" + result.evidence() + "\")" : "") + ". Checked by the AI Assistant.";
 		this.applications.addEvent(userId, job.id(), NewTimelineEvent.builder()
-			.eventDate(LocalDate.now())
-			.eventTime(LocalTime.now().truncatedTo(ChronoUnit.MINUTES))
+			.eventDate(LocalDate.now(this.clock))
+			.eventTime(LocalTime.now(this.clock).truncatedTo(ChronoUnit.MINUTES))
 			.stageCategory(ApplicationStatus.POSITION_CLOSED)
 			.note(shortened(note))
 			.build());
@@ -340,7 +345,7 @@ class JobTools implements McpToolSet {
 				false, false, call -> {
 					long userId = this.profiles.of(call);
 					long jobId = call.requiredNumber("job_id");
-					ApplicationStatus status = call.constant("status", ApplicationStatus.class);
+					ApplicationStatus status = call.requiredConstant("status", ApplicationStatus.class);
 					LocalDate date = call.date("date");
 					LocalTime time = call.time("time");
 					Long duration = call.number("duration_minutes");
@@ -352,8 +357,8 @@ class JobTools implements McpToolSet {
 						.orElseThrow(() -> new ApplicationNotFoundException(jobId))
 						.status();
 					this.applications.addEvent(userId, jobId, NewTimelineEvent.builder()
-						.eventDate((date != null) ? date : LocalDate.now())
-						.eventTime((date != null) ? time : LocalTime.now().truncatedTo(ChronoUnit.MINUTES))
+						.eventDate((date != null) ? date : LocalDate.now(this.clock))
+						.eventTime((date != null) ? time : LocalTime.now(this.clock).truncatedTo(ChronoUnit.MINUTES))
 						.stageCategory(status)
 						.stageLabel(status.hasStages() ? call.string("stage") : null)
 						.note(shortened(call.string("note")))
@@ -426,12 +431,9 @@ class JobTools implements McpToolSet {
 		return call.arguments().has(name) ? call.string(name) : before;
 	}
 
+	@Contract("null -> null; !null -> !null")
 	private static @Nullable String shortened(@Nullable String note) {
-		return shortened(note, NOTE_MAX_LENGTH);
-	}
-
-	private static @Nullable String shortened(@Nullable String text, int maxLength) {
-		return (text == null || text.length() <= maxLength) ? text : text.substring(0, maxLength - 1) + "…";
+		return Texts.shortened(note, NOTE_MAX_LENGTH);
 	}
 
 	/** Argument names and their schemas, in this order. */

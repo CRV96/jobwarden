@@ -1,5 +1,6 @@
 package com.jobwarden.jobs.service.impl;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -62,13 +63,15 @@ class DefaultReminderService implements ReminderService {
 
 	private final MessageSource messages;
 
+	private final Clock clock;
+
 	/**
 	 * @throws ApplicationNotFoundException if the user has no such application
 	 */
 	@Override
 	public List<CalendarEntry> findRemindable(long userId, long applicationId) {
 		FollowUpDates job = followUpDates(userId, applicationId);
-		LocalDate today = LocalDate.now();
+		LocalDate today = LocalDate.now(this.clock);
 		Map<ReminderTarget, Set<ReminderLead>> set = CalendarEntries
 			.byTarget(this.reminders.findByUserIdAndApplicationId(userId, applicationId));
 		List<CalendarEntry> entries = new ArrayList<>();
@@ -121,23 +124,24 @@ class DefaultReminderService implements ReminderService {
 		// An archived job's reminders wait: they come again with the job, unless their entry is over by then
 		Set<Long> archived = new HashSet<>(this.applications.findArchivedIds(userId,
 				all.stream().map(ReminderEntity::getApplicationId).distinct().toList()));
-		LocalDateTime now = LocalDateTime.now();
+		LocalDateTime now = LocalDateTime.now(this.clock);
 		// Several reminders of one entry may be due at once, e.g. after the computer slept through the first: they all
 		// count as come, and say it once, with the one that's due last
-		Map<ReminderTarget, ReminderEntity> due = new LinkedHashMap<>();
+		Map<ReminderTarget, Due> due = new LinkedHashMap<>();
 		List<ReminderEntity> over = new ArrayList<>();
 		for (ReminderEntity reminder : all.stream().sorted(Comparator.comparing(ReminderEntity::getId)).toList()) {
 			ReminderTarget target = CalendarEntries.target(reminder);
 			CalendarEntry entry = entries.get(target);
-			if (isOver(entry, now)) {
+			if (entry == null || isOver(entry, now)) {
 				over.add(reminder);
 				continue;
 			}
-			if (archived.contains(reminder.getApplicationId()) || !isDue(reminder, entry, now) || this.reminders.markNotified(reminder.getId(), entry.start()) == 0) {
+			if (archived.contains(reminder.getApplicationId()) || !isDue(reminder, entry, now)
+					|| this.reminders.markNotified(reminder.getId(), entry.start()) == 0) {
 				continue;
 			}
-			due.merge(target, reminder, (one, other) -> (one.getRemindBefore().minutes() <= other.getRemindBefore()
-				.minutes()) ? one : other);
+			due.merge(target, new Due(reminder, entry),
+					(one, other) -> (one.minutesBefore() <= other.minutesBefore()) ? one : other);
 		}
 		if (!due.isEmpty()) {
 			log.info("{} reminders of profile {} came", due.size(), userId);
@@ -145,7 +149,7 @@ class DefaultReminderService implements ReminderService {
 		deleteOver(userId, over);
 		return due.entrySet()
 			.stream()
-			.map(reminder -> notice(reminder.getValue(), entries.get(reminder.getKey()), now, locale))
+			.map(reminder -> notice(reminder.getValue().reminder(), reminder.getValue().entry(), now, locale))
 			.toList();
 	}
 
@@ -156,7 +160,7 @@ class DefaultReminderService implements ReminderService {
 		Map<Long, List<ReminderEntity>> byProfile = this.reminders.findAll()
 			.stream()
 			.collect(Collectors.groupingBy(ReminderEntity::getUserId));
-		LocalDateTime now = LocalDateTime.now();
+		LocalDateTime now = LocalDateTime.now(this.clock);
 		for (Map.Entry<Long, List<ReminderEntity>> profile : byProfile.entrySet()) {
 			Map<ReminderTarget, CalendarEntry> entries = entries(profile.getKey(), profile.getValue());
 			List<ReminderEntity> over = profile.getValue()
@@ -288,7 +292,7 @@ class DefaultReminderService implements ReminderService {
 		String time = (entry.time() != null) ? entry.time().format(TIME) : null;
 		if (time != null) {
 			// Between zoned times: an hour that's skipped or repeated as the clocks change counts as it is
-			ZoneId zone = ZoneId.systemDefault();
+			ZoneId zone = this.clock.getZone();
 			long minutes = Duration.between(now.atZone(zone), entry.start().atZone(zone)).toMinutes();
 			if (minutes <= 0) {
 				return message("notice.when.now", locale);
@@ -319,6 +323,15 @@ class DefaultReminderService implements ReminderService {
 
 	private String message(String key, Locale locale, Object... arguments) {
 		return this.messages.getMessage(key, arguments, locale);
+	}
+
+	/** A reminder that came, with the entry it's set on. */
+	private record Due(ReminderEntity reminder, CalendarEntry entry) {
+
+		int minutesBefore() {
+			return this.reminder.getRemindBefore().minutes();
+		}
+
 	}
 
 }

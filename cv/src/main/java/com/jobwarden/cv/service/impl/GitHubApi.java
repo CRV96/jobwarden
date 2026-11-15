@@ -21,7 +21,6 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -52,8 +51,8 @@ class GitHubApi {
 		.followRedirects(HttpClient.Redirect.NORMAL)
 		.build();
 
-	GitHubApi(@Value("${jobwarden.cv.github-api:https://api.github.com}") URI api) {
-		this.api = api;
+	GitHubApi(CvProperties properties) {
+		this.api = properties.githubApi();
 	}
 
 	/**

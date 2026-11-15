@@ -8,23 +8,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title th:replace="${title}">JobWarden</title>
     <!--/* Before the page paints, so it never flashes in the other theme: the theme picked in the settings, otherwise
-           the system's, and the sidebar as it was left. app.js keeps both. */-->
-    <script>
-        (() => {
-            const read = (key) => {
-                try {
-                    return localStorage.getItem(`jobwarden.${key}`);
-                } catch {
-                    return null;
-                }
-            };
-            const root = document.documentElement;
-            root.dataset.theme = read('theme') ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            if (read('sidebar') === 'folded') {
-                root.dataset.sidebar = 'folded';
-            }
-        })();
-    </script>
+           the system's, and the sidebar as it was left. app.js keeps both. A file rather than inline, which the
+           Content Security Policy wouldn't run, and not deferred, so it runs before the body is drawn. */-->
+    <script th:src="@{/js/theme.js}"></script>
     <!--/* The extension's icon (extension/icons, copied), so the tab and the toolbar look the same. PNGs for browsers
            without SVG icons, and for a phone's home screen. */-->
     <link rel="icon" type="image/png" sizes="32x32" th:href="@{/favicon-32.png}">
@@ -36,8 +22,9 @@
     <link rel="stylesheet" th:href="@{/webjars/flag-icons/css/flag-icons.min.css}"
           th:if="${languages != null or section == 'search' or section == 'salaries' or section == 'offers' or section == 'hiring'}">
     <link rel="stylesheet" th:href="@{/css/app.css}">
-    <!--/* By default HTMX doesn't send a form with an invalid field, and doesn't say why either. */-->
-    <meta name="htmx-config" content='{"reportValidityOfForms": true}'>
+    <!--/* By default HTMX doesn't send a form with an invalid field, and doesn't say why either. It never evaluates
+           code from the page (hx-on, js: values) or runs scripts in what it swaps in: the CSP wouldn't let it anyway. */-->
+    <meta name="htmx-config" content='{"reportValidityOfForms": true, "allowEval": false, "allowScriptTags": false}'>
     <script th:src="@{/webjars/htmx.org/dist/htmx.min.js}" defer></script>
     <script th:src="@{/js/app.js}" defer></script>
 </head>

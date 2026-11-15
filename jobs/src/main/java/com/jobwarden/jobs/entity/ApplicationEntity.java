@@ -12,8 +12,8 @@ import java.util.stream.Stream;
 import com.jobwarden.jobs.dto.FollowUp;
 import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
-import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.AppliedBy;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -54,13 +54,13 @@ public class ApplicationEntity {
 
 	private String link;
 
-	private String location;
+	private @Nullable String location;
 
-	private String salary;
+	private @Nullable String salary;
 
 	private String employmentType;
 
-	private String source;
+	private @Nullable String source;
 
 	@JdbcTypeCode(SqlTypes.JSON)
 	private String rawPayload;
@@ -257,10 +257,6 @@ public class ApplicationEntity {
 	}
 
 	/**
-	 * The event the status comes from. The events are in timeline order, except those added since they were loaded,
-	 * which are at the end; at the same moment, the one further down counts as the latest, like in {@link #addEvent}.
-	 */
-	/**
 	 * A change to the timeline is a change to the application, even when its own columns stay the same, e.g. an
 	 * interview that keeps it INTERVIEWING: the list's "last modified" counts it. Setting the time makes the row dirty,
 	 * so {@code @UpdateTimestamp} then sets it again as Hibernate saves it.
@@ -283,6 +279,10 @@ public class ApplicationEntity {
 		this.archivedAt = null;
 	}
 
+	/**
+	 * The event the status comes from. The events are in timeline order, except those added since they were loaded,
+	 * which are at the end; at the same moment, the one further down counts as the latest, like in {@link #addEvent}.
+	 */
 	private TimelineEventEntity latestEvent() {
 		return this.events.stream()
 			.reduce((latest, event) -> latest.isAfter(event.getEventDate(), event.getEventTime()) ? latest : event)

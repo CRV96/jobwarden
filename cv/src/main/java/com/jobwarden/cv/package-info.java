@@ -11,4 +11,7 @@
  * Public API: the {@code dto}, {@code service} and {@code exception} packages, marked with {@code @NamedInterface}.
  * {@code entity}, {@code repository} and {@code service.impl} are internal to the module.
  */
+@NullMarked
 package com.jobwarden.cv;
+
+import org.jspecify.annotations.NullMarked;

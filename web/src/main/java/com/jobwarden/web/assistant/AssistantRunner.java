@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -91,6 +92,8 @@ public class AssistantRunner {
 	/** Why Run last refused each request, which the cards keep saying a while. */
 	private final Map<Long, Refusal> refusals = new ConcurrentHashMap<>();
 
+	private final Clock clock;
+
 	/**
 	 * @param claudeCommand where Claude Code is, when it isn't on the PATH or in a usual place
 	 * @param codexCommand where Codex is, likewise
@@ -100,8 +103,9 @@ public class AssistantRunner {
 			@Value("${jobwarden.assistant.claude-command:claude}") String claudeCommand,
 			@Value("${jobwarden.assistant.codex-command:codex}") String codexCommand,
 			@Value("${jobwarden.assistant.run.directory:${user.home}/.jobwarden/runs}") Path directory,
-			@Value("${jobwarden.assistant.run.timeout:60m}") Duration timeout) {
+			@Value("${jobwarden.assistant.run.timeout:60m}") Duration timeout, Clock clock) {
 		this.discovery = discovery;
+		this.clock = clock;
 		this.enabled = enabled;
 		this.directory = directory;
 		this.timeout = timeout;
@@ -115,7 +119,7 @@ public class AssistantRunner {
 	 * @return whether Run can start the assistant here
 	 */
 	public boolean canRun(Assistant assistant) {
-		return this.enabled && this.executables.get(assistant).isPresent();
+		return this.enabled && this.executables.getOrDefault(assistant, Optional.empty()).isPresent();
 	}
 
 	/**
@@ -144,7 +148,7 @@ public class AssistantRunner {
 	 * or too many runs are going on
 	 */
 	public void run(Assistant assistant, long userId, List<Long> requestIds, String mcpUrl) {
-		Path executable = this.executables.get(assistant)
+		Path executable = this.executables.getOrDefault(assistant, Optional.empty())
 			.filter(path -> this.enabled)
 			.orElseThrow(() -> refuse(assistant, requestIds, new RunRefusedException(RunRefusedException.Reason.UNAVAILABLE)));
 		// Asked first, so a run that couldn't do anything doesn't fail the requests: they keep waiting, to run again
@@ -247,7 +251,7 @@ public class AssistantRunner {
 	 * and keeps saying it, until a run starts or the requests are done.
 	 */
 	public Optional<Refusal> refusal(List<Long> requestIds) {
-		Instant shownSince = Instant.now().minus(REFUSAL_SHOWN);
+		Instant shownSince = this.clock.instant().minus(REFUSAL_SHOWN);
 		return requestIds.stream()
 			.map(this.refusals::get)
 			.filter(refusal -> refusal != null && refusal.at().isAfter(shownSince))
@@ -265,7 +269,7 @@ public class AssistantRunner {
 
 	/** Keeps why, for the requests' card to keep saying it; it says it was busy only as it happens. */
 	private RunRefusedException refuse(Assistant assistant, List<Long> requestIds, RunRefusedException refused) {
-		Refusal refusal = new Refusal(refused.getReason(), assistant, Instant.now());
+		Refusal refusal = new Refusal(refused.getReason(), assistant, this.clock.instant());
 		requestIds.forEach(id -> this.refusals.put(id, refusal));
 		return refused;
 	}

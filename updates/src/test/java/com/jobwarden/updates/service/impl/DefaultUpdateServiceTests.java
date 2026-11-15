@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,8 +38,8 @@ class DefaultUpdateServiceTests {
 
 	@Test
 	void saysWhenTheLatestReleaseIsNewer() throws IOException {
-		GitHubReleases github = new GitHubReleases(serve(200, RELEASE));
-		DefaultUpdateService updates = new DefaultUpdateService(github, "0.1.0", "CRV96/jobwarden", true);
+		GitHubReleases github = new GitHubReleases(githubAt(serve(200, RELEASE)));
+		DefaultUpdateService updates = new DefaultUpdateService(github, "0.1.0", checking(true), Clock.systemUTC());
 
 		updates.check();
 
@@ -49,7 +50,7 @@ class DefaultUpdateServiceTests {
 		assertThat(status.updateAvailable()).isTrue();
 		assertThat(status.releases()).isEqualTo(URI.create("https://github.com/CRV96/jobwarden/releases"));
 		assertThat(this.asked).containsExactly("/repos/CRV96/jobwarden/releases/latest JobWarden/0.1.0");
-		assertThat(new DefaultUpdateService(github, "0.2.0", "CRV96/jobwarden", true)).satisfies(running -> {
+		assertThat(new DefaultUpdateService(github, "0.2.0", checking(true), Clock.systemUTC())).satisfies(running -> {
 			running.check();
 			assertThat(running.status().updateAvailable()).isFalse();
 		});
@@ -57,12 +58,12 @@ class DefaultUpdateServiceTests {
 
 	@Test
 	void hasNoneBeforeTheFirstReleaseOrWhenGitHubFails() throws IOException {
-		DefaultUpdateService none = new DefaultUpdateService(new GitHubReleases(serve(404, "{}")), "0.1.0", "CRV96/jobwarden", true);
+		DefaultUpdateService none = new DefaultUpdateService(new GitHubReleases(githubAt(serve(404, "{}"))), "0.1.0", checking(true), Clock.systemUTC());
 		none.check();
 		assertThat(none.status().latest()).isNull();
 		this.server.stop(0);
 
-		DefaultUpdateService failing = new DefaultUpdateService(new GitHubReleases(serve(500, "")), "0.1.0", "CRV96/jobwarden", true);
+		DefaultUpdateService failing = new DefaultUpdateService(new GitHubReleases(githubAt(serve(500, ""))), "0.1.0", checking(true), Clock.systemUTC());
 		failing.check();
 		assertThat(failing.status().latest()).isNull();
 		assertThat(failing.status().updateAvailable()).isFalse();
@@ -70,7 +71,7 @@ class DefaultUpdateServiceTests {
 
 	@Test
 	void neverAsksWhenTurnedOff() throws IOException {
-		DefaultUpdateService off = new DefaultUpdateService(new GitHubReleases(serve(200, RELEASE)), "0.1.0", "CRV96/jobwarden", false);
+		DefaultUpdateService off = new DefaultUpdateService(new GitHubReleases(githubAt(serve(200, RELEASE))), "0.1.0", checking(false), Clock.systemUTC());
 
 		assertThat(off.status().latest()).isNull();
 		assertThat(this.asked).isEmpty();
@@ -95,6 +96,14 @@ class DefaultUpdateServiceTests {
 		});
 		this.server.start();
 		return URI.create("http://127.0.0.1:" + this.server.getAddress().getPort());
+	}
+
+	private static UpdatesProperties githubAt(URI api) {
+		return new UpdatesProperties("CRV96/jobwarden", true, api);
+	}
+
+	private static UpdatesProperties checking(boolean check) {
+		return new UpdatesProperties("CRV96/jobwarden", check, URI.create("https://api.github.com"));
 	}
 
 }

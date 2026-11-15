@@ -146,10 +146,10 @@ class DefaultCoverLetterService implements CoverLetterService {
 	@Override
 	@Transactional
 	public OutreachDraft saveDraft(long userId, OutreachDraft draft, @Nullable Instant askedAt) {
-		OutreachDraft tidied = tidied(draft);
-		if (tidied.recipientName() == null || tidied.recipientName().isBlank()) {
+		if (text(draft.recipientName()) == null) {
 			throw new BusinessRuleException(CvErrorCode.OUTREACH_WITHOUT_RECIPIENT, "The draft says whom to no one");
 		}
+		OutreachDraft tidied = tidied(draft);
 		checkNote(tidied.linkedinNote());
 		checked("The name", tidied.recipientName(), OutreachDraft.RECIPIENT_MAX_LENGTH);
 		checked("The role", tidied.recipientRole(), OutreachDraft.RECIPIENT_MAX_LENGTH);
@@ -250,7 +250,7 @@ class DefaultCoverLetterService implements CoverLetterService {
 
 	private static OutreachDraft tidied(OutreachDraft draft) {
 		return draft.toBuilder()
-			.recipientName(text(draft.recipientName()))
+			.recipientName(draft.recipientName().strip())
 			.recipientRole(text(draft.recipientRole()))
 			.recipientLink(text(draft.recipientLink()))
 			.recipientEmail(text(draft.recipientEmail()))

@@ -1,7 +1,6 @@
 package com.jobwarden.jobs.service.impl;
 
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -72,7 +71,8 @@ class DefaultStatisticsService implements StatisticsService {
 		List<Job> jobs = this.jdbc.sql(JOBS).param("userId", userId).query((row, number) -> new Job(row.getString("source"),
 				Objects.requireNonNullElse(row.getString("applied_by"), AppliedBy.YOU.name()), row.getBigDecimal("score"),
 				row.getBoolean("sent"), row.getBoolean("replied"), row.getBoolean("interviewed"), row.getBoolean("offered"),
-				date(row.getDate("applied_on")), date(row.getDate("replied_on")), row.getString("rejection_reason"))).list();
+				row.getObject("applied_on", LocalDate.class), row.getObject("replied_on", LocalDate.class),
+				row.getString("rejection_reason"))).list();
 		List<Job> sent = jobs.stream().filter(Job::sent).toList();
 		return new JobStatistics(jobs.size(), sent.size(), count(sent, Job::replied), count(sent, Job::interviewed),
 				count(sent, Job::offered), medianDaysToReply(sent),
@@ -95,10 +95,9 @@ class DefaultStatisticsService implements StatisticsService {
 
 	/** The strong fits first, then the partial and the weak ones, then those with no score, each when there's one. */
 	private static List<ReplyRate> byFit(List<Job> sent) {
-		Map<@Nullable String, ReplyRate> rates = rates(sent,
-				job -> (job.score() != null) ? FitVerdict.of(job.score()).name() : null)
-			.stream()
-			.collect(LinkedHashMap::new, (map, rate) -> map.put(rate.key(), rate), Map::putAll);
+		Map<@Nullable String, ReplyRate> rates = new LinkedHashMap<>();
+		rates(sent, job -> (job.score() != null) ? FitVerdict.of(job.score()).name() : null)
+			.forEach(rate -> rates.put(rate.key(), rate));
 		List<ReplyRate> ordered = new ArrayList<>();
 		for (FitVerdict verdict : FitVerdict.values()) {
 			if (rates.containsKey(verdict.name())) {
@@ -129,21 +128,16 @@ class DefaultStatisticsService implements StatisticsService {
 	 * spaces or a full stop: shown as the first posting wrote it, without the full stop.
 	 */
 	private List<SkillGap> skillGaps(long userId) {
-		Map<String, int[]> counts = new LinkedHashMap<>();
-		Map<String, String> wording = new LinkedHashMap<>();
-		Map<String, Boolean> mustHave = new LinkedHashMap<>();
+		Map<String, Gap> gaps = new LinkedHashMap<>();
 		this.jdbc.sql(GAPS).param("userId", userId).query((row, number) -> {
 			String text = withoutTrailingPunctuation(row.getString("text").strip().replaceAll("\\s+", " "));
-			String key = text.toLowerCase(Locale.ROOT);
-			wording.putIfAbsent(key, text);
-			int[] missingAndPartly = counts.computeIfAbsent(key, any -> new int[2]);
-			missingAndPartly["MISSING".equals(row.getString("meets")) ? 0 : 1]++;
-			mustHave.merge(key, "MUST".equals(row.getString("importance")), Boolean::logicalOr);
-			return key;
+			Gap gap = gaps.computeIfAbsent(text.toLowerCase(Locale.ROOT), any -> new Gap(text));
+			gap.count("MISSING".equals(row.getString("meets")), "MUST".equals(row.getString("importance")));
+			return gap;
 		}).list();
-		return counts.entrySet()
+		return gaps.values()
 			.stream()
-			.map(gap -> new SkillGap(wording.get(gap.getKey()), gap.getValue()[0], gap.getValue()[1], mustHave.get(gap.getKey())))
+			.map(gap -> new SkillGap(gap.wording, gap.missing, gap.partly, gap.mustHave))
 			.sorted(Comparator.comparingInt(SkillGap::missing)
 				.thenComparingInt(SkillGap::partly)
 				.thenComparing(SkillGap::mustHave)
@@ -179,8 +173,30 @@ class DefaultStatisticsService implements StatisticsService {
 		return (int) jobs.stream().filter(which).count();
 	}
 
-	private static @Nullable LocalDate date(@Nullable Date date) {
-		return (date != null) ? date.toLocalDate() : null;
+	/** A requirement as the postings wrote it first, and how often it was missing or met in part. */
+	private static final class Gap {
+
+		private final String wording;
+
+		private int missing;
+
+		private int partly;
+
+		private boolean mustHave;
+
+		Gap(String wording) {
+			this.wording = wording;
+		}
+
+		void count(boolean isMissing, boolean isMustHave) {
+			if (isMissing) {
+				this.missing++;
+			} else {
+				this.partly++;
+			}
+			this.mustHave |= isMustHave;
+		}
+
 	}
 
 	/** A job's timeline, as the few facts the statistics count. */

@@ -224,8 +224,8 @@ class InboxControllerTests {
 	@Test
 	void asksClaudeToSortTheUpdatesWaiting() {
 		given(this.inbox.findPending(1)).willReturn(List.of(REJECTION));
-		given(this.discovery.findLatestRequest(1, AiRequestKind.SORT_INBOX)).willReturn(Optional.empty(),
-				Optional.of(sorting(AiRequestStatus.WAITING)));
+		given(this.discovery.findLatestRequest(1, AiRequestKind.SORT_INBOX)).willReturn(Optional.empty())
+			.willReturn(Optional.of(sorting(AiRequestStatus.WAITING)));
 
 		assertThat(this.mvc.post().uri("/inbox/sort").header("HX-Request", "true")).hasStatusOk()
 			.bodyText()

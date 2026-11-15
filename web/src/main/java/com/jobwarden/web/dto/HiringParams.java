@@ -44,7 +44,7 @@ public record HiringParams(HiringTab tab, @Nullable String q, PostedWithin poste
 	 * The page as it first opens: every post, the latest first.
 	 */
 	public static HiringParams defaults() {
-		return new HiringParams(null, null, null, null, null, null, null);
+		return new HiringParams(HiringTab.POSTS, null, PostedWithin.ANY, null, null, null, RecruiterFilter.ALL);
 	}
 
 	public HiringPostQuery toQuery() {

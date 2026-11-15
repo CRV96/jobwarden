@@ -70,10 +70,14 @@ public class SavedSearchEntity {
 
 	public SavedSearchEntity(long userId, String name, SearchCriteria criteria) {
 		this.userId = userId;
-		change(name, criteria);
+		set(name, criteria);
 	}
 
 	public void change(String name, SearchCriteria criteria) {
+		set(name, criteria);
+	}
+
+	private void set(String name, SearchCriteria criteria) {
 		this.name = name;
 		this.titles = new ArrayList<>(criteria.titles());
 		this.locations = new ArrayList<>(criteria.locations());

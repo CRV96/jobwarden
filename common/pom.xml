@@ -21,6 +21,13 @@
 			<groupId>org.springframework.modulith</groupId>
 			<artifactId>spring-modulith-api</artifactId>
 		</dependency>
+		<!-- For the compiler only: @NamedInterface's own annotation (@AliasFor) and @Contract are Spring's. The app has
+		     Spring at runtime; without it here, javac warns that it can't read them. -->
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-core</artifactId>
+			<scope>provided</scope>
+		</dependency>
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>

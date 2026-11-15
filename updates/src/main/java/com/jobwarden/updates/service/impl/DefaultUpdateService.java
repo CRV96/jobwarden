@@ -2,11 +2,13 @@ package com.jobwarden.updates.service.impl;
 
 import java.io.IOException;
 import java.net.URI;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.jobwarden.common.logging.LogContext;
 import com.jobwarden.updates.dto.Release;
 import com.jobwarden.updates.dto.UpdateStatus;
 import com.jobwarden.updates.service.UpdateService;
@@ -38,30 +40,30 @@ class DefaultUpdateService implements UpdateService {
 
 	private final boolean enabled;
 
+	private final Clock clock;
+
 	private final AtomicReference<@Nullable Checked> checked = new AtomicReference<>();
 
 	private final AtomicBoolean checking = new AtomicBoolean();
 
 	/**
 	 * @param version the version the build put in the app's properties
-	 * @param repository where JobWarden is released, e.g. CRV96/jobwarden
-	 * @param enabled false to never ask GitHub
 	 */
 	DefaultUpdateService(GitHubReleases github, @Value("${jobwarden.version:dev}") String version,
-			@Value("${jobwarden.updates.repository:CRV96/jobwarden}") String repository,
-			@Value("${jobwarden.updates.check:true}") boolean enabled) {
+			UpdatesProperties properties, Clock clock) {
+		this.clock = clock;
 		this.github = github;
 		this.version = version;
-		this.repository = repository;
-		this.enabled = enabled;
+		this.repository = properties.repository();
+		this.enabled = properties.check();
 	}
 
 	@Override
 	public UpdateStatus status() {
 		Checked last = this.checked.get();
-		boolean due = last == null || Instant.now().isAfter(last.checkAgainAt());
+		boolean due = last == null || this.clock.instant().isAfter(last.checkAgainAt());
 		if (this.enabled && due && this.checking.compareAndSet(false, true)) {
-			Thread.ofVirtual().name("update-check").start(this::check);
+			Thread.ofVirtual().name("update-check").start(LogContext.withNewId(this::check));
 		}
 		return new UpdateStatus(this.version, (last != null) ? last.latest() : null,
 				URI.create("https://github.com/" + this.repository + "/releases"));
@@ -78,13 +80,13 @@ class DefaultUpdateService implements UpdateService {
 	void check() {
 		try {
 			Release latest = this.github.latest(this.repository, "JobWarden/" + this.version).orElse(null);
-			this.checked.set(new Checked(latest, Instant.now().plus(CHECK_EVERY)));
+			this.checked.set(new Checked(latest, this.clock.instant().plus(CHECK_EVERY)));
 			log.info("Latest JobWarden release: {}; this is {}", (latest != null) ? latest.version() : "none yet",
 					this.version);
 		} catch (IOException | RuntimeException failed) {
 			log.warn("Couldn't ask GitHub for JobWarden's latest release: {}", failed.toString());
 			Checked last = this.checked.get();
-			this.checked.set(new Checked((last != null) ? last.latest() : null, Instant.now().plus(RETRY_AFTER)));
+			this.checked.set(new Checked((last != null) ? last.latest() : null, this.clock.instant().plus(RETRY_AFTER)));
 		} catch (InterruptedException interrupted) {
 			Thread.currentThread().interrupt();
 		} finally {

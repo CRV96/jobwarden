@@ -1,13 +1,14 @@
 package com.jobwarden.inbox.service.impl;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -42,6 +43,7 @@ import com.jobwarden.jobs.service.ApplicationService;
 import lombok.CustomLog;
 import org.jspecify.annotations.Nullable;
 
+import org.springframework.lang.Contract;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
@@ -91,8 +93,12 @@ class DefaultInboxService implements InboxService {
 
 	private final TransactionTemplate transactions;
 
+	private final Clock clock;
+
 	DefaultInboxService(MailAccountRepository accounts, EmailUpdateRepository updates, ApplicationService applications,
-			MailReader reader, SecretBox secrets, DiscoveryService discovery, PlatformTransactionManager transactionManager) {
+			MailReader reader, SecretBox secrets, DiscoveryService discovery, PlatformTransactionManager transactionManager,
+			Clock clock) {
+		this.clock = clock;
 		this.accounts = accounts;
 		this.updates = updates;
 		this.applications = applications;
@@ -162,12 +168,13 @@ class DefaultInboxService implements InboxService {
 					this.secrets.decrypt(account.getPassword()), account.getFolder(), account.isStarttls(),
 					account.getCertificate());
 			fetched = this.reader.fetch(server, account.getUidValidity(), account.getLastUid(),
-					Instant.now().minus(FIRST_READ), MAX_PER_CHECK);
+					this.clock.instant().minus(FIRST_READ), MAX_PER_CHECK);
 		} catch (MailFailure | IllegalStateException failed) {
-			String reason = shortened(failed.getMessage(), ERROR_MAX_LENGTH);
+			String reason = shortened(Objects.requireNonNullElse(failed.getMessage(), failed.getClass().getSimpleName()),
+					ERROR_MAX_LENGTH);
 			MailProblem problem = (failed instanceof MailFailure mail) ? mail.problem() : null;
 			this.transactions.executeWithoutResult(status -> this.accounts.findById(userId)
-				.ifPresent(stillThere -> stillThere.failed(reason, problem, Instant.now())));
+				.ifPresent(stillThere -> stillThere.failed(reason, problem, this.clock.instant())));
 			log.warn("Couldn't read the mailbox of profile {}: {}", userId, reason);
 			throw new BusinessRuleException(InboxErrorCode.MAILBOX_NOT_REACHED, "Couldn't read the mailbox of profile "
 					+ userId, reason);
@@ -196,7 +203,7 @@ class DefaultInboxService implements InboxService {
 				}
 			}
 			this.accounts.findById(userId)
-				.ifPresent(stillThere -> stillThere.read(fetched.uidValidity(), fetched.lastUid(), Instant.now()));
+				.ifPresent(stillThere -> stillThere.read(fetched.uidValidity(), fetched.lastUid(), this.clock.instant()));
 			return new CheckResult(fetched.messages().size(), added);
 		});
 		log.info("Read {} emails of profile {}: {} updates", result.read(), userId, result.added());
@@ -206,7 +213,7 @@ class DefaultInboxService implements InboxService {
 
 	@Override
 	public void checkDue() {
-		Instant now = Instant.now();
+		Instant now = this.clock.instant();
 		for (MailAccountEntity account : this.accounts.findAll()) {
 			if (!account.isDue(now)) {
 				continue;
@@ -313,7 +320,7 @@ class DefaultInboxService implements InboxService {
 	private void applyPending(long userId, long updateId, long applicationId, ApplicationStatus status,
 			@Nullable String note, UpdateDecider by) {
 		EmailUpdateEntity update = pending(userId, updateId);
-		LocalDateTime received = LocalDateTime.ofInstant(update.getReceivedAt(), ZoneId.systemDefault())
+		LocalDateTime received = LocalDateTime.ofInstant(update.getReceivedAt(), this.clock.getZone())
 			.truncatedTo(ChronoUnit.MINUTES);
 		NewTimelineEvent event = NewTimelineEvent.builder()
 			.eventDate(received.toLocalDate())
@@ -420,6 +427,7 @@ class DefaultInboxService implements InboxService {
 		return (message.fromAddress() != null) ? message.fromAddress() : message.fromName();
 	}
 
+	@Contract("null, _ -> null; !null, _ -> !null")
 	private static @Nullable String shortened(@Nullable String text, int maxLength) {
 		return (text == null || text.length() <= maxLength) ? text : text.substring(0, maxLength - 1) + "…";
 	}

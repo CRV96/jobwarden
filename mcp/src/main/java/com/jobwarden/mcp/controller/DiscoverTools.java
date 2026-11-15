@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -105,7 +106,7 @@ class DiscoverTools implements McpToolSet {
 						.workTypes(Set.copyOf(call.constants("work_types", WorkType.class)))
 						.employmentTypes(Set.copyOf(call.constants("employment_types", EmploymentType.class)))
 						.excludes(call.strings("excludes"))
-						.recency(call.constant("recency", Recency.class))
+						.recency(Objects.requireNonNullElse(call.constant("recency", Recency.class), Recency.ANY))
 						.build();
 					return view(this.discovery.saveSearch(userId, call.requiredString("name"), criteria));
 				});

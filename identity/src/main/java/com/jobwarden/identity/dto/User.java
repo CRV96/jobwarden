@@ -1,14 +1,13 @@
 package com.jobwarden.identity.dto;
 
-import lombok.Builder;
-import org.jspecify.annotations.Nullable;
-
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
 import com.jobwarden.identity.enums.Assistant;
+import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A profile. In the self-hosted version it has no password: anyone with access to the machine

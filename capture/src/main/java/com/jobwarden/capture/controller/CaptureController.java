@@ -1,5 +1,6 @@
 package com.jobwarden.capture.controller;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
@@ -50,6 +51,8 @@ class CaptureController {
 	private final JsonMapper jsonMapper;
 
 	private final LogoDownloader logos;
+
+	private final Clock clock;
 
 	/**
 	 * What the profile has for a link: the extension looks up the page it's on when it opens.
@@ -117,7 +120,7 @@ class CaptureController {
 
 	private NewApplication toNewApplication(CaptureRequest request) {
 		// In the server's time zone, like every date and time the pages show
-		LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+		LocalDateTime now = LocalDateTime.now(this.clock).truncatedTo(ChronoUnit.SECONDS);
 		boolean includeTime = !Boolean.FALSE.equals(request.includeTime());
 		return NewApplication.builder()
 			.userId(request.userId())

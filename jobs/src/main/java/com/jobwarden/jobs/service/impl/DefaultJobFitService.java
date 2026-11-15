@@ -1,6 +1,7 @@
 package com.jobwarden.jobs.service.impl;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -46,6 +47,8 @@ class DefaultJobFitService implements JobFitService {
 	private final JobFitRepository fits;
 
 	private final ApplicationRepository applications;
+
+	private final Clock clock;
 
 	@Override
 	public Optional<JobFit> find(long userId, long applicationId) {
@@ -118,7 +121,7 @@ class DefaultJobFitService implements JobFitService {
 		}
 		this.applications.findDatePosted(userId, applicationId)
 			.flatMap(DefaultJobFitService::day)
-			.filter(posted -> posted.isBefore(LocalDate.now().minusDays(OPEN_LONG_AFTER_DAYS)))
+			.filter(posted -> posted.isBefore(LocalDate.now(this.clock).minusDays(OPEN_LONG_AFTER_DAYS)))
 			.ifPresent(posted -> flags.add(new FitFlag(FitFlagKind.OPEN_LONG, null, posted, null)));
 		return flags;
 	}

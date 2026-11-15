@@ -3,8 +3,8 @@ package com.jobwarden.jobs.dto;
 import java.time.Instant;
 import java.util.List;
 
-import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.AppliedBy;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 

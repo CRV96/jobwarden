@@ -1,9 +1,9 @@
 package com.jobwarden.web.controller;
 
+import java.time.Clock;
 import java.time.LocalDate;
-import java.time.ZoneId;
-import java.util.LinkedHashSet;
 import java.util.EnumMap;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -16,8 +16,8 @@ import com.jobwarden.inbox.enums.InboxAutomation;
 import com.jobwarden.inbox.service.InboxService;
 import com.jobwarden.market.enums.AdzunaKeyCheck;
 import com.jobwarden.market.service.AdzunaKeyService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
 import com.jobwarden.web.assistant.AssistantConnections.Connection;
+import com.jobwarden.web.constants.AppConstants.ControllerConstants;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.constants.AppConstants.Views;
 import com.jobwarden.web.dto.AdzunaKeyForm;
@@ -26,6 +26,7 @@ import com.jobwarden.web.enums.Language;
 import com.jobwarden.web.enums.ReadingInterval;
 import com.jobwarden.web.view.AssistantPrompts;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -49,6 +50,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
  */
 @Controller
 @RequestMapping(ControllerConstants.SETTINGS)
+@RequiredArgsConstructor
 class SettingsController extends BaseController {
 
 	/** Where the page shows the Adzuna key */
@@ -69,26 +71,18 @@ class SettingsController extends BaseController {
 
 	private final UserService users;
 
+	private final Clock clock;
+
+	@Value("${jobwarden.mcp.path:/mcp}")
 	private final String mcpPath;
 
+	/** Where JobWarden's code is on GitHub, the repository its releases come from, e.g. CRV96/jobwarden */
+	@Value("${jobwarden.updates.repository:CRV96/jobwarden}")
 	private final String repository;
-
-	/**
-	 * @param repository where JobWarden's code is on GitHub, the repository its releases come from, e.g. CRV96/jobwarden
-	 */
-	SettingsController(AdzunaKeyService adzunaKeys, InboxService inbox, UserService users,
-			@Value("${jobwarden.mcp.path:/mcp}") String mcpPath,
-			@Value("${jobwarden.updates.repository:CRV96/jobwarden}") String repository) {
-		this.adzunaKeys = adzunaKeys;
-		this.inbox = inbox;
-		this.users = users;
-		this.mcpPath = mcpPath;
-		this.repository = repository;
-	}
 
 	@GetMapping
 	String settings(Model model, Locale locale) {
-		model.addAttribute(ModelAttributes.TODAY, LocalDate.now(ZoneId.systemDefault()));
+		model.addAttribute(ModelAttributes.TODAY, LocalDate.now(this.clock));
 		model.addAttribute(ModelAttributes.LANGUAGES, Language.values());
 		model.addAttribute(ModelAttributes.CURRENT_LANGUAGE,
 				Language.fromTag(locale.toLanguageTag()).orElse(Language.DEFAULT));
@@ -167,10 +161,10 @@ class SettingsController extends BaseController {
 			redirect.addFlashAttribute(ModelAttributes.ADZUNA_APP_ID, form.appId());
 			return redirectTo(SALARIES_SECTION);
 		}
-		AdzunaKeyCheck check = this.adzunaKeys.save(form.appId(), form.appKey());
+		AdzunaKeyCheck check = this.adzunaKeys.save(form.requiredAppId(), form.requiredAppKey());
 		redirect.addFlashAttribute(ModelAttributes.ADZUNA_CHECK, check);
 		if (check == AdzunaKeyCheck.REFUSED) {
-			redirect.addFlashAttribute(ModelAttributes.ADZUNA_APP_ID, form.appId().strip());
+			redirect.addFlashAttribute(ModelAttributes.ADZUNA_APP_ID, form.requiredAppId().strip());
 		}
 		return redirectTo(SALARIES_SECTION);
 	}

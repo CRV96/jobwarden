@@ -3,6 +3,8 @@ package com.jobwarden.web.dto;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import com.jobwarden.cv.dto.CvCertification;
 import com.jobwarden.cv.dto.CvDetails;
@@ -96,22 +98,30 @@ public record CvForm(
 			.github(this.github)
 			.summary(this.summary)
 			.skills((this.skills == null) ? List.of() : Arrays.stream(this.skills.split("[,\\n]")).toList())
-			.experience(rows(this.experience).stream()
-				.map(row -> new CvExperience(row.role(), row.company(), row.location(), row.start(), row.end(),
-						row.description()))
-				.toList())
-			.projects(rows(this.projects).stream()
-				.map(row -> new CvProject(row.name(), row.link(), row.technologies(), row.description()))
-				.toList())
-			.education(rows(this.education).stream()
-				.map(row -> new CvEducation(row.degree(), row.school(), row.location(), row.start(), row.end(),
-						row.description()))
-				.toList())
-			.languages(rows(this.languages).stream().map(row -> new CvLanguage(row.language(), row.level())).toList())
-			.certifications(rows(this.certifications).stream()
-				.map(row -> new CvCertification(row.name(), row.issuer(), row.year()))
-				.toList())
+			.experience(entries(this.experience, ExperienceRow::role, (row, role) -> new CvExperience(role, row.company(),
+					row.location(), row.start(), row.end(), row.description())))
+			.projects(entries(this.projects, ProjectRow::name,
+					(row, name) -> new CvProject(name, row.link(), row.technologies(), row.description())))
+			.education(entries(this.education, EducationRow::degree, (row, degree) -> new CvEducation(degree,
+					row.school(), row.location(), row.start(), row.end(), row.description())))
+			.languages(entries(this.languages, LanguageRow::language,
+					(row, language) -> new CvLanguage(language, row.level())))
+			.certifications(entries(this.certifications, CertificationRow::name,
+					(row, name) -> new CvCertification(name, row.issuer(), row.year())))
 			.build();
+	}
+
+	/**
+	 * The CV's entries from the rows that have their main field, e.g. a job's role: one without it isn't an entry.
+	 */
+	private static <R, E> List<E> entries(@Nullable List<@Nullable R> rows, Function<R, @Nullable String> mainField,
+			BiFunction<R, String, E> entry) {
+		return rows(rows).stream().<E>mapMulti((row, kept) -> {
+			String main = mainField.apply(row);
+			if (main != null) {
+				kept.accept(entry.apply(row, main));
+			}
+		}).toList();
 	}
 
 	/** The rows sent: a removed row can leave a gap, which the list has as {@code null}. */

@@ -4,12 +4,11 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.time.Clock;
 import java.time.DateTimeException;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,8 +31,8 @@ import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
 import com.jobwarden.jobs.entity.ApplicationEntity;
 import com.jobwarden.jobs.entity.TimelineEventEntity;
-import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.CsvProblem;
 import com.jobwarden.jobs.enums.RejectionReason;
 import com.jobwarden.jobs.exception.JobsErrorCode;
@@ -80,6 +79,8 @@ class DefaultApplicationCsvService implements ApplicationCsvService {
 	private final ApplicationRepository applications;
 
 	private final ApplicationService applicationService;
+
+	private final Clock clock;
 
 	@Override
 	public void export(long userId, Writer out) throws IOException {
@@ -152,7 +153,7 @@ class DefaultApplicationCsvService implements ApplicationCsvService {
 	 * The row as an application to create. Its timeline starts at Applied when it was applied to before its status,
 	 * e.g. applied on the 1st, rejected on the 20th: then the status is a second event.
 	 */
-	private static ImportedJob read(long userId, Row row) throws InvalidRow {
+	private ImportedJob read(long userId, Row row) throws InvalidRow {
 		String title = row.get(Column.TITLE);
 		if (title == null) {
 			throw new InvalidRow(CsvProblem.NO_TITLE, null);
@@ -160,15 +161,16 @@ class DefaultApplicationCsvService implements ApplicationCsvService {
 		LocalDate appliedOn = date(row.get(Column.APPLIED_ON));
 		ApplicationStatus status = status(row.get(Column.STATUS), appliedOn);
 		LocalDateTime statusAt = dateTime(row.get(Column.STATUS_DATE));
-		LocalDate statusDate = (statusAt != null) ? statusAt.toLocalDate()
-				: (status == ApplicationStatus.APPLIED && appliedOn != null) ? appliedOn : LocalDate.now();
+		LocalDate statusDate = statusDate(statusAt, status, appliedOn);
 		LocalTime statusTime = (statusAt != null && !statusAt.toLocalTime().equals(LocalTime.MIDNIGHT))
 				? statusAt.toLocalTime() : null;
 		RejectionReason rejectionReason = status.hasRejectionReason() ? rejectionReason(row.get(Column.REJECTION_REASON))
 				: null;
 
-		boolean appliedBefore = appliedOn != null && status != ApplicationStatus.SAVED
-				&& status != ApplicationStatus.APPLIED && !appliedOn.isAfter(statusDate);
+		// The day it was applied to, when that came before a later status: the job starts as applied, then moves on
+		LocalDate appliedFirst = (appliedOn != null && status != ApplicationStatus.SAVED
+				&& status != ApplicationStatus.APPLIED && !appliedOn.isAfter(statusDate)) ? appliedOn : null;
+		boolean appliedBefore = appliedFirst != null;
 		NewApplication application = NewApplication.builder()
 			.userId(userId)
 			.title(title)
@@ -180,7 +182,7 @@ class DefaultApplicationCsvService implements ApplicationCsvService {
 			.description(row.get(Column.DESCRIPTION))
 			.appliedBy(appliedBy(row.get(Column.APPLIED_BY)))
 			.initialStatus(appliedBefore ? ApplicationStatus.APPLIED : status)
-			.initialStatusDate(appliedBefore ? appliedOn : statusDate)
+			.initialStatusDate((appliedFirst != null) ? appliedFirst : statusDate)
 			.initialStatusTime(appliedBefore ? null : statusTime)
 			.initialRejectionReason(appliedBefore ? null : rejectionReason)
 			.build();
@@ -201,6 +203,20 @@ class DefaultApplicationCsvService implements ApplicationCsvService {
 			.followUpOn(date(row.get(Column.FOLLOW_UP_ON)))
 			.build();
 		return new ImportedJob(application, laterStatus, followUp, row.get(Column.NOTES));
+	}
+
+	/**
+	 * The day of the row's status: its date when it has one; an application's, the day it was applied to; else today.
+	 */
+	private LocalDate statusDate(@Nullable LocalDateTime statusAt, ApplicationStatus status,
+			@Nullable LocalDate appliedOn) {
+		if (statusAt != null) {
+			return statusAt.toLocalDate();
+		}
+		if (status == ApplicationStatus.APPLIED && appliedOn != null) {
+			return appliedOn;
+		}
+		return LocalDate.now(this.clock);
 	}
 
 	private static ApplicationStatus status(@Nullable String value, @Nullable LocalDate appliedOn) throws InvalidRow {
@@ -319,7 +335,7 @@ class DefaultApplicationCsvService implements ApplicationCsvService {
 		return columns;
 	}
 
-	private static @Nullable String valueOf(ApplicationEntity application, Column column) {
+	private @Nullable String valueOf(ApplicationEntity application, Column column) {
 		List<TimelineEventEntity> events = application.getEvents();
 		TimelineEventEntity latest = events.isEmpty() ? null : events.getLast();
 		return switch (column) {
@@ -351,10 +367,10 @@ class DefaultApplicationCsvService implements ApplicationCsvService {
 			case FOLLOW_UP_ON -> Objects.toString(application.getFollowUpOn(), null);
 			case NOTES -> application.getNotes();
 			case DESCRIPTION -> application.getDescription();
-			case ADDED_ON -> LocalDate.ofInstant(application.getCapturedAt(), ZoneId.systemDefault()).toString();
+			case ADDED_ON -> LocalDate.ofInstant(application.getCapturedAt(), this.clock.getZone()).toString();
 			case LAST_MODIFIED -> DATE_TIME.format(LocalDateTime.ofInstant(
 					Objects.requireNonNullElse(application.getUpdatedAt(), application.getCapturedAt()),
-					ZoneId.systemDefault()));
+					this.clock.getZone()));
 		};
 	}
 

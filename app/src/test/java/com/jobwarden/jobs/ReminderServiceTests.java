@@ -196,7 +196,7 @@ class ReminderServiceTests {
 	}
 
 	private List<Long> reminderEvents() {
-		return this.jdbc.sql("SELECT event_id FROM reminders").query((row, number) -> (Long) row.getObject(1, Long.class)).list();
+		return this.jdbc.sql("SELECT event_id FROM reminders").query((row, number) -> row.getObject(1, Long.class)).list();
 	}
 
 	private long addInterview(long job, LocalDateTime at) {

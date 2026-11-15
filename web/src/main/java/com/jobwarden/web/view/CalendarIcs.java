@@ -1,7 +1,7 @@
 package com.jobwarden.web.view;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -57,6 +57,8 @@ public class CalendarIcs {
 
 	private final MessageSource messages;
 
+	private final Clock clock;
+
 	/**
 	 * @param entries what's on the calendar
 	 * @param types the kinds of entries to put in, e.g. only the interviews; the others are left out
@@ -74,7 +76,7 @@ public class CalendarIcs {
 		// How often the apps that read these ask again
 		line(ics, "REFRESH-INTERVAL;VALUE=DURATION:PT1H");
 		line(ics, "X-PUBLISHED-TTL:PT1H");
-		String stamp = UTC.format(Instant.now().atOffset(ZoneOffset.UTC));
+		String stamp = UTC.format(this.clock.instant().atOffset(ZoneOffset.UTC));
 		for (CalendarEntry entry : entries) {
 			if (!types.contains(CalendarEntryType.of(entry))) {
 				continue;

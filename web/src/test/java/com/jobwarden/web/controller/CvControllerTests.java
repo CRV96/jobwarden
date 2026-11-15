@@ -289,9 +289,9 @@ class CvControllerTests {
 	void asksClaudeToWriteTheProjects() {
 		given(this.github.findAccount(1)).willReturn(Optional.of(new GitHubAccount("CRV96", false, List.of("CRV96/jobwarden"),
 				Instant.now())));
-		given(this.discovery.findLatestRequest(1, AiRequestKind.WRITE_PROJECTS)).willReturn(Optional.empty(),
-				Optional.of(new AiRequest(11, AiRequestKind.WRITE_PROJECTS, AiRequirements.NONE, AiRequestStatus.WAITING, null, 0,
-						Instant.now(), null, null, null)));
+		given(this.discovery.findLatestRequest(1, AiRequestKind.WRITE_PROJECTS)).willReturn(Optional.empty())
+			.willReturn(Optional.of(new AiRequest(11, AiRequestKind.WRITE_PROJECTS, AiRequirements.NONE,
+					AiRequestStatus.WAITING, null, 0, Instant.now(), null, null, null)));
 
 		assertThat(this.mvc.post().uri("/cv/github/write").header("HX-Request", "true")).bodyText()
 			.contains("Do JobWarden request 11", "hx-trigger=\"every 5s\"");

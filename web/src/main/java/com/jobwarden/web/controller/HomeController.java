@@ -1,7 +1,7 @@
 package com.jobwarden.web.controller;
 
+import java.time.Clock;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -57,13 +57,15 @@ class HomeController extends BaseController {
 
 	private final DiscoveryService discovery;
 
+	private final Clock clock;
+
 	@GetMapping(ControllerConstants.HOMEPAGE)
 	String home(Model model) {
 		User profile = requireProfile(model);
 		long userId = profile.id();
-		LocalDate today = LocalDate.now(ZoneId.systemDefault());
+		LocalDate today = LocalDate.now(this.clock);
 		model.addAttribute(ModelAttributes.TODAY, today);
-		model.addAttribute(ModelAttributes.ACTIVITY, this.activity.find(userId, today, ZoneId.systemDefault()));
+		model.addAttribute(ModelAttributes.ACTIVITY, this.activity.find(userId, today, this.clock.getZone()));
 		model.addAttribute(ModelAttributes.STATISTICS, this.statistics.find(userId));
 		// The jobs by status, as the pipeline orders them, those with none left out
 		Map<ApplicationStatus, Long> counts = this.applications.countByStatus(userId, null, false);

@@ -13,6 +13,8 @@
 
 	<properties>
 		<spring-boot.run.skip>false</spring-boot.run.skip>
+		<!-- The version Spring Modulith's own boundary checks use, so both read the classes the same way -->
+		<archunit.version>1.4.2</archunit.version>
 	</properties>
 
 	<dependencies>
@@ -73,6 +75,11 @@
 			<artifactId>jobwarden-web</artifactId>
 		</dependency>
 
+		<!-- Health (liveness and readiness, for Docker and orchestrators) and which build is running, at /actuator -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-flyway</artifactId>
@@ -119,13 +126,52 @@
 			<artifactId>spring-modulith-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- ConventionsTests: the rules README.md sets for the code, checked on every build -->
+		<dependency>
+			<groupId>com.tngtech.archunit</groupId>
+			<artifactId>archunit-junit5</artifactId>
+			<version>${archunit.version}</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
 		<plugins>
+			<!-- META-INF/build-info.properties: the version and build time, which /actuator/info and the start-up log show -->
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>build-info</id>
+						<goals>
+							<goal>build-info</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<!-- git.properties: the commit the jar was built from, for /actuator/info. Only what doesn't change from one
+			     build of the commit to the next, so builds stay reproducible: not the branch, which differs from one
+			     checkout to another (a tag's build has none). Without .git (the Docker build) it's skipped. -->
+			<plugin>
+				<groupId>io.github.git-commit-id</groupId>
+				<artifactId>git-commit-id-maven-plugin</artifactId>
+				<configuration>
+					<failOnNoGitDirectory>false</failOnNoGitDirectory>
+					<offline>true</offline>
+					<verbose>false</verbose>
+					<dateFormat>yyyy-MM-dd'T'HH:mm:ssXXX</dateFormat>
+					<includeOnlyProperties>
+						<includeOnlyProperty>^git\.commit\.id(\.abbrev)?$</includeOnlyProperty>
+						<includeOnlyProperty>^git\.commit\.time$</includeOnlyProperty>
+					</includeOnlyProperties>
+				</configuration>
+			</plugin>
+			<!-- The software bill of materials (CycloneDX): every library in the jar, with its version and license, at
+			     META-INF/sbom/application.cdx.json, where vulnerability scanners and /actuator/sbom find it -->
+			<plugin>
+				<groupId>org.cyclonedx</groupId>
+				<artifactId>cyclonedx-maven-plugin</artifactId>
 			</plugin>
 		</plugins>
 	</build>

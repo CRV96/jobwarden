@@ -1,5 +1,6 @@
 package com.jobwarden.apply.service.impl;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
@@ -29,8 +30,8 @@ import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
-import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.service.ApplicationService;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -54,6 +55,8 @@ class DefaultAutoApplyService implements AutoApplyService {
 	private final ApplyItemRepository items;
 
 	private final ApplicationService applications;
+
+	private final Clock clock;
 
 	@Override
 	@Transactional(readOnly = true)
@@ -223,8 +226,8 @@ class DefaultAutoApplyService implements AutoApplyService {
 		String note = (item.getSite() != null && item.getNote() != null) ? item.getSite() + ": " + item.getNote()
 				: (item.getSite() != null) ? item.getSite() : item.getNote();
 		this.applications.addEvent(userId, item.getApplicationId(), NewTimelineEvent.builder()
-			.eventDate(LocalDate.now())
-			.eventTime(LocalTime.now().truncatedTo(ChronoUnit.MINUTES))
+			.eventDate(LocalDate.now(this.clock))
+			.eventTime(LocalTime.now(this.clock).truncatedTo(ChronoUnit.MINUTES))
 			.stageCategory(ApplicationStatus.APPLIED)
 			.note(note)
 			.appliedBy(AppliedBy.CLAUDE)
@@ -250,9 +253,13 @@ class DefaultAutoApplyService implements AutoApplyService {
 		Map<Long, ApplicationSummary> jobs = this.applications.findAll(userId, null)
 			.stream()
 			.collect(Collectors.toMap(ApplicationSummary::id, Function.identity()));
-		return entities.stream().filter(item -> jobs.containsKey(item.getApplicationId())).map(item -> {
+		return entities.stream().<ApplyItem>mapMulti((item, kept) -> {
 			ApplicationSummary job = jobs.get(item.getApplicationId());
-			return ApplyItem.builder()
+			if (job == null) {
+				// The job was deleted since it was queued
+				return;
+			}
+			kept.accept(ApplyItem.builder()
 				.id(item.getId())
 				.applicationId(item.getApplicationId())
 				.title(job.title())
@@ -265,7 +272,7 @@ class DefaultAutoApplyService implements AutoApplyService {
 				.question(item.getQuestion())
 				.createdAt(item.getCreatedAt())
 				.finishedAt(item.getFinishedAt())
-				.build();
+				.build());
 		}).toList();
 	}
 

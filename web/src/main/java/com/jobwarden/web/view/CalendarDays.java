@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import com.jobwarden.jobs.dto.CalendarEntry;
@@ -129,7 +130,8 @@ public record CalendarDays(List<Day> days, int scrollTo, @Nullable Integer now) 
 		List<Integer> laneEnds = new ArrayList<>();
 		int groupEnd = -1;
 		for (CalendarEntry entry : byStart) {
-			int start = entry.time().getHour() * 60 + entry.time().getMinute();
+			LocalTime time = Objects.requireNonNull(entry.time(), "only timed entries are laid out");
+			int start = time.getHour() * 60 + time.getMinute();
 			int length = Math.min((entry.durationMinutes() != null) ? entry.durationMinutes() : DEFAULT_LENGTH,
 					DAY_MINUTES - start);
 			if (start >= groupEnd) {

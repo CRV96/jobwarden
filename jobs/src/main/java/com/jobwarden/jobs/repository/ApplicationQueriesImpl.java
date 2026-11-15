@@ -13,7 +13,6 @@ import com.jobwarden.jobs.entity.JobFitEntity;
 import com.jobwarden.jobs.enums.ApplicationSort;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
@@ -39,8 +38,11 @@ class ApplicationQueriesImpl implements ApplicationQueries {
 
 	private static final char LIKE_ESCAPE = '\\';
 
-	@PersistenceContext
-	private EntityManager entityManager;
+	private final EntityManager entityManager;
+
+	ApplicationQueriesImpl(EntityManager entityManager) {
+		this.entityManager = entityManager;
+	}
 
 	@Override
 	public Page<ApplicationSummary> findSummaries(long userId, ApplicationQuery query) {
@@ -70,7 +72,7 @@ class ApplicationQueriesImpl implements ApplicationQueries {
 		CriteriaQuery<Tuple> query = builder.createTupleQuery();
 		Root<ApplicationEntity> application = query.from(ApplicationEntity.class);
 		Path<ApplicationStatus> status = application.get("currentStatus");
-		query.multiselect(status, builder.count(application))
+		query.select(builder.tuple(status, builder.count(application)))
 			.where(matching(builder, application, userId, search, null, archived))
 			.groupBy(status);
 

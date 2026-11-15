@@ -1,9 +1,8 @@
 package com.jobwarden.jobs.service.impl;
 
 import java.net.URI;
-import java.time.Instant;
+import java.time.Clock;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -69,6 +68,8 @@ class DefaultApplicationService implements ApplicationService {
 
 	private final ReminderRepository reminders;
 
+	private final Clock clock;
+
 	/**
 	 * @throws BusinessRuleException if it has a rejection reason but its initial status isn't a rejection
 	 */
@@ -78,7 +79,7 @@ class DefaultApplicationService implements ApplicationService {
 		NewTimelineEvent initialStatus = initialStatusEvent(application);
 		requireRejectionReasonOnlyOnRejection(initialStatus);
 		String source = sourceOf(application.link());
-		ApplicationEntity entity = new ApplicationEntity(application, source, Instant.now());
+		ApplicationEntity entity = new ApplicationEntity(application, source, this.clock.instant());
 		// Every timeline starts with the initial status, so it always has a first entry
 		entity.addEvent(initialStatus);
 		long id = this.applications.save(entity).getId();
@@ -185,7 +186,7 @@ class DefaultApplicationService implements ApplicationService {
 		if (applicationIds.isEmpty()) {
 			return 0;
 		}
-		int archived = this.applications.archiveOwned(userId, applicationIds, Instant.now());
+		int archived = this.applications.archiveOwned(userId, applicationIds, this.clock.instant());
 		log.info("Archived {} of the {} applications asked for by profile {}", archived, applicationIds.size(), userId);
 		return archived;
 	}
@@ -208,8 +209,8 @@ class DefaultApplicationService implements ApplicationService {
 			.filter(status -> !endedOnly || status.hasEnded())
 			.toList();
 		List<Long> unchanged = this.applications.findUnchangedSince(userId,
-				day.atStartOfDay(ZoneId.systemDefault()).toInstant(), statuses);
-		int archived = unchanged.isEmpty() ? 0 : this.applications.archiveOwned(userId, unchanged, Instant.now());
+				day.atStartOfDay(this.clock.getZone()).toInstant(), statuses);
+		int archived = unchanged.isEmpty() ? 0 : this.applications.archiveOwned(userId, unchanged, this.clock.instant());
 		log.info("Archived {} applications of profile {} unchanged since {}{}", archived, userId, day,
 				endedOnly ? ", that had ended" : "");
 		return archived;
@@ -353,7 +354,7 @@ class DefaultApplicationService implements ApplicationService {
 	@Override
 	@Transactional
 	public TidyResult tidyUnanswered(long userId, int noResponseAfterDays, int followUpAfterDays, @Nullable String note) {
-		LocalDate today = LocalDate.now();
+		LocalDate today = LocalDate.now(this.clock);
 		List<WaitingApplication> waiting = this.applications.findWaiting(userId, ApplicationStatus.APPLIED);
 		List<Long> moved = new ArrayList<>();
 		List<Long> followUps = new ArrayList<>();

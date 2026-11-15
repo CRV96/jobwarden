@@ -1,7 +1,7 @@
 package com.jobwarden.web.controller;
 
+import java.time.Clock;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +50,8 @@ class OfferController extends BaseController {
 
 	private final MarketSalaryService market;
 
+	private final Clock clock;
+
 	/**
 	 * @param currency an ISO 4217 code; without one, euros
 	 * @param role the role to compare with, as the Stack Overflow survey names it; the salaries page's default without
@@ -75,7 +77,7 @@ class OfferController extends BaseController {
 			.encode()
 			.build()
 			.toUriString());
-		model.addAttribute(ModelAttributes.TODAY, LocalDate.now(ZoneId.systemDefault()));
+		model.addAttribute(ModelAttributes.TODAY, LocalDate.now(this.clock));
 		addImages(model, userId);
 		return Views.OFFERS;
 	}

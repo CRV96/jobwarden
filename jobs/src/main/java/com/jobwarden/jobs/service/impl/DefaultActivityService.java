@@ -2,6 +2,7 @@ package com.jobwarden.jobs.service.impl;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
@@ -104,7 +105,7 @@ class DefaultActivityService implements ActivityService {
 			.param("today", today)
 			.param("zone", zone.getId())
 			.param("since", from.atStartOfDay(zone).toOffsetDateTime())
-			.query((row, number) -> counts.put(row.getDate("day").toLocalDate(), row.getInt("jobs")))
+			.query((row, number) -> counts.put(row.getObject("day", LocalDate.class), row.getInt("jobs")))
 			.list();
 		return counts;
 	}
@@ -126,7 +127,8 @@ class DefaultActivityService implements ActivityService {
 			.param("limit", RECENT)
 			.query((row, number) -> new Entry(row.getLong("id"), row.getString("title"), row.getString("company"),
 					ApplicationStatus.valueOf(row.getString("stage_category")), row.getString("stage_label"),
-					row.getDate("event_date").toLocalDate(), row.getTimestamp("created_at").toInstant()))
+					row.getObject("event_date", LocalDate.class),
+					row.getObject("created_at", OffsetDateTime.class).toInstant()))
 			.list();
 	}
 
@@ -138,7 +140,7 @@ class DefaultActivityService implements ActivityService {
 			.param("ended", ended)
 			.param("limit", FOLLOW_UPS)
 			.query((row, number) -> new FollowUpDue(row.getLong("id"), row.getString("title"), row.getString("company"),
-					row.getDate("follow_up_on").toLocalDate()))
+					row.getObject("follow_up_on", LocalDate.class)))
 			.list();
 	}
 

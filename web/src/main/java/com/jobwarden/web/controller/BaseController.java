@@ -251,15 +251,15 @@ abstract class BaseController {
 	 */
 	protected String message(JobWardenException exception) {
 		String inEnglish = Objects.requireNonNullElse(exception.getMessage(), exception.getErrorCode().getCode());
-		return this.messages.getMessage(exception.getErrorCode().getMessageKey(), exception.getArguments(), inEnglish,
-				LocaleContextHolder.getLocale());
+		return Objects.requireNonNullElse(this.messages.getMessage(exception.getErrorCode().getMessageKey(),
+				exception.getArguments(), inEnglish, LocaleContextHolder.getLocale()), inEnglish);
 	}
 
 	/**
 	 * A message of the pages, in the user's language.
 	 */
 	protected String text(String code) {
-		return this.messages.getMessage(code, null, code, LocaleContextHolder.getLocale());
+		return Objects.requireNonNullElse(this.messages.getMessage(code, null, code, LocaleContextHolder.getLocale()), code);
 	}
 
 	/**

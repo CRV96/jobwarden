@@ -20,6 +20,7 @@ import static com.jobwarden.mcp.controller.Schemas.list;
 import static com.jobwarden.mcp.controller.Schemas.object;
 import static com.jobwarden.mcp.controller.Schemas.oneOf;
 import static com.jobwarden.mcp.controller.Schemas.string;
+import static com.jobwarden.mcp.controller.Texts.shortened;
 
 /**
  * Scoring how well the profile fits its jobs: the assistant reads each posting's requirements against the CV, and JobWarden
@@ -107,10 +108,6 @@ class FitTools implements McpToolSet {
 			throw new ToolException("Each requirement needs its " + name);
 		}
 		return value;
-	}
-
-	private static @Nullable String shortened(@Nullable String text, int maxLength) {
-		return (text == null || text.length() <= maxLength) ? text : text.substring(0, maxLength - 1) + "…";
 	}
 
 	record JobRef(long id, String title, @Nullable String company, @Nullable String link) {

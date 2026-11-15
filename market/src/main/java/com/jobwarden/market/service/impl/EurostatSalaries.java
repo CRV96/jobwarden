@@ -7,6 +7,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
@@ -19,7 +20,6 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -56,24 +56,27 @@ class EurostatSalaries {
 
 	private Instant renewAt = Instant.MIN;
 
-	EurostatSalaries(@Value("${jobwarden.market.eurostat.url}") URI address) {
-		this.address = address;
+	private final Clock clock;
+
+	EurostatSalaries(MarketProperties properties, Clock clock) {
+		this.clock = clock;
+		this.address = properties.eurostat().url();
 	}
 
 	/**
 	 * @return the earnings, or empty when they couldn't be loaded
 	 */
 	synchronized Optional<EarningsTable> current() {
-		if (Instant.now().isBefore(this.renewAt)) {
+		if (this.clock.instant().isBefore(this.renewAt)) {
 			return Optional.ofNullable(this.table);
 		}
 		try {
 			this.table = parse(this.json.readTree(download()));
-			this.renewAt = Instant.now().plus(KEPT);
+			this.renewAt = this.clock.instant().plus(KEPT);
 			log.info("Loaded Eurostat's earnings of {} for {} countries", this.table.year(), this.table.byCountry().size());
 		} catch (IOException | JacksonException | IllegalArgumentException ex) {
 			log.warn("Couldn't load Eurostat's earnings: {}", ex.toString());
-			this.renewAt = Instant.now().plus(RETRY_AFTER);
+			this.renewAt = this.clock.instant().plus(RETRY_AFTER);
 		} catch (InterruptedException ex) {
 			Thread.currentThread().interrupt();
 		}

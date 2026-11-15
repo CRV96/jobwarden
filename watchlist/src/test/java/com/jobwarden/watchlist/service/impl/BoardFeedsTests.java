@@ -49,7 +49,8 @@ class BoardFeedsTests {
 		this.boards.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
 		this.boards.start();
 		URI here = URI.create("http://127.0.0.1:" + this.boards.getAddress().getPort());
-		this.feeds = new BoardFeeds("1.2.3", here, here, URI.create(here + "/eu"), here, Duration.ofSeconds(1));
+		this.feeds = new BoardFeeds("1.2.3",
+				new WatchlistProperties(Duration.ofHours(6), here, here, URI.create(here + "/eu"), here), Duration.ofSeconds(1));
 	}
 
 	@AfterEach
@@ -102,7 +103,8 @@ class BoardFeedsTests {
 			assertThat(posting.title()).isEqualTo("Platform Engineer");
 			assertThat(posting.location()).isEqualTo("NYC; London");
 			assertThat(posting.countries()).containsExactlyInAnyOrder("US", "GB");
-			assertThat(posting.workType()).isEqualTo(WorkType.REMOTE);
+			// isRemote is true for a hybrid job too: the workplace type says which
+			assertThat(posting.workType()).isEqualTo(WorkType.HYBRID);
 			assertThat(posting.employmentType()).isEqualTo(EmploymentType.FULL_TIME);
 			assertThat(posting.salary()).isEqualTo("$160K - $275K");
 			assertThat(posting.description()).isEqualTo("Build the platform.");

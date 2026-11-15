@@ -1,8 +1,8 @@
 package com.jobwarden.web.view;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.time.temporal.ChronoUnit;
@@ -27,11 +27,13 @@ public class Dates {
 
 	private final MessageSource messages;
 
+	private final Clock clock;
+
 	/**
 	 * Today, yesterday, a few days ago, or the date for anything older (or in the future).
 	 */
 	public String relativeDay(Instant instant) {
-		return relativeDay(LocalDate.ofInstant(instant, ZoneId.systemDefault()));
+		return relativeDay(LocalDate.ofInstant(instant, this.clock.getZone()));
 	}
 
 	/**
@@ -39,7 +41,7 @@ public class Dates {
 	 */
 	public String relativeDay(LocalDate day) {
 		Locale locale = LocaleContextHolder.getLocale();
-		long daysAgo = ChronoUnit.DAYS.between(day, LocalDate.now());
+		long daysAgo = ChronoUnit.DAYS.between(day, LocalDate.now(this.clock));
 		if (daysAgo == 0) {
 			return this.messages.getMessage("date.today", null, locale);
 		}
@@ -56,7 +58,7 @@ public class Dates {
 	 * The date in the language's format.date pattern, e.g. 28 Sep 2026.
 	 */
 	public String date(Instant instant) {
-		return date(LocalDate.ofInstant(instant, ZoneId.systemDefault()));
+		return date(LocalDate.ofInstant(instant, this.clock.getZone()));
 	}
 
 	/**
@@ -65,7 +67,7 @@ public class Dates {
 	public String dateTime(Instant instant) {
 		Locale locale = LocaleContextHolder.getLocale();
 		String pattern = this.messages.getMessage("format.dateTime", null, locale);
-		return DateTimeFormatter.ofPattern(pattern, locale).format(instant.atZone(ZoneId.systemDefault()));
+		return DateTimeFormatter.ofPattern(pattern, locale).format(instant.atZone(this.clock.getZone()));
 	}
 
 	/**

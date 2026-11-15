@@ -38,8 +38,8 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -139,7 +139,8 @@ class LettersControllerTests {
 
 	@Test
 	void asksClaudeForTheTickedJobsWithoutALetterInOnePrompt() {
-		given(this.discovery.findOpenRequests(1)).willReturn(List.of(), List.of(request(41, 8), request(42, 9)));
+		given(this.discovery.findOpenRequests(1)).willReturn(List.of())
+			.willReturn(List.of(request(41, 8), request(42, 9)));
 
 		assertThat(this.mvc.post()
 			.uri("/letters/request")
@@ -171,7 +172,8 @@ class LettersControllerTests {
 
 	@Test
 	void takesBackEveryLetterClaudeHasStillToWrite() {
-		given(this.discovery.findOpenRequests(1)).willReturn(List.of(request(41, 8), request(42, 9)), List.of());
+		given(this.discovery.findOpenRequests(1)).willReturn(List.of(request(41, 8), request(42, 9)))
+			.willReturn(List.of());
 
 		assertThat(this.mvc.post().uri("/letters/cancel").header("HX-Request", "true")).hasStatusOk()
 			.bodyText()

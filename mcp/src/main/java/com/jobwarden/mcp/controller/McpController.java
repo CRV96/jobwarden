@@ -8,10 +8,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.jobwarden.common.exception.JobWardenException;
 import lombok.CustomLog;
 import org.jspecify.annotations.Nullable;
@@ -26,8 +28,6 @@ import tools.jackson.databind.module.SimpleModule;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
-
-import com.fasterxml.jackson.annotation.JsonInclude;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -221,7 +221,7 @@ class McpController {
 			return result(id, toolResult(this.json.writeValueAsString(tool.handler().call(call)), false));
 		} catch (ToolException | JobWardenException | IllegalArgumentException refused) {
 			log.debug("MCP tool {} refused: {}", name, refused.getMessage());
-			return result(id, toolResult(refused.getMessage(), true));
+			return result(id, toolResult(Objects.requireNonNullElse(refused.getMessage(), "Refused"), true));
 		}
 	}
 

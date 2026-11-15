@@ -1,12 +1,13 @@
 package com.jobwarden.web.controller;
 
+import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -79,6 +80,8 @@ class InboxController extends BaseController {
 	private final DiscoveryService discovery;
 
 	private final MessageSource messages;
+
+	private final Clock clock;
 
 	@GetMapping
 	String page(Model model) {
@@ -157,7 +160,7 @@ class InboxController extends BaseController {
 			String note = this.messages.getMessage("inbox.note", new Object[] {
 					(update.subject() != null) ? update.subject() : "", (update.sender() != null) ? update.sender() : "" },
 					locale);
-			this.inbox.apply(userId, id, form.job(), form.status(), note, UpdateDecider.YOU);
+			this.inbox.apply(userId, id, form.requiredJob(), form.requiredStatus(), note, UpdateDecider.YOU);
 			response.setHeader(HtmxHeaders.TRIGGER, HtmxEvents.APPLICATIONS_CHANGED);
 		}
 		addUpdates(model, userId);
@@ -265,7 +268,7 @@ class InboxController extends BaseController {
 		model.addAttribute(ModelAttributes.SORT_PROMPT,
 				sorting.map(request -> prompt(model, request.id())).orElse(null));
 		model.addAttribute(ModelAttributes.DECIDED_FOR_YOU,
-				this.inbox.findDecidedForYou(userId, Instant.now().minus(DECIDED_FOR_YOU)));
+				this.inbox.findDecidedForYou(userId, this.clock.instant().minus(DECIDED_FOR_YOU)));
 		List<EmailUpdate> updates = this.inbox.findPending(userId);
 		List<ApplicationSummary> jobs = new ArrayList<>(this.applications.findAll(userId, null)
 			.stream()
@@ -277,7 +280,7 @@ class InboxController extends BaseController {
 			if (update.applicationId() != null && jobs.stream().noneMatch(job -> job.id() == update.applicationId())) {
 				jobs.add(ApplicationSummary.builder()
 					.id(update.applicationId())
-					.title(update.jobTitle())
+					.title(Objects.requireNonNullElse(update.jobTitle(), ""))
 					.company(update.company())
 					.status(ApplicationStatus.SAVED)
 					.capturedAt(update.receivedAt())

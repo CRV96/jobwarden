@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -181,7 +182,7 @@ class AssistantRunnerTests {
 	@Test
 	void refusesAnAssistantThatIsntHereOrRunsTurnedOff() throws IOException {
 		AssistantRunner off = new AssistantRunner(this.discovery, false, script("exit 0").toString(), "/nowhere/codex",
-				this.directory.resolve("runs"), Duration.ofMinutes(1));
+				this.directory.resolve("runs"), Duration.ofMinutes(1), Clock.systemDefaultZone());
 
 		assertThat(off.canRun(Assistant.CLAUDE_CODE)).isFalse();
 		assertThatThrownBy(() -> off.run(Assistant.CODEX, 1, List.of(16L), MCP))
@@ -201,7 +202,7 @@ class AssistantRunnerTests {
 
 	private AssistantRunner runner(Path claude, Duration timeout) {
 		return new AssistantRunner(this.discovery, true, claude.toString(), "/nowhere/codex", this.directory.resolve("runs"),
-				timeout);
+				timeout, Clock.systemDefaultZone());
 	}
 
 	private Path script(String body) throws IOException {

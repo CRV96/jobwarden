@@ -18,30 +18,29 @@ import com.jobwarden.discover.enums.Decision;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.jobs.dto.TidyResult;
 import com.jobwarden.jobs.service.ApplicationService;
-import com.jobwarden.web.view.AssistantPrompts;
+import com.jobwarden.search.Recency;
+import com.jobwarden.search.SearchCriteria;
+import com.jobwarden.search.WorkType;
 import com.jobwarden.web.constants.AppConstants.ControllerConstants;
 import com.jobwarden.web.constants.AppConstants.HtmxEvents;
 import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.constants.AppConstants.Views;
-import com.jobwarden.search.Recency;
-import com.jobwarden.search.SearchCriteria;
-import com.jobwarden.search.WorkType;
 import com.jobwarden.web.dto.AiRequestForm;
 import com.jobwarden.web.dto.SearchFilters;
+import com.jobwarden.web.view.AssistantPrompts;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.validation.BindingResult;
 import org.springframework.util.MultiValueMap;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -86,20 +85,12 @@ class DiscoverController extends BaseController {
 	private final MessageSource messages;
 
 	/** Where Claude's loop asks whether requests wait (ClaudeFilesController). */
-	private String requestsPath = "/claude/requests";
-
-	@Autowired
-	void setRequestsPath(@Value("${jobwarden.claude.requests-path:/claude/requests}") String requestsPath) {
-		this.requestsPath = requestsPath;
-	}
+	@Value("${jobwarden.claude.requests-path:/claude/requests}")
+	private final String requestsPath;
 
 	/** Where the MCP server is, which the loop gives the assistant itself. */
-	private String mcpPath = "/mcp";
-
-	@Autowired
-	void setMcpPath(@Value("${jobwarden.mcp.path:/mcp}") String mcpPath) {
-		this.mcpPath = mcpPath;
-	}
+	@Value("${jobwarden.mcp.path:/mcp}")
+	private final String mcpPath;
 
 	/**
 	 * @param search only the jobs found for this saved search

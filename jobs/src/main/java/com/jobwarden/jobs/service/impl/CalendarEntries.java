@@ -44,7 +44,7 @@ final class CalendarEntries {
 			.interviewFormat(event.interviewFormat())
 			.interviewLocation(event.interviewLocation())
 			.durationMinutes(event.durationMinutes())
-			.reminders(reminders.get(target))
+			.reminders(reminders.getOrDefault(target, Set.of()))
 			.build();
 	}
 
@@ -60,7 +60,7 @@ final class CalendarEntries {
 			.title(dates.title())
 			.company(dates.company())
 			.status(dates.status())
-			.reminders(reminders.get(new ReminderTarget(dates.applicationId(), kind, null)))
+			.reminders(reminders.getOrDefault(new ReminderTarget(dates.applicationId(), kind, null), Set.of()))
 			.build());
 	}
 

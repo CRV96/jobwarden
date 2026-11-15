@@ -3,6 +3,9 @@
  * public API.
  */
 @NamedInterface("secret")
+@NullMarked
 package com.jobwarden.common.secret;
+
+import org.jspecify.annotations.NullMarked;
 
 import org.springframework.modulith.NamedInterface;
