@@ -115,7 +115,7 @@ class SecurityHeadersFilter extends OncePerRequestFilter {
 		}
 		try {
 			return MediaType.TEXT_HTML.isCompatibleWith(MediaType.parseMediaType(type));
-		} catch (InvalidMediaTypeException notAType) {
+		} catch (InvalidMediaTypeException _) {
 			return false;
 		}
 	}

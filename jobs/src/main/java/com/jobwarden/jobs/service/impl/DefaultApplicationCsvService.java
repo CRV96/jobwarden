@@ -161,8 +161,7 @@ class DefaultApplicationCsvService implements ApplicationCsvService {
 		LocalDate appliedOn = date(row.get(Column.APPLIED_ON));
 		ApplicationStatus status = status(row.get(Column.STATUS), appliedOn);
 		LocalDateTime statusAt = dateTime(row.get(Column.STATUS_DATE));
-		LocalDate statusDate = (statusAt != null) ? statusAt.toLocalDate()
-				: (status == ApplicationStatus.APPLIED && appliedOn != null) ? appliedOn : LocalDate.now(this.clock);
+		LocalDate statusDate = statusDate(statusAt, status, appliedOn);
 		LocalTime statusTime = (statusAt != null && !statusAt.toLocalTime().equals(LocalTime.MIDNIGHT))
 				? statusAt.toLocalTime() : null;
 		RejectionReason rejectionReason = status.hasRejectionReason() ? rejectionReason(row.get(Column.REJECTION_REASON))
@@ -204,6 +203,20 @@ class DefaultApplicationCsvService implements ApplicationCsvService {
 			.followUpOn(date(row.get(Column.FOLLOW_UP_ON)))
 			.build();
 		return new ImportedJob(application, laterStatus, followUp, row.get(Column.NOTES));
+	}
+
+	/**
+	 * The day of the row's status: its date when it has one; an application's, the day it was applied to; else today.
+	 */
+	private LocalDate statusDate(@Nullable LocalDateTime statusAt, ApplicationStatus status,
+			@Nullable LocalDate appliedOn) {
+		if (statusAt != null) {
+			return statusAt.toLocalDate();
+		}
+		if (status == ApplicationStatus.APPLIED && appliedOn != null) {
+			return appliedOn;
+		}
+		return LocalDate.now(this.clock);
 	}
 
 	private static ApplicationStatus status(@Nullable String value, @Nullable LocalDate appliedOn) throws InvalidRow {

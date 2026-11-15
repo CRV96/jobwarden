@@ -46,7 +46,7 @@ class RequestIdFilter extends OncePerRequestFilter {
 		if (!response.containsHeader(HEADER)) {
 			response.setHeader(HEADER, id);
 		}
-		try (MDC.MDCCloseable _ = MDC.putCloseable(MDC_KEY, id)) {
+		try (var _ = MDC.putCloseable(MDC_KEY, id)) {
 			chain.doFilter(request, response);
 		}
 	}

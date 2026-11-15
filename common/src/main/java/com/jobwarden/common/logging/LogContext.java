@@ -35,7 +35,7 @@ public final class LogContext {
 	 */
 	public static Runnable withNewId(Runnable task) {
 		return () -> {
-			try (MDC.MDCCloseable _ = MDC.putCloseable(ID, newId())) {
+			try (var _ = MDC.putCloseable(ID, newId())) {
 				task.run();
 			}
 		};

@@ -108,8 +108,14 @@ final class LeverFeed implements BoardFeed {
 	 */
 	private static BigDecimal amount(JsonNode value) {
 		try {
-			BigDecimal amount = value.isNumber() ? value.decimalValue()
-					: value.isString() ? new BigDecimal(value.asString().strip()) : BigDecimal.ZERO;
+			BigDecimal amount;
+			if (value.isNumber()) {
+				amount = value.decimalValue();
+			} else if (value.isString()) {
+				amount = new BigDecimal(value.asString().strip());
+			} else {
+				return BigDecimal.ZERO;
+			}
 			return isSalary(amount) ? amount : BigDecimal.ZERO;
 		} catch (NumberFormatException | JacksonException _) {
 			// Text that isn't a number, or a number a double can't hold (1e400), which Jackson refuses to convert
