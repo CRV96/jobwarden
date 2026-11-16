@@ -51,6 +51,7 @@ class LayoutAdvice {
 			return;
 		}
 		model.addAttribute(ModelAttributes.SIDEBAR_PROFILES, this.users.findAll());
+		model.addAttribute(ModelAttributes.PROFILES_WITH_PASSWORD, this.users.findIdsWithPassword());
 		this.updates.ifAvailable(updateService -> model.addAttribute(ModelAttributes.UPDATE, updateService.status()));
 		if (profile != null) {
 			model.addAttribute(ModelAttributes.APPLICATION_COUNT, this.applications.count(profile.id()));

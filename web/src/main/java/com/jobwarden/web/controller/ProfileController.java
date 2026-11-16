@@ -8,6 +8,8 @@ import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.discover.dto.AiRequest;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
+import com.jobwarden.identity.enums.IdentityErrorCode;
+import com.jobwarden.identity.exception.UserNotFoundException;
 import com.jobwarden.identity.service.UserService;
 import com.jobwarden.web.assistant.AssistantRunner;
 import com.jobwarden.web.constants.ControllerConstants;
@@ -16,6 +18,8 @@ import com.jobwarden.web.constants.Views;
 import com.jobwarden.web.dto.NewProfileForm;
 import com.jobwarden.web.user.CurrentUser;
 import com.jobwarden.web.view.FormTexts;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -49,6 +53,9 @@ class ProfileController {
 
 	/** Where it offers to delete the profile */
 	private static final String DELETE_SECTION = ControllerConstants.SETTINGS + "#delete-profile";
+
+	/** Where it sets, changes and removes the profile's password */
+	private static final String PASSWORD_SECTION = ControllerConstants.SETTINGS + "#password";
 
 	/**
 	 * The pages ask for a photo with when it changed in its address (profiles/list :: avatar), so the browser keeps it
@@ -131,10 +138,111 @@ class ProfileController {
 		return redirectTo(ControllerConstants.PROFILES);
 	}
 
+	/**
+	 * Selects the profile, from the Profiles page or the menu. One with a password asks for it first, unless it's the
+	 * profile already selected.
+	 */
 	@PostMapping("/{id}/select")
 	String select(@PathVariable long id) {
+		boolean selected = this.currentUser.get().map(profile -> profile.id() == id).orElse(false);
+		if (!selected && this.users.hasPassword(id)) {
+			return redirectTo(ControllerConstants.PROFILES + "/" + id + "/unlock");
+		}
 		this.currentUser.select(id);
 		return redirectTo(ControllerConstants.HOMEPAGE);
+	}
+
+	/**
+	 * Logs out of the current profile in this browser, from the profile menu: the session goes, and with it the profile
+	 * chosen, so the Profiles page comes next, saying so, and a profile with a password asks for it again. The language
+	 * stays: it's a cookie of its own.
+	 */
+	@PostMapping("/logout")
+	String logout(Model model, HttpServletRequest request, RedirectAttributes redirect) {
+		User profile = requireProfile(model);
+		HttpSession session = request.getSession(false);
+		if (session != null) {
+			session.invalidate();
+		}
+		log.info("Logged out of profile {}", profile.id());
+		redirect.addFlashAttribute(ModelAttributes.PROFILE_LOGGED_OUT, profile.name());
+		return redirectTo(ControllerConstants.PROFILES);
+	}
+
+	/**
+	 * Asks for the profile's password. One without a password needs none: back to the Profiles page, to choose it.
+	 */
+	@GetMapping("/{id}/unlock")
+	String unlockForm(@PathVariable long id, Model model) {
+		if (!this.users.hasPassword(id)) {
+			return redirectTo(ControllerConstants.PROFILES);
+		}
+		return showUnlock(model, id, null);
+	}
+
+	/**
+	 * Selects the profile once its password is right, in a session of its own: the browser gets a new session id, so
+	 * one someone else planted before doesn't get in with it. Wrong, the page asks again and says why; after a few
+	 * wrong ones in a row, the profile waits a minute.
+	 */
+	@PostMapping("/{id}/unlock")
+	String unlock(@PathVariable long id, @RequestParam(defaultValue = "") String password, Model model,
+			HttpServletRequest request) {
+		try {
+			this.users.checkPassword(id, password);
+		} catch (BusinessRuleException refused) {
+			return showUnlock(model, id, this.formTexts.message(refused));
+		}
+		// A session made from now on can't have been planted; one there already gets a new id
+		if (request.getSession(false) != null) {
+			request.changeSessionId();
+		}
+		this.currentUser.select(id);
+		log.info("Profile {} opened with its password", id);
+		return redirectTo(ControllerConstants.HOMEPAGE);
+	}
+
+	/**
+	 * Gives the current profile a password, or changes the one it has, which then needs the current one. Says how it
+	 * went once, back on the settings page.
+	 */
+	@PostMapping("/password")
+	String changePassword(@RequestParam(defaultValue = "") String current, @RequestParam(defaultValue = "") String password,
+			@RequestParam(defaultValue = "") String confirm, Model model, RedirectAttributes redirect) {
+		long userId = requireProfile(model).id();
+		try {
+			if (!password.equals(confirm)) {
+				redirect.addFlashAttribute(ModelAttributes.PROFILE_PASSWORD_ERROR,
+						this.formTexts.text("settings.password.mismatch"));
+				return redirectTo(PASSWORD_SECTION);
+			}
+			if (password.isBlank()) {
+				throw new BusinessRuleException(IdentityErrorCode.PASSWORD_TOO_SHORT, "No password typed",
+						String.valueOf(UserService.PASSWORD_MIN_LENGTH));
+			}
+			this.users.changePassword(userId, current, password);
+			redirect.addFlashAttribute(ModelAttributes.PROFILE_PASSWORD_SAVED, true);
+		} catch (BusinessRuleException refused) {
+			log.debug("Password of profile {} not changed: {}", userId, refused.getErrorCode());
+			redirect.addFlashAttribute(ModelAttributes.PROFILE_PASSWORD_ERROR, this.formTexts.message(refused));
+		}
+		return redirectTo(PASSWORD_SECTION);
+	}
+
+	/**
+	 * Removes the current profile's password, given the password: then it opens without one.
+	 */
+	@PostMapping("/password/remove")
+	String removePassword(@RequestParam(defaultValue = "") String current, Model model, RedirectAttributes redirect) {
+		long userId = requireProfile(model).id();
+		try {
+			this.users.changePassword(userId, current, null);
+			redirect.addFlashAttribute(ModelAttributes.PROFILE_PASSWORD_REMOVED, true);
+		} catch (BusinessRuleException refused) {
+			log.debug("Password of profile {} not removed: {}", userId, refused.getErrorCode());
+			redirect.addFlashAttribute(ModelAttributes.PROFILE_PASSWORD_ERROR, this.formTexts.message(refused));
+		}
+		return redirectTo(PASSWORD_SECTION);
 	}
 
 	/**
@@ -173,8 +281,16 @@ class ProfileController {
 		return redirectTo(PROFILE_SECTION);
 	}
 
+	private String showUnlock(Model model, long id, @Nullable String error) {
+		model.addAttribute(ModelAttributes.UNLOCKING_PROFILE,
+				this.users.findById(id).orElseThrow(() -> new UserNotFoundException(id)));
+		model.addAttribute(ModelAttributes.UNLOCK_ERROR, error);
+		return Views.PROFILE_UNLOCK;
+	}
+
 	private String showProfiles(Model model, @Nullable String name, @Nullable String nameError) {
 		model.addAttribute(ModelAttributes.PROFILES, this.users.findAll());
+		model.addAttribute(ModelAttributes.PROFILES_WITH_PASSWORD, this.users.findIdsWithPassword());
 		model.addAttribute(ModelAttributes.NAME, name);
 		model.addAttribute(ModelAttributes.NAME_ERROR, nameError);
 		return Views.PROFILE_LIST;

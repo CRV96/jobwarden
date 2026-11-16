@@ -13,6 +13,9 @@ public final class ModelAttributes {
 	public static final String CURRENT_PROFILE = "currentProfile";
 	/** Every profile, for switching to another one from the sidebar. */
 	public static final String SIDEBAR_PROFILES = "sidebarProfiles";
+
+	/** The ids of the profiles with a password, which the lists mark with a lock */
+	public static final String PROFILES_WITH_PASSWORD = "profilesWithPassword";
 	/** The version running and the latest release, an {@code UpdateStatus}: the sidebar and the settings show it. */
 	public static final String UPDATE = "update";
 	/** How many applications the selected profile has, next to Jobs in the sidebar. */
@@ -50,9 +53,20 @@ public final class ModelAttributes {
 	public static final String PROFILE_NAME_TYPED = "profileNameTyped";
 	/** A profile deleted (its name, said once on the Profiles page), or not, as its name wasn't typed to confirm. */
 	public static final String PROFILE_DELETED = "profileDeleted";
+	/** The profile logged out of in this browser, said once on the Profiles page. */
+	public static final String PROFILE_LOGGED_OUT = "profileLoggedOut";
 	public static final String PROFILE_DELETE_ERROR = "profileDeleteError";
 	/** The largest photo file, in bytes, which the page checks before sending one. */
 	public static final String PROFILE_IMAGE_MAX_BYTES = "profileImageMaxBytes";
+	/** Whether the profile has a password; it set, changed or removed one, said once on the settings page; or why not. */
+	public static final String PROFILE_HAS_PASSWORD = "profileHasPassword";
+	public static final String PROFILE_PASSWORD_MIN_LENGTH = "profilePasswordMinLength";
+	public static final String PROFILE_PASSWORD_SAVED = "profilePasswordSaved";
+	public static final String PROFILE_PASSWORD_REMOVED = "profilePasswordRemoved";
+	public static final String PROFILE_PASSWORD_ERROR = "profilePasswordError";
+	/** The profile chosen, which asks for its password first; why the one typed didn't open it. */
+	public static final String UNLOCKING_PROFILE = "unlockingProfile";
+	public static final String UNLOCK_ERROR = "unlockError";
 	/** Claude's latest sorting of the updates waiting, and its prompt; what JobWarden and Claude decided lately. */
 	public static final String SORT_REQUEST = "sortRequest";
 	public static final String SORT_PROMPT = "sortPrompt";

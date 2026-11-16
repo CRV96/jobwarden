@@ -44,6 +44,9 @@ public class UserEntity {
 	@Enumerated(EnumType.STRING)
 	private Assistant assistant = Assistant.DEFAULT;
 
+	/** Its password's hash, with the algorithm's id in front; {@code null} without a password */
+	private @Nullable String passwordHash;
+
 	public UserEntity(String name) {
 		this.name = name;
 	}
@@ -58,6 +61,13 @@ public class UserEntity {
 
 	public void changeAssistant(Assistant assistant) {
 		this.assistant = assistant;
+	}
+
+	/**
+	 * @param hash the new password's hash, or {@code null} to have none
+	 */
+	public void changePasswordHash(@Nullable String hash) {
+		this.passwordHash = hash;
 	}
 
 }

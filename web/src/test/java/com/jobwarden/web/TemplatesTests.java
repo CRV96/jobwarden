@@ -106,6 +106,10 @@ class TemplatesTests {
 			for (Element image : page.select("img:not([alt]):not([th:alt])")) {
 				found.add(TEMPLATES.relativize(file) + ": an image without alt: " + image.outerHtml());
 			}
+			// sr-only on a table leaves its caption showing in Safari and Firefox: a div around it hides it all
+			for (Element table : page.select("table.sr-only")) {
+				found.add(TEMPLATES.relativize(file) + ": a table hidden by its own sr-only: " + table.tagName());
+			}
 		}
 
 		assertThat(found).isEmpty();

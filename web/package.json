@@ -11,5 +11,8 @@
     "eslint": "10.15.0",
     "globals": "17.13.0",
     "tailwindcss": "4.3.3"
+  },
+  "allowScripts": {
+    "@parcel/watcher": false
   }
 }

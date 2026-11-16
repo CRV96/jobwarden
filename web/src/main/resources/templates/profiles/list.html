@@ -19,6 +19,11 @@
         </div>
     </div>
 
+    <!--/* Once logged out of a profile from its menu (ProfileController), once */-->
+    <output class="card flex w-full items-center gap-2 p-3 text-left text-[13px] text-ink/75" th:if="${profileLoggedOut}">
+        <i class="ph ph-sign-out text-lg"></i><span th:text="#{profiles.loggedOut(${profileLoggedOut})}">Logged out of Robert.</span>
+    </output>
+
     <!--/* Once a profile is deleted from Settings (ProfileController), once */-->
     <output class="card flex w-full items-center gap-2 p-3 text-left text-[13px] text-success" th:if="${profileDeleted}">
         <i class="ph ph-check-circle text-lg"></i><span th:text="#{profiles.deleted(${profileDeleted})}">Deleted Robert and everything of it.</span>
@@ -36,6 +41,9 @@
                         <span class="block truncate text-xs opacity-60" th:text="#{nav.profileId(${profile.publicId})}">Profile ID 5b1f3c2e…</span>
                     </span>
                     <i class="ph ph-check text-accent" th:if="${currentProfile != null and currentProfile.id == profile.id}"></i>
+                    <!--/* It has a password, which choosing it asks for */-->
+                    <i class="ph ph-lock-simple opacity-60" role="img" th:if="${profilesWithPassword.contains(profile.id)}"
+                       th:title="#{profiles.locked}" th:aria-label="#{profiles.locked}"></i>
                     <i class="ph ph-caret-right opacity-50"></i>
                 </button>
             </form>

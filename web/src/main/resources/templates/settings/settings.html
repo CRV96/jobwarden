@@ -78,6 +78,45 @@
                         </form>
                     </div>
                 </div>
+                <!--/* The profile's password (ProfileController), asked whenever it's chosen in a browser: set, changed with
+                       the current one, or removed with it. Said once how it went; a wrong or short one comes back with why. */-->
+                <div id="password" class="mt-2 flex flex-col gap-2 rounded-lg border border-line p-3">
+                    <div class="flex items-center gap-1.5 text-[13px] font-medium">
+                        <i class="ph" th:classappend="${profileHasPassword} ? 'ph-lock-simple' : 'ph-lock-simple-open'"></i>
+                        <span th:text="#{settings.password}">Password</span>
+                    </div>
+                    <p class="text-xs text-pretty text-ink/60"
+                       th:text="${profileHasPassword} ? #{settings.password.hint.on} : #{settings.password.hint.off}">Asked whenever this profile is chosen.</p>
+                    <output class="flex items-center gap-2 text-[13px] text-success" th:if="${profilePasswordSaved} or ${profilePasswordRemoved}">
+                        <i class="ph ph-check-circle text-lg"></i>
+                        <span th:text="${profilePasswordSaved} ? #{settings.password.saved} : #{settings.password.removed}">Saved.</span>
+                    </output>
+                    <form class="flex flex-wrap items-end gap-2" method="post" th:action="@{/profiles/password}">
+                        <label class="flex min-w-[140px] flex-1 flex-col gap-1" th:if="${profileHasPassword}">
+                            <span class="field-label" th:text="#{settings.password.current}">Current password</span>
+                            <input class="input" type="password" name="current" required autocomplete="current-password">
+                        </label>
+                        <label class="flex min-w-[140px] flex-1 flex-col gap-1">
+                            <span class="field-label" th:text="#{settings.password.new}">New password</span>
+                            <input class="input" type="password" name="password" required autocomplete="new-password"
+                                   th:minlength="${profilePasswordMinLength}" maxlength="128">
+                        </label>
+                        <label class="flex min-w-[140px] flex-1 flex-col gap-1">
+                            <span class="field-label" th:text="#{settings.password.confirm}">New password, again</span>
+                            <input class="input" type="password" name="confirm" required autocomplete="new-password"
+                                   th:minlength="${profilePasswordMinLength}" maxlength="128">
+                        </label>
+                        <button class="btn btn-secondary" type="submit">
+                            <i class="ph ph-key"></i><span th:text="${profileHasPassword} ? #{settings.password.change} : #{settings.password.set}">Set password</span>
+                        </button>
+                        <!--/* Removing it needs only the current one: the new ones are left out of the form's checks */-->
+                        <button class="btn btn-ghost" type="submit" th:if="${profileHasPassword}" formnovalidate
+                                th:formaction="@{/profiles/password/remove}">
+                            <i class="ph ph-lock-simple-open"></i><span th:text="#{settings.password.remove}">Remove password</span>
+                        </button>
+                    </form>
+                    <p class="field-error" role="alert" th:if="${profilePasswordError}" th:text="${profilePasswordError}">That isn’t the password.</p>
+                </div>
                 <!--/* Deleting the profile and everything of it, for good (ProfileController): its name typed to confirm, in
                        a dialog that says what goes; typed otherwise, nothing goes, and the page says why */-->
                 <div id="delete-profile" class="mt-2 flex flex-wrap items-center gap-3 rounded-lg border border-danger/30 p-3">

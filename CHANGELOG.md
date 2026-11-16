@@ -20,6 +20,12 @@ a release renames it to its version and date.
 - The jar lists every library it carries (CycloneDX SBOM), for vulnerability scanners.
 - [docs/operations.md](docs/operations.md): settings, health, logs, backups, upgrading, troubleshooting.
 - A "Skip to the page" link, the first stop of the Tab key on every page, past the sidebar's links.
+- A password for a profile, in Settings → Your profile: choosing the profile asks for it, on the Profiles page or from
+  the menu. Not a sign-in: the browser extension and the assistants don't need it.
+- Log out, in the profile menu: leaves the profile in this browser and goes back to the Profiles page.
+- The browser extension's popup can hide the notice of a newer JobWarden, until the next version.
+- Each release has a `compose.yaml` that runs its Docker image with PostgreSQL, and notes on upgrading with the data
+  kept: it lives in Docker volumes, so `docker compose pull && docker compose up -d` only replaces the server.
 
 ### Changed
 
@@ -28,6 +34,8 @@ a release renames it to its version and date.
 - A setting that's wrong (`JOBWARDEN_SECRET_KEY` that isn't a key, a duration that isn't one, an update repository that
   isn't `owner/name`) stops the server as it starts, with a message naming it, instead of failing later.
 - Stopping the server lets the requests under way finish first, for up to 20 seconds.
+- The server asks GitHub for a newer release every day on its own (`JOBWARDEN_UPDATES_EVERY`), not only when a page
+  was opened six hours after the last check.
 - Who's hiring: the roles and places to look for are limited to 500 characters each.
 
 ### Fixed
@@ -38,6 +46,7 @@ a release renames it to its version and date.
 - Lever boards: salaries with cents lost them (23.75–28.50 came out as 23–28).
 - The MCP server answered a tool call without its required status or result with an internal error rather than saying
   what was missing.
+- The home page: in Safari and Firefox, "The last 30 days" showed the charts' hidden text over their labels.
 - The jobs list: ticking a row's box opened it in the side panel (since the Content Security Policy above, before any
   release).
 

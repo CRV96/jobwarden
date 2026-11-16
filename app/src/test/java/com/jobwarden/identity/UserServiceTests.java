@@ -42,6 +42,49 @@ class UserServiceTests {
 	}
 
 	@Test
+	void givesChangesAndRemovesAPasswordAlwaysWithTheCurrentOne() {
+		User profile = this.users.create("Robert");
+		assertThat(this.users.hasPassword(profile.id())).isFalse();
+		this.users.checkPassword(profile.id(), null);
+
+		this.users.changePassword(profile.id(), null, "secret1");
+
+		assertThat(this.users.hasPassword(profile.id())).isTrue();
+		assertThat(this.users.findIdsWithPassword()).containsExactly(profile.id());
+		assertThat(this.jdbc.sql("SELECT password_hash FROM users WHERE id = ?").param(profile.id()).query(String.class).single())
+			.startsWith("{pbkdf2@SpringSecurity_v5_8}")
+			.doesNotContain("secret1");
+		this.users.checkPassword(profile.id(), "secret1");
+		assertRefused(() -> this.users.checkPassword(profile.id(), "secret2"), IdentityErrorCode.PASSWORD_WRONG);
+		assertRefused(() -> this.users.changePassword(profile.id(), null, "secret2"), IdentityErrorCode.PASSWORD_WRONG);
+
+		this.users.changePassword(profile.id(), "secret1", "secret2");
+		this.users.checkPassword(profile.id(), "secret2");
+		this.users.changePassword(profile.id(), "secret2", null);
+
+		assertThat(this.users.hasPassword(profile.id())).isFalse();
+		assertThat(this.users.findIdsWithPassword()).isEmpty();
+	}
+
+	@Test
+	void takesAPasswordOfSixToAHundredAndTwentyEightCharacters() {
+		User profile = this.users.create("Robert");
+
+		assertRefused(() -> this.users.changePassword(profile.id(), null, "12345"), IdentityErrorCode.PASSWORD_TOO_SHORT);
+		assertRefused(() -> this.users.changePassword(profile.id(), null, "x".repeat(129)),
+				IdentityErrorCode.PASSWORD_TOO_LONG);
+		this.users.changePassword(profile.id(), null, "パスワード一二");
+
+		assertThat(this.users.hasPassword(profile.id())).isTrue();
+		this.users.checkPassword(profile.id(), "パスワード一二");
+	}
+
+	private static void assertRefused(Runnable call, IdentityErrorCode code) {
+		assertThatThrownBy(call::run).isInstanceOfSatisfying(BusinessRuleException.class,
+				refused -> assertThat(refused.getErrorCode()).isEqualTo(code));
+	}
+
+	@Test
 	void createsProfileWithTrimmedName() {
 		User created = this.users.create("  Robert ");
 

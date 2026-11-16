@@ -207,9 +207,10 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
-  # A tag like v0.2.0 publishes that version: a GitHub release with build's jar and the extension's zip, each attested
-  # as built here from that tag. Running JobWarden servers see it within six hours (the updates module asks GitHub for
-  # the latest release), and say so in the sidebar, the settings and the extension's popup.
+  # A tag like v0.2.0 publishes that version: a GitHub release with build's jar, the extension's zip and a compose.yaml
+  # that runs the version's image (publish) with PostgreSQL, each attested as built here from that tag, and notes that
+  # say how to run it and how to upgrade, keeping the data. Running JobWarden servers see it within a day (the updates
+  # module asks GitHub for the latest release), and say so in the sidebar, the settings and the extension's popup.
   release:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [test, publish]
@@ -229,18 +230,47 @@ jobs:
           path: app/target
       - name: Package the extension
         run: cd extension && zip -r "../jobwarden-extension-${GITHUB_REF_NAME#v}.zip" . -x '.*'
+      # deploy/compose.yaml, its image this version's unless JOBWARDEN_VERSION says another
+      - name: Pin the compose file to this version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          sed "s/JOBWARDEN_VERSION:-latest/JOBWARDEN_VERSION:-${version}/" deploy/compose.yaml > compose.yaml
+          grep -q "JOBWARDEN_VERSION:-${version}}" compose.yaml
       - name: Attest where they were built from
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
             app/target/jobwarden-app-*.jar
             jobwarden-extension-*.zip
+            compose.yaml
+      # Above the notes GitHub makes from the pull requests
+      - name: Write the release notes
+        run: |
+          cat > notes.md <<'NOTES'
+          ## Running it with Docker
+
+          The image is `@IMAGE@:@VERSION@` (also `@MINOR@` and `latest`), attested as built from this tag: `gh attestation verify oci://@IMAGE@:@VERSION@ --repo @REPO@`.
+
+          **New:** download `compose.yaml` below, run `docker compose up -d` next to it, and open http://localhost:8080.
+
+          **Upgrading, keeping your data:** back up first ([Backups](https://github.com/@REPO@/blob/v@VERSION@/docs/operations.md#backups)), then put this release's `compose.yaml` in place of yours (or set `JOBWARDEN_VERSION=@VERSION@`), and next to it:
+
+          ```bash
+          docker compose pull && docker compose up -d
+          ```
+
+          The database and the key are in Docker volumes, never in the containers: the new JobWarden container takes them over, and upgrades the schema as it starts. Then reload the browser extension, from its zip below.
+
+          NOTES
+          version="${GITHUB_REF_NAME#v}"
+          sed -i "s|@IMAGE@|ghcr.io/${GITHUB_REPOSITORY,,}|g; s|@VERSION@|${version}|g; s|@MINOR@|${version%.*}|g; s|@REPO@|${GITHUB_REPOSITORY}|g" notes.md
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" --title "JobWarden ${GITHUB_REF_NAME#v}" --generate-notes \
-            "app/target/jobwarden-app-${GITHUB_REF_NAME#v}.jar" "jobwarden-extension-${GITHUB_REF_NAME#v}.zip"
+          gh release create "$GITHUB_REF_NAME" --title "JobWarden ${GITHUB_REF_NAME#v}" --notes-file notes.md \
+            --generate-notes "app/target/jobwarden-app-${GITHUB_REF_NAME#v}.jar" \
+            "jobwarden-extension-${GITHUB_REF_NAME#v}.zip" compose.yaml
 
   dependency-review:
     if: github.event_name == 'pull_request'

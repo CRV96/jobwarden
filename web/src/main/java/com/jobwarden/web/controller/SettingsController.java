@@ -119,7 +119,9 @@ class SettingsController {
 		// The repository's owner, e.g. CRV96 of CRV96/jobwarden
 		model.addAttribute(ModelAttributes.AUTHOR_URL, "https://github.com/" + this.repository.split("/")[0]);
 		model.addAttribute(ModelAttributes.PROFILE_IMAGE_MAX_BYTES, UserService.MAX_IMAGE_BYTES);
+		model.addAttribute(ModelAttributes.PROFILE_PASSWORD_MIN_LENGTH, UserService.PASSWORD_MIN_LENGTH);
 		if (model.getAttribute(ModelAttributes.CURRENT_PROFILE) instanceof User profile) {
+			model.addAttribute(ModelAttributes.PROFILE_HAS_PASSWORD, this.users.hasPassword(profile.id()));
 			Optional<MailAccount> mailbox = this.inbox.findAccount(profile.id());
 			model.addAttribute(ModelAttributes.MAIL_ACCOUNT, mailbox.orElse(null));
 			model.addAttribute(ModelAttributes.READING_INTERVAL,

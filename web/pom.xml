@@ -143,6 +143,10 @@
 							<goal>install-node-and-npm</goal>
 						</goals>
 					</execution>
+					<!-- npm runs no dependency's install script unless package.json's allowScripts approves it. The one there is,
+					     @parcel/watcher's (the Tailwind CLI's file watcher), only builds it from source when asked to
+					     (npm_config_build_from_source): its prebuilt binary comes as a package of its own. So it's denied, which
+					     says it was looked at, and npm stops warning about it. -->
 					<execution>
 						<id>npm-install</id>
 						<goals>

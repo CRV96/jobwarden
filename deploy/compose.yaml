@@ -1,0 +1,54 @@
+# JobWarden from its published image, with PostgreSQL: `docker compose up -d`, then http://localhost:8080.
+#
+# Everything JobWarden keeps is in the two volumes, never in a container: the database (postgres-data) and the key
+# that encrypts the mailboxes' passwords and the GitHub token (jobwarden-key). So upgrading replaces the JobWarden
+# container and keeps them:
+#
+#   docker compose pull && docker compose up -d
+#
+# It upgrades the database's schema as it starts. Back up first (docs/operations.md, Backups): there's no going back
+# down. JOBWARDEN_VERSION picks a release (JOBWARDEN_VERSION=0.2.0 docker compose up -d); a release's own copy of this
+# file names its version. `docker compose down` keeps the volumes; `down --volumes` deletes the data.
+#
+# Keep the file in the same folder from one version to the next: Compose names the volumes after it (myfolder_postgres-
+# data), so the same folder finds the same data. The services and volumes are named as the README's example always
+# named them, so this file can take its place.
+
+services:
+  postgres:
+    # PostgreSQL's major version stays: moving to the next one is a dump and restore (docs/operations.md, Backups)
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: jobwarden
+      POSTGRES_USER: jobwarden
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jobwarden}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobwarden -d jobwarden"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  jobwarden:
+    image: ghcr.io/crv96/jobwarden:${JOBWARDEN_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # This computer only: JobWarden has no sign-in (SECURITY.md, Running JobWarden safely)
+    ports:
+      - 127.0.0.1:8080:8080
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/jobwarden
+      SPRING_DATASOURCE_USERNAME: jobwarden
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-jobwarden}
+      # The time zone "today" and the pages' times are in
+      TZ: ${TZ:-UTC}
+    volumes:
+      - jobwarden-key:/home/jobwarden/.jobwarden
+
+volumes:
+  postgres-data:
+  jobwarden-key:

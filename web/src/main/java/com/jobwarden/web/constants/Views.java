@@ -103,6 +103,8 @@ public final class Views {
 	/** A column's next cards, which HTMX adds at its end as it's scrolled. */
 	public static final String PIPELINE_CARDS_FRAGMENT = PIPELINE + " :: cards";
 	public static final String PROFILE_LIST = "profiles/list";
+	/** A profile's password, asked when it's chosen */
+	public static final String PROFILE_UNLOCK = "profiles/unlock";
 	public static final String SALARIES = "salaries/salaries";
 	public static final String OFFERS = "offers/offers";
 	/** The offers page's row of market salaries, which HTMX loads after the page. */

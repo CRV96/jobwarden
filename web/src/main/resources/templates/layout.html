@@ -136,6 +136,8 @@
                             <button class="menu-item" type="submit" role="menuitem">
                                 <span th:replace="~{profiles/list :: avatar(${profile}, 'size-[22px] text-[11px]')}">A</span>
                                 <span class="min-w-0 flex-1 truncate" th:text="${profile.name}">Ana</span>
+                                <i class="ph ph-lock-simple text-[13px] opacity-60" role="img" th:if="${profilesWithPassword.contains(profile.id)}"
+                                   th:title="#{profiles.locked}" th:aria-label="#{profiles.locked}"></i>
                             </button>
                         </form>
                     </th:block>
@@ -146,6 +148,12 @@
                     <a class="menu-item" role="menuitem" th:href="@{/settings}" th:aria-current="${section == 'settings'} ? 'page'">
                         <i class="ph ph-gear-six text-[15px]"></i><span th:text="#{nav.settings}">Settings</span>
                     </a>
+                    <!--/* Leaves the profile in this browser: the Profiles page comes next (ProfileController.logout) */-->
+                    <form method="post" th:action="@{/profiles/logout}">
+                        <button class="menu-item" type="submit" role="menuitem">
+                            <i class="ph ph-sign-out text-[15px]"></i><span th:text="#{nav.logout}">Log out</span>
+                        </button>
+                    </form>
                 </div>
             </th:block>
             <a th:unless="${currentProfile}" class="nav-item max-md:justify-center max-md:px-0 folded:justify-center folded:px-0" th:href="@{/settings}"

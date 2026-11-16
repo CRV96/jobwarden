@@ -24,30 +24,19 @@ Build and run all tests (tests use Testcontainers, so Docker must be running):
 
 ### Running with Docker
 
-The [Dockerfile](Dockerfile) builds the server from these sources; each release and every merge to `main` also publish it as `ghcr.io/crv96/jobwarden` (`latest` and the version, or `edge` for `main`). It needs PostgreSQL:
+The [Dockerfile](Dockerfile) builds the server from these sources; each release and every merge to `main` also publish it as `ghcr.io/crv96/jobwarden` (`latest` and the version, or `edge` for `main`). [deploy/compose.yaml](deploy/compose.yaml) runs it with PostgreSQL, and each release attaches its own copy, which names that release's image:
 
-```yaml
-# compose.yaml: docker compose up -d, then http://localhost:8080
-services:
-  postgres:
-    image: postgres:18-alpine
-    environment: [POSTGRES_DB=jobwarden, POSTGRES_USER=jobwarden, POSTGRES_PASSWORD=jobwarden]
-    volumes: [postgres-data:/var/lib/postgresql]
-  jobwarden:
-    image: ghcr.io/crv96/jobwarden:latest
-    depends_on: [postgres]
-    ports: ['127.0.0.1:8080:8080']
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/jobwarden
-      - SPRING_DATASOURCE_USERNAME=jobwarden
-      - SPRING_DATASOURCE_PASSWORD=jobwarden
-    volumes: [jobwarden-key:/home/jobwarden/.jobwarden]
-volumes:
-  postgres-data:
-  jobwarden-key:
+```bash
+docker compose up -d        # next to compose.yaml; then http://localhost:8080
 ```
 
-The `jobwarden-key` volume keeps the key that encrypts the mailboxes' passwords and the GitHub token; without it, a new container means connecting them again. JobWarden has no sign-in, so the port is published on this computer only: see [SECURITY.md](SECURITY.md#running-jobwarden-safely).
+**Upgrading keeps the data.** Everything JobWarden keeps is in two Docker volumes, never in a container: `postgres-data`, the database, and `jobwarden-key`, the key that encrypts the mailboxes' passwords and the GitHub token. An upgrade only replaces the JobWarden container: back up (see [docs/operations.md](docs/operations.md#backups)), put the new release's `compose.yaml` in the same folder as the old one, since Compose names the volumes after the folder (or keep yours and set `JOBWARDEN_VERSION`), then:
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+The new version upgrades the database's schema as it starts. `docker compose down` keeps the volumes; only `down --volumes` deletes them. JobWarden has no sign-in, so the port is published on this computer only: see [SECURITY.md](SECURITY.md#running-jobwarden-safely).
 
 ### Running it day to day
 
@@ -177,7 +166,7 @@ Other assistants that speak MCP over HTTP can connect the same way and paste the
 
 ## Profiles
 
-Several people, or several job hunts, can share one JobWarden: each profile has its own jobs, CV, searches, inbox and assistant's requests, and there's no sign-in (`/profiles` picks one). **Settings → Your profile** renames it (names are unique, ignoring case), changes its photo, shows its profile ID to copy, and deletes it: with its name typed to confirm, in a dialog that says what goes and offers to export its jobs first. Deleting a profile deletes everything of it for good, in every module (every table of a profile's cascades from `users`), stops the assistant's runs on its requests and deletes what they printed; the other profiles, and what the server keeps for all of them (the market's salaries, the Adzuna key), stay. `ProfileDeletionTests` fills two profiles across the modules, deletes one, and checks no table keeps a row of it, and none of the other's goes.
+Several people, or several job hunts, can share one JobWarden: each profile has its own jobs, CV, searches, inbox and assistant's requests, and there's no sign-in (`/profiles` picks one; **Log out**, in the profile menu, leaves it in this browser and goes back there). A profile can have a **password** (Settings → Your profile → Password; changing or removing it needs the current one): choosing the profile, on the Profiles page or from the menu, then asks for it first, and five wrong ones in a row make it wait a minute. Only its hash is kept (PBKDF2). It keeps others using the same browser out of the profile; it isn't a sign-in to the server, and the browser extension and the assistants, which name the profile by its ID on this computer, don't need it. **Settings → Your profile** also renames it (names are unique, ignoring case), changes its photo, shows its profile ID to copy, and deletes it: with its name typed to confirm, in a dialog that says what goes and offers to export its jobs first. Deleting a profile deletes everything of it for good, in every module (every table of a profile's cascades from `users`), stops the assistant's runs on its requests and deletes what they printed; the other profiles, and what the server keeps for all of them (the market's salaries, the Adzuna key), stay. `ProfileDeletionTests` fills two profiles across the modules, deletes one, and checks no table keeps a row of it, and none of the other's goes.
 
 ## The AI Assistant, the CV, Auto-apply, Who's hiring and the calendar
 
@@ -391,7 +380,7 @@ To release a version:
 
 The tag's run of [CI](.github/workflows/ci.yml) checks that the tag, the Maven projects and the manifest say the same, builds and tests, publishes the tag's image, then a GitHub release with the app's jar, the extension's zip, and notes made from the pull requests since the last release. Each is attested as built from the tag ([SECURITY.md](SECURITY.md#how-the-project-is-checked) shows how to verify it).
 
-Running servers ask GitHub for the latest release as they start and every six hours (`jobwarden.updates.repository`; `jobwarden.updates.check=false` never asks). A newer one shows in the sidebar (until it's hidden for that version), in Settings → About, and in the extension's popup, which also says when the server already runs a newer version than the extension. To update: get the release's code (git pull, or its files), restart the app, then reload the extension.
+Running servers ask GitHub for the latest release as they start and then every day, whether or not a page is open (`jobwarden.updates.repository`, `jobwarden.updates.every`; `jobwarden.updates.check=false` never asks). A newer one shows in the sidebar (until it's hidden for that version), in Settings → About, and in the extension's popup, which also says when the server already runs a newer version than the extension. To update: get the release's code (git pull, or its files), restart the app, then reload the extension.
 
 ## License
 
