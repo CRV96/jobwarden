@@ -79,17 +79,24 @@ document.addEventListener('drop', (event) => {
 
 /**
  * Gives the card's application its new status. Saved, the answer says applications-changed; else the card goes back
- * to its column and place, and on a refusal (an answer without it) its side panel opens. The request is the card's own
- * (its source), so only its answer settles the move: a status given from the side panel, to the same address, doesn't.
+ * to its column and place, and on a refusal (an answer without it) its side panel opens.
+ * <p>
+ * The move is sent by an element of its own, hidden in the card, made for it: HTMX queues the requests of one element,
+ * so the card's own (opening its side panel, maybe still on its way when it's dragged) neither delays the move nor is
+ * taken for its answer, and a status given from the side panel, to the same address, isn't either. That element is
+ * the request's target too, as it would otherwise take the card's: the side panel, which would then open.
  */
 function sendStatus(card, before) {
-	const url = card.dataset.eventsUrl;
 	card.draggable = false;
-	const answered = (event) => {
-		if (event.detail.elt !== card) {
+	const move = document.createElement('span');
+	move.hidden = true;
+	card.append(move);
+	move.addEventListener('htmx:afterRequest', (event) => {
+		if (event.detail.elt !== move) {
 			return;
 		}
-		card.removeEventListener('htmx:afterRequest', answered);
+		// applications-changed went out already, from the answer's header, while it was still in the page
+		move.remove();
 		card.draggable = true;
 		const saved = event.detail.successful
 			&& (event.detail.xhr.getResponseHeader('HX-Trigger') ?? '').includes('applications-changed');
@@ -100,11 +107,9 @@ function sendStatus(card, before) {
 				card.click();
 			}
 		}
-	};
-	card.addEventListener('htmx:afterRequest', answered);
-	// The card is the source and the target too: else HTMX takes the card's own target, the side panel, which then opens
-	htmx.ajax('POST', url, {
-		source: card, target: card, swap: 'none', values: { stageCategory: card.dataset.status, view: 'DRAWER' },
+	}, { once: true });
+	htmx.ajax('POST', card.dataset.eventsUrl, {
+		source: move, target: move, swap: 'none', values: { stageCategory: card.dataset.status, view: 'DRAWER' },
 	});
 }
 
