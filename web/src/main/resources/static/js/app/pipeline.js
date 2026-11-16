@@ -1,7 +1,8 @@
 /*
  * The pipeline's cards (pipeline/board.html) move to another column by dragging: dropped there, the card goes to the
  * top of that column at once, and its timeline gets that status, as the status buttons of its side panel give it. The
- * answer's applications-changed then reloads the board, with the counts. A click still opens the card.
+ * answer's applications-changed then reloads the board, with the counts; when the server doesn't take it (the banner
+ * says so), the card goes back where it was. A click still opens the card.
  */
 let draggedCard = null;
 
@@ -59,7 +60,25 @@ document.addEventListener('drop', (event) => {
 	event.preventDefault();
 	const card = draggedCard;
 	clearDropTargets();
+	const before = { column: card.parentElement, next: card.nextElementSibling, status: card.dataset.status };
 	column.prepend(card);
 	card.dataset.status = column.dataset.dropStatus;
-	htmx.ajax('POST', card.dataset.eventsUrl, { swap: 'none', values: { stageCategory: column.dataset.dropStatus, view: 'DRAWER' } });
+	sendStatus(card, before);
 });
+
+/** Gives the card's application its new status; on a failure, the card goes back to its column and place. */
+function sendStatus(card, before) {
+	const url = card.dataset.eventsUrl;
+	const answered = (event) => {
+		if (event.detail.requestConfig?.path !== url) {
+			return;
+		}
+		document.removeEventListener('htmx:afterRequest', answered);
+		if (!event.detail.successful) {
+			before.column.insertBefore(card, (before.next?.parentElement === before.column) ? before.next : null);
+			card.dataset.status = before.status;
+		}
+	};
+	document.addEventListener('htmx:afterRequest', answered);
+	htmx.ajax('POST', url, { swap: 'none', values: { stageCategory: card.dataset.status, view: 'DRAWER' } });
+}

@@ -5,6 +5,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import com.jobwarden.jobs.dto.PngImage;
+import com.jobwarden.jobs.entity.ApplicationEntity;
 import com.jobwarden.jobs.entity.CompanyLogoEntity;
 import com.jobwarden.jobs.entity.SourceIconEntity;
 import com.jobwarden.jobs.entity.SourceIconKey;
@@ -78,16 +79,18 @@ class JobImageStore {
 	}
 
 	/**
-	 * Keeps the application's company logo, replacing the one it had. Nothing without a logo.
+	 * Keeps the application's company logo, replacing the one it had. Nothing without a logo. It takes the application
+	 * itself, which the caller found or made for its profile, so no other profile's logo can be reached by an id.
 	 */
-	void saveCompanyLogo(long applicationId, @Nullable PngImage logo) {
+	void saveCompanyLogo(ApplicationEntity application, @Nullable PngImage logo) {
 		if (logo == null) {
 			return;
 		}
+		long applicationId = application.getId();
 		this.companyLogos.findById(applicationId)
 			.ifPresentOrElse(existing -> existing.changeImage(logo.png()),
 					() -> this.companyLogos.save(new CompanyLogoEntity(applicationId, logo.png())));
-		log.debug("Kept the company logo of application {}", applicationId);
+		log.debug("Kept the company logo of application {} for profile {}", applicationId, application.getUserId());
 	}
 
 }

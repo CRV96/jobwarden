@@ -7,7 +7,6 @@ import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -118,11 +117,10 @@ class InboxController {
 		if (error != null) {
 			model.addAttribute(ModelAttributes.MAIL_FORM, form);
 			model.addAttribute(ModelAttributes.MAIL_ERROR, error);
-			addMailbox(model, userId);
-			return Views.MAILBOX_FRAGMENT;
+		} else {
+			readNow(userId);
+			response.setHeader(HtmxHeaders.REFRESH, "true");
 		}
-		readNow(userId);
-		response.setHeader(HtmxHeaders.REFRESH, "true");
 		addMailbox(model, userId);
 		return Views.MAILBOX_FRAGMENT;
 	}
@@ -284,10 +282,12 @@ class InboxController {
 			.limit(JOBS_TO_PICK)
 			.toList());
 		for (EmailUpdate update : updates) {
-			if (update.applicationId() != null && jobs.stream().noneMatch(job -> job.id() == update.applicationId())) {
+			Long applicationId = update.applicationId();
+			if (applicationId != null && jobs.stream().noneMatch(job -> job.id() == applicationId)) {
+				String jobTitle = update.jobTitle();
 				jobs.add(ApplicationSummary.builder()
-					.id(update.applicationId())
-					.title(Objects.requireNonNullElse(update.jobTitle(), ""))
+					.id(applicationId)
+					.title((jobTitle != null) ? jobTitle : "")
 					.company(update.company())
 					.status(ApplicationStatus.SAVED)
 					.capturedAt(update.receivedAt())

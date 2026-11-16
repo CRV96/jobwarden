@@ -137,10 +137,12 @@ class SettingsController {
 	@PostMapping("/inbox")
 	String saveInbox(@Valid InboxSettingsForm form, BindingResult result, Model model, RedirectAttributes redirect) {
 		long userId = requireProfile(model).id();
-		if (result.hasErrors() || form.readEvery() == null || form.automation() == null) {
+		ReadingInterval readEvery = form.readEvery();
+		InboxAutomation automation = form.automation();
+		if (result.hasErrors() || readEvery == null || automation == null) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Inbox settings without a choice");
 		}
-		this.inbox.changeSettings(userId, form.readEvery().getMinutes(), form.automation());
+		this.inbox.changeSettings(userId, readEvery.getMinutes(), automation);
 		redirect.addFlashAttribute(ModelAttributes.INBOX_SAVED, true);
 		return redirectTo(INBOX_SECTION);
 	}

@@ -118,8 +118,9 @@ class DefaultApplicationCsvService implements ApplicationCsvService {
 		NewApplication application = job.application();
 		long userId = application.userId();
 		long id = this.applicationService.create(application);
-		if (job.laterStatus() != null) {
-			this.applicationService.addEvent(userId, id, job.laterStatus());
+		NewTimelineEvent laterStatus = job.laterStatus();
+		if (laterStatus != null) {
+			this.applicationService.addEvent(userId, id, laterStatus);
 		}
 		if (!job.followUp().equals(FollowUp.NONE)) {
 			this.applicationService.updateFollowUp(userId, id, job.followUp());

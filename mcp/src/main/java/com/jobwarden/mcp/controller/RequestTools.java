@@ -322,8 +322,9 @@ class RequestTools implements McpToolSet {
 		long jobId = job.id();
 		Map<String, RecipientRef> found = new LinkedHashMap<>();
 		FollowUp contact = job.followUp();
-		if (contact.contactName() != null) {
-			add(found, new RecipientRef(contact.contactName(), contact.contactRole(), contact.contactLink(),
+		String contactName = contact.contactName();
+		if (contactName != null) {
+			add(found, new RecipientRef(contactName, contact.contactRole(), contact.contactLink(),
 					contact.contactEmail(), "the job's contact"));
 		}
 		String company = job.company();

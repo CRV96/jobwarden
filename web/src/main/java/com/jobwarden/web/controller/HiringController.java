@@ -100,7 +100,7 @@ class HiringController {
 					() -> new EnumMap<>(RecruiterFilter.class))));
 		model.addAttribute(ModelAttributes.HIRING_TAGS, popularTags(all));
 		model.addAttribute(ModelAttributes.HIRING_COUNTRIES,
-				all.stream().map(HiringPost::country).filter(country -> country != null).distinct().sorted().toList());
+				all.stream().map(HiringPost::country).filter(Objects::nonNull).distinct().sorted().toList());
 		model.addAttribute(ModelAttributes.HIRING_TABS, HiringTab.values());
 		model.addAttribute(ModelAttributes.POSTED_PERIODS, PostedWithin.values());
 		model.addAttribute(ModelAttributes.RECRUITER_FILTERS, RecruiterFilter.values());
@@ -200,9 +200,10 @@ class HiringController {
 		long userId = requireProfile(model).id();
 		HiringPost post = this.hiring.findPost(userId, id);
 		Locale locale = LocaleContextHolder.getLocale();
+		String role = post.role();
 		long applicationId = this.applications.track(NewApplication.builder()
 			.userId(userId)
-			.title((post.role() != null) ? post.role() : title(post.text()))
+			.title((role != null) ? role : title(post.text()))
 			.company(post.company())
 			.location((post.country() != null) ? Locale.of("", post.country()).getDisplayCountry(locale) : null)
 			.description(post.text())

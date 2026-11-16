@@ -123,7 +123,7 @@ class BoardFeeds {
 			return null;
 		}
 		try {
-			return feed.descriptionOf(send(address, body -> this.json.readTree(body)));
+			return feed.descriptionOf(send(address, this.json::readTree));
 		} catch (BoardFailure | JacksonException failed) {
 			log.debug("Couldn't read the description of job {} on {}: {}", postingId, board, failed.getMessage());
 			return null;
@@ -223,8 +223,8 @@ class BoardFeeds {
 				// Closing it is all that's needed: the read stops either way
 			}
 		}, this.readDeadline.toMillis(), TimeUnit.MILLISECONDS);
-		try {
-			return reader.read(new Capped(body));
+		try (InputStream capped = new Capped(body)) {
+			return reader.read(capped);
 		} finally {
 			deadline.cancel(false);
 		}

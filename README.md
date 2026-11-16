@@ -354,7 +354,7 @@ The pages are in English, Romanian, French, German, Polish, Spanish, Portuguese 
 |---|---|---|
 | `build` | Compiles every module with Error Prone and NullAway, checks the imports and the JavaScript (ESLint), builds the CSS, packages the jar | |
 | `test` | All the tests, with what they cover (`-Pcoverage`, JaCoCo) | `build` |
-| `sonar` | SonarCloud's analysis, with that coverage, and its quality gate's verdict | `test` |
+| `sonar` | SonarCloud's analysis, with that coverage, and its quality gate's verdict. Skipped on pull requests from forks, which GitHub gives no secrets (`SONAR_TOKEN`): their code is analyzed once merged, on `main` | `test` |
 | `docker` | Builds the image | `build` |
 | `publish` | On `main` and tags: publishes the image | `test`, `docker` |
 | `release` | On tags: publishes the release (below) | `publish` |

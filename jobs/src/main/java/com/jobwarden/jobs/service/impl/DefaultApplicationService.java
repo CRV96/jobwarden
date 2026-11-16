@@ -72,9 +72,10 @@ class DefaultApplicationService implements ApplicationService {
 		ApplicationEntity entity = new ApplicationEntity(application, source, this.clock.instant());
 		// Every timeline starts with the initial status, so it always has a first entry
 		entity.addEvent(initialStatus);
-		long id = this.applications.save(entity).getId();
+		ApplicationEntity saved = this.applications.save(entity);
+		long id = saved.getId();
 		this.images.saveSourceIcon(application.userId(), source, application.sourceIcon());
-		this.images.saveCompanyLogo(id, application.companyLogo());
+		this.images.saveCompanyLogo(saved, application.companyLogo());
 		log.info("Created application {} for profile {} as {}", id, application.userId(), application.initialStatus());
 		return id;
 	}
@@ -94,7 +95,7 @@ class DefaultApplicationService implements ApplicationService {
 		ApplicationEntity tracked = existing.get();
 		log.debug("Link already tracked as application {}", tracked.getId());
 		this.images.saveSourceIcon(application.userId(), tracked.getSource(), application.sourceIcon());
-		this.images.saveCompanyLogo(tracked.getId(), application.companyLogo());
+		this.images.saveCompanyLogo(tracked, application.companyLogo());
 
 		if (tracked.getArchivedAt() != null) {
 			// Saved again from its posting: it's in use again

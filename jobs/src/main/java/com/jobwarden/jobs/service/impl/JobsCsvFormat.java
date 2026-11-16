@@ -1,5 +1,7 @@
 package com.jobwarden.jobs.service.impl;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -118,20 +120,39 @@ final class JobsCsvFormat {
 	}
 
 	/**
-	 * A web address; one without its scheme, e.g. linkedin.com/jobs/view/1, gets https://.
+	 * A web address, with a host; one without its scheme, e.g. linkedin.com/jobs/view/1, gets https://.
 	 */
 	static @Nullable String link(@Nullable String value) throws InvalidRow {
 		if (value == null) {
 			return null;
 		}
 		String lower = value.toLowerCase(Locale.ROOT);
-		if (lower.startsWith("https://") || lower.startsWith("http://")) {
-			return value;
-		}
-		if (value.contains(".") && value.chars().noneMatch(Character::isWhitespace) && !value.contains(":")) {
-			return "https://" + value;
+		boolean withScheme = lower.startsWith("https://") || lower.startsWith("http://");
+		boolean withoutScheme = value.contains(".") && value.chars().noneMatch(Character::isWhitespace)
+				&& !value.contains(":");
+		String address = withScheme ? value : "https://" + value;
+		if ((withScheme || withoutScheme) && hasHost(address)) {
+			return address;
 		}
 		throw new InvalidRow(CsvProblem.BAD_LINK, value);
+	}
+
+	/**
+	 * Whether the address names a host after its scheme ("https://" alone doesn't). Only the scheme and the host are
+	 * parsed: the rest of a link a site made may hold what a strict parser refuses.
+	 */
+	private static boolean hasHost(String address) {
+		int start = address.indexOf("://") + 3;
+		int end = start;
+		while (end < address.length() && "/?#".indexOf(address.charAt(end)) < 0) {
+			end++;
+		}
+		try {
+			String authority = new URI(address.substring(0, end)).getRawAuthority();
+			return authority != null && !authority.isBlank();
+		} catch (URISyntaxException _) {
+			return false;
+		}
 	}
 
 	/**

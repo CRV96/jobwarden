@@ -103,8 +103,9 @@ public class CalendarIcs {
 			line(ics, "TRANSP:TRANSPARENT");
 		}
 		line(ics, "SUMMARY:" + text(summary));
-		if (entry.interviewLocation() != null) {
-			line(ics, "LOCATION:" + text(entry.interviewLocation()));
+		String location = entry.interviewLocation();
+		if (location != null) {
+			line(ics, "LOCATION:" + text(location));
 		}
 		String format = (entry.interviewFormat() != null)
 				? this.messages.getMessage("interviewFormat." + entry.interviewFormat(), null, locale) + "\n" : "";

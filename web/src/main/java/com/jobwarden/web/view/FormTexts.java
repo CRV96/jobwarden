@@ -2,7 +2,6 @@ package com.jobwarden.web.view;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Objects;
 
 import com.jobwarden.common.exception.JobWardenException;
 import lombok.RequiredArgsConstructor;
@@ -26,16 +25,19 @@ public class FormTexts {
 	 * What users see for one of the modules' exceptions: its code's message, in their language.
 	 */
 	public String message(JobWardenException exception) {
-		String inEnglish = Objects.requireNonNullElse(exception.getMessage(), exception.getErrorCode().getCode());
-		return Objects.requireNonNullElse(this.messages.getMessage(exception.getErrorCode().getMessageKey(),
-				exception.getArguments(), inEnglish, LocaleContextHolder.getLocale()), inEnglish);
+		String detail = exception.getMessage();
+		String inEnglish = (detail != null) ? detail : exception.getErrorCode().getCode();
+		String translated = this.messages.getMessage(exception.getErrorCode().getMessageKey(), exception.getArguments(),
+				inEnglish, LocaleContextHolder.getLocale());
+		return (translated != null) ? translated : inEnglish;
 	}
 
 	/**
 	 * A message of the pages, in the user's language.
 	 */
 	public String text(String code) {
-		return Objects.requireNonNullElse(this.messages.getMessage(code, null, code, LocaleContextHolder.getLocale()), code);
+		String translated = this.messages.getMessage(code, null, code, LocaleContextHolder.getLocale());
+		return (translated != null) ? translated : code;
 	}
 
 	/**
