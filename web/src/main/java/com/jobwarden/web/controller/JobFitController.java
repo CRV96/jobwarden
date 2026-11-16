@@ -7,17 +7,19 @@ import com.jobwarden.discover.dto.AiRequest;
 import com.jobwarden.discover.enums.AiRequestKind;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.jobs.service.JobFitService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.assistant.PromptCards;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+
+import static com.jobwarden.web.controller.Pages.requireProfile;
 
 /**
  * How well the profile fits a job, to apply better to fewer: the score Claude's reading of the posting's requirements
@@ -25,16 +27,18 @@ import org.springframework.web.bind.annotation.RequestMapping;
  * profile needs, it was posted again, it's been up for long). The job's page asks Claude for the score with a request,
  * which Claude Code does through the MCP server (save_job_fit).
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.APPLICATIONS + "/{id}/fit")
 @RequiredArgsConstructor
-class JobFitController extends BaseController {
+class JobFitController {
 
 	private final JobFitService fits;
 
 	private final DiscoveryService discovery;
 
 	private final AutoApplyService autoApply;
+
+	private final PromptCards promptCards;
 
 	/**
 	 * The card: HTMX loads it after the job, and again every few seconds while Claude is on it.
@@ -74,7 +78,7 @@ class JobFitController extends BaseController {
 		model.addAttribute(ModelAttributes.JOB_FIT, this.fits.find(userId, applicationId).orElse(null));
 		model.addAttribute(ModelAttributes.FIT_REQUEST, request.orElse(null));
 		model.addAttribute(ModelAttributes.FIT_PROMPT,
-				request.map(asked -> prompt(model, asked.id())).orElse(null));
+				request.map(asked -> this.promptCards.prompt(requireProfile(model), asked.id())).orElse(null));
 		return Views.JOB_FIT_FRAGMENT;
 	}
 

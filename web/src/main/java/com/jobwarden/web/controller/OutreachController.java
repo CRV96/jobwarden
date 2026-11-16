@@ -14,17 +14,18 @@ import com.jobwarden.discover.enums.AiRequestKind;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.service.ApplicationService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.HtmxEvents;
-import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.assistant.PromptCards;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.HtmxEvents;
+import com.jobwarden.web.constants.HtmxHeaders;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
+import com.jobwarden.web.view.FormTexts;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,16 +33,18 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import static com.jobwarden.web.controller.Pages.requireProfile;
+
 /**
  * A job's messages to the people who hire for it: a LinkedIn connection note and an email to each, written by Claude
  * (save_outreach_draft) to the job's contact, its recruiters on the Who's hiring page or whoever posted it. The profile
  * changes them, copies them and sends them itself: JobWarden never sends anything.
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.APPLICATIONS + "/{id}/outreach")
 @CustomLog
 @RequiredArgsConstructor
-class OutreachController extends BaseController {
+class OutreachController {
 
 	private final ApplicationService applications;
 
@@ -50,6 +53,10 @@ class OutreachController extends BaseController {
 	private final CvService cvs;
 
 	private final DiscoveryService discovery;
+
+	private final FormTexts formTexts;
+
+	private final PromptCards promptCards;
 
 	/**
 	 * The card: HTMX loads it after the job, and again every few seconds while Claude is on it.
@@ -88,7 +95,7 @@ class OutreachController extends BaseController {
 			return Views.OUTREACH_DONE_FRAGMENT;
 		}
 		model.addAttribute(ModelAttributes.OUTREACH_REQUEST, request.get());
-		model.addAttribute(ModelAttributes.OUTREACH_PROMPT, prompt(model, request.get().id()));
+		model.addAttribute(ModelAttributes.OUTREACH_PROMPT, this.promptCards.prompt(requireProfile(model), request.get().id()));
 		return Views.OUTREACH_WAITING_FRAGMENT;
 	}
 
@@ -125,7 +132,7 @@ class OutreachController extends BaseController {
 				.ifPresent(request -> this.discovery.cancelRequest(userId, request.id()));
 		} catch (BusinessRuleException refused) {
 			log.debug("Outreach draft {} not saved: {}", draftId, refused.getMessage());
-			model.addAttribute(ModelAttributes.OUTREACH_ERROR, message(refused));
+			model.addAttribute(ModelAttributes.OUTREACH_ERROR, this.formTexts.message(refused));
 			draft = draft.toBuilder().linkedinNote(linkedinNote).emailSubject(emailSubject).emailBody(emailBody).build();
 		}
 		model.addAttribute(ModelAttributes.OUTREACH_JOB_ID, id);
@@ -165,7 +172,7 @@ class OutreachController extends BaseController {
 		model.addAttribute(ModelAttributes.OUTREACH_SHOWN, drafts.size());
 		model.addAttribute(ModelAttributes.OUTREACH_REQUEST, request.orElse(null));
 		model.addAttribute(ModelAttributes.OUTREACH_PROMPT,
-				request.map(asked -> prompt(model, asked.id())).orElse(null));
+				request.map(asked -> this.promptCards.prompt(requireProfile(model), asked.id())).orElse(null));
 		return Views.OUTREACH_FRAGMENT;
 	}
 
@@ -174,8 +181,9 @@ class OutreachController extends BaseController {
 	}
 
 	private void requireApplication(long userId, long applicationId) {
-		this.applications.findById(userId, applicationId)
-			.orElseThrow(() -> new ApplicationNotFoundException(applicationId));
+		if (this.applications.findById(userId, applicationId).isEmpty()) {
+			throw new ApplicationNotFoundException(applicationId);
+		}
 	}
 
 }

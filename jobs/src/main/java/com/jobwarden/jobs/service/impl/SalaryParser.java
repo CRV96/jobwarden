@@ -115,7 +115,7 @@ final class SalaryParser {
 				multipliers.add(multiplier(matcher.group(3)));
 			}
 		}
-		if (amounts.size() == 2 && multipliers.getFirst().equals(BigDecimal.ONE)
+		if (amounts.size() == 2 && multipliers.getFirst().compareTo(BigDecimal.ONE) == 0
 				&& amounts.getFirst().compareTo(amounts.getLast()) <= 0) {
 			multipliers.set(0, multipliers.getLast());
 		}

@@ -187,9 +187,11 @@ final class DocxHtml {
 					start(xml);
 				} else if (event == XMLStreamConstants.END_ELEMENT) {
 					end(xml);
-				} else if (event == XMLStreamConstants.CHARACTERS && this.paragraphs.peek() instanceof Paragraph paragraph
-						&& paragraph.inText) {
-					paragraph.text(xml.getText());
+				} else if (event == XMLStreamConstants.CHARACTERS) {
+					Paragraph paragraph = this.paragraphs.peek();
+					if (paragraph != null && paragraph.inText) {
+						paragraph.text(xml.getText());
+					}
 				}
 			}
 			closeList();

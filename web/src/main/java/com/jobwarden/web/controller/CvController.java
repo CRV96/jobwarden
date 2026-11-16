@@ -26,11 +26,13 @@ import com.jobwarden.discover.enums.AiRequestKind;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.service.ApplicationService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.assistant.PromptCards;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
 import com.jobwarden.web.dto.CvForm;
 import com.jobwarden.web.view.CvPdf;
+import com.jobwarden.web.view.FormTexts;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +41,6 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.context.MessageSource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -48,16 +49,20 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
+import static com.jobwarden.web.controller.Pages.attachment;
+import static com.jobwarden.web.controller.Pages.redirectTo;
+import static com.jobwarden.web.controller.Pages.requireProfile;
+
 /**
  * The profile's CV: a file uploaded as it is, which Claude reads, and shown beside the fields; the fields to build one
  * from, previewed as HTML and downloaded as a PDF made from the same template; and the profile's GitHub account, whose
  * repositories it chooses for Claude to write the CV's projects from.
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.CV)
 @CustomLog
 @RequiredArgsConstructor
-class CvController extends BaseController {
+class CvController {
 
 	private final CvService cvs;
 
@@ -70,6 +75,10 @@ class CvController extends BaseController {
 	private final CvPdf pdf;
 
 	private final MessageSource messageSource;
+
+	private final FormTexts formTexts;
+
+	private final PromptCards promptCards;
 
 	@GetMapping
 	String cv(Model model) {
@@ -84,7 +93,7 @@ class CvController extends BaseController {
 	String save(@Valid CvForm form, BindingResult result, Model model) {
 		long userId = requireProfile(model).id();
 		if (result.hasErrors()) {
-			Map<String, String> errors = fieldErrors(result);
+			Map<String, String> errors = this.formTexts.fieldErrors(result);
 			log.debug("CV of profile {} not saved, fields with errors: {}", userId, errors.keySet());
 			return showPage(model, this.cvs.find(userId), form.toCvDetails(), errors, null);
 		}
@@ -100,7 +109,7 @@ class CvController extends BaseController {
 					file.getBytes());
 		} catch (BusinessRuleException refused) {
 			log.debug("CV file of profile {} not saved: {}", userId, refused.getMessage());
-			return showPage(model, this.cvs.find(userId), null, Map.of(), message(refused));
+			return showPage(model, this.cvs.find(userId), null, Map.of(), this.formTexts.message(refused));
 		}
 		return redirectTo(ControllerConstants.CV + "?uploaded");
 	}
@@ -180,7 +189,7 @@ class CvController extends BaseController {
 			this.github.connect(userId, username, token);
 		} catch (BusinessRuleException refused) {
 			model.addAttribute(ModelAttributes.GITHUB_USERNAME, username);
-			return showGitHub(model, userId, message(refused));
+			return showGitHub(model, userId, this.formTexts.message(refused));
 		}
 		return showGitHub(model, userId, null);
 	}
@@ -241,7 +250,7 @@ class CvController extends BaseController {
 			try {
 				repositories = this.github.listRepositories(userId);
 			} catch (BusinessRuleException unreachable) {
-				problem = (problem != null) ? problem : message(unreachable);
+				problem = (problem != null) ? problem : this.formTexts.message(unreachable);
 			}
 		}
 		model.addAttribute(ModelAttributes.GITHUB_REPOSITORIES, repositories);
@@ -249,7 +258,7 @@ class CvController extends BaseController {
 		Optional<AiRequest> request = latestProjects(userId);
 		model.addAttribute(ModelAttributes.PROJECTS_REQUEST, request.orElse(null));
 		model.addAttribute(ModelAttributes.PROJECTS_PROMPT,
-				request.map(asked -> prompt(model, asked.id())).orElse(null));
+				request.map(asked -> this.promptCards.prompt(requireProfile(model), asked.id())).orElse(null));
 		model.addAttribute(ModelAttributes.MAX_REPOSITORIES, GitHubService.MAX_REPOSITORIES);
 		return Views.GITHUB_FRAGMENT;
 	}

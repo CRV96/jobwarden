@@ -14,32 +14,35 @@ import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.service.ApplicationService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.assistant.PromptCards;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
 import com.jobwarden.web.view.CvPdf;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import static com.jobwarden.web.controller.Pages.attachment;
+import static com.jobwarden.web.controller.Pages.requireProfile;
+
 /**
  * A job's AI-proof CV: the profile's CV, rewritten by Claude for the job. The job's page asks Claude for it with a
  * request, which Claude Code does through the MCP server (save_tailored_cv); its card shows the CV once it's saved,
  * previewed like the CV page's and downloaded as a PDF.
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.APPLICATIONS + "/{id}/cv")
 @CustomLog
 @RequiredArgsConstructor
-class TailoredCvController extends BaseController {
+class TailoredCvController {
 
 	private final ApplicationService applications;
 
@@ -48,6 +51,8 @@ class TailoredCvController extends BaseController {
 	private final DiscoveryService discovery;
 
 	private final CvPdf pdf;
+
+	private final PromptCards promptCards;
 
 	/**
 	 * The card: HTMX loads it after the job, and again every few seconds while Claude is on it.
@@ -110,7 +115,7 @@ class TailoredCvController extends BaseController {
 		model.addAttribute(ModelAttributes.TAILORED_CV, this.cvs.findTailored(userId, applicationId).orElse(null));
 		model.addAttribute(ModelAttributes.CV_REQUEST, request.orElse(null));
 		model.addAttribute(ModelAttributes.CV_PROMPT,
-				request.map(asked -> prompt(model, asked.id())).orElse(null));
+				request.map(asked -> this.promptCards.prompt(requireProfile(model), asked.id())).orElse(null));
 		return Views.TAILORED_CV_FRAGMENT;
 	}
 

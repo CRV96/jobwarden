@@ -2,9 +2,8 @@ package com.jobwarden.web.enums;
 
 /**
  * How often JobWarden reads the profile's mailbox on its own, as Settings offers it: each is a message,
- * inbox.every.&lt;name&gt;, e.g. every 30 minutes.
- *
- * @param minutes as the inbox keeps it; 0 for only when the profile clicks Check now
+ * inbox.every.&lt;name&gt;, e.g. every 30 minutes. Each has its minutes, as the inbox keeps them: 0 for only when the
+ * profile clicks Check now.
  */
 public enum ReadingInterval {
 

@@ -2,6 +2,7 @@ import {
   capture, lookUp, moveBackToSaved, remove, ServerError, serverVersion, unwatch, watch, watchStatus,
 } from './api.js';
 import { message, translatePage } from './i18n.js';
+import { EXTRACT_SCRIPTS } from './injected.js';
 import { canonicalLink, isOnJobBoard } from './links.js';
 import { currentRun, isJobSearch, LINKEDIN_PERMISSION, loadRunOptions, MAX_LIMIT, stopRun } from './runs.js';
 import { APPLICATIONS_PATH, hostPermission, loadSettings, saveSettings, WATCHLIST_PATH } from './settings.js';
@@ -289,7 +290,7 @@ async function updateIcon() {
  */
 async function readPage() {
   try {
-    const [injection] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['extract.js'] });
+    const [injection] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: EXTRACT_SCRIPTS });
     job = injection?.result ?? null;
   } catch (error) {
     console.warn('Could not read the page', error);
@@ -523,9 +524,13 @@ async function start(limit, saveOthers) {
   window.close();
 }
 
+/** The notice the user hid with its ×, as "release:1.0.1" or "reload:1.0.1": it shows again for another version. */
+const HIDDEN_UPDATE_KEY = 'hiddenUpdate';
+
 /**
  * Says when a newer JobWarden is out than this extension, with a link to its release; or, when the server already runs
- * a newer one, that the extension needs reloading. Says nothing when the server can't be asked.
+ * a newer one, that the extension needs reloading. Says nothing when the server can't be asked, or when the user hid
+ * that notice for that version.
  */
 async function showUpdate() {
   if (settings.userId === undefined) {
@@ -538,16 +543,32 @@ async function showUpdate() {
   } catch {
     return;
   }
-  const notice = document.getElementById('update');
+  const text = document.getElementById('update-text');
+  let shown;
   if (versions.latest && isNewer(versions.latest.version, installed)) {
-    notice.textContent = message('updateAvailable', versions.latest.version);
-    notice.href = versions.latest.url;
-    notice.hidden = false;
+    shown = `release:${versions.latest.version}`;
+    text.textContent = message('updateAvailable', versions.latest.version);
+    text.href = versions.latest.url;
   } else if (isNewer(versions.version, installed)) {
-    notice.textContent = message('updateReload', versions.version);
-    notice.removeAttribute('href');
-    notice.hidden = false;
+    shown = `reload:${versions.version}`;
+    text.textContent = message('updateReload', versions.version);
+    text.removeAttribute('href');
+  } else {
+    return;
   }
+  const { [HIDDEN_UPDATE_KEY]: hidden } = await chrome.storage.local.get(HIDDEN_UPDATE_KEY);
+  if (hidden === shown) {
+    return;
+  }
+  const notice = document.getElementById('update');
+  const hide = document.getElementById('update-hide');
+  hide.title = message('updateHide');
+  hide.setAttribute('aria-label', message('updateHide'));
+  hide.addEventListener('click', async () => {
+    notice.hidden = true;
+    await chrome.storage.local.set({ [HIDDEN_UPDATE_KEY]: shown });
+  }, { once: true });
+  notice.hidden = false;
 }
 
 /** The settings button's name, and its tooltip: which server and profile the popup saves to. */

@@ -132,10 +132,12 @@ class ApplicationQueriesImpl implements ApplicationQueries {
 	 */
 	private static Expression<Integer> statusOrder(CriteriaBuilder builder, Path<ApplicationStatus> status) {
 		CriteriaBuilder.SimpleCase<ApplicationStatus, Integer> position = builder.selectCase(status);
-		for (ApplicationStatus value : ApplicationStatus.values()) {
-			position = position.when(value, value.ordinal());
+		// The statuses' order, as ApplicationStatus lists them: the order a job hunt goes in
+		ApplicationStatus[] order = ApplicationStatus.values();
+		for (int at = 0; at < order.length; at++) {
+			position = position.when(order[at], at);
 		}
-		return position.otherwise(ApplicationStatus.values().length);
+		return position.otherwise(order.length);
 	}
 
 	/**

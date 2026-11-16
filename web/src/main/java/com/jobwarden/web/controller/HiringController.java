@@ -24,14 +24,16 @@ import com.jobwarden.hiring.service.HiringService;
 import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.service.ApplicationService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.assistant.PromptCards;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.HtmxHeaders;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
 import com.jobwarden.web.dto.HiringParams;
 import com.jobwarden.web.dto.HiringRequestForm;
 import com.jobwarden.web.enums.HiringTab;
 import com.jobwarden.web.enums.RecruiterFilter;
+import com.jobwarden.web.view.FormTexts;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
@@ -40,7 +42,6 @@ import org.jspecify.annotations.Nullable;
 
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -50,16 +51,19 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import static com.jobwarden.web.controller.Pages.redirectTo;
+import static com.jobwarden.web.controller.Pages.requireProfile;
+
 /**
  * Who's hiring: recruiters' posts saying they're hiring, which Claude finds on LinkedIn, X and Reddit when the page
  * asks it to (a request Claude Code does through the MCP server), and the recruiters, to follow, which Claude finds
  * too, or come from the contacts saved on jobs. A post saved as a job becomes an application, bookmarked.
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.HIRING)
 @CustomLog
 @RequiredArgsConstructor
-class HiringController extends BaseController {
+class HiringController {
 
 	/** How many hashtags the page offers to filter by: the most used. */
 	static final int POPULAR_TAGS = 12;
@@ -74,6 +78,10 @@ class HiringController extends BaseController {
 	private final DiscoveryService discovery;
 
 	private final Clock clock;
+
+	private final FormTexts formTexts;
+
+	private final PromptCards promptCards;
 
 	@GetMapping
 	String page(@ModelAttribute(ModelAttributes.HIRING_PARAMS) HiringParams params, Model model) {
@@ -92,7 +100,7 @@ class HiringController extends BaseController {
 					() -> new EnumMap<>(RecruiterFilter.class))));
 		model.addAttribute(ModelAttributes.HIRING_TAGS, popularTags(all));
 		model.addAttribute(ModelAttributes.HIRING_COUNTRIES,
-				all.stream().map(HiringPost::country).filter(country -> country != null).distinct().sorted().toList());
+				all.stream().map(HiringPost::country).filter(Objects::nonNull).distinct().sorted().toList());
 		model.addAttribute(ModelAttributes.HIRING_TABS, HiringTab.values());
 		model.addAttribute(ModelAttributes.POSTED_PERIODS, PostedWithin.values());
 		model.addAttribute(ModelAttributes.RECRUITER_FILTERS, RecruiterFilter.values());
@@ -149,7 +157,7 @@ class HiringController extends BaseController {
 			// Added by hand, they're someone to follow
 			this.hiring.follow(userId, this.hiring.addRecruiter(userId, name, headline, profileUrl).id(), true);
 		} catch (BusinessRuleException refused) {
-			redirect.addFlashAttribute(ModelAttributes.HIRING_ERROR, message(refused));
+			redirect.addFlashAttribute(ModelAttributes.HIRING_ERROR, this.formTexts.message(refused));
 		}
 		return redirectTo(HiringParams.defaults().withTab(HiringTab.RECRUITERS).url());
 	}
@@ -192,9 +200,10 @@ class HiringController extends BaseController {
 		long userId = requireProfile(model).id();
 		HiringPost post = this.hiring.findPost(userId, id);
 		Locale locale = LocaleContextHolder.getLocale();
+		String role = post.role();
 		long applicationId = this.applications.track(NewApplication.builder()
 			.userId(userId)
-			.title((post.role() != null) ? post.role() : title(post.text()))
+			.title((role != null) ? role : title(post.text()))
 			.company(post.company())
 			.location((post.country() != null) ? Locale.of("", post.country()).getDisplayCountry(locale) : null)
 			.description(post.text())
@@ -221,7 +230,7 @@ class HiringController extends BaseController {
 			.findFirst();
 		model.addAttribute(ModelAttributes.HIRING_REQUEST, latest.orElse(null));
 		model.addAttribute(ModelAttributes.HIRING_PROMPT,
-				latest.map(request -> prompt(model, request.id())).orElse(null));
+				latest.map(request -> this.promptCards.prompt(requireProfile(model), request.id())).orElse(null));
 		return latest.orElse(null);
 	}
 

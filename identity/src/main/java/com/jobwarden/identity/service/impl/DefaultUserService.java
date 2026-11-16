@@ -5,6 +5,7 @@ import java.time.Clock;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import com.jobwarden.common.exception.BusinessRuleException;
@@ -45,6 +46,8 @@ class DefaultUserService implements UserService {
 	private final UserRepository users;
 
 	private final ProfileImageRepository images;
+
+	private final ProfilePasswords passwords;
 
 	private final Clock clock;
 
@@ -164,6 +167,55 @@ class DefaultUserService implements UserService {
 	@Override
 	public Optional<byte[]> findImage(long id) {
 		return this.images.findById(id).map(ProfileImageEntity::getImage);
+	}
+
+	@Override
+	public boolean hasPassword(long id) {
+		return getUser(id).getPasswordHash() != null;
+	}
+
+	@Override
+	public Set<Long> findIdsWithPassword() {
+		return this.users.findIdsWithPassword();
+	}
+
+	/**
+	 * @throws UserNotFoundException if there's no such profile
+	 */
+	@Override
+	@Transactional
+	public void changePassword(long id, @Nullable String current, @Nullable String password) {
+		UserEntity user = getUser(id);
+		String hash = user.getPasswordHash();
+		if (hash != null) {
+			this.passwords.check(id, hash, current);
+		}
+		if (password == null || password.isBlank()) {
+			user.changePasswordHash(null);
+			log.info("Removed the password of profile {}", id);
+			return;
+		}
+		if (password.length() < PASSWORD_MIN_LENGTH) {
+			throw new BusinessRuleException(IdentityErrorCode.PASSWORD_TOO_SHORT, "The password is too short",
+					String.valueOf(PASSWORD_MIN_LENGTH));
+		}
+		if (password.length() > PASSWORD_MAX_LENGTH) {
+			throw new BusinessRuleException(IdentityErrorCode.PASSWORD_TOO_LONG, "The password is too long",
+					String.valueOf(PASSWORD_MAX_LENGTH));
+		}
+		user.changePasswordHash(this.passwords.hash(password));
+		log.info((hash == null) ? "Gave profile {} a password" : "Changed the password of profile {}", id);
+	}
+
+	/**
+	 * @throws UserNotFoundException if there's no such profile
+	 */
+	@Override
+	public void checkPassword(long id, @Nullable String password) {
+		String hash = getUser(id).getPasswordHash();
+		if (hash != null) {
+			this.passwords.check(id, hash, password);
+		}
 	}
 
 	private UserEntity getUser(long id) {

@@ -5,7 +5,10 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -77,6 +80,57 @@ class DefaultUpdateServiceTests {
 		assertThat(this.asked).isEmpty();
 	}
 
+	/** On its schedule: once a day, whether or not a page asks. */
+	@Test
+	void asksOnceADayWhetherOrNotAPageAsks() throws IOException {
+		MovingClock clock = new MovingClock();
+		URI api = serve(200, RELEASE);
+		DefaultUpdateService updates = new DefaultUpdateService(new GitHubReleases(githubAt(api)), "0.1.0", githubAt(api),
+				clock);
+
+		updates.checkIfDue();
+		assertThat(this.asked).hasSize(1);
+		assertThat(updates.status().updateAvailable()).isTrue();
+
+		clock.advance(Duration.ofHours(23));
+		updates.checkIfDue();
+		updates.status();
+		assertThat(this.asked).as("not before a day, nor because a page asked").hasSize(1);
+
+		clock.advance(Duration.ofHours(1));
+		updates.checkIfDue();
+		assertThat(this.asked).hasSize(2);
+	}
+
+	@Test
+	void asksAgainAnHourAfterAFailedCheck() throws IOException {
+		MovingClock clock = new MovingClock();
+		URI api = serve(500, "");
+		DefaultUpdateService updates = new DefaultUpdateService(new GitHubReleases(githubAt(api)), "0.1.0", githubAt(api),
+				clock);
+
+		updates.checkIfDue();
+		clock.advance(Duration.ofMinutes(59));
+		updates.checkIfDue();
+		assertThat(this.asked).hasSize(1);
+
+		clock.advance(Duration.ofMinutes(1));
+		updates.checkIfDue();
+		assertThat(this.asked).hasSize(2);
+	}
+
+	@Test
+	void neverAsksOnItsScheduleWhenTurnedOff() throws IOException {
+		URI api = serve(200, RELEASE);
+		DefaultUpdateService off = new DefaultUpdateService(new GitHubReleases(githubAt(api)), "0.1.0",
+				new UpdatesProperties("CRV96/jobwarden", false, Duration.ofDays(1), api), new MovingClock());
+
+		off.checkIfDue();
+		off.checkAtStart();
+
+		assertThat(this.asked).isEmpty();
+	}
+
 	@Test
 	void leavesOutATagThatIsntAVersion() {
 		assertThat(GitHubReleases.release(JsonMapper.builder().build()
@@ -99,11 +153,37 @@ class DefaultUpdateServiceTests {
 	}
 
 	private static UpdatesProperties githubAt(URI api) {
-		return new UpdatesProperties("CRV96/jobwarden", true, api);
+		return new UpdatesProperties("CRV96/jobwarden", true, Duration.ofDays(1), api);
 	}
 
 	private static UpdatesProperties checking(boolean check) {
-		return new UpdatesProperties("CRV96/jobwarden", check, URI.create("https://api.github.com"));
+		return new UpdatesProperties("CRV96/jobwarden", check, Duration.ofDays(1), URI.create("https://api.github.com"));
+	}
+
+	/** A clock the test moves on. */
+	private static final class MovingClock extends Clock {
+
+		private Instant now = Instant.parse("2026-11-16T09:00:00Z");
+
+		void advance(Duration duration) {
+			this.now = this.now.plus(duration);
+		}
+
+		@Override
+		public ZoneId getZone() {
+			return ZoneOffset.UTC;
+		}
+
+		@Override
+		public Clock withZone(ZoneId zone) {
+			return this;
+		}
+
+		@Override
+		public Instant instant() {
+			return this.now;
+		}
+
 	}
 
 }

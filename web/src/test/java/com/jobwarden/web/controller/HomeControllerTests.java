@@ -52,7 +52,7 @@ class HomeControllerTests {
 	@Autowired
 	private MockMvcTester mvc;
 
-	// Every page controller extends BaseController, which needs them for the sidebar
+	// LayoutAdvice reads them for every page controller's sidebar
 	@MockitoBean
 	private CurrentUser currentUser;
 

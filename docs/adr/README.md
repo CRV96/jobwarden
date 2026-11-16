@@ -10,5 +10,6 @@ changes gets a new record that supersedes the old one, which stays, marked so.
 | [0003](0003-assistant-through-mcp.md) | The AI assistant works through JobWarden's MCP server; the server calls no AI | Accepted |
 | [0004](0004-null-safety.md) | Null-safety declared with JSpecify and checked with NullAway | Accepted |
 | [0005](0005-time-and-configuration.md) | "Now" from one Clock, settings as typed records | Accepted |
+| [0006](0006-modules-call-not-publish.md) | Modules call each other's services; they don't publish events | Accepted |
 
 To add one: copy the shape of the others (Context, Decision, Consequences), number it next, and list it here.

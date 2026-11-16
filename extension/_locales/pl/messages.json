@@ -230,6 +230,9 @@
   "updateReload": {
     "message": "Twój serwer JobWarden ma wersję $1: przeładuj rozszerzenie, żeby ją dogonić"
   },
+  "updateHide": {
+    "message": "Ukryj do następnej wersji"
+  },
   "extensionVersion": {
     "message": "Rozszerzenie JobWarden $1"
   },

@@ -251,8 +251,9 @@
         <span th:text="${@dates.dayAndMonth(activity.days[0].date)}">14 Oct</span>
         <span th:text="#{date.today}">Today</span>
     </div>
-    <!--/* The same, day by day, as text: for screen readers, which can't hover the columns */-->
-    <table class="sr-only">
+    <!--/* The same, day by day, as text: for screen readers, which can't hover the columns. Hidden by a div: on a table
+           itself, sr-only leaves its caption out of the clipping in Safari and Firefox, over the chart's labels */-->
+    <div class="sr-only"><table>
         <caption th:text="${title}">Applications sent</caption>
         <thead><tr><th scope="col" th:text="#{home.chart.date}">Day</th><th scope="col" th:text="${title}">Applications sent</th></tr></thead>
         <tbody>
@@ -261,7 +262,7 @@
             <td th:text="${day.__${kind}__}">3</td>
         </tr>
         </tbody>
-    </table>
+    </table></div>
     <p class="text-xs text-ink/55" th:if="${total == 0}" th:text="#{home.chart.empty}">Nothing in the last 30 days yet.</p>
 </figure>
 

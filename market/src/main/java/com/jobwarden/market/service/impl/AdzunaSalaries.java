@@ -19,8 +19,8 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.jobwarden.common.net.HttpClients;
 import com.jobwarden.market.enums.AdzunaKeyCheck;
-import com.jobwarden.market.service.impl.AdzunaKeys.Key;
 import lombok.CustomLog;
 import org.jspecify.annotations.Nullable;
 import tools.jackson.core.JacksonException;
@@ -65,7 +65,8 @@ class AdzunaSalaries {
 
 	private final JsonMapper json = JsonMapper.builder().build();
 
-	private final HttpClient http = HttpClient.newBuilder().connectTimeout(TIMEOUT).build();
+	// Its address carries the key: no redirect takes it to another host
+	private final HttpClient http = HttpClients.notFollowingRedirects(TIMEOUT);
 
 	private final Map<String, Answer> answers = new ConcurrentHashMap<>();
 
@@ -91,7 +92,7 @@ class AdzunaSalaries {
 	 * give one, or when the API can't be reached
 	 */
 	Optional<AdsFigure> find(String country, String search) {
-		Key appKey = this.keys.current().orElse(null);
+		AdzunaKeys.Key appKey = this.keys.current().orElse(null);
 		String currency = CURRENCIES.get(country);
 		if (appKey == null || currency == null) {
 			return Optional.empty();
@@ -123,7 +124,7 @@ class AdzunaSalaries {
 	 * Asks Adzuna with a key before it's saved. A key Adzuna doesn't know gets 401 or 403, or an AUTH_FAIL in the
 	 * answer.
 	 */
-	AdzunaKeyCheck check(Key appKey) {
+	AdzunaKeyCheck check(AdzunaKeys.Key appKey) {
 		try {
 			HttpResponse<String> response = ask(appKey, "GB", CHECK_SEARCH);
 			if (response.statusCode() == 200) {
@@ -148,7 +149,7 @@ class AdzunaSalaries {
 		this.answers.clear();
 	}
 
-	private HttpResponse<String> ask(Key appKey, String country, String search)
+	private HttpResponse<String> ask(AdzunaKeys.Key appKey, String country, String search)
 			throws IOException, InterruptedException {
 		URI address = URI.create(this.api + "/jobs/" + country.toLowerCase(Locale.ROOT) + "/histogram?app_id="
 				+ encode(appKey.appId()) + "&app_key=" + encode(appKey.appKey()) + "&what=" + encode(search));

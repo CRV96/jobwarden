@@ -29,9 +29,11 @@
         .links:not(:has(> :not([hidden]))) { display: none; }
         .links .btn { padding: 0; }
 
-        /* A newer JobWarden is out, or the server runs a newer one than this extension */
-        #update { text-decoration: none; }
-        a#update:hover { text-decoration: underline; }
+        /* A newer JobWarden is out, or the server runs a newer one than this extension; its × hides it for that version */
+        #update { align-items: center; }
+        #update-text { flex: 1; color: inherit; text-decoration: none; }
+        a#update-text[href]:hover { text-decoration: underline; }
+        #update-hide { width: 22px; height: 22px; margin: -3px -4px -3px 0; font-size: 13px; }
 
         /* On a LinkedIn job search: the Easy Apply run */
         #run { display: flex; flex-direction: column; gap: 8px; }
@@ -66,8 +68,14 @@
 </header>
 
 <main>
-    <!-- Shown when there's a newer JobWarden: a link to its release, or what to do -->
-    <a id="update" class="note" target="_blank" rel="noopener" hidden></a>
+    <!-- Shown when there's a newer JobWarden: a link to its release, or what to do. Hidden until a newer one with × -->
+    <div id="update" class="note" hidden>
+        <svg class="icon" aria-hidden="true"><use href="icons/phosphor.svg#arrow-circle-up"/></svg>
+        <a id="update-text" target="_blank" rel="noopener"></a>
+        <button id="update-hide" class="btn btn-icon" type="button">
+            <svg class="icon" aria-hidden="true"><use href="icons/phosphor.svg#x"/></svg>
+        </button>
+    </div>
 
     <!-- When JobWarden already has this page: which job, and where it's at -->
     <section id="card" class="card" hidden>

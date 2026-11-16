@@ -11,27 +11,29 @@ import com.jobwarden.jobs.dto.InterviewBrief;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.jobs.service.InterviewBriefService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.assistant.PromptCards;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import static com.jobwarden.web.controller.Pages.requireProfile;
+
 /**
  * A job's interview brief: what Claude found out about the company and the role, the questions likely asked, the
  * profile's own stories to tell, from its story bank first, and questions to ask them. The job's page asks Claude for it with a request, which
  * Claude Code does through the MCP server (save_interview_brief); its card shows the brief once it's saved.
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.APPLICATIONS + "/{id}/prep")
 @RequiredArgsConstructor
-class InterviewBriefController extends BaseController {
+class InterviewBriefController {
 
 	private final ApplicationService applications;
 
@@ -41,13 +43,17 @@ class InterviewBriefController extends BaseController {
 
 	private final StoryService stories;
 
+	private final PromptCards promptCards;
+
 	/**
 	 * The card: HTMX loads it after the job, and again every few seconds while Claude is on it.
 	 */
 	@GetMapping
 	String card(@PathVariable long id, Model model) {
 		long userId = requireProfile(model).id();
-		this.applications.findById(userId, id).orElseThrow(() -> new ApplicationNotFoundException(id));
+		if (this.applications.findById(userId, id).isEmpty()) {
+			throw new ApplicationNotFoundException(id);
+		}
 		return showCard(model, userId, id);
 	}
 
@@ -83,7 +89,7 @@ class InterviewBriefController extends BaseController {
 				brief.map(found -> this.stories.findAll(userId, found.storyIds())).orElse(List.of()));
 		model.addAttribute(ModelAttributes.PREP_REQUEST, request.orElse(null));
 		model.addAttribute(ModelAttributes.PREP_PROMPT,
-				request.map(asked -> prompt(model, asked.id())).orElse(null));
+				request.map(asked -> this.promptCards.prompt(requireProfile(model), asked.id())).orElse(null));
 		return Views.INTERVIEW_BRIEF_FRAGMENT;
 	}
 

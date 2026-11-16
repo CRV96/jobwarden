@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.jobwarden.common.net.HttpClients;
 import lombok.CustomLog;
 import org.jspecify.annotations.Nullable;
 
@@ -42,10 +43,7 @@ class EcbExchangeRates implements ExchangeRates {
 
 	private static final Pattern RATE = Pattern.compile("currency=['\"]([A-Z]{3})['\"]\\s+rate=['\"](\\d+(?:\\.\\d+)?)['\"]");
 
-	private final HttpClient http = HttpClient.newBuilder()
-		.connectTimeout(TIMEOUT)
-		.followRedirects(HttpClient.Redirect.NORMAL)
-		.build();
+	private final HttpClient http = HttpClients.followingRedirects(TIMEOUT);
 
 	private final Clock clock;
 

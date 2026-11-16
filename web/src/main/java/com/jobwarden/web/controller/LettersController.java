@@ -26,9 +26,12 @@ import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.enums.ApplicationSort;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.service.ApplicationService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.assistant.PromptCards;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
+import com.jobwarden.web.view.FormTexts;
+import com.jobwarden.web.view.JobImages;
 import com.jobwarden.web.view.LetterFilter;
 import com.jobwarden.web.view.LetterRow;
 import lombok.CustomLog;
@@ -36,13 +39,14 @@ import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.data.domain.Sort;
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+
+import static com.jobwarden.web.controller.Pages.requireProfile;
 
 /**
  * Every job's cover letter and messages in one place. The profile's base letter on top, that each job's letter starts
@@ -51,11 +55,11 @@ import org.springframework.web.bind.annotation.RequestParam;
  * page (CoverLetterController, OutreachController). Jobs that ended show only when they have a letter. Ticked jobs
  * without a letter go to Claude at once: a request each, done one after the other from one prompt.
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.LETTERS)
 @CustomLog
 @RequiredArgsConstructor
-class LettersController extends BaseController {
+class LettersController {
 
 	/** The most jobs the page lists, those furthest from applying last. */
 	static final int MAX_JOBS = 300;
@@ -70,6 +74,12 @@ class LettersController extends BaseController {
 	private final CvService cvs;
 
 	private final DiscoveryService discovery;
+
+	private final FormTexts formTexts;
+
+	private final JobImages jobImages;
+
+	private final PromptCards promptCards;
 
 	/**
 	 * @param job the job whose letter shows beside the list, or none
@@ -95,7 +105,7 @@ class LettersController extends BaseController {
 		Optional<ApplicationDetails> picked = (job != null) ? this.applications.findById(userId, job) : Optional.empty();
 		model.addAttribute(ModelAttributes.LETTERS_SELECTED, picked.map(ApplicationDetails::id).orElse(null));
 		model.addAttribute(ModelAttributes.LETTERS_JOB, picked.orElse(null));
-		addImages(model, userId);
+		this.jobImages.addImages(model, userId);
 		return Views.LETTERS;
 	}
 
@@ -106,7 +116,7 @@ class LettersController extends BaseController {
 	String panel(@PathVariable long id, Model model) {
 		long userId = requireProfile(model).id();
 		model.addAttribute(ModelAttributes.LETTERS_JOB, requireApplication(userId, id));
-		addImages(model, userId);
+		this.jobImages.addImages(model, userId);
 		return Views.LETTERS_PANEL_FRAGMENT;
 	}
 
@@ -124,7 +134,7 @@ class LettersController extends BaseController {
 				writing.get(id), this.letters.countDrafts(userId, List.of(id)).getOrDefault(id, 0)));
 		model.addAttribute(ModelAttributes.LETTERS_SELECTED, selected);
 		model.addAttribute(ModelAttributes.HAS_CV, hasCv(userId));
-		addImages(model, userId);
+		this.jobImages.addImages(model, userId);
 		return Views.LETTERS_ROW_FRAGMENT;
 	}
 
@@ -210,7 +220,7 @@ class LettersController extends BaseController {
 			this.letters.saveBaseLetter(userId, body);
 		} catch (BusinessRuleException refused) {
 			log.debug("Base letter of profile {} not saved: {}", userId, refused.getMessage());
-			model.addAttribute(ModelAttributes.BASE_LETTER_ERROR, message(refused));
+			model.addAttribute(ModelAttributes.BASE_LETTER_ERROR, this.formTexts.message(refused));
 			model.addAttribute(ModelAttributes.BASE_LETTER_DRAFT, body);
 			addBaseLetter(model, userId, true);
 			return Views.BASE_LETTER_FRAGMENT;
@@ -263,7 +273,7 @@ class LettersController extends BaseController {
 		model.addAttribute(ModelAttributes.LETTERS_SELECTED, selected);
 		model.addAttribute(ModelAttributes.HAS_CV, hasCv(userId));
 		addWaiting(model, userId);
-		addImages(model, userId);
+		this.jobImages.addImages(model, userId);
 		return Views.LETTERS_ASKED_FRAGMENT;
 	}
 
@@ -278,7 +288,7 @@ class LettersController extends BaseController {
 		model.addAttribute(ModelAttributes.LETTERS_WAITING, waiting.size());
 		// The oldest, as many as one Run takes: the others wait for the next, as the card asks again
 		model.addAttribute(ModelAttributes.LETTERS_PROMPT, waiting.isEmpty() ? null
-				: prompt(model, waiting.subList(0, Math.min(waiting.size(), AssistantRunController.MAX_REQUESTS))));
+				: this.promptCards.prompt(requireProfile(model), waiting.subList(0, Math.min(waiting.size(), AssistantRunController.MAX_REQUESTS))));
 	}
 
 	private void addBaseLetter(Model model, long userId, boolean editing) {

@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.Optional;
 
+import com.jobwarden.common.net.HttpClients;
 import com.jobwarden.updates.dto.Release;
 import com.jobwarden.updates.dto.Version;
 import org.jspecify.annotations.Nullable;
@@ -32,10 +33,7 @@ class GitHubReleases {
 
 	private final JsonMapper json = JsonMapper.builder().build();
 
-	private final HttpClient http = HttpClient.newBuilder()
-		.connectTimeout(TIMEOUT)
-		.followRedirects(HttpClient.Redirect.NORMAL)
-		.build();
+	private final HttpClient http = HttpClients.followingRedirects(TIMEOUT);
 
 	GitHubReleases(UpdatesProperties properties) {
 		this.api = properties.api();

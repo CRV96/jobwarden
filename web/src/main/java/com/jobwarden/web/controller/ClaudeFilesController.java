@@ -16,7 +16,7 @@ import com.jobwarden.discover.enums.AiRequestStatus;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.service.ApplicationService;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
+import com.jobwarden.web.constants.ModelAttributes;
 import com.jobwarden.web.view.CvPdf;
 import com.jobwarden.web.view.LetterPdf;
 import lombok.CustomLog;

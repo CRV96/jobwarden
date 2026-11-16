@@ -44,6 +44,14 @@ public class UserEntity {
 	@Enumerated(EnumType.STRING)
 	private Assistant assistant = Assistant.DEFAULT;
 
+	/** Its password's hash, with the algorithm's id in front; {@code null} without a password */
+	private @Nullable String passwordHash;
+
+	/**
+	 * A profile to save: the database gives its id as it's saved (IDENTITY), which is why the build leaves entities'
+	 * nullness to JPA (NullAway's ExcludedClassAnnotations) and SonarCloud's S2637 is answered here.
+	 */
+	@SuppressWarnings("java:S2637")
 	public UserEntity(String name) {
 		this.name = name;
 	}
@@ -58,6 +66,13 @@ public class UserEntity {
 
 	public void changeAssistant(Assistant assistant) {
 		this.assistant = assistant;
+	}
+
+	/**
+	 * @param hash the new password's hash, or {@code null} to have none
+	 */
+	public void changePasswordHash(@Nullable String hash) {
+		this.passwordHash = hash;
 	}
 
 }

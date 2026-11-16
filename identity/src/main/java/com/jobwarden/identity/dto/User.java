@@ -2,7 +2,6 @@ package com.jobwarden.identity.dto;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Objects;
 import java.util.UUID;
 
 import com.jobwarden.identity.enums.Assistant;
@@ -10,8 +9,8 @@ import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A profile. In the self-hosted version it has no password: anyone with access to the machine
- * already has full access to the database, so there is no real permission boundary to enforce.
+ * A profile. It may have a password (UserService.hasPassword), which keeps others using the same browser out of it: not a
+ * sign-in, as anyone with access to the machine already has the database.
  */
 @Builder
 public record User(long id, String name, Instant createdAt, @Nullable Instant imageChangedAt, Assistant assistant,
@@ -28,7 +27,7 @@ public record User(long id, String name, Instant createdAt, @Nullable Instant im
 		this.name = name;
 		this.createdAt = createdAt;
 		this.imageChangedAt = imageChangedAt;
-		this.assistant = Objects.requireNonNullElse(assistant, Assistant.DEFAULT);
+		this.assistant = (assistant != null) ? assistant : Assistant.DEFAULT;
 		this.publicId = (publicId != null) ? publicId
 				: UUID.nameUUIDFromBytes(("profile-" + id).getBytes(StandardCharsets.UTF_8));
 	}

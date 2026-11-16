@@ -1,6 +1,5 @@
 package com.jobwarden.jobs.service.impl;
 
-import java.net.URI;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -26,9 +25,6 @@ import com.jobwarden.jobs.dto.ReminderTarget;
 import com.jobwarden.jobs.dto.TidyResult;
 import com.jobwarden.jobs.dto.TrackedApplication;
 import com.jobwarden.jobs.entity.ApplicationEntity;
-import com.jobwarden.jobs.entity.CompanyLogoEntity;
-import com.jobwarden.jobs.entity.SourceIconEntity;
-import com.jobwarden.jobs.entity.SourceIconKey;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.enums.CalendarEntryKind;
 import com.jobwarden.jobs.enums.ReminderLead;
@@ -38,10 +34,8 @@ import com.jobwarden.jobs.exception.TimelineEventNotFoundException;
 import com.jobwarden.jobs.mapper.ApplicationMapper;
 import com.jobwarden.jobs.repository.ApplicationRepository;
 import com.jobwarden.jobs.repository.CalendarEvent;
-import com.jobwarden.jobs.repository.CompanyLogoRepository;
 import com.jobwarden.jobs.repository.FollowUpDates;
 import com.jobwarden.jobs.repository.ReminderRepository;
-import com.jobwarden.jobs.repository.SourceIconRepository;
 import com.jobwarden.jobs.repository.WaitingApplication;
 import com.jobwarden.jobs.service.ApplicationService;
 import lombok.CustomLog;
@@ -58,13 +52,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 class DefaultApplicationService implements ApplicationService {
 
-	private static final String WWW_PREFIX = "www.";
-
 	private final ApplicationRepository applications;
 
-	private final SourceIconRepository sourceIcons;
-
-	private final CompanyLogoRepository companyLogos;
+	private final JobImageStore images;
 
 	private final ReminderRepository reminders;
 
@@ -78,13 +68,14 @@ class DefaultApplicationService implements ApplicationService {
 	public long create(NewApplication application) {
 		NewTimelineEvent initialStatus = initialStatusEvent(application);
 		requireRejectionReasonOnlyOnRejection(initialStatus);
-		String source = sourceOf(application.link());
+		String source = JobImageStore.sourceOf(application.link());
 		ApplicationEntity entity = new ApplicationEntity(application, source, this.clock.instant());
 		// Every timeline starts with the initial status, so it always has a first entry
 		entity.addEvent(initialStatus);
-		long id = this.applications.save(entity).getId();
-		saveSourceIcon(application.userId(), source, application.sourceIcon());
-		saveCompanyLogo(id, application.companyLogo());
+		ApplicationEntity saved = this.applications.save(entity);
+		long id = saved.getId();
+		this.images.saveSourceIcon(application.userId(), source, application.sourceIcon());
+		this.images.saveCompanyLogo(saved, application.companyLogo());
 		log.info("Created application {} for profile {} as {}", id, application.userId(), application.initialStatus());
 		return id;
 	}
@@ -103,8 +94,8 @@ class DefaultApplicationService implements ApplicationService {
 
 		ApplicationEntity tracked = existing.get();
 		log.debug("Link already tracked as application {}", tracked.getId());
-		saveSourceIcon(application.userId(), tracked.getSource(), application.sourceIcon());
-		saveCompanyLogo(tracked.getId(), application.companyLogo());
+		this.images.saveSourceIcon(application.userId(), tracked.getSource(), application.sourceIcon());
+		this.images.saveCompanyLogo(tracked, application.companyLogo());
 
 		if (tracked.getArchivedAt() != null) {
 			// Saved again from its posting: it's in use again
@@ -133,23 +124,22 @@ class DefaultApplicationService implements ApplicationService {
 
 	@Override
 	public Optional<PngImage> findSourceIcon(long userId, String source) {
-		return this.sourceIcons.findById(new SourceIconKey(userId, source))
-			.map(icon -> new PngImage(icon.getImage()));
+		return this.images.findSourceIcon(userId, source);
 	}
 
 	@Override
 	public Set<String> findSourcesWithIcon(long userId) {
-		return this.sourceIcons.findSources(userId);
+		return this.images.findSourcesWithIcon(userId);
 	}
 
 	@Override
 	public Optional<PngImage> findCompanyLogo(long userId, long applicationId) {
-		return this.companyLogos.findOwned(userId, applicationId).map(logo -> new PngImage(logo.getImage()));
+		return this.images.findCompanyLogo(userId, applicationId);
 	}
 
 	@Override
 	public Set<Long> findApplicationsWithLogo(long userId) {
-		return this.companyLogos.findApplicationIds(userId);
+		return this.images.findApplicationsWithLogo(userId);
 	}
 
 	@Override
@@ -422,49 +412,6 @@ class DefaultApplicationService implements ApplicationService {
 		int deleted = this.applications.deleteOwned(userId, applicationIds);
 		log.info("Deleted {} of the {} applications asked for by profile {}", deleted, applicationIds.size(), userId);
 		return deleted;
-	}
-
-	/**
-	 * The site the posting came from, e.g. {@code linkedin.com}.
-	 */
-	private static @Nullable String sourceOf(@Nullable String link) {
-		if (link == null) {
-			return null;
-		}
-		try {
-			String host = URI.create(link).getHost();
-			return (host != null && host.startsWith(WWW_PREFIX)) ? host.substring(WWW_PREFIX.length()) : host;
-		} catch (IllegalArgumentException exception) {
-			// Not a link Java can parse. The source is optional, so the application is saved without one.
-			return null;
-		}
-	}
-
-	/**
-	 * Keeps the icon for the site, replacing the one it had. Nothing without an icon, or without a site to keep it for.
-	 */
-	private void saveSourceIcon(long userId, @Nullable String source, @Nullable PngImage icon) {
-		if (source == null || icon == null) {
-			return;
-		}
-		SourceIconKey key = new SourceIconKey(userId, source);
-		this.sourceIcons.findById(key)
-			.ifPresentOrElse(existing -> existing.changeImage(icon.png()),
-					() -> this.sourceIcons.save(new SourceIconEntity(key, icon.png())));
-		log.debug("Kept the icon of {} for profile {}", source, userId);
-	}
-
-	/**
-	 * Keeps the application's company logo, replacing the one it had. Nothing without a logo.
-	 */
-	private void saveCompanyLogo(long applicationId, @Nullable PngImage logo) {
-		if (logo == null) {
-			return;
-		}
-		this.companyLogos.findById(applicationId)
-			.ifPresentOrElse(existing -> existing.changeImage(logo.png()),
-					() -> this.companyLogos.save(new CompanyLogoEntity(applicationId, logo.png())));
-		log.debug("Kept the company logo of application {}", applicationId);
 	}
 
 	/**

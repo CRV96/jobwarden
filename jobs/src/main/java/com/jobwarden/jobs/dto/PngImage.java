@@ -7,6 +7,8 @@ import java.util.Arrays;
  *
  * @param png the image, at most {@link #MAX_SIZE} bytes
  */
+// The bytes go as they are, to be written out: no two are ever compared, so the array's equals doesn't matter
+@SuppressWarnings("ArrayRecordComponent")
 public record PngImage(byte[] png) {
 
 	/** Far more than an icon or a logo takes: they come in at most 64 by 64 pixels. */

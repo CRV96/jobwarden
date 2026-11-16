@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import com.jobwarden.common.net.HttpClients;
 import lombok.CustomLog;
 import org.jspecify.annotations.Nullable;
 import tools.jackson.core.JacksonException;
@@ -47,10 +48,7 @@ class EurostatSalaries {
 
 	private final JsonMapper json = JsonMapper.builder().build();
 
-	private final HttpClient http = HttpClient.newBuilder()
-		.connectTimeout(TIMEOUT)
-		.followRedirects(HttpClient.Redirect.NORMAL)
-		.build();
+	private final HttpClient http = HttpClients.followingRedirects(TIMEOUT);
 
 	private @Nullable EarningsTable table;
 

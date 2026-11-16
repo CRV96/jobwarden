@@ -230,6 +230,9 @@
   "updateReload": {
     "message": "Serverul tău JobWarden rulează $1: reîncarcă extensia ca să fie la fel"
   },
+  "updateHide": {
+    "message": "Ascunde până la următoarea versiune"
+  },
   "extensionVersion": {
     "message": "Extensia JobWarden $1"
   },

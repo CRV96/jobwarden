@@ -5,7 +5,7 @@ import java.util.Locale;
 
 import com.jobwarden.jobs.dto.ReminderNotice;
 import com.jobwarden.jobs.service.ReminderService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
+import com.jobwarden.web.constants.ControllerConstants;
 import com.jobwarden.web.user.CurrentUser;
 import lombok.RequiredArgsConstructor;
 

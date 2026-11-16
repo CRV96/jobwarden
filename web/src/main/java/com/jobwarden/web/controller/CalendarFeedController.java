@@ -9,7 +9,7 @@ import java.util.Set;
 
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.jobs.service.CalendarFeedService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
+import com.jobwarden.web.constants.ControllerConstants;
 import com.jobwarden.web.enums.CalendarEntryType;
 import com.jobwarden.web.view.CalendarIcs;
 import lombok.CustomLog;

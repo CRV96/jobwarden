@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan.Filter;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -21,7 +23,8 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
-@WebMvcTest(ImageController.class)
+// Not a page: it answers without the layout, so LayoutAdvice, and what it reads, stays out
+@WebMvcTest(controllers = ImageController.class, excludeFilters = @Filter(type = FilterType.ASSIGNABLE_TYPE, classes = LayoutAdvice.class))
 class ImageControllerTests {
 
 	private static final User ROBERT = new User(1, "Robert", Instant.parse("2026-09-28T10:00:00Z"));

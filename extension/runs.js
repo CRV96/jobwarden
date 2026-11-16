@@ -5,6 +5,7 @@
 // easyapply.js updates it.
 
 import { capture, formAnswers, learnAnswer, lookUp } from './api.js';
+import { EASY_APPLY_SCRIPTS, EXTRACT_SCRIPTS } from './injected.js';
 import { loadSettings } from './settings.js';
 
 /** Where the run is kept: {tabId, limit, saveOthers, status, applied, saved, skipped, seen}. */
@@ -104,7 +105,7 @@ const HANDLERS = {
  */
 async function record(tabId, link, action) {
   const settings = await requireSettings();
-  const [injection] = await chrome.scripting.executeScript({ target: { tabId }, files: ['extract.js'] });
+  const [injection] = await chrome.scripting.executeScript({ target: { tabId }, files: EXTRACT_SCRIPTS });
   const job = injection?.result;
   if (!job?.title) {
     throw new Error(`JobWarden couldn’t read the job at ${link}`);
@@ -122,5 +123,5 @@ async function requireSettings() {
 }
 
 function inject(tabId) {
-  return chrome.scripting.executeScript({ target: { tabId }, files: ['easyapply.js'] });
+  return chrome.scripting.executeScript({ target: { tabId }, files: EASY_APPLY_SCRIPTS });
 }

@@ -51,9 +51,7 @@ class ImapMailReader implements MailReader {
 
 	private final String timeoutMillis;
 
-	/**
-	 * @param tls false for a server without TLS, only for the tests' own
-	 */
+	/** False for a server without TLS, only for the tests' own. */
 	private final boolean tls;
 
 	private final Clock clock;
@@ -166,13 +164,21 @@ class ImapMailReader implements MailReader {
 	private MailMessage read(Message message, long validity, long uid) throws MessagingException, IOException {
 		String messageId = (message instanceof MimeMessage mime && mime.getMessageID() != null) ? mime.getMessageID()
 				: "uid:" + validity + ":" + uid;
-		Date received = (message.getReceivedDate() != null) ? message.getReceivedDate() : message.getSentDate();
+		Instant received = instantOf(message.getReceivedDate());
+		if (received == null) {
+			received = instantOf(message.getSentDate());
+		}
 		InternetAddress from = firstAddress(message.getFrom());
 		String text = text(message);
-		return new MailMessage(messageId, (received != null) ? received.toInstant() : this.clock.instant(),
+		return new MailMessage(messageId, (received != null) ? received : this.clock.instant(),
 				(from != null) ? from.getPersonal() : null, (from != null) ? from.getAddress() : null,
 				(message.getSubject() != null) ? message.getSubject() : "",
 				(text.length() > TEXT_MAX_LENGTH) ? text.substring(0, TEXT_MAX_LENGTH) : text);
+	}
+
+	/** jakarta.mail's dates are java.util.Date: an Instant at once. */
+	private static @Nullable Instant instantOf(@Nullable Date date) {
+		return (date != null) ? date.toInstant() : null;
 	}
 
 	private static @Nullable InternetAddress firstAddress(Address @Nullable [] addresses) {
