@@ -28,6 +28,13 @@ SonarCloud and Dependabot. What follows is what was missing.
       (`AssistantRunner`, now logged), boxing comparators, wrong Javadoc tags, a lock taken before what it guards.
       Four checks are off, with the reason in the pom: MissingSummary, ImmutableEnumChecker, StringSplitter,
       MultipleNullnessAnnotations.
+- [x] One workflow, one run per pull request, push and tag, with every check as a job waiting only for what it needs:
+      `build` (Error Prone, NullAway, Spotless, ESLint, the jar), then `test` and `docker` side by side, `sonar` after
+      the tests; on a push, `publish` (the image) once the tests and the image passed, and on a tag, `release`.
+      `dependency-review` and `codeql` from the start: CodeQL moved from GitHub's default setup into the workflow, so it
+      shows in the same run. `docker.yml` and `release.yml` are gone; a release is published only after its tests pass,
+      with the jar the `build` job made, and `main`'s image only once its tests passed (it used to be published either
+      way). CodeRabbit is a GitHub App, so its check shows beside the run's jobs, not in it.
 
 ## 2. Operations (production readiness)
 
@@ -99,8 +106,12 @@ SonarCloud and Dependabot. What follows is what was missing.
 - [x] Strategy pattern for the job boards: a sealed `BoardFeed` with `GreenhouseFeed`, `LeverFeed` and `AshbyFeed`,
       each with its addresses and JSON; `BoardFeeds` (514 lines, now 329) does the reading the same for all, and an
       exhaustive `switch` makes a new ATS name its feed.
-- [ ] Split the largest classes along their responsibilities: `RequestTools` (835 lines), `AppConstants` (649),
-      `JobTools`, `DefaultApplicationService`, `DefaultApplicationCsvService`, `DefaultWatchlistService`.
+- [x] The largest classes split along their responsibilities: `RequestTools` (835 lines, now 474) gave each request
+      kind's instructions to `RequestInstructions`; `AppConstants` (649) became `ControllerConstants`, `Views`,
+      `ModelAttributes`, `HtmxHeaders` and `HtmxEvents`; `DefaultApplicationService` gave the sites' icons and the
+      companies' logos to `JobImageStore`; `DefaultApplicationCsvService` (503, now 306) gave the file's columns and how
+      each cell reads to `JobsCsvFormat`. `JobTools` (one MCP tool set, a method per tool) and `DefaultWatchlistService`
+      (whose reading and matching are `BoardFeeds`' and `PostingMatcher`'s) stay whole: what's left in each is one thing.
 - [x] ~~Domain events where one module calls another only to tell it something happened.~~ None does: every
       cross-module call is a query or a command whose result is needed at once, and what a deletion leaves the database
       cascades in the same transaction (42 foreign keys). Recorded in [ADR 0006](adr/0006-modules-call-not-publish.md),
@@ -117,10 +128,11 @@ SonarCloud and Dependabot. What follows is what was missing.
 - [x] Unit tests in the modules that had none of their own (`identity`, `discover`, `hiring`, `apply`): their pure
       rules (which assistant applies in the browser, which requests need requirements or a job, the requirements'
       defaults and caps, how far back "posted within" reaches, which Auto-apply statuses are open or retryable).
-- [ ] **Blocked:** a coverage floor. JaCoCo's `check` can't hold the aggregate of every module's tests (most run in
-      `app`); SonarCloud's quality gate can ("Coverage on New Code"), but it gets no coverage yet: the repository has no
-      `SONAR_TOKEN` secret, so CI's analysis step is skipped and SonarCloud's Automatic Analysis, which can't import
-      coverage, runs instead. Add the secret, turn Automatic Analysis off, then set the gate's condition.
+- [x] A coverage floor, held by SonarCloud's quality gate ("Sonar way": 80% coverage on new code), as JaCoCo's `check`
+      can't hold the aggregate of every module's tests (most run in `app`). CI's `sonar` job analyzes with the `test`
+      job's coverage and waits for the gate's verdict, now that the repository has the `SONAR_TOKEN` secret. It needs
+      SonarCloud's Automatic Analysis turned off (Administration → Analysis Method), which can't import coverage and
+      refuses to run beside CI's.
 
 ## 6. Frontend (`web` templates and `app.js`, `extension/`)
 
@@ -131,7 +143,11 @@ SonarCloud and Dependabot. What follows is what was missing.
 - [x] `TemplatesTests`: no template asks for what the Content Security Policy refuses (inline scripts or handlers,
       HTMX trigger filters, `hx-on`, `js:` values). The jobs list had one: a trigger filter, which the policy turned into
       "every click", so ticking a row's box opened it in the side panel; the row now fires its own `row-click`.
-- [ ] Accessibility pass: labels, focus order, keyboard use of the swipe cards and the pipeline's drag and drop.
+- [x] Accessibility pass. Every page starts with a "Skip to the page" link past the sidebar, to the page's content,
+      which takes the focus. `TemplatesTests` now also refuses a field without a label, an icon-only button or link
+      without a name, and an image without `alt`; none had slipped through. Keyboards could already do what the
+      pointer does: the swipe card's arrow keys and A, and on the pipeline, each card's title opens its side panel,
+      whose status buttons do what dropping it on a column does. Focus rings and `prefers-reduced-motion` were there.
 - [ ] `extension/easyapply.js` (1,194 lines) and `extract.js` (770) split by site and step.
 
 ## 7. Documentation

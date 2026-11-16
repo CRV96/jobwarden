@@ -32,6 +32,9 @@
 
 <!--/* data-reminders: where app.js asks for the reminders that are due, while a profile is selected */-->
 <body th:data-reminders="${currentProfile != null} ? @{/reminders/due}" th:data-fold="#{card.fold}" th:data-unfold="#{card.unfold}">
+<!--/* The first stop of the keyboard: past the sidebar's links, straight to the page. Hidden until it has the focus. */-->
+<a class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2 focus:shadow-lg"
+   href="#content" th:text="#{nav.skip}">Skip to the page</a>
 <!--/* Below the md breakpoint the sidebar is always folded to its icons; above it, its button folds it (folded:). */-->
 <div class="grid min-h-screen grid-cols-[232px_minmax(0,1fr)] transition-[grid-template-columns] duration-200 max-md:grid-cols-[64px_minmax(0,1fr)] folded:grid-cols-[64px_minmax(0,1fr)]">
     <aside class="sticky top-0 flex h-screen min-w-0 flex-col gap-4 overflow-hidden bg-sidebar px-3 py-4 shadow-[inset_-1px_0_0_var(--jw-line)]">
@@ -166,7 +169,7 @@
             <a class="underline" href="" th:text="#{requestError.reload}">Reload the page and try again.</a>
         </div>
 
-        <div class="px-8 py-6 max-md:px-4">
+        <div id="content" class="px-8 py-6 max-md:px-4" tabindex="-1">
             <main th:replace="${content}"></main>
         </div>
     </div>

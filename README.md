@@ -348,13 +348,20 @@ The pages are in English, Romanian, French, German, Polish, Spanish, Portuguese 
 
 ## Testing
 
-`./mvnw verify` runs everything. On every pull request and every push to `main`, GitHub Actions runs:
+`./mvnw verify` runs everything. On every pull request, every push to `main` and every release tag, GitHub Actions runs one workflow, [CI](.github/workflows/ci.yml), whose jobs each wait for what they need:
 
-- [CI](.github/workflows/ci.yml): the build and all the tests, with what they cover (`-Pcoverage`, JaCoCo), then SonarCloud's analysis of it; on pull requests, a review of the dependencies they add, which fails on a high-severity vulnerability.
-- CodeQL: code scanning of the Java, the JavaScript and the workflows, weekly too. It's GitHub's default setup, in the repository's settings (Code security), not a workflow: the two can't both upload.
-- [Docker image](.github/workflows/docker.yml): builds the image, and on `main` and tags publishes it.
+| Job | What | After |
+|---|---|---|
+| `build` | Compiles every module with Error Prone and NullAway, checks the imports and the JavaScript (ESLint), builds the CSS, packages the jar | |
+| `test` | All the tests, with what they cover (`-Pcoverage`, JaCoCo) | `build` |
+| `sonar` | SonarCloud's analysis, with that coverage, and its quality gate's verdict | `test` |
+| `docker` | Builds the image | `build` |
+| `publish` | On `main` and tags: publishes the image | `test`, `docker` |
+| `release` | On tags: publishes the release (below) | `publish` |
+| `dependency-review` | On pull requests: the dependencies they add, failing on a high-severity vulnerability | |
+| `codeql` | Code scanning of the Java, the JavaScript and the workflows | |
 
-[CodeRabbit](.coderabbit.yaml) reviews each pull request, and [Dependabot](.github/dependabot.yml) keeps the dependencies and the actions up to date. The "Protect Main" ruleset ([.github/rulesets](.github/rulesets)) makes a pull request wait for the build, the dependency review, the image, SonarCloud's quality gate and CodeQL, and for the code owner's approval ([CODEOWNERS](.github/CODEOWNERS)). GitHub doesn't let anyone approve their own pull request, so the owner's go through the admin bypass, which skips the checks too: merge those only once they're green. The file doesn't apply itself; after changing it, run `gh api -X PUT repos/CRV96/jobwarden/rulesets/26456384 --input .github/rulesets/protect-main.json`. See [SECURITY.md](SECURITY.md) for reporting a vulnerability.
+[CodeRabbit](.coderabbit.yaml) reviews each pull request (a GitHub App, so its check shows beside the workflow's rather than in it), and [Dependabot](.github/dependabot.yml) keeps the dependencies and the actions up to date. The "Protect Main" ruleset ([.github/rulesets](.github/rulesets)) makes a pull request wait for the build, the tests, the dependency review, the image, SonarCloud's quality gate and CodeQL, and for the code owner's approval ([CODEOWNERS](.github/CODEOWNERS)). GitHub doesn't let anyone approve their own pull request, so the owner's go through the admin bypass, which skips the checks too: merge those only once they're green. The file doesn't apply itself; after changing it, run `gh api -X PUT repos/CRV96/jobwarden/rulesets/26456384 --input .github/rulesets/protect-main.json`. See [SECURITY.md](SECURITY.md) for reporting a vulnerability.
 
 Each kind of test has one place:
 
@@ -382,7 +389,7 @@ To release a version:
 1. Set it everywhere: `./mvnw versions:set -DnewVersion=0.2.0 -DgenerateBackupPoms=false`, and `"version": "0.2.0"` in the manifest.
 2. Commit, then tag the commit and push the tag: `git tag v0.2.0 && git push origin v0.2.0`.
 
-The [Release workflow](.github/workflows/release.yml) checks that the tag, the Maven projects and the manifest say the same, builds and tests, and publishes a GitHub release with the app's jar, the extension's zip, and notes made from the pull requests since the last release; the [Docker workflow](.github/workflows/docker.yml) publishes the tag's image. Each is attested as built from the tag ([SECURITY.md](SECURITY.md#how-the-project-is-checked) shows how to verify it).
+The tag's run of [CI](.github/workflows/ci.yml) checks that the tag, the Maven projects and the manifest say the same, builds and tests, publishes the tag's image, then a GitHub release with the app's jar, the extension's zip, and notes made from the pull requests since the last release. Each is attested as built from the tag ([SECURITY.md](SECURITY.md#how-the-project-is-checked) shows how to verify it).
 
 Running servers ask GitHub for the latest release as they start and every six hours (`jobwarden.updates.repository`; `jobwarden.updates.check=false` never asks). A newer one shows in the sidebar (until it's hidden for that version), in Settings → About, and in the extension's popup, which also says when the server already runs a newer version than the extension. To update: get the release's code (git pull, or its files), restart the app, then reload the extension.
 

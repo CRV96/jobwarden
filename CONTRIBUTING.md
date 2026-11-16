@@ -19,7 +19,7 @@ JobWarden is open-source software owned by Robert-Vasile Ciapă and released und
 
 Pull requests from contributors who have not signed the CLA will not be merged.
 
-Each pull request is checked on its own: the build and all the tests, CodeQL, SonarCloud's quality gate, a review of the dependencies it adds, and the Docker image's build, and CodeRabbit reviews it. It merges once they pass and its review threads are resolved. A security problem is never reported in an issue or a pull request: see [SECURITY.md](SECURITY.md).
+Each pull request is checked on its own, in one run of the CI workflow: the build, all the tests, SonarCloud's quality gate, the Docker image's build, CodeQL and a review of the dependencies it adds; CodeRabbit reviews it too. It merges once they pass and its review threads are resolved. A security problem is never reported in an issue or a pull request: see [SECURITY.md](SECURITY.md).
 
 ## Contributor License Agreement
 
