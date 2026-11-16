@@ -1,12 +1,14 @@
 # JobWarden
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a-Coffee-FFDD00?logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/robertciapa)
-[![Support me on Revolut](https://img.shields.io/badge/Support%20me-Revolut-0075EB?logo=revolut&logoColor=white)](https://revolut.me/robertcrv)
+[![Support me](https://img.shields.io/badge/Support%20me-Revolut-0075EB?logo=revolut&logoColor=white)](https://revolut.me/robertcrv)
 
 The keeper of your job hunt: save job postings from the browser in one click, and keep every application's story, from the first save to the offer.
 
 [![Build](https://github.com/CRV96/jobwarden/actions/workflows/build.yml/badge.svg)](https://github.com/CRV96/jobwarden/actions/workflows/build.yml)
+
 [![Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?logo=discord&logoColor=white)](https://discord.gg/A4U2eVNck)
-![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/CRV96/jobwarden?utm_source=oss&utm_medium=github&utm_campaign=CRV96%2Fjobwarden&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+
+[![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/CRV96/jobwarden?utm_source=oss&utm_medium=github&utm_campaign=CRV96%2Fjobwarden&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
 
 ## Running locally
 
