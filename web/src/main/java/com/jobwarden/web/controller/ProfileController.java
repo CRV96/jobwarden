@@ -186,7 +186,7 @@ class ProfileController {
 	 */
 	private void deleteProfile(long userId) {
 		List<Long> requestIds = this.discovery.findRequests(userId, Integer.MAX_VALUE).stream().map(AiRequest::id).toList();
-		this.runner.ifAvailable(runner -> runner.forget(requestIds));
+		this.runner.ifAvailable(assistantRunner -> assistantRunner.forget(requestIds));
 		this.users.delete(userId);
 		this.currentUser.forget();
 	}

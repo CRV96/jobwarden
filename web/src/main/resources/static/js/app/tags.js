@@ -100,15 +100,21 @@ function moveHighlight(field, step) {
 	highlight(field, next ?? null);
 }
 
-/** Adds the highlighted suggestion, or else what's typed: in a field that splits at commas, each part of it. */
+/** Adds the highlighted suggestion, or else what's typed. */
 function addTyped(field) {
 	const input = field.querySelector('.tag-text');
-	const highlighted = field.querySelector('[role="option"][aria-selected="true"]:not([hidden])');
-	const values = highlighted ? [highlighted.dataset.value]
-		: field.dataset.splitCommas ? input.value.split(',') : [input.value];
-	values.forEach((value) => addTag(field, value));
+	typedValues(field, input).forEach((value) => addTag(field, value));
 	input.value = '';
 	tagsChanged(field);
+}
+
+/** The highlighted suggestion's value, else what's typed: in a field that splits at commas, each part of it. */
+function typedValues(field, input) {
+	const highlighted = field.querySelector('[role="option"][aria-selected="true"]:not([hidden])');
+	if (highlighted) {
+		return [highlighted.dataset.value];
+	}
+	return field.dataset.splitCommas ? input.value.split(',') : [input.value];
 }
 
 document.addEventListener('keydown', (event) => {

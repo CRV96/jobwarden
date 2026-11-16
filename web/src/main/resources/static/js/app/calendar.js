@@ -34,7 +34,7 @@ function showCalendar() {
 		calendarResizes.observe(grid);
 	}
 	for (const hours of document.querySelectorAll('[data-time-scroll]:not([data-scrolled])')) {
-		const hour = parseFloat(getComputedStyle(hours).getPropertyValue('--hour')) || 52;
+		const hour = Number.parseFloat(getComputedStyle(hours).getPropertyValue('--hour')) || 52;
 		hours.scrollTop = (Number(hours.dataset.scrollTo) / 60) * hour;
 		hours.dataset.scrolled = '';
 	}

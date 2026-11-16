@@ -57,7 +57,7 @@ class JobImageStore {
 		try {
 			String host = URI.create(link).getHost();
 			return (host != null && host.startsWith(WWW_PREFIX)) ? host.substring(WWW_PREFIX.length()) : host;
-		} catch (IllegalArgumentException exception) {
+		} catch (IllegalArgumentException _) {
 			// Not a link Java can parse. The source is optional, so the application is saved without one.
 			return null;
 		}

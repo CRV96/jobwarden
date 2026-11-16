@@ -37,25 +37,25 @@ public class PromptCards {
 	 */
 	public Prompt prompt(User profile, List<Long> requestIds) {
 		Prompt prompt = AssistantPrompts.forRequests(profile.assistant(), requestIds, profile.id());
-		AssistantRunner runner = this.runner.getIfAvailable();
-		if (runner == null) {
+		AssistantRunner assistantRunner = this.runner.getIfAvailable();
+		if (assistantRunner == null) {
 			return connected(prompt, profile);
 		}
 		// Why Run last refused them, kept a while, so the card keeps saying it as it asks again
-		RunRefusal refused = runner.refusal(requestIds)
+		RunRefusal refused = assistantRunner.refusal(requestIds)
 			.map(refusal -> new RunRefusal(refusal.reason().name(), refusal.assistant().product(),
 					AssistantRunner.signInCommand(refusal.assistant())))
 			.orElse(null);
-		return connected(prompt.run(runner.canRun(profile.assistant()), runner.isRunning(requestIds)).refused(refused),
-				profile);
+		return connected(prompt.run(assistantRunner.canRun(profile.assistant()), assistantRunner.isRunning(requestIds))
+			.refused(refused), profile);
 	}
 
 	/**
 	 * Whether the assistant has JobWarden's MCP server on this computer; unknown without a way to tell.
 	 */
 	public Connection connection(Assistant assistant) {
-		AssistantConnections connections = this.connections.getIfAvailable();
-		@Nullable Connection connection = (connections == null) ? null : connections.find(assistant);
+		AssistantConnections assistantConnections = this.connections.getIfAvailable();
+		@Nullable Connection connection = (assistantConnections == null) ? null : assistantConnections.find(assistant);
 		return (connection == null) ? Connection.UNKNOWN : connection;
 	}
 

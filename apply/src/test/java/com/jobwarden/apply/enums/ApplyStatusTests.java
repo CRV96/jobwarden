@@ -23,7 +23,7 @@ class ApplyStatusTests {
 
 	@Test
 	void eachResultTheAssistantReportsEndsTheApplying() {
-		assertThat(ApplyStatus.RESULTS).noneMatch(ApplyStatus::isOpen);
+		assertThat(ApplyStatus.RESULTS.stream().filter(ApplyStatus::isOpen).toList()).isEmpty();
 	}
 
 }

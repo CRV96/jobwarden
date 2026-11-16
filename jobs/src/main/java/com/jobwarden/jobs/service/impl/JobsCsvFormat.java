@@ -3,7 +3,6 @@ package com.jobwarden.jobs.service.impl;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
@@ -102,7 +101,7 @@ final class JobsCsvFormat {
 				return at(Integer.parseInt(dayFirst.group(3)), Integer.parseInt(dayFirst.group(2)),
 						Integer.parseInt(dayFirst.group(1)), dayFirst.group(4), dayFirst.group(5), dayFirst.group(6));
 			}
-		} catch (DateTimeException notADate) {
+		} catch (DateTimeException _) {
 			// e.g. 2026-02-30: reported below, like text that isn't a date
 		}
 		throw new InvalidRow(CsvProblem.BAD_DATE, value);
@@ -110,9 +109,12 @@ final class JobsCsvFormat {
 
 	static LocalDateTime at(int year, int month, int day, @Nullable String hour, @Nullable String minute,
 			@Nullable String second) {
-		LocalTime time = (hour != null) ? LocalTime.of(Integer.parseInt(hour), Integer.parseInt(minute),
-				(second != null) ? Integer.parseInt(second) : 0) : LocalTime.MIDNIGHT;
-		return LocalDate.of(year, month, day).atTime(time);
+		LocalDate date = LocalDate.of(year, month, day);
+		if (hour == null) {
+			return date.atStartOfDay();
+		}
+		int seconds = (second != null) ? Integer.parseInt(second) : 0;
+		return date.atTime(Integer.parseInt(hour), Integer.parseInt(minute), seconds);
 	}
 
 	/**
@@ -136,7 +138,7 @@ final class JobsCsvFormat {
 	 * "No response", "no-response" and "NO_RESPONSE" all become NO_RESPONSE.
 	 */
 	static String constantName(String value) {
-		return value.strip().toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "_").replaceAll("^_|_$", "");
+		return value.strip().toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "_").replaceAll("(^_)|(_$)", "");
 	}
 
 	/**

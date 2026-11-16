@@ -61,7 +61,7 @@ document.addEventListener('beforetoggle', (event) => {
 		return;
 	}
 	const anchor = document.getElementById(menu.dataset.anchor).getBoundingClientRect();
-	const width = parseFloat(getComputedStyle(menu).width);
+	const width = Number.parseFloat(getComputedStyle(menu).width);
 	menu.style.top = `${anchor.bottom + 6}px`;
 	menu.style.left = `${Math.max(8, anchor.right - width)}px`;
 }, true);

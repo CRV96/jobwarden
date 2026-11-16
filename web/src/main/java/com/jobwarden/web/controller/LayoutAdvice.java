@@ -51,11 +51,12 @@ class LayoutAdvice {
 			return;
 		}
 		model.addAttribute(ModelAttributes.SIDEBAR_PROFILES, this.users.findAll());
-		this.updates.ifAvailable(updates -> model.addAttribute(ModelAttributes.UPDATE, updates.status()));
+		this.updates.ifAvailable(updateService -> model.addAttribute(ModelAttributes.UPDATE, updateService.status()));
 		if (profile != null) {
 			model.addAttribute(ModelAttributes.APPLICATION_COUNT, this.applications.count(profile.id()));
 			model.addAttribute(ModelAttributes.DISCOVER_COUNT, this.discovery.countToReview(profile.id(), null));
-			this.inbox.ifAvailable(inbox -> model.addAttribute(ModelAttributes.INBOX_COUNT, inbox.countPending(profile.id())));
+			this.inbox.ifAvailable(
+					inboxService -> model.addAttribute(ModelAttributes.INBOX_COUNT, inboxService.countPending(profile.id())));
 		}
 	}
 
