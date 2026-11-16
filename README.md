@@ -343,14 +343,14 @@ The pages are in English, Romanian, French, German, Polish, Spanish, Portuguese 
 |---|---|---|
 | `build` | Compiles every module with Error Prone and NullAway, checks the imports and the JavaScript (ESLint), builds the CSS, packages the jar | |
 | `test` | All the tests, with what they cover (`-Pcoverage`, JaCoCo) | `build` |
-| `sonar` | SonarCloud's analysis, with that coverage, and its quality gate's verdict. Skipped on pull requests from forks, which GitHub gives no secrets (`SONAR_TOKEN`): their code is analyzed once merged, on `main` | `test` |
+| `sonar` | SonarCloud's analysis, with that coverage, and its quality gate's verdict. Skipped on pull requests from forks, which GitHub gives no secrets (`SONAR_TOKEN`): their code is analyzed once merged, on `main` (see below) | `test` |
 | `docker` | Builds the image | `build` |
 | `publish` | On `main` and tags: publishes the image | `test`, `docker` |
 | `release` | On tags: publishes the release (below) | `publish` |
 | `dependency-review` | On pull requests: the dependencies they add, failing on a high-severity vulnerability | |
 | `codeql` | Code scanning of the Java, the JavaScript and the workflows | |
 
-[CodeRabbit](.coderabbit.yaml) reviews each pull request (a GitHub App, so its check shows beside the workflow's rather than in it), and [Dependabot](.github/dependabot.yml) keeps the dependencies and the actions up to date. The "Protect Main" ruleset ([.github/rulesets](.github/rulesets)) makes a pull request wait for the build, the tests, the dependency review, the image, SonarCloud's quality gate and CodeQL, and for the code owner's approval ([CODEOWNERS](.github/CODEOWNERS)). GitHub doesn't let anyone approve their own pull request, so the owner's go through the admin bypass, which skips the checks too: merge those only once they're green. The file doesn't apply itself; after changing it, run `gh api -X PUT repos/CRV96/jobwarden/rulesets/26456384 --input .github/rulesets/protect-main.json`. See [SECURITY.md](SECURITY.md) for reporting a vulnerability.
+[CodeRabbit](.coderabbit.yaml) reviews each pull request (a GitHub App, so its check shows beside the workflow's rather than in it), and [Dependabot](.github/dependabot.yml) keeps the dependencies and the actions up to date. The "Protect Main" ruleset ([.github/rulesets](.github/rulesets)) makes a pull request wait for the build, the tests, the dependency review, the image, SonarCloud's quality gate and CodeQL, and for the code owner's approval ([CODEOWNERS](.github/CODEOWNERS)). GitHub doesn't let anyone approve their own pull request, so the owner's go through the admin bypass, which skips the checks too: merge those only once they're green. A pull request from a fork never gets SonarCloud's check, as its run has no `SONAR_TOKEN`: the owner reviews its code with the other checks green, merges it through the same bypass, and `main`'s run analyzes it right after; a quality gate failing there is fixed in a pull request of the owner's. The file doesn't apply itself; after changing it, run `gh api -X PUT repos/CRV96/jobwarden/rulesets/26456384 --input .github/rulesets/protect-main.json`. See [SECURITY.md](SECURITY.md) for reporting a vulnerability.
 
 Each kind of test has one place:
 

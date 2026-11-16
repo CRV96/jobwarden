@@ -21,6 +21,11 @@ document.addEventListener('dragstart', (event) => {
 	if (!card) {
 		return;
 	}
+	// A card whose move is still on its way stays put, whatever part of it is dragged: its logo, an image, drags too
+	if (!card.draggable) {
+		event.preventDefault();
+		return;
+	}
 	draggedCard = card;
 	event.dataTransfer.effectAllowed = 'move';
 	event.dataTransfer.setData('text/plain', card.dataset.dragCard);
@@ -74,16 +79,17 @@ document.addEventListener('drop', (event) => {
 
 /**
  * Gives the card's application its new status. Saved, the answer says applications-changed; else the card goes back
- * to its column and place, and on a refusal (an answer without it) its side panel opens.
+ * to its column and place, and on a refusal (an answer without it) its side panel opens. The request is the card's own
+ * (its source), so only its answer settles the move: a status given from the side panel, to the same address, doesn't.
  */
 function sendStatus(card, before) {
 	const url = card.dataset.eventsUrl;
 	card.draggable = false;
 	const answered = (event) => {
-		if (event.detail.requestConfig?.path !== url) {
+		if (event.detail.elt !== card) {
 			return;
 		}
-		document.removeEventListener('htmx:afterRequest', answered);
+		card.removeEventListener('htmx:afterRequest', answered);
 		card.draggable = true;
 		const saved = event.detail.successful
 			&& (event.detail.xhr.getResponseHeader('HX-Trigger') ?? '').includes('applications-changed');
@@ -95,8 +101,11 @@ function sendStatus(card, before) {
 			}
 		}
 	};
-	document.addEventListener('htmx:afterRequest', answered);
-	htmx.ajax('POST', url, { swap: 'none', values: { stageCategory: card.dataset.status, view: 'DRAWER' } });
+	card.addEventListener('htmx:afterRequest', answered);
+	// The card is the source and the target too: else HTMX takes the card's own target, the side panel, which then opens
+	htmx.ajax('POST', url, {
+		source: card, target: card, swap: 'none', values: { stageCategory: card.dataset.status, view: 'DRAWER' },
+	});
 }
 
 /** Opens the card's side panel with its "Rejected…" question shown, the way its button there shows it. */

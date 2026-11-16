@@ -47,6 +47,8 @@ a release renames it to its version and date.
 - The MCP server answered a tool call without its required status or result with an internal error rather than saying
   what was missing.
 - The home page: in Safari and Firefox, "The last 30 days" showed the charts' hidden text over their labels.
+- After an upgrade, the pages could keep running the previous version's scripts and styles from the browser's cache.
+  They're now checked with the server on every load (an unchanged one costs a "not modified").
 - The jobs list: ticking a row's box opened it in the side panel (since the Content Security Policy above, before any
   release).
 

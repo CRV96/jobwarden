@@ -138,8 +138,10 @@ final class JobsCsvFormat {
 	}
 
 	/**
-	 * Whether the address names a host after its scheme ("https://" alone doesn't). Only the scheme and the host are
-	 * parsed: the rest of a link a site made may hold what a strict parser refuses.
+	 * Whether the address names a host after its scheme: not "https://" alone, nor only a user ("https://user@") or a
+	 * port ("https://:8080"). Only the scheme and the authority are parsed: the rest of a link a site made may hold what
+	 * a strict parser refuses. The host is what's left of the authority without them, rather than URI.getHost(), which
+	 * has none for a name with an underscore, as some companies' subdomains have.
 	 */
 	private static boolean hasHost(String address) {
 		int start = address.indexOf("://") + 3;
@@ -147,12 +149,22 @@ final class JobsCsvFormat {
 		while (end < address.length() && "/?#".indexOf(address.charAt(end)) < 0) {
 			end++;
 		}
+		String authority;
 		try {
-			String authority = new URI(address.substring(0, end)).getRawAuthority();
-			return authority != null && !authority.isBlank();
+			authority = new URI(address.substring(0, end)).getRawAuthority();
 		} catch (URISyntaxException _) {
 			return false;
 		}
+		if (authority == null) {
+			return false;
+		}
+		String host = authority.substring(authority.lastIndexOf('@') + 1);
+		int port = host.lastIndexOf(':');
+		// An IPv6 address, [::1], has colons of its own: only one after its bracket starts the port
+		if (port >= 0 && port > host.lastIndexOf(']')) {
+			host = host.substring(0, port);
+		}
+		return !host.isBlank();
 	}
 
 	/**

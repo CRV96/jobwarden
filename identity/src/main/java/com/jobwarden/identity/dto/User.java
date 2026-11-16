@@ -2,7 +2,6 @@ package com.jobwarden.identity.dto;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Objects;
 import java.util.UUID;
 
 import com.jobwarden.identity.enums.Assistant;
@@ -28,7 +27,7 @@ public record User(long id, String name, Instant createdAt, @Nullable Instant im
 		this.name = name;
 		this.createdAt = createdAt;
 		this.imageChangedAt = imageChangedAt;
-		this.assistant = Objects.requireNonNullElse(assistant, Assistant.DEFAULT);
+		this.assistant = (assistant != null) ? assistant : Assistant.DEFAULT;
 		this.publicId = (publicId != null) ? publicId
 				: UUID.nameUUIDFromBytes(("profile-" + id).getBytes(StandardCharsets.UTF_8));
 	}

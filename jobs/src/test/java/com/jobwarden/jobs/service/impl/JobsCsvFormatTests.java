@@ -19,15 +19,21 @@ class JobsCsvFormatTests {
 			HTTP://Acme.example/Jobs                         | HTTP://Acme.example/Jobs
 			https://acme.example/jobs?q=java developer^2     | https://acme.example/jobs?q=java developer^2
 			https://localhost:8080/jobs/1                    | https://localhost:8080/jobs/1
+			https://me@careers_eu.acme.example/1             | https://me@careers_eu.acme.example/1
+			http://[::1]:8080/jobs                           | http://[::1]:8080/jobs
 			linkedin.com/jobs/view/1                         | https://linkedin.com/jobs/view/1
 			""")
 	void keepsAWebAddressWithItsHost(String cell, String saved) throws InvalidRow {
 		assertThat(JobsCsvFormat.link(cell)).isEqualTo(saved);
 	}
 
-	/** The scheme alone, an address without a host or with a space in it, and what isn't a web address at all. */
+	/**
+	 * The scheme alone, an address without a host (only a user, or a port) or with a space in it, and what isn't a web
+	 * address at all.
+	 */
 	@ParameterizedTest
-	@ValueSource(strings = { "https://", "http://?x", "https:///jobs/1", "https://acme example/1",
+	@ValueSource(strings = { "https://", "http://?x", "https:///jobs/1", "https://acme example/1", "https://user@",
+			"https://:8080", "https://user@:8080/jobs",
 			"mailto:jobs@acme.example", "Acme careers page", "acme" })
 	void refusesWhatIsNoWebAddress(String cell) {
 		assertThatExceptionOfType(InvalidRow.class).isThrownBy(() -> JobsCsvFormat.link(cell))
