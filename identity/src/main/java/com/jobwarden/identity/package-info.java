@@ -5,4 +5,7 @@
  * Public API: the {@code dto} and {@code service} packages, marked with {@code @NamedInterface}.
  * {@code entity}, {@code repository} and {@code service.impl} are internal to the module.
  */
+@NullMarked
 package com.jobwarden.identity;
+
+import org.jspecify.annotations.NullMarked;

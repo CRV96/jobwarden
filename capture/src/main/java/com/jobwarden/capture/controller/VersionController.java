@@ -7,7 +7,6 @@ import com.jobwarden.updates.dto.UpdateStatus;
 import com.jobwarden.updates.service.UpdateService;
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -18,7 +17,6 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("${jobwarden.capture.path}/version")
-@CrossOrigin(originPatterns = { "moz-extension://*", "chrome-extension://*" })
 @RequiredArgsConstructor
 class VersionController {
 

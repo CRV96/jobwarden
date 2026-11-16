@@ -1,5 +1,6 @@
 package com.jobwarden.jobs.repository;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -8,10 +9,10 @@ import java.util.Map;
 import com.jobwarden.jobs.dto.ApplicationQuery;
 import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.entity.ApplicationEntity;
+import com.jobwarden.jobs.entity.JobFitEntity;
 import com.jobwarden.jobs.enums.ApplicationSort;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
@@ -21,6 +22,7 @@ import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.data.domain.Page;
@@ -36,8 +38,11 @@ class ApplicationQueriesImpl implements ApplicationQueries {
 
 	private static final char LIKE_ESCAPE = '\\';
 
-	@PersistenceContext
-	private EntityManager entityManager;
+	private final EntityManager entityManager;
+
+	ApplicationQueriesImpl(EntityManager entityManager) {
+		this.entityManager = entityManager;
+	}
 
 	@Override
 	public Page<ApplicationSummary> findSummaries(long userId, ApplicationQuery query) {
@@ -49,8 +54,8 @@ class ApplicationQueriesImpl implements ApplicationQueries {
 				application.get("company"), application.get("location"), application.get("salary"),
 				application.get("link"), application.get("source"), application.get("currentStatus"),
 				application.get("capturedAt"), application.get("updatedAt"), application.get("appliedBy")))
-			.where(matching(builder, application, userId, query.search(), query.status()))
-			.orderBy(order(builder, application, query));
+			.where(matching(builder, application, userId, query.search(), query.status(), query.archived()))
+			.orderBy(order(builder, rows, application, query));
 
 		Pageable pageable = PageRequest.of(query.page(), query.size());
 		List<ApplicationSummary> content = this.entityManager.createQuery(rows)
@@ -62,13 +67,13 @@ class ApplicationQueriesImpl implements ApplicationQueries {
 	}
 
 	@Override
-	public Map<ApplicationStatus, Long> countByStatus(long userId, @Nullable String search) {
+	public Map<ApplicationStatus, Long> countByStatus(long userId, @Nullable String search, boolean archived) {
 		CriteriaBuilder builder = this.entityManager.getCriteriaBuilder();
 		CriteriaQuery<Tuple> query = builder.createTupleQuery();
 		Root<ApplicationEntity> application = query.from(ApplicationEntity.class);
 		Path<ApplicationStatus> status = application.get("currentStatus");
-		query.multiselect(status, builder.count(application))
-			.where(matching(builder, application, userId, search, null))
+		query.select(builder.tuple(status, builder.count(application)))
+			.where(matching(builder, application, userId, search, null, archived))
 			.groupBy(status);
 
 		Map<ApplicationStatus, Long> counts = new EnumMap<>(ApplicationStatus.class);
@@ -83,14 +88,15 @@ class ApplicationQueriesImpl implements ApplicationQueries {
 		CriteriaQuery<Long> count = builder.createQuery(Long.class);
 		Root<ApplicationEntity> application = count.from(ApplicationEntity.class);
 		count.select(builder.count(application))
-			.where(matching(builder, application, userId, query.search(), query.status()));
+			.where(matching(builder, application, userId, query.search(), query.status(), query.archived()));
 		return this.entityManager.createQuery(count).getSingleResult();
 	}
 
 	private static Predicate[] matching(CriteriaBuilder builder, Root<ApplicationEntity> application, long userId,
-			@Nullable String search, @Nullable ApplicationStatus status) {
+			@Nullable String search, @Nullable ApplicationStatus status, boolean archived) {
 		List<Predicate> conditions = new ArrayList<>();
 		conditions.add(builder.equal(application.get("userId"), userId));
+		conditions.add(archived ? builder.isNotNull(application.get("archivedAt")) : builder.isNull(application.get("archivedAt")));
 		if (status != null) {
 			conditions.add(builder.equal(application.get("currentStatus"), status));
 		}
@@ -103,7 +109,7 @@ class ApplicationQueriesImpl implements ApplicationQueries {
 		return conditions.toArray(Predicate[]::new);
 	}
 
-	private static List<Order> order(CriteriaBuilder builder, Root<ApplicationEntity> application,
+	private static List<Order> order(CriteriaBuilder builder, CriteriaQuery<?> rows, Root<ApplicationEntity> application,
 			ApplicationQuery query) {
 		Expression<?> value = switch (query.sort()) {
 			case ADDED -> application.get("capturedAt");
@@ -112,6 +118,7 @@ class ApplicationQueriesImpl implements ApplicationQueries {
 			case LOCATION -> builder.lower(application.get("location"));
 			case SOURCE -> builder.lower(application.get("source"));
 			case STATUS -> statusOrder(builder, application.get("currentStatus"));
+			case FIT -> fitScore(builder, rows, application);
 		};
 		Order byValue = query.direction().isAscending() ? builder.asc(value, Nulls.LAST)
 				: builder.desc(value, Nulls.LAST);
@@ -129,6 +136,16 @@ class ApplicationQueriesImpl implements ApplicationQueries {
 			position = position.when(value, value.ordinal());
 		}
 		return position.otherwise(ApplicationStatus.values().length);
+	}
+
+	/**
+	 * The application's fit score, for {@link ApplicationSort#FIT}: none for one not scored, which comes last.
+	 */
+	private static Expression<BigDecimal> fitScore(CriteriaBuilder builder, CriteriaQuery<?> rows,
+			Root<ApplicationEntity> application) {
+		Subquery<BigDecimal> score = rows.subquery(BigDecimal.class);
+		Root<JobFitEntity> fit = score.from(JobFitEntity.class);
+		return score.select(fit.get("score")).where(builder.equal(fit.get("applicationId"), application.get("id")));
 	}
 
 	/**

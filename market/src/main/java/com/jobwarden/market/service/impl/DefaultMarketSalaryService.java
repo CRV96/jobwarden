@@ -3,6 +3,7 @@ package com.jobwarden.market.service.impl;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -64,6 +65,8 @@ class DefaultMarketSalaryService implements MarketSalaryService {
 	private final EurostatSalaries eurostat;
 
 	private final ExchangeRateService exchangeRates;
+
+	private final Clock clock;
 
 	private final AtomicBoolean importing = new AtomicBoolean();
 
@@ -161,7 +164,7 @@ class DefaultMarketSalaryService implements MarketSalaryService {
 			}
 			AdsFigure ads = fromAds.get(country);
 			if (ads != null && this.exchangeRates.knows(ads.currency())) {
-				figures.add(new MarketFigure(MarketSource.ADZUNA, LocalDate.now().getYear(),
+				figures.add(new MarketFigure(MarketSource.ADZUNA, LocalDate.now(this.clock).getYear(),
 						converter.convert(ads.lowerQuartile(), ads.currency()), converter.convert(ads.median(), ads.currency()),
 						converter.convert(ads.upperQuartile(), ads.currency()), ads.ads()));
 			}

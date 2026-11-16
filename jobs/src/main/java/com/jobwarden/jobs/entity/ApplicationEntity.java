@@ -6,12 +6,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 import com.jobwarden.jobs.dto.FollowUp;
 import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
-import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.AppliedBy;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -52,13 +54,13 @@ public class ApplicationEntity {
 
 	private String link;
 
-	private String location;
+	private @Nullable String location;
 
-	private String salary;
+	private @Nullable String salary;
 
 	private String employmentType;
 
-	private String source;
+	private @Nullable String source;
 
 	@JdbcTypeCode(SqlTypes.JSON)
 	private String rawPayload;
@@ -96,6 +98,9 @@ public class ApplicationEntity {
 
 	@UpdateTimestamp
 	private Instant updatedAt;
+
+	/** When the profile archived it; {@code null} while it's in use. */
+	private @Nullable Instant archivedAt;
 
 	@OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
 	// In SQL, because within a day the events without a time come first, like in TimelineEventEntity.isAfter
@@ -144,6 +149,27 @@ public class ApplicationEntity {
 	}
 
 	/**
+	 * Whether the event would say again what the one next to it on the timeline says, the one just before it or just
+	 * after: the same status, when it's one that {@link ApplicationStatus#canRepeat() can't repeat}, e.g. Position
+	 * closed after Position closed. With Position reopened between them, it can close again.
+	 */
+	public boolean wouldRepeat(NewTimelineEvent event) {
+		if (event.stageCategory().canRepeat()) {
+			return false;
+		}
+		Optional<TimelineEventEntity> before = this.events.stream()
+			.filter(existing -> !existing.isAfter(event.eventDate(), event.eventTime()))
+			.reduce((latest, existing) -> latest.isAfter(existing.getEventDate(), existing.getEventTime()) ? latest : existing);
+		// The events are in timeline order: of those at the same time, the first one after is next to the new one
+		Optional<TimelineEventEntity> after = this.events.stream()
+			.filter(existing -> existing.isAfter(event.eventDate(), event.eventTime()))
+			.reduce((earliest, existing) -> earliest.isAfter(existing.getEventDate(), existing.getEventTime()) ? existing
+					: earliest);
+		return Stream.concat(before.stream(), after.stream())
+			.anyMatch(next -> next.getStageCategory() == event.stageCategory());
+	}
+
+	/**
 	 * Whether an event can leave the timeline: the timeline keeps at least one, the event its status comes from.
 	 */
 	public boolean canRemoveEvent() {
@@ -174,6 +200,10 @@ public class ApplicationEntity {
 
 	public void changeSalary(@Nullable String salary) {
 		this.salary = salary;
+	}
+
+	public void changeLocation(@Nullable String location) {
+		this.location = location;
 	}
 
 	public void changeFollowUp(FollowUp followUp) {
@@ -227,10 +257,6 @@ public class ApplicationEntity {
 	}
 
 	/**
-	 * The event the status comes from. The events are in timeline order, except those added since they were loaded,
-	 * which are at the end; at the same moment, the one further down counts as the latest, like in {@link #addEvent}.
-	 */
-	/**
 	 * A change to the timeline is a change to the application, even when its own columns stay the same, e.g. an
 	 * interview that keeps it INTERVIEWING: the list's "last modified" counts it. Setting the time makes the row dirty,
 	 * so {@code @UpdateTimestamp} then sets it again as Hibernate saves it.
@@ -239,6 +265,24 @@ public class ApplicationEntity {
 		this.updatedAt = Instant.now();
 	}
 
+	/**
+	 * Out of the way: off the list, the pipeline and the calendar. Archiving it again keeps the first time.
+	 */
+	public void archive(Instant when) {
+		if (this.archivedAt == null) {
+			this.archivedAt = when;
+		}
+	}
+
+	/** Back in use. */
+	public void restore() {
+		this.archivedAt = null;
+	}
+
+	/**
+	 * The event the status comes from. The events are in timeline order, except those added since they were loaded,
+	 * which are at the end; at the same moment, the one further down counts as the latest, like in {@link #addEvent}.
+	 */
 	private TimelineEventEntity latestEvent() {
 		return this.events.stream()
 			.reduce((latest, event) -> latest.isAfter(event.getEventDate(), event.getEventTime()) ? latest : event)

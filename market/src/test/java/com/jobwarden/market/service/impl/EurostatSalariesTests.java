@@ -2,11 +2,13 @@ package com.jobwarden.market.service.impl;
 
 import java.math.BigDecimal;
 import java.net.URI;
+import java.time.Clock;
 
 import com.jobwarden.market.service.impl.EurostatSalaries.EarningsTable;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
+import static com.jobwarden.market.service.impl.MarketPropertiesFixtures.eurostatAt;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
@@ -40,7 +42,7 @@ class EurostatSalariesTests {
 
 	@Test
 	void hasNothingWhenEurostatCantBeReached() {
-		assertThat(new EurostatSalaries(URI.create("http://127.0.0.1:1/eurostat")).current()).isEmpty();
+		assertThat(new EurostatSalaries(eurostatAt(URI.create("http://127.0.0.1:1/eurostat")), Clock.systemUTC()).current()).isEmpty();
 	}
 
 }

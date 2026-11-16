@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<!--/* What the AI Assistant has for a job, at a glance, under its facts (JobAssistantController): the fit, its score and
+       why, folded open with a click; and each card, made, in progress or not yet, a link that goes to the card, and
+       unfolds it (app.js, data-jump). The loader asks for it after the rest. */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <!--/* Only fragments are taken from this file: the title is never shown */-->
+    <title>AI Assistant · JobWarden</title>
+</head>
+<body>
+
+<div th:fragment="loader(jobId)" th:hx-get="@{/applications/{id}/assistant(id=${jobId})}" hx-trigger="load"
+     hx-target="this" hx-swap="outerHTML"></div>
+
+<!--/* jobFit is the job's fit (a JobFit) or null; overviewCards its cards (each an AssistantCard); while the assistant is
+       on one (overviewWorking), it asks again every few seconds */-->
+<!--/* It asks again as a card asks for something, or deletes it (app.js: assistant-cards-changed), and every few
+       seconds while the assistant is on one */-->
+<div th:fragment="overview" class="flex flex-col gap-2 border-t border-line pt-3"
+     th:hx-get="@{/applications/{id}/assistant(id=${overviewJobId})}"
+     th:hx-trigger="${overviewWorking} ? 'every 5s, assistant-cards-changed from:body' : 'assistant-cards-changed from:body'"
+     hx-target="this" hx-swap="outerHTML">
+    <h3 class="flex items-center gap-1.5 text-xs font-medium text-ink/60">
+        <i class="ph ph-sparkle text-accent"></i><span th:text="#{overview.title}">From the AI Assistant</span>
+    </h3>
+    <!--/* The fit: its score and verdict, and, unfolded, why */-->
+    <details class="rounded-lg border border-line px-3 py-2" th:if="${jobFit}" th:with="fit=${jobFit}">
+        <summary class="flex cursor-pointer items-center gap-2 select-none">
+            <span class="text-[13px] text-ink/60" th:text="#{fit.title}">Fit</span>
+            <span class="text-[15px] font-bold tabular-nums" th:text="${fit.score}">4.4</span>
+            <span class="text-xs text-ink/50" th:text="#{fit.outOf}">out of 5</span>
+            <span th:replace="~{applications/job-fit :: verdict(${fit.score})}"></span>
+        </summary>
+        <p class="mt-2 text-[13px] text-pretty whitespace-pre-line text-ink/75" th:if="${fit.summary}"
+           th:text="${fit.summary}">Strong on Java and Kafka; no Kubernetes.</p>
+        <a class="link mt-1 inline-block text-xs" href="#job-fit" data-jump="job-fit" th:text="#{overview.fit.more}">The requirements</a>
+    </details>
+    <!--/* Each card: what it is, whether it's there, a link to it */-->
+    <ul class="flex flex-col divide-y divide-line rounded-lg border border-line">
+        <li th:each="card : ${overviewCards}" th:with="state=${card.state.name()}">
+            <a class="flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-ink/3" th:href="|#${card.anchor}|"
+               th:data-jump="${card.anchor}">
+                <span class="min-w-0 flex-1 truncate" th:text="#{${card.title}}">AI-proof CV</span>
+                <span class="tag" th:classappend="${state == 'DONE'} ? 'st-offer' : (${state == 'WORKING'} ? 'st-interviewing' : '')">
+                    <i class="ph ph-arrow-clockwise animate-spin" th:if="${state == 'WORKING'}"></i>
+                    <span th:text="#{|overview.state.${state}|}">Not generated</span>
+                </span>
+                <i class="ph ph-caret-right text-ink/40"></i>
+            </a>
+        </li>
+    </ul>
+</div>
+
+</body>
+</html>

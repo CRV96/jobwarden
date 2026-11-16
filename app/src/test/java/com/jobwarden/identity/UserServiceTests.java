@@ -1,8 +1,17 @@
 package com.jobwarden.identity;
 
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+
+import javax.imageio.ImageIO;
+
 import com.jobwarden.TestcontainersConfiguration;
 import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.identity.dto.User;
+import com.jobwarden.identity.enums.Assistant;
 import com.jobwarden.identity.enums.IdentityErrorCode;
 import com.jobwarden.identity.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,6 +59,33 @@ class UserServiceTests {
 	}
 
 	@Test
+	void givesEachProfileAPublicIdAndFindsItByThatOrItsId() {
+		User robert = this.users.create("Robert");
+		User ana = this.users.create("Ana");
+
+		assertThat(robert.publicId()).isNotNull().isNotEqualTo(ana.publicId());
+		assertThat(this.users.findById(robert.id())).hasValueSatisfying(found -> assertThat(found.publicId()).isEqualTo(robert.publicId()));
+		assertThat(this.users.findByKey(" " + robert.publicId() + " ")).hasValueSatisfying(found -> assertThat(found.id()).isEqualTo(robert.id()));
+		assertThat(this.users.findByKey(Long.toString(ana.id()))).hasValueSatisfying(found -> assertThat(found.name()).isEqualTo("Ana"));
+		assertThat(this.users.findByKey("not-an-id")).isEmpty();
+		assertThat(this.users.findByKey("00000000-0000-4000-8000-000000000000")).isEmpty();
+		assertThat(this.users.findByKey(null)).isEmpty();
+	}
+
+	@Test
+	void renamesAProfileToANameNoOtherHasIgnoringCase() {
+		User robert = this.users.create("Robert");
+		this.users.create("Ana");
+
+		// Its own name in other letters, trimmed
+		assertThat(this.users.rename(robert.id(), "  ROBERT ").name()).isEqualTo("ROBERT");
+		assertThat(this.users.rename(robert.id(), "Rob").name()).isEqualTo("Rob");
+		assertThat(this.users.findById(robert.id())).hasValueSatisfying(found -> assertThat(found.name()).isEqualTo("Rob"));
+		assertThatThrownBy(() -> this.users.rename(robert.id(), "ana")).isInstanceOfSatisfying(BusinessRuleException.class,
+				exception -> assertThat(exception.getErrorCode()).isEqualTo(IdentityErrorCode.USER_NAME_TAKEN));
+	}
+
+	@Test
 	void theDatabaseAlsoRejectsANameTakenIgnoringCase() {
 		this.users.create("Robert");
 
@@ -67,6 +103,18 @@ class UserServiceTests {
 	}
 
 	@Test
+	void worksWithClaudeCodeUntilTheProfileChoosesAnotherAssistant() {
+		User created = this.users.create("Robert");
+		assertThat(created.assistant()).isEqualTo(Assistant.CLAUDE_CODE);
+
+		assertThat(this.users.changeAssistant(created.id(), Assistant.CODEX).assistant()).isEqualTo(Assistant.CODEX);
+		assertThat(this.users.findById(created.id())).get().extracting(User::assistant).isEqualTo(Assistant.CODEX);
+		// The database knows only the assistants there are
+		assertThatThrownBy(() -> this.jdbc.sql("UPDATE users SET assistant = 'CHATGPT'").update())
+			.isInstanceOf(DataIntegrityViolationException.class);
+	}
+
+	@Test
 	void findsNothingForUnknownId() {
 		assertThat(this.users.findById(Long.MAX_VALUE)).isEmpty();
 	}
@@ -77,6 +125,56 @@ class UserServiceTests {
 
 		assertThat(this.users.exists(robert.id())).isTrue();
 		assertThat(this.users.exists(Long.MAX_VALUE)).isFalse();
+	}
+
+	@Test
+	void keepsAPhotoAsASmallSquarePngAndSaysWhenItChanged() throws IOException {
+		User robert = this.users.create("Robert");
+		byte[] photo = jpeg(new BufferedImage(800, 600, BufferedImage.TYPE_INT_RGB));
+
+		User changed = this.users.changeImage(robert.id(), photo);
+
+		assertThat(robert.hasImage()).isFalse();
+		assertThat(changed.hasImage()).isTrue();
+		assertThat(this.users.findById(robert.id())).get().extracting(User::imageChangedAt).isEqualTo(changed.imageChangedAt());
+		BufferedImage kept = ImageIO.read(new ByteArrayInputStream(this.users.findImage(robert.id()).orElseThrow()));
+		assertThat(kept.getWidth()).isEqualTo(160);
+		assertThat(kept.getHeight()).isEqualTo(160);
+		// Another replaces it
+		this.users.changeImage(robert.id(), jpeg(new BufferedImage(50, 50, BufferedImage.TYPE_INT_RGB)));
+		assertThat(ImageIO.read(new ByteArrayInputStream(this.users.findImage(robert.id()).orElseThrow())).getWidth())
+			.isEqualTo(50);
+	}
+
+	@Test
+	void removesThePhoto() throws IOException {
+		User robert = this.users.create("Robert");
+		this.users.changeImage(robert.id(), jpeg(new BufferedImage(100, 100, BufferedImage.TYPE_INT_RGB)));
+
+		User removed = this.users.removeImage(robert.id());
+
+		assertThat(removed.hasImage()).isFalse();
+		assertThat(this.users.findImage(robert.id())).isEmpty();
+		assertThat(this.users.findAll()).singleElement().extracting(User::hasImage).isEqualTo(false);
+	}
+
+	@Test
+	void refusesAFileThatIsntAPhotoOrIsTooLarge() {
+		long robert = this.users.create("Robert").id();
+		byte[] text = "Not a photo".getBytes(StandardCharsets.UTF_8);
+		byte[] tooLarge = new byte[UserService.MAX_IMAGE_BYTES + 1];
+
+		assertThatThrownBy(() -> this.users.changeImage(robert, text)).isInstanceOfSatisfying(BusinessRuleException.class,
+				exception -> assertThat(exception.getErrorCode()).isEqualTo(IdentityErrorCode.IMAGE_UNREADABLE));
+		assertThatThrownBy(() -> this.users.changeImage(robert, tooLarge)).isInstanceOfSatisfying(BusinessRuleException.class,
+				exception -> assertThat(exception.getErrorCode()).isEqualTo(IdentityErrorCode.IMAGE_TOO_LARGE));
+		assertThat(this.users.findImage(robert)).isEmpty();
+	}
+
+	private static byte[] jpeg(BufferedImage image) throws IOException {
+		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+		ImageIO.write(image, "jpeg", bytes);
+		return bytes.toByteArray();
 	}
 
 }

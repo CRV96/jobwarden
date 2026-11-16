@@ -21,7 +21,7 @@
     "message": "Lien"
   },
   "profileId": {
-    "message": "Identifiant du profil"
+    "message": "ID du profil"
   },
   "includeTime": {
     "message": "Inclure l’heure"
@@ -81,10 +81,10 @@
     "message": "Là où JobWarden tourne. Sur cet ordinateur, c’est en général http://localhost:8080."
   },
   "profileIdHint": {
-    "message": "JobWarden l’affiche sur sa page Profils."
+    "message": "JobWarden l’affiche dans les Paramètres, sous Votre profil, avec un bouton pour le copier."
   },
   "openProfiles": {
-    "message": "Ouvrir la page Profils"
+    "message": "Ouvrir les Paramètres de JobWarden"
   },
   "save": {
     "message": "Enregistrer"
@@ -94,6 +94,9 @@
   },
   "notSaved": {
     "message": "Impossible d’enregistrer les paramètres."
+  },
+  "profileNotFound": {
+    "message": "Aucun profil n’a cet ID sur ce serveur. Copiez-le depuis les Paramètres de JobWarden, sous Votre profil."
   },
   "serverUrlInvalid": {
     "message": "Saisissez une adresse qui commence par http:// ou https://."
@@ -170,6 +173,9 @@
   "status_POSITION_CLOSED": {
     "message": "Poste fermé"
   },
+  "status_POSITION_REOPENED": {
+    "message": "Poste rouvert"
+  },
   "status_WITHDRAWN": {
     "message": "Retirée"
   },
@@ -205,6 +211,18 @@
   },
   "showOnIconHint": {
     "message": "★ enregistrée, ✓ envoyée. Chrome vous demande d’autoriser JobWarden à voir l’adresse de vos onglets ; chaque page ouverte est alors recherchée sur votre serveur."
+  },
+  "showReminders": {
+    "message": "Afficher mes rappels en notifications"
+  },
+  "showRemindersHint": {
+    "message": "Les rappels que vous définissez dans le calendrier de JobWarden arrivent en notifications du système tant que le navigateur est ouvert, même sans page JobWarden ouverte. Le navigateur vous demande d’autoriser JobWarden à afficher des notifications."
+  },
+  "reloadExtension": {
+    "message": "L’extension doit d’abord être rechargée : elle a été chargée avant que cette option existe. Ouvrez chrome://extensions (dans Firefox, about:debugging), cliquez sur le bouton de rechargement de JobWarden, puis réessayez."
+  },
+  "permissionError": {
+    "message": "Impossible de le changer : $1"
   },
   "updateAvailable": {
     "message": "JobWarden $1 est sorti : récupérez le dernier code"
@@ -319,5 +337,23 @@
   },
   "runClose": {
     "message": "Fermer"
+  },
+  "watchReading": {
+    "message": "Lecture de la page d’offres…"
+  },
+  "watchAdded": {
+    "message": "Vous suivez maintenant $1. Postes qui correspondent à vos recherches enregistrées : $2."
+  },
+  "openWatchlist": {
+    "message": "Ouvrir la liste de suivi"
+  },
+  "watchTooltip": {
+    "message": "Suivre $1 : JobWarden lit sa page d’offres et ajoute les postes qui correspondent à vos recherches enregistrées"
+  },
+  "watchingTooltip": {
+    "message": "Vous suivez $1. Cliquez pour ne plus la suivre"
+  },
+  "unwatched": {
+    "message": "Vous ne suivez plus $1. Les postes trouvés sur sa page restent dans JobWarden."
   }
 }

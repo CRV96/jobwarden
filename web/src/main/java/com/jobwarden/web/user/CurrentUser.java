@@ -44,6 +44,13 @@ public class CurrentUser {
 	}
 
 	/**
+	 * Selects no profile in this browser session, e.g. once the one selected is deleted.
+	 */
+	public void forget() {
+		this.session.removeAttribute(SESSION_ATTRIBUTE);
+	}
+
+	/**
 	 * @throws UserNotFoundException if there's no such profile
 	 */
 	public void select(long userId) {

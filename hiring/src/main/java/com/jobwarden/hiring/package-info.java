@@ -8,4 +8,7 @@
  * Public API: the {@code dto}, {@code enums}, {@code exception} and {@code service} packages, marked with
  * {@code @NamedInterface}. {@code entity}, {@code repository} and {@code service.impl} are internal to the module.
  */
+@NullMarked
 package com.jobwarden.hiring;
+
+import org.jspecify.annotations.NullMarked;

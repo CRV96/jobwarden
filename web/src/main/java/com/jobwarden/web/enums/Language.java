@@ -21,7 +21,8 @@ public enum Language {
 	GERMAN("de", "Deutsch", "de"),
 	POLISH("pl", "Polski", "pl"),
 	SPANISH("es", "Español", "es"),
-	PORTUGUESE("pt", "Português", "pt");
+	PORTUGUESE("pt", "Português", "pt"),
+	HINDI("hi", "हिन्दी", "in");
 
 	/** Also for any language the app doesn't have. */
 	public static final Language DEFAULT = ENGLISH;

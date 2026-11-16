@@ -51,7 +51,7 @@ public record ApplyAnswersForm(
 			.willingToRelocate(this.willingToRelocate)
 			.workPreference(this.workPreference)
 			.yearsOfExperience(this.yearsOfExperience)
-			.coverLetter(this.coverLetter)
+			.coverLetter(Objects.requireNonNullElse(this.coverLetter, CoverLetter.WRITE))
 			.declineVoluntary(Boolean.TRUE.equals(this.declineVoluntary))
 			.custom((this.custom == null) ? List.of() : this.custom.stream()
 				.filter(Objects::nonNull)

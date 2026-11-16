@@ -22,4 +22,14 @@ public record AdzunaKeyForm(
 
 	static final String FORMAT = "\\s*[\\w-]*\\s*";
 
+	/** The app's id, once the form is valid. */
+	public String requiredAppId() {
+		return FormValues.validated(this.appId, "appId");
+	}
+
+	/** The app's key, once the form is valid. */
+	public String requiredAppKey() {
+		return FormValues.validated(this.appKey, "appKey");
+	}
+
 }

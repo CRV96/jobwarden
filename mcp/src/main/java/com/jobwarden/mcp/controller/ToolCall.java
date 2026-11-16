@@ -12,11 +12,23 @@ import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.JsonNode;
 
 /**
- * A tool's arguments, with the profile the client named in its header, if any.
+ * A tool's arguments, with the profile the client named in its header, if any, and who's calling.
  *
  * @param profileHeader the {@code X-JobWarden-Profile} header: the profile to use when the arguments don't name one
+ * @param client the assistant calling, as the logs name it, e.g. Codex
+ * @param unattended whether no one watches it: the loop or Run, which say so in a header, and never do Auto-apply
  */
-record ToolCall(JsonNode arguments, @Nullable Long profileHeader) {
+record ToolCall(JsonNode arguments, @Nullable String profileHeader, String client, boolean unattended) {
+
+	/** A call from a client someone watches. */
+	ToolCall(JsonNode arguments, @Nullable String profileHeader, String client) {
+		this(arguments, profileHeader, client, false);
+	}
+
+	/** A call from a client that didn't say who it is. */
+	ToolCall(JsonNode arguments, @Nullable String profileHeader) {
+		this(arguments, profileHeader, McpController.UNKNOWN_CLIENT);
+	}
 
 	@Nullable String string(String name) {
 		JsonNode value = this.arguments.get(name);
@@ -59,7 +71,7 @@ record ToolCall(JsonNode arguments, @Nullable Long profileHeader) {
 
 	int limit(String name, int byDefault, int max) {
 		Long value = number(name);
-		return (value == null) ? byDefault : (int) Math.clamp(value, 1, max);
+		return (value == null) ? byDefault : Math.clamp(value, 1, max);
 	}
 
 	@Nullable LocalDate date(String name) {
@@ -85,7 +97,18 @@ record ToolCall(JsonNode arguments, @Nullable Long profileHeader) {
 		return (value == null) ? null : constant(name, value, type);
 	}
 
+	<E extends Enum<E>> E requiredConstant(String name, Class<E> type) {
+		return constant(name, requiredString(name), type);
+	}
+
 	List<String> strings(String name) {
+		return strings(name, Integer.MAX_VALUE);
+	}
+
+	/**
+	 * @return the first {@code max} strings of a list, the rest left unread; empty when it's left out
+	 */
+	List<String> strings(String name, int max) {
 		JsonNode value = this.arguments.get(name);
 		if (value == null || value.isNull()) {
 			return List.of();
@@ -95,12 +118,40 @@ record ToolCall(JsonNode arguments, @Nullable Long profileHeader) {
 		}
 		List<String> strings = new ArrayList<>();
 		for (JsonNode item : value) {
+			if (strings.size() == max) {
+				break;
+			}
 			if (!item.isString()) {
 				throw new ToolException(name + " must be a list of strings");
 			}
 			strings.add(item.asString());
 		}
 		return strings;
+	}
+
+	/**
+	 * @return the whole numbers of a list, e.g. ids; empty when it's left out
+	 * @throws ToolException when it holds more than {@code max}
+	 */
+	List<Long> numbers(String name, int max) {
+		JsonNode value = this.arguments.get(name);
+		if (value == null || value.isNull()) {
+			return List.of();
+		}
+		if (!value.isArray()) {
+			throw new ToolException(name + " must be a list of whole numbers");
+		}
+		if (value.size() > max) {
+			throw new ToolException(name + " takes at most " + max + " numbers");
+		}
+		List<Long> numbers = new ArrayList<>();
+		for (JsonNode item : value) {
+			if (!item.isIntegralNumber()) {
+				throw new ToolException(name + " must be a list of whole numbers");
+			}
+			numbers.add(item.asLong());
+		}
+		return numbers;
 	}
 
 	<E extends Enum<E>> List<E> constants(String name, Class<E> type) {
@@ -125,7 +176,7 @@ record ToolCall(JsonNode arguments, @Nullable Long profileHeader) {
 		if (value == null || !value.isObject()) {
 			throw new ToolException(name + " is required, as an object");
 		}
-		return new ToolCall(value, this.profileHeader);
+		return new ToolCall(value, this.profileHeader, this.client, this.unattended);
 	}
 
 	/**
@@ -149,7 +200,7 @@ record ToolCall(JsonNode arguments, @Nullable Long profileHeader) {
 		if (!item.isObject()) {
 			throw new ToolException("Each item must be an object");
 		}
-		return new ToolCall(item, this.profileHeader);
+		return new ToolCall(item, this.profileHeader, this.client, this.unattended);
 	}
 
 	private static <E extends Enum<E>> E constant(String name, String value, Class<E> type) {

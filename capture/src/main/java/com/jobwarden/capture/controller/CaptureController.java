@@ -1,5 +1,6 @@
 package com.jobwarden.capture.controller;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
@@ -22,7 +23,6 @@ import tools.jackson.databind.json.JsonMapper;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -36,13 +36,10 @@ import org.springframework.web.bind.annotation.RestController;
  * The extension's API. It saves captures in the jobs module and looks up, moves back or removes what it saved.
  * Every answer about an application is a {@link CapturedApplication}, so the extension always shows its current state.
  * <p>
- * The extensions are allowed as origins here (with an id that differs from one install to the next), and web pages
- * are not. Firefox applies CORS to its extensions (moz-extension://). Chrome doesn't to one with the host permission,
- * but it still sends its origin (chrome-extension://) with a POST, which Spring would turn away.
+ * The extensions may call it from their origins, and web pages may not: see {@code CaptureCorsConfiguration}.
  */
 @RestController
 @RequestMapping("${jobwarden.capture.path}")
-@CrossOrigin(originPatterns = { "moz-extension://*", "chrome-extension://*" })
 @CustomLog
 @RequiredArgsConstructor
 class CaptureController {
@@ -54,6 +51,8 @@ class CaptureController {
 	private final JsonMapper jsonMapper;
 
 	private final LogoDownloader logos;
+
+	private final Clock clock;
 
 	/**
 	 * What the profile has for a link: the extension looks up the page it's on when it opens.
@@ -121,7 +120,7 @@ class CaptureController {
 
 	private NewApplication toNewApplication(CaptureRequest request) {
 		// In the server's time zone, like every date and time the pages show
-		LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+		LocalDateTime now = LocalDateTime.now(this.clock).truncatedTo(ChronoUnit.SECONDS);
 		boolean includeTime = !Boolean.FALSE.equals(request.includeTime());
 		return NewApplication.builder()
 			.userId(request.userId())

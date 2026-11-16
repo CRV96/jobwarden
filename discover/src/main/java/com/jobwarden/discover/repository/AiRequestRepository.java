@@ -20,6 +20,8 @@ public interface AiRequestRepository extends JpaRepository<AiRequestEntity, Long
 	Optional<AiRequestEntity> findFirstByUserIdAndKindAndApplicationIdOrderByCreatedAtDescIdDesc(long userId,
 			AiRequestKind kind, long applicationId);
 
+	Optional<AiRequestEntity> findFirstByUserIdAndKindOrderByCreatedAtDescIdDesc(long userId, AiRequestKind kind);
+
 	/** Oldest first: Claude does them in the order they were asked. */
 	List<AiRequestEntity> findByUserIdAndStatusInOrderByCreatedAtAscIdAsc(long userId, Collection<AiRequestStatus> statuses);
 

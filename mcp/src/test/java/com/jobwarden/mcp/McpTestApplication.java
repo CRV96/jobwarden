@@ -1,8 +1,11 @@
 package com.jobwarden.mcp;
 
+import java.time.Clock;
+
 import com.jobwarden.search.QueryGenerator;
 
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 
 /**
@@ -13,5 +16,11 @@ import org.springframework.context.annotation.Import;
 @SpringBootApplication
 @Import(QueryGenerator.class)
 class McpTestApplication {
+
+	/** "Now", as the app's own JobWardenApplication gives it to every module. */
+	@Bean
+	Clock clock() {
+		return Clock.systemDefaultZone();
+	}
 
 }

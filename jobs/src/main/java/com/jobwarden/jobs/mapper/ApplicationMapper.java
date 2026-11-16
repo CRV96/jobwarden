@@ -34,6 +34,7 @@ public final class ApplicationMapper {
 			.capturedAt(application.getCapturedAt())
 			.timeline(application.getEvents().stream().map(ApplicationMapper::toTimelineEvent).toList())
 			.appliedBy(application.getAppliedBy())
+			.archivedAt(application.getArchivedAt())
 			.build();
 	}
 

@@ -1,0 +1,43 @@
+name: Bug report
+description: Something in JobWarden or its extension doesn't work as it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead. Screenshots help.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      placeholder: |
+        1. Open …
+        2. Click …
+  - type: input
+    id: version
+    attributes:
+      label: JobWarden version
+      description: Settings shows it, and the extension's popup.
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      multiple: true
+      options:
+        - The web app
+        - The browser extension (Chrome)
+        - The browser extension (Firefox)
+        - Claude (MCP server)
+        - The Docker image
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: The server's log around it, if there's an error. Leave out passwords, tokens and email contents.
+      render: text

@@ -8,28 +8,36 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.identity.dto.User;
+import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.enums.InterviewFormat;
+import com.jobwarden.jobs.enums.PayBasis;
 import com.jobwarden.jobs.enums.RejectionReason;
+import com.jobwarden.jobs.enums.SalaryPeriod;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.service.ApplicationCsvService;
 import com.jobwarden.jobs.service.ApplicationService;
+import com.jobwarden.jobs.service.JobFitService;
+import com.jobwarden.jobs.service.SalaryService;
 import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
 import com.jobwarden.web.constants.AppConstants.HtmxEvents;
+import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
 import com.jobwarden.web.constants.AppConstants.ModelAttributes;
 import com.jobwarden.web.constants.AppConstants.Views;
 import com.jobwarden.web.dto.ApplicationListParams;
 import com.jobwarden.web.dto.FollowUpForm;
+import com.jobwarden.web.dto.JobDetailsForm;
 import com.jobwarden.web.dto.NewApplicationForm;
 import com.jobwarden.web.dto.NewEventForm;
 import com.jobwarden.web.dto.NotesForm;
@@ -42,6 +50,7 @@ import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.data.domain.Page;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -77,6 +86,12 @@ class ApplicationController extends BaseController {
 
 	private final ApplicationCsvService csv;
 
+	private final JobFitService fits;
+
+	private final SalaryService salaries;
+
+	private final Clock clock;
+
 	/**
 	 * The list, searched, filtered, sorted and paged as its address says. An address past the last page (e.g. after
 	 * deleting the last rows of a page) goes to the last page.
@@ -89,7 +104,11 @@ class ApplicationController extends BaseController {
 			return redirectTo(listParams.withPage(page.getTotalPages()).url());
 		}
 		model.addAttribute(ModelAttributes.APPLICATION_PAGE, page);
-		model.addAttribute(ModelAttributes.STATUS_COUNTS, this.applications.countByStatus(userId, listParams.q()));
+		model.addAttribute(ModelAttributes.FIT_SCORES,
+				this.fits.findScores(userId, page.getContent().stream().map(ApplicationSummary::id).toList()));
+		model.addAttribute(ModelAttributes.STATUS_COUNTS,
+				this.applications.countByStatus(userId, listParams.q(), listParams.isArchived()));
+		model.addAttribute(ModelAttributes.ARCHIVED_COUNT, this.applications.countArchived(userId));
 		addImages(model, userId);
 		addFormChoices(model);
 		return Views.APPLICATION_LIST;
@@ -102,7 +121,7 @@ class ApplicationController extends BaseController {
 	ResponseEntity<byte[]> export(Model model) throws IOException {
 		StringWriter csv = new StringWriter();
 		this.csv.export(requireProfile(model).id(), csv);
-		return attachment(csv.toString().getBytes(StandardCharsets.UTF_8), CSV, "jobwarden-jobs-" + LocalDate.now() + ".csv");
+		return attachment(csv.toString().getBytes(StandardCharsets.UTF_8), CSV, "jobwarden-jobs-" + LocalDate.now(this.clock) + ".csv");
 	}
 
 	/**
@@ -118,6 +137,19 @@ class ApplicationController extends BaseController {
 			log.debug("CSV file of profile {} not imported: {}", userId, refused.getMessage());
 			redirect.addFlashAttribute(ModelAttributes.CSV_IMPORT_ERROR, message(refused));
 		}
+		return redirectTo(ControllerConstants.SETTINGS + "#jobs-data");
+	}
+
+	/**
+	 * Archives the jobs nothing changed on since a day, from the settings page, which then says how many, once.
+	 *
+	 * @param endedOnly only those that ended: rejected, with no response, closed or withdrawn
+	 */
+	@PostMapping("/archive-unchanged")
+	String archiveUnchanged(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate before,
+			@RequestParam(defaultValue = "false") boolean endedOnly, Model model, RedirectAttributes redirect) {
+		int archived = this.applications.archiveUnchangedSince(requireProfile(model).id(), before, endedOnly);
+		redirect.addFlashAttribute(ModelAttributes.ARCHIVED_BY_DATE, archived);
 		return redirectTo(ControllerConstants.SETTINGS + "#jobs-data");
 	}
 
@@ -139,7 +171,7 @@ class ApplicationController extends BaseController {
 			log.debug("New application not added, fields with errors: {}", errors.keySet());
 			return showNewApplicationForm(model, form, errors);
 		}
-		long id = this.applications.create(form.toNewApplication(user.id()));
+		long id = this.applications.create(form.toNewApplication(user.id(), this.clock));
 		return redirectTo(ControllerConstants.APPLICATIONS + "/" + id);
 	}
 
@@ -204,7 +236,8 @@ class ApplicationController extends BaseController {
 	 * they're saved, or why they aren't.
 	 */
 	@PutMapping("/{id}/follow-up")
-	String updateFollowUp(@PathVariable long id, @Valid FollowUpForm form, BindingResult result, Model model) {
+	String updateFollowUp(@PathVariable long id, @Valid FollowUpForm form, BindingResult result, Model model,
+			HttpServletResponse response) {
 		long userId = requireProfile(model).id();
 		if (result.hasErrors()) {
 			Map<String, String> errors = fieldErrors(result);
@@ -212,8 +245,32 @@ class ApplicationController extends BaseController {
 			model.addAttribute(ModelAttributes.FIELD_ERRORS, errors);
 		} else {
 			this.applications.updateFollowUp(userId, id, form.toFollowUp());
+			// The job's reminders list its deadline and its day to follow up
+			response.setHeader(HtmxHeaders.TRIGGER, HtmxEvents.FOLLOW_UP_CHANGED);
 		}
 		return Views.FOLLOW_UP_STATUS_FRAGMENT;
+	}
+
+	/**
+	 * Called by HTMX from the job's facts, with its location and its salary as amounts. Like {@link #addEvent},
+	 * returns the part the form is in; when something typed is wrong, with the form still open, saying what.
+	 */
+	@PostMapping("/{id}/details")
+	String updateDetails(@PathVariable long id, @Valid JobDetailsForm form, BindingResult result,
+			@RequestParam(defaultValue = "PAGE") ApplicationView view, Locale locale, Model model,
+			HttpServletResponse response) {
+		long userId = requireProfile(model).id();
+		if (result.hasErrors()) {
+			log.debug("Location and salary of application {} not saved, fields with errors: {}", id,
+					fieldErrors(result).keySet());
+			model.addAttribute(ModelAttributes.DETAILS_ERROR, errorMessage(result));
+			model.addAttribute(ModelAttributes.DETAILS_FORM, form);
+			addApplication(model, userId, id, view);
+			return view.getFragment();
+		}
+		this.applications.updateLocation(userId, id, form.toLocation());
+		this.salaries.change(userId, id, form.toSalaryRange(), locale);
+		return showChangedApplication(model, response, userId, id, view, null);
 	}
 
 	/**
@@ -248,11 +305,45 @@ class ApplicationController extends BaseController {
 	}
 
 	/**
+	 * Called by HTMX with the applications ticked in the list: they leave it for the archive, and it reloads.
+	 */
+	@PostMapping("/archive")
+	ResponseEntity<Void> archiveAll(@RequestParam List<Long> ids, Model model) {
+		this.applications.archive(requireProfile(model).id(), ids);
+		return refresh();
+	}
+
+	/**
+	 * Called by HTMX with the archived applications ticked in the list: they're back in use, and it reloads.
+	 */
+	@PostMapping("/restore")
+	ResponseEntity<Void> restoreAll(@RequestParam List<Long> ids, Model model) {
+		this.applications.restore(requireProfile(model).id(), ids);
+		return refresh();
+	}
+
+	/**
+	 * Called by HTMX from the application's page or side panel: archived, or back in use. Like {@link #addEvent},
+	 * answers with the part it's in, and the list or the pipeline behind the side panel reloads.
+	 */
+	@PostMapping("/{id}/archive")
+	String archive(@PathVariable long id, @RequestParam(defaultValue = "false") boolean restore,
+			@RequestParam(defaultValue = "PAGE") ApplicationView view, Model model, HttpServletResponse response) {
+		long userId = requireProfile(model).id();
+		if (restore) {
+			this.applications.restore(userId, List.of(id));
+		} else {
+			this.applications.archive(userId, List.of(id));
+		}
+		return showChangedApplication(model, response, userId, id, view, null);
+	}
+
+	/**
 	 * @return why the event wasn't added, or {@code null} if it was
 	 */
 	private @Nullable String tryAddEvent(long userId, long applicationId, NewEventForm form) {
 		try {
-			this.applications.addEvent(userId, applicationId, form.toNewTimelineEvent());
+			this.applications.addEvent(userId, applicationId, form.toNewTimelineEvent(this.clock));
 			return null;
 		} catch (BusinessRuleException exception) {
 			return message(exception);
@@ -284,9 +375,15 @@ class ApplicationController extends BaseController {
 	}
 
 	private void addApplication(Model model, long userId, long applicationId, ApplicationView view) {
-		model.addAttribute(ModelAttributes.JOB_APPLICATION, this.applications.findById(userId, applicationId)
-			.orElseThrow(() -> new ApplicationNotFoundException(applicationId)));
+		ApplicationDetails application = this.applications.findById(userId, applicationId)
+			.orElseThrow(() -> new ApplicationNotFoundException(applicationId));
+		model.addAttribute(ModelAttributes.JOB_APPLICATION, application);
 		model.addAttribute(ModelAttributes.VIEW, view);
+		// The facts' form for the location and the salary
+		model.addAttribute(ModelAttributes.SALARY_RANGE, this.salaries.read(application.salary()).orElse(null));
+		model.addAttribute(ModelAttributes.SALARY_CURRENCIES, this.salaries.currencies());
+		model.addAttribute(ModelAttributes.PAY_PERIODS, SalaryPeriod.values());
+		model.addAttribute(ModelAttributes.PAY_BASES, PayBasis.values());
 		addImages(model, userId);
 		addFormChoices(model);
 	}
@@ -310,11 +407,11 @@ class ApplicationController extends BaseController {
 	 * What the forms on these pages offer: statuses, rejection reasons, interview formats, and now as the default date
 	 * and time.
 	 */
-	private static void addFormChoices(Model model) {
+	private void addFormChoices(Model model) {
 		model.addAttribute(ModelAttributes.STATUSES, ApplicationStatus.values());
 		model.addAttribute(ModelAttributes.REJECTION_REASONS, RejectionReason.values());
 		model.addAttribute(ModelAttributes.INTERVIEW_FORMATS, InterviewFormat.values());
-		model.addAttribute(ModelAttributes.NOW, LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES));
+		model.addAttribute(ModelAttributes.NOW, LocalDateTime.now(this.clock).truncatedTo(ChronoUnit.MINUTES));
 	}
 
 	private static ResponseEntity<Void> refresh() {

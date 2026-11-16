@@ -3,6 +3,9 @@
  * extend. Part of the module's public API.
  */
 @NamedInterface("exception")
+@NullMarked
 package com.jobwarden.common.exception;
+
+import org.jspecify.annotations.NullMarked;
 
 import org.springframework.modulith.NamedInterface;

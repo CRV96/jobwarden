@@ -21,7 +21,7 @@
     "message": "Link"
   },
   "profileId": {
-    "message": "Identyfikator profilu"
+    "message": "ID profilu"
   },
   "includeTime": {
     "message": "Zapisz też godzinę"
@@ -81,10 +81,10 @@
     "message": "Gdzie działa JobWarden. Na tym komputerze zwykle http://localhost:8080."
   },
   "profileIdHint": {
-    "message": "JobWarden pokazuje go na stronie Profile."
+    "message": "JobWarden pokazuje go w Ustawieniach, w sekcji Twój profil, z przyciskiem do skopiowania."
   },
   "openProfiles": {
-    "message": "Otwórz stronę Profile"
+    "message": "Otwórz Ustawienia JobWarden"
   },
   "save": {
     "message": "Zapisz"
@@ -94,6 +94,9 @@
   },
   "notSaved": {
     "message": "Nie udało się zapisać ustawień."
+  },
+  "profileNotFound": {
+    "message": "Żaden profil nie ma tego ID na tym serwerze. Skopiuj go z Ustawień JobWarden, z sekcji Twój profil."
   },
   "serverUrlInvalid": {
     "message": "Wpisz adres zaczynający się od http:// lub https://."
@@ -170,6 +173,9 @@
   "status_POSITION_CLOSED": {
     "message": "Oferta zamknięta"
   },
+  "status_POSITION_REOPENED": {
+    "message": "Oferta ponownie otwarta"
+  },
   "status_WITHDRAWN": {
     "message": "Wycofana"
   },
@@ -205,6 +211,18 @@
   },
   "showOnIconHint": {
     "message": "★ zapisana, ✓ wysłana. Chrome poprosi o zgodę, by JobWarden widział adresy kart; każda otwarta strona jest wtedy sprawdzana na Twoim serwerze."
+  },
+  "showReminders": {
+    "message": "Pokazuj moje przypomnienia jako powiadomienia"
+  },
+  "showRemindersHint": {
+    "message": "Przypomnienia ustawione w kalendarzu JobWarden przychodzą jako powiadomienia systemu, gdy przeglądarka działa, nawet bez otwartej strony JobWarden. Przeglądarka poprosi o zgodę na powiadomienia od JobWarden."
+  },
+  "reloadExtension": {
+    "message": "Najpierw trzeba przeładować rozszerzenie: zostało załadowane, zanim ta opcja istniała. Otwórz chrome://extensions (w Firefoksie about:debugging), kliknij przycisk przeładowania przy JobWarden i spróbuj ponownie."
+  },
+  "permissionError": {
+    "message": "Nie udało się zmienić: $1"
   },
   "updateAvailable": {
     "message": "Jest JobWarden $1: pobierz najnowszy kod"
@@ -319,5 +337,23 @@
   },
   "runClose": {
     "message": "Zamknij"
+  },
+  "watchReading": {
+    "message": "Czytam stronę z ofertami…"
+  },
+  "watchAdded": {
+    "message": "Obserwujesz teraz: $1. Oferty pasujące do Twoich zapisanych wyszukiwań: $2."
+  },
+  "openWatchlist": {
+    "message": "Otwórz listę obserwowanych"
+  },
+  "watchTooltip": {
+    "message": "Obserwuj: $1. JobWarden czyta jej stronę z ofertami i dodaje oferty pasujące do Twoich zapisanych wyszukiwań"
+  },
+  "watchingTooltip": {
+    "message": "Obserwujesz: $1. Kliknij, aby przestać obserwować"
+  },
+  "unwatched": {
+    "message": "Nie obserwujesz już: $1. Oferty znalezione na jej stronie zostają w JobWarden."
   }
 }

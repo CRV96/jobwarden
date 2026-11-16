@@ -21,7 +21,7 @@
     "message": "Link"
   },
   "profileId": {
-    "message": "Profile id"
+    "message": "Profile ID"
   },
   "includeTime": {
     "message": "Include the time"
@@ -81,10 +81,10 @@
     "message": "Where JobWarden runs. On this computer, that’s usually http://localhost:8080."
   },
   "profileIdHint": {
-    "message": "JobWarden shows it on its Profiles page."
+    "message": "JobWarden shows it in Settings, under Your profile, with a button to copy it."
   },
   "openProfiles": {
-    "message": "Open the Profiles page"
+    "message": "Open JobWarden’s Settings"
   },
   "save": {
     "message": "Save"
@@ -94,6 +94,9 @@
   },
   "notSaved": {
     "message": "Couldn’t save the settings."
+  },
+  "profileNotFound": {
+    "message": "No profile has that ID on this server. Copy it from JobWarden’s Settings, under Your profile."
   },
   "serverUrlInvalid": {
     "message": "Enter an address that starts with http:// or https://."
@@ -170,6 +173,9 @@
   "status_POSITION_CLOSED": {
     "message": "Position closed"
   },
+  "status_POSITION_REOPENED": {
+    "message": "Position re-opened"
+  },
   "status_WITHDRAWN": {
     "message": "Withdrawn"
   },
@@ -205,6 +211,18 @@
   },
   "showOnIconHint": {
     "message": "★ bookmarked, ✓ applied. Chrome asks you to let JobWarden see your tabs’ addresses; each page you open is then looked up on your server."
+  },
+  "showReminders": {
+    "message": "Show my reminders as notifications"
+  },
+  "showRemindersHint": {
+    "message": "The reminders you set on JobWarden’s calendar come as your system’s notifications while the browser runs, even with no JobWarden page open. The browser asks you to let JobWarden show notifications."
+  },
+  "reloadExtension": {
+    "message": "The extension needs reloading first: it was loaded before this option existed. Open chrome://extensions (in Firefox, about:debugging), click JobWarden’s reload button, then try again."
+  },
+  "permissionError": {
+    "message": "Couldn’t change it: $1"
   },
   "updateAvailable": {
     "message": "JobWarden $1 is out: get the latest code"
@@ -319,5 +337,23 @@
   },
   "runClose": {
     "message": "Close"
+  },
+  "watchReading": {
+    "message": "Reading the job board…"
+  },
+  "watchAdded": {
+    "message": "Watching $1. Jobs that match your saved searches: $2."
+  },
+  "openWatchlist": {
+    "message": "Open the watchlist"
+  },
+  "watchTooltip": {
+    "message": "Watch $1: JobWarden reads its job board and adds the jobs that match your saved searches"
+  },
+  "watchingTooltip": {
+    "message": "You watch $1. Click to stop watching"
+  },
+  "unwatched": {
+    "message": "You no longer watch $1. The jobs found on its board stay in JobWarden."
   }
 }

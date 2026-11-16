@@ -2,6 +2,7 @@ package com.jobwarden.web.dto;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import com.jobwarden.discover.dto.AiRequirements;
@@ -19,6 +20,8 @@ import org.jspecify.annotations.Nullable;
  * A preset of the AI Assistant page, with what to look for. The lists are typed as text, separated by commas.
  *
  * @param kind the preset's button that sent the form
+ * @param useCv the checkbox, which the browser sends only when it's ticked, and the page shows only with a CV: no
+ * value is false
  */
 public record AiRequestForm(
 		@NotNull(message = "{validation.ai.kind.required}") AiRequestKind kind,
@@ -31,7 +34,7 @@ public record AiRequestForm(
 		@Size(max = AiRequestForm.TEXT_MAX_LENGTH, message = "{validation.ai.size}") @Nullable String minSalary,
 		@Size(max = AiRequestForm.NOTES_MAX_LENGTH, message = "{validation.ai.size}") @Nullable String notes,
 		@Nullable Recency recency,
-		boolean useCv,
+		@Nullable Boolean useCv,
 		@Min(value = 1, message = "{validation.ai.maxJobs}") @Max(value = AiRequirements.MAX_JOBS, message = "{validation.ai.maxJobs}")
 		@Nullable Integer maxJobs) {
 
@@ -58,8 +61,8 @@ public record AiRequestForm(
 			.seniority(FormValues.blankToNull(this.seniority))
 			.minSalary(FormValues.blankToNull(this.minSalary))
 			.notes(FormValues.blankToNull(this.notes))
-			.recency(this.recency)
-			.useCv(this.useCv)
+			.recency(Objects.requireNonNullElse(this.recency, Recency.ANY))
+			.useCv(Boolean.TRUE.equals(this.useCv))
 			.maxJobs((this.maxJobs != null) ? this.maxJobs : AiRequirements.DEFAULT_MAX_JOBS)
 			.build();
 	}

@@ -2,18 +2,18 @@ package com.jobwarden.cv.service.impl;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.jobwarden.cv.dto.CvCertification;
 import com.jobwarden.cv.dto.CvDetails;
 import com.jobwarden.cv.dto.CvEducation;
 import com.jobwarden.cv.dto.CvExperience;
 import com.jobwarden.cv.dto.CvLanguage;
+import com.jobwarden.cv.dto.CvProject;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.json.JsonMapper;
-
-import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
  * The CV's lists of entries as the JSON the {@code cv_details} table keeps: an array of objects, without the fields
@@ -45,6 +45,11 @@ final class CvJson {
 	}
 
 	static List<CvExperience> experience(String json) {
+		return JSON.readValue(json, new TypeReference<>() {
+		});
+	}
+
+	static List<CvProject> projects(String json) {
 		return JSON.readValue(json, new TypeReference<>() {
 		});
 	}

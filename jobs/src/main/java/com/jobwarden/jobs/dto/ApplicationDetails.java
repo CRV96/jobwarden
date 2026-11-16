@@ -3,8 +3,8 @@ package com.jobwarden.jobs.dto;
 import java.time.Instant;
 import java.util.List;
 
-import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.AppliedBy;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 
@@ -15,8 +15,9 @@ import org.jspecify.annotations.Nullable;
  * @param followUp who to follow up with, and when; {@link FollowUp#NONE} when nothing is known
  * @param timeline events in the order they happened, oldest first
  * @param appliedBy who sent the application, when that's known
+ * @param archivedAt when the profile archived it; {@code null} while it's in use
  */
-@Builder
+@Builder(toBuilder = true)
 public record ApplicationDetails(
 		long id,
 		String title,
@@ -32,10 +33,15 @@ public record ApplicationDetails(
 		ApplicationStatus status,
 		Instant capturedAt,
 		List<TimelineEvent> timeline,
-		@Nullable AppliedBy appliedBy) {
+		@Nullable AppliedBy appliedBy,
+		@Nullable Instant archivedAt) {
 
 	public ApplicationDetails {
 		followUp = (followUp != null) ? followUp : FollowUp.NONE;
+	}
+
+	public boolean isArchived() {
+		return this.archivedAt != null;
 	}
 
 }

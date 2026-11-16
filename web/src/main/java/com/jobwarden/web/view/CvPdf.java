@@ -40,17 +40,26 @@ public class CvPdf {
 	 * @param variables what the template reads, as for its preview
 	 */
 	public byte[] render(Map<String, Object> variables, Locale locale) {
-		String html = this.templates.process(Views.CV_DOCUMENT, new Context(locale, variables));
+		return render(Views.CV_DOCUMENT, variables, locale);
+	}
+
+	/**
+	 * Another document laid out like the CV, e.g. a cover letter.
+	 *
+	 * @param view the template, which reads no beans and makes no links: there's no request
+	 * @param variables what the template reads, as for its preview
+	 */
+	public byte[] render(String view, Map<String, Object> variables, Locale locale) {
+		String html = this.templates.process(view, new Context(locale, variables));
 		ByteArrayOutputStream pdf = new ByteArrayOutputStream();
 		PdfRendererBuilder builder = new PdfRendererBuilder();
-		builder.useFastMode();
 		FONTS.forEach((file, face) -> builder.useFont(() -> font(file), FONT_FAMILY, face.weight(), face.style(), true));
 		builder.withW3cDocument(new W3CDom().fromJsoup(Jsoup.parse(html)), null);
 		builder.toStream(pdf);
 		try {
 			builder.run();
 		} catch (Exception ex) {
-			throw new IllegalStateException("Couldn't make the CV's PDF", ex);
+			throw new IllegalStateException("Couldn't make the PDF of " + view, ex);
 		}
 		return pdf.toByteArray();
 	}

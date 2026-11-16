@@ -1,0 +1,14 @@
+# What the image's build doesn't need: builds, local tools and anything private
+**/target/
+**/node_modules/
+.git/
+.github/
+.idea/
+.vscode/
+.claude/
+extension/
+*.pem
+*.crx
+.env
+.env.*
+*.log

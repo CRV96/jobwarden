@@ -1,4 +1,4 @@
-// The server's capture API, for the popup and the icon (background.js). Every answer about an application is a
+// The server's capture API, for the popup, the icon (background.js) and the reminders (reminders.js). Every answer about an application is a
 // CapturedApplication, so what the extension shows always follows what the server has.
 //
 // A call throws a ServerError when the server answers with an error, and fetch's TypeError when it can't be
@@ -7,8 +7,8 @@
 import { CAPTURE_PATH } from './settings.js';
 
 /**
- * @typedef {'SAVED' | 'APPLIED' | 'INTERVIEWING' | 'OFFER' | 'REJECTED' | 'NO_RESPONSE' | 'POSITION_CLOSED'
- *   | 'WITHDRAWN'} ApplicationStatus
+ * @typedef {'SAVED' | 'APPLIED' | 'INTERVIEWING' | 'OFFER' | 'POSITION_REOPENED' | 'REJECTED' | 'NO_RESPONSE'
+ *   | 'POSITION_CLOSED' | 'WITHDRAWN'} ApplicationStatus
  * @typedef {{
  *   applicationId: number,
  *   title: string,
@@ -30,6 +30,23 @@ export class ServerError extends Error {
     super(problem.detail ?? `The server answered ${status}`);
     this.status = status;
     this.problem = problem;
+  }
+}
+
+/**
+ * Which profile an id names: the id the profile shows in JobWarden's Settings (a UUID), or the number given before.
+ *
+ * @returns {Promise<{id: number, publicId: string, name: string} | null>} null if it names none
+ */
+export async function findProfile(serverUrl, key) {
+  try {
+    const response = await send(serverUrl, '/profile', { query: { key } });
+    return await response.json();
+  } catch (error) {
+    if (error instanceof ServerError && error.status === 404) {
+      return null;
+    }
+    throw error;
   }
 }
 
@@ -96,6 +113,53 @@ export async function formAnswers({ serverUrl, userId }) {
 export async function learnAnswer({ serverUrl, userId }, question, answer) {
   const response = await send(serverUrl, '/answers', { method: 'POST', query: { userId }, body: { question, answer } });
   return response.json();
+}
+
+/**
+ * The reminders set on the calendar that are due, for the background to show as notifications. Each comes once: the
+ * server takes it, so a JobWarden page asking next doesn't show it again.
+ *
+ * @param {Settings} settings
+ * @returns {Promise<Array<{id: number, applicationId: number, title: string, body: string}>>}
+ */
+export async function dueReminders({ serverUrl, userId }) {
+  const response = await send(serverUrl, '/reminders/due', { method: 'POST', query: { userId } });
+  return response.json();
+}
+
+/**
+ * The job board the page is on, and whether the profile watches its company. Reads no board.
+ *
+ * @param {Settings} settings
+ * @returns {Promise<WatchStatus | null>} null when the page isn't on a Greenhouse, Lever or Ashby board
+ * @typedef {{name: string, system: string, boardUrl: string, watched: boolean, companyId: number | null,
+ *   added: boolean | null, newJobs: number | null}} WatchStatus
+ */
+export async function watchStatus({ serverUrl, userId }, link) {
+  const response = await send(serverUrl, '/watchlist', { query: { userId, link } });
+  return response.status === 204 ? null : response.json();
+}
+
+/**
+ * Watches the company whose board the page is on: the server reads the board, and adds the jobs that match the
+ * saved searches to the AI Assistant page.
+ *
+ * @param {Settings} settings
+ * @param {string | null} name the company's name as the page says it; the board's own if null
+ * @returns {Promise<WatchStatus>} with added and newJobs
+ */
+export async function watch({ serverUrl, userId }, link, name) {
+  const response = await send(serverUrl, '/watchlist', { method: 'POST', body: { userId, link, name } });
+  return response.json();
+}
+
+/**
+ * Stops watching the company. The jobs found on its board stay on the AI Assistant page.
+ *
+ * @param {Settings} settings
+ */
+export async function unwatch({ serverUrl, userId }, companyId) {
+  await send(serverUrl, `/watchlist/${companyId}`, { method: 'DELETE', query: { userId } });
 }
 
 /** @param {Settings} settings */

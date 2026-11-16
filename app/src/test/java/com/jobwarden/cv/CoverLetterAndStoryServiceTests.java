@@ -1,0 +1,279 @@
+package com.jobwarden.cv;
+
+import java.time.Instant;
+import java.util.List;
+
+import com.jobwarden.TestcontainersConfiguration;
+import com.jobwarden.common.exception.BusinessRuleException;
+import com.jobwarden.cv.dto.BaseLetter;
+import com.jobwarden.cv.dto.CoverLetter;
+import com.jobwarden.cv.dto.OutreachDraft;
+import com.jobwarden.cv.dto.Story;
+import com.jobwarden.cv.exception.CvErrorCode;
+import com.jobwarden.cv.exception.OutreachDraftNotFoundException;
+import com.jobwarden.cv.exception.StoryNotFoundException;
+import com.jobwarden.cv.service.CoverLetterService;
+import com.jobwarden.cv.service.StoryService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.modulith.test.ApplicationModuleTest;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+
+/**
+ * The cv module starts here without identity and jobs, so the profiles and their jobs are inserted with SQL, like in
+ * {@link CvServiceTests}.
+ */
+@ApplicationModuleTest
+@Import(TestcontainersConfiguration.class)
+class CoverLetterAndStoryServiceTests {
+
+	@Autowired
+	private CoverLetterService letters;
+
+	@Autowired
+	private StoryService stories;
+
+	@Autowired
+	private JdbcClient jdbc;
+
+	private long userId;
+
+	private long otherUserId;
+
+	@BeforeEach
+	void createProfiles() {
+		this.jdbc.sql("TRUNCATE users CASCADE").update();
+		this.userId = insertProfile("Robert");
+		this.otherUserId = insertProfile("Someone else");
+	}
+
+	@Test
+	void keepsTheLetterClaudeWroteAndTheProfilesChangesToIt() {
+		long job = insertJob(this.userId, "Backend engineer");
+
+		CoverLetter written = this.letters.saveLetter(this.userId, job,
+				" Dear hiring team,\n\nI build payment systems.\n \nKind regards, ", "Led with Kafka.", null);
+		assertThat(written.body()).isEqualTo("Dear hiring team,\n\nI build payment systems.\n \nKind regards,");
+		assertThat(written.paragraphs()).containsExactly("Dear hiring team,", "I build payment systems.", "Kind regards,");
+
+		CoverLetter changed = this.letters.changeLetter(this.userId, job, "Dear Ana,\n\nKind regards,");
+		assertThat(changed.body()).isEqualTo("Dear Ana,\n\nKind regards,");
+		// Claude's notes stay
+		assertThat(changed.notes()).isEqualTo("Led with Kafka.");
+		assertThat(this.letters.findJobsWithLetter(this.userId, List.of(job, job + 1))).containsExactly(job);
+		assertThat(this.letters.findLetter(this.otherUserId, job)).isEmpty();
+	}
+
+	@Test
+	void neverReplacesWhatTheProfileChangedAfterAskingClaude() {
+		long job = insertJob(this.userId, "Backend engineer");
+		this.letters.saveLetter(this.userId, job, "Dear hiring team,", null, null);
+		this.letters.saveDraft(this.userId, OutreachDraft.builder().applicationId(job).recipientName("Ana Pop").linkedinNote("Hi Ana!").build(), null);
+		Instant asked = this.letters.findLetter(this.userId, job).orElseThrow().updatedAt().plusNanos(1_000);
+
+		// Claude was asked, then the profile changed both before Claude's came
+		this.letters.changeLetter(this.userId, job, "Dear Ana, as I wrote it.");
+		OutreachDraft changed = this.letters.findDrafts(this.userId, job).getFirst();
+		this.letters.changeDraft(this.userId, changed.id(), "Hi Ana, as I wrote it.", null, null);
+
+		assertThatExceptionOfType(BusinessRuleException.class)
+			.isThrownBy(() -> this.letters.saveLetter(this.userId, job, "Dear hiring team, from Claude.", null, asked))
+			.satisfies(refused -> assertThat(refused.getErrorCode()).isEqualTo(CvErrorCode.CHANGED_SINCE_ASKED));
+		assertThatExceptionOfType(BusinessRuleException.class).isThrownBy(() -> this.letters.saveDraft(this.userId,
+				OutreachDraft.builder().applicationId(job).recipientName("Ana Pop").linkedinNote("From Claude.").build(), asked))
+			.satisfies(refused -> assertThat(refused.getErrorCode()).isEqualTo(CvErrorCode.CHANGED_SINCE_ASKED));
+		assertThat(this.letters.findLetter(this.userId, job).orElseThrow().body()).isEqualTo("Dear Ana, as I wrote it.");
+		assertThat(this.letters.findDrafts(this.userId, job).getFirst().linkedinNote()).isEqualTo("Hi Ana, as I wrote it.");
+
+		// Asked after the change, Claude's replace it; and a message to someone new is added
+		Instant later = Instant.now().plusSeconds(1);
+		assertThat(this.letters.saveLetter(this.userId, job, "Dear hiring team, from Claude.", null, later).body())
+			.isEqualTo("Dear hiring team, from Claude.");
+		this.letters.saveDraft(this.userId, OutreachDraft.builder().applicationId(job).recipientName("Ion Ionescu").build(), asked);
+		assertThat(this.letters.findDrafts(this.userId, job)).hasSize(2);
+	}
+
+	@Test
+	void writesALetterWithoutClaudeAndRefusesAnEmptyOrTooLongOne() {
+		long job = insertJob(this.userId, "Backend engineer");
+
+		assertThat(this.letters.changeLetter(this.userId, job, "Dear Ana,").notes()).isNull();
+		assertThatExceptionOfType(BusinessRuleException.class).isThrownBy(() -> this.letters.changeLetter(this.userId, job, " "))
+			.satisfies(refused -> assertThat(refused.getErrorCode()).isEqualTo(CvErrorCode.COVER_LETTER_EMPTY));
+		assertThatExceptionOfType(BusinessRuleException.class)
+			.isThrownBy(() -> this.letters.saveLetter(this.userId, job, "x".repeat(CoverLetter.BODY_MAX_LENGTH + 1), null, null))
+			.satisfies(refused -> assertThat(refused.getErrorCode()).isEqualTo(CvErrorCode.COVER_LETTER_TOO_LONG));
+
+		this.letters.deleteLetter(this.otherUserId, job);
+		assertThat(this.letters.findLetter(this.userId, job)).isPresent();
+		this.letters.deleteLetter(this.userId, job);
+		assertThat(this.letters.findLetter(this.userId, job)).isEmpty();
+	}
+
+	@Test
+	void keepsOneBaseLetterPerProfileAndFillsItInForAJob() {
+		assertThat(this.letters.findBaseLetter(this.userId)).isEmpty();
+
+		this.letters.saveBaseLetter(this.userId, " Dear hiring team,\n\nI'd like to join {company} as {role}. ");
+		BaseLetter base = this.letters.saveBaseLetter(this.userId, "Dear hiring team,\n\nI'd like to join {company} as {role}.");
+		assertThat(this.letters.findBaseLetter(this.userId)).contains(base);
+		assertThat(base.fillIn("Acme", " Backend engineer ")).isEqualTo("Dear hiring team,\n\nI'd like to join Acme as Backend engineer.");
+		// What the job doesn't say stays to fill in
+		assertThat(base.fillIn(null, "Backend engineer")).isEqualTo("Dear hiring team,\n\nI'd like to join {company} as Backend engineer.");
+		assertThat(this.letters.findBaseLetter(this.otherUserId)).isEmpty();
+		assertThatExceptionOfType(BusinessRuleException.class).isThrownBy(() -> this.letters.saveBaseLetter(this.userId, " "))
+			.satisfies(refused -> assertThat(refused.getErrorCode()).isEqualTo(CvErrorCode.COVER_LETTER_EMPTY));
+
+		this.letters.deleteBaseLetter(this.otherUserId);
+		assertThat(this.letters.findBaseLetter(this.userId)).isPresent();
+		this.letters.deleteBaseLetter(this.userId);
+		assertThat(this.letters.findBaseLetter(this.userId)).isEmpty();
+	}
+
+	@Test
+	void findsTheLettersAndCountsTheMessagesOfManyJobsAtOnce() {
+		long acme = insertJob(this.userId, "Backend engineer");
+		long globex = insertJob(this.userId, "Java developer");
+		long others = insertJob(this.otherUserId, "Someone else's job");
+		this.letters.changeLetter(this.userId, acme, "Dear Ana,");
+		this.letters.changeLetter(this.otherUserId, others, "Dear Ion,");
+		this.letters.saveDraft(this.userId, OutreachDraft.builder().applicationId(globex).recipientName("Ana Pop").build(), null);
+		this.letters.saveDraft(this.userId, OutreachDraft.builder().applicationId(globex).recipientName("Ion Ionescu").build(), null);
+
+		assertThat(this.letters.findLetters(this.userId, List.of(acme, globex, others))).containsOnlyKeys(acme)
+			.extractingByKey(acme)
+			.extracting(CoverLetter::body)
+			.isEqualTo("Dear Ana,");
+		assertThat(this.letters.countDrafts(this.userId, List.of(acme, globex))).containsExactlyEntriesOf(java.util.Map.of(globex, 2));
+		assertThat(this.letters.findLetters(this.userId, List.of())).isEmpty();
+		assertThat(this.letters.countDrafts(this.userId, List.of())).isEmpty();
+	}
+
+	@Test
+	void keepsOneDraftPerPersonAndAJobsNotesWithinLinkedInsLimit() {
+		long job = insertJob(this.userId, "Backend engineer");
+		OutreachDraft toAna = OutreachDraft.builder()
+			.applicationId(job)
+			.recipientName("Ana Pop")
+			.recipientLink("https://www.linkedin.com/in/anapop")
+			.linkedinNote("Hi Ana!")
+			.emailBody(" ")
+			.build();
+
+		OutreachDraft first = this.letters.saveDraft(this.userId, toAna, null);
+		this.letters.saveDraft(this.userId, toAna.toBuilder().recipientName("Ana Pop-Ionescu").linkedinNote("Hello Ana!").build(), null);
+		this.letters.saveDraft(this.userId, OutreachDraft.builder().applicationId(job).recipientName("Hiring team").build(), null);
+
+		List<OutreachDraft> drafts = this.letters.findDrafts(this.userId, job);
+		assertThat(drafts).extracting(OutreachDraft::recipientName).containsExactly("Ana Pop-Ionescu", "Hiring team");
+		assertThat(drafts.getFirst().id()).isEqualTo(first.id());
+		assertThat(drafts.getFirst().linkedinNote()).isEqualTo("Hello Ana!");
+		assertThat(drafts.getFirst().emailBody()).isNull();
+
+		// 300 letters are fine, however many bytes they take; 301 aren't
+		this.letters.changeDraft(this.userId, first.id(), "ă".repeat(300), "Subject", "Body");
+		assertThatExceptionOfType(BusinessRuleException.class)
+			.isThrownBy(() -> this.letters.changeDraft(this.userId, first.id(), "x".repeat(301), null, null))
+			.satisfies(refused -> assertThat(refused.getErrorCode()).isEqualTo(CvErrorCode.LINKEDIN_NOTE_TOO_LONG));
+		assertThatExceptionOfType(OutreachDraftNotFoundException.class)
+			.isThrownBy(() -> this.letters.changeDraft(this.otherUserId, first.id(), "Hi", null, null));
+		assertThatExceptionOfType(BusinessRuleException.class).isThrownBy(() -> this.letters.saveDraft(this.userId,
+				OutreachDraft.builder().applicationId(job).recipientName(" ").build(), null));
+
+		this.letters.deleteDraft(this.userId, first.id());
+		assertThat(this.letters.findDrafts(this.userId, job)).hasSize(1);
+	}
+
+	@Test
+	void refusesALetterOrAMessageLongerThanItsParts() {
+		long job = insertJob(this.userId, "Backend engineer");
+
+		assertThatExceptionOfType(BusinessRuleException.class)
+			.isThrownBy(() -> this.letters.saveLetter(this.userId, job, "Dear Ana,", "x".repeat(CoverLetter.NOTES_MAX_LENGTH + 1), null))
+			.satisfies(refused -> assertThat(refused.getErrorCode()).isEqualTo(CvErrorCode.TEXT_TOO_LONG));
+		assertThatExceptionOfType(BusinessRuleException.class).isThrownBy(() -> this.letters.saveDraft(this.userId,
+				OutreachDraft.builder()
+					.applicationId(job)
+					.recipientName("Ana Pop")
+					.emailSubject("x".repeat(OutreachDraft.EMAIL_SUBJECT_MAX_LENGTH + 1))
+					.build(), null))
+			.satisfies(refused -> assertThat(refused.getMessage()).contains("The email's subject has 301 characters"));
+		assertThatExceptionOfType(BusinessRuleException.class).isThrownBy(() -> this.letters.saveDraft(this.userId,
+				OutreachDraft.builder().applicationId(job).recipientName("x".repeat(OutreachDraft.RECIPIENT_MAX_LENGTH + 1)).build(), null));
+		OutreachDraft kept = this.letters.saveDraft(this.userId, OutreachDraft.builder().applicationId(job).recipientName("Ana Pop").build(), null);
+		assertThatExceptionOfType(BusinessRuleException.class).isThrownBy(() -> this.letters.changeDraft(this.userId,
+				kept.id(), null, null, "x".repeat(OutreachDraft.EMAIL_BODY_MAX_LENGTH + 1)));
+	}
+
+	@Test
+	void keepsTheStoriesTidiedAndInTheirOrder() {
+		Story saved = this.stories.save(this.userId, Story.builder()
+			.title(" The Kafka migration ")
+			.situation("Orders were lost at peaks.")
+			.result(" ")
+			.skills(List.of("Kafka", " Kafka ", "", "leadership", "C, C++", "x".repeat(Story.SKILL_MAX_LENGTH + 5)))
+			.build());
+		Story second = this.stories.save(this.userId, Story.builder().title("Halving checkout latency").build());
+
+		assertThat(saved.title()).isEqualTo("The Kafka migration");
+		assertThat(saved.result()).isNull();
+		// A skill is never a list, which the form would read back as two; nor longer than a skill is
+		assertThat(saved.skills()).containsExactly("Kafka", "leadership", "C", "C++", "x".repeat(Story.SKILL_MAX_LENGTH));
+		assertThat(this.stories.findAll(this.userId)).extracting(Story::id).containsExactly(saved.id(), second.id());
+		// In the order a brief names them, the ones gone or another profile's left out
+		assertThat(this.stories.findAll(this.userId, List.of(second.id(), 999_999L, saved.id()))).extracting(Story::id)
+			.containsExactly(second.id(), saved.id());
+		assertThat(this.stories.findAll(this.otherUserId, List.of(saved.id()))).isEmpty();
+
+		Story changed = this.stories.save(this.userId, saved.toBuilder().result("No order lost since.").build());
+		assertThat(changed.id()).isEqualTo(saved.id());
+		assertThat(this.stories.find(this.userId, saved.id()).result()).isEqualTo("No order lost since.");
+		assertThatExceptionOfType(StoryNotFoundException.class)
+			.isThrownBy(() -> this.stories.save(this.otherUserId, saved.toBuilder().title("Mine").build()));
+		assertThatExceptionOfType(BusinessRuleException.class)
+			.isThrownBy(() -> this.stories.save(this.userId, Story.builder().title(" ").build()))
+			.satisfies(refused -> assertThat(refused.getErrorCode()).isEqualTo(CvErrorCode.STORY_WITHOUT_TITLE));
+
+		this.stories.delete(this.userId, second.id());
+		assertThat(this.stories.findAll(this.userId)).hasSize(1);
+	}
+
+	@Test
+	void addsTheStoriesClaudeDraftedButThoseTheBankHasAndThoseOverItsSize() {
+		this.stories.save(this.userId, Story.builder().title("The Kafka migration").build());
+
+		List<Story> added = this.stories.addDrafted(this.userId, List.of(
+				Story.builder().title("the kafka migration ").action("Moved the queue.").build(),
+				Story.builder().title("Halving checkout latency").result("[By how much?]").build(),
+				Story.builder().title("Halving checkout latency").build()));
+
+		assertThat(added).extracting(Story::title).containsExactly("Halving checkout latency");
+		assertThat(added.getFirst().needsFinishing()).isTrue();
+		assertThat(this.stories.findAll(this.userId)).hasSize(2);
+
+		for (int i = 2; i < Story.MAX_STORIES; i++) {
+			this.stories.save(this.userId, Story.builder().title("Story " + i).build());
+		}
+		assertThat(this.stories.addDrafted(this.userId, List.of(Story.builder().title("One more").build()))).isEmpty();
+		assertThatExceptionOfType(BusinessRuleException.class)
+			.isThrownBy(() -> this.stories.save(this.userId, Story.builder().title("One more").build()))
+			.satisfies(refused -> assertThat(refused.getErrorCode()).isEqualTo(CvErrorCode.TOO_MANY_STORIES));
+	}
+
+	private long insertJob(long userId, String title) {
+		return this.jdbc.sql("""
+				INSERT INTO applications (user_id, title, current_status, captured_at) VALUES (?, ?, 'SAVED', now())
+				RETURNING id""").param(userId).param(title).query(Long.class).single();
+	}
+
+	private long insertProfile(String name) {
+		return this.jdbc.sql("INSERT INTO users (name) VALUES (?) RETURNING id").param(name).query(Long.class).single();
+	}
+
+}

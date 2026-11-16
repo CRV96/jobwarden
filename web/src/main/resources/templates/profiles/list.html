@@ -7,25 +7,33 @@
 <body>
 <!--/* Where every session starts: pick who's using JobWarden, or create a profile. */-->
 <main class="flex w-[min(340px,100%)] flex-col items-center gap-4 text-center">
-    <div class="brand-mark size-12 rounded-xl">
-        <i class="ph ph-shield-check text-[26px]"></i>
-    </div>
+    <span class="flex rounded-[14px] shadow-[0_1px_3px_rgb(0_0_0/0.2)]">
+        <svg th:replace="~{layout :: logo('jw-logo-profiles', 'size-12')}"></svg>
+    </span>
     <div>
         <h1 class="text-xl font-bold tracking-[-0.02em]" th:text="#{profiles.heading}">Who’s using JobWarden?</h1>
         <p class="text-[13px] text-ink/60" th:text="${#lists.isEmpty(profiles)} ? #{profiles.empty} : #{profiles.subheading}">
             Choose a profile to continue</p>
+        <div class="mt-1 text-left">
+            <th:block th:replace="~{help/help :: how-it-works('profiles')}"></th:block>
+        </div>
     </div>
+
+    <!--/* Once a profile is deleted from Settings (ProfileController), once */-->
+    <output class="card flex w-full items-center gap-2 p-3 text-left text-[13px] text-success" th:if="${profileDeleted}">
+        <i class="ph ph-check-circle text-lg"></i><span th:text="#{profiles.deleted(${profileDeleted})}">Deleted Robert and everything of it.</span>
+    </output>
 
     <ul class="flex w-full flex-col gap-1.5 text-left" th:unless="${#lists.isEmpty(profiles)}">
         <li th:each="profile : ${profiles}">
             <form method="post" th:action="@{/profiles/{id}/select(id=${profile.id})}">
                 <button class="flex w-full items-center gap-2.5 rounded-[10px] bg-surface px-3 py-2.5 text-left shadow-sm hover:shadow-md" type="submit"
                         th:aria-current="${currentProfile != null and currentProfile.id == profile.id} ? 'true'">
-                    <span class="avatar size-[30px]" th:text="${@names.initials(profile.name)}">R</span>
+                    <span th:replace="~{profiles/list :: avatar(${profile}, 'size-[30px]')}">R</span>
                     <span class="min-w-0 flex-1">
                         <span class="block truncate text-[13px] font-medium" th:text="${profile.name}">Robert</span>
-                        <!--/* The id as text, so it shows 1000 and not 1,000. The extension asks for it. */-->
-                        <span class="block text-xs opacity-60" th:text="#{nav.profileId(${#strings.toString(profile.id)})}">Profile id 1</span>
+                        <!--/* Its public id, which the extension and the assistants ask for */-->
+                        <span class="block truncate text-xs opacity-60" th:text="#{nav.profileId(${profile.publicId})}">Profile ID 5b1f3c2e…</span>
                     </span>
                     <i class="ph ph-check text-accent" th:if="${currentProfile != null and currentProfile.id == profile.id}"></i>
                     <i class="ph ph-caret-right opacity-50"></i>
@@ -43,5 +51,13 @@
 
     <a class="link text-[13px]" th:if="${currentProfile}" th:href="@{/applications}" th:text="#{profiles.back}">Back to your jobs</a>
 </main>
+
+<!--/* A profile's photo, or its initials without one, in a circle of the given size. Its name is beside it wherever it
+       shows, so the photo has no text of its own. The address changes with the photo, so the browser keeps it until
+       then (ProfileController). */-->
+<span th:fragment="avatar(profile, size)" class="avatar overflow-hidden" th:classappend="${size}"><img
+      th:if="${profile.hasImage()}" class="size-full object-cover" alt=""
+      th:src="@{/profiles/{id}/image(id=${profile.id}, v=${profile.imageChangedAt.toEpochMilli()})}"><th:block
+      th:unless="${profile.hasImage()}" th:text="${@names.initials(profile.name)}">R</th:block></span>
 </body>
 </html>

@@ -12,7 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 /**
- * Files to download.
+ * Files to download, or to show in the browser.
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 final class Attachments {
@@ -30,10 +30,34 @@ final class Attachments {
 	}
 
 	/**
+	 * A file to show in the browser, e.g. a PDF in a frame of the page, under its name if it's saved. The browser takes
+	 * it as its type says, never sniffs another.
+	 */
+	static ResponseEntity<byte[]> inline(byte[] content, MediaType type, String fileName) {
+		return ResponseEntity.ok()
+			.contentType(type)
+			.header(HttpHeaders.CONTENT_DISPOSITION,
+					ContentDisposition.inline().filename(fileName, StandardCharsets.UTF_8).build().toString())
+			.header("X-Content-Type-Options", "nosniff")
+			.body(content);
+	}
+
+	/**
 	 * A CV's PDF name: "CV Ana Pop - Acme.pdf" for a job at Acme, "CV Ana Pop.pdf" for none.
 	 */
 	static String cvName(@Nullable String fullName, @Nullable String company) {
-		StringBuilder name = new StringBuilder("CV");
+		return documentName("CV", fullName, company);
+	}
+
+	/**
+	 * A cover letter's PDF name: "Cover letter Ana Pop - Acme.pdf".
+	 */
+	static String letterName(@Nullable String fullName, @Nullable String company) {
+		return documentName("Cover letter", fullName, company);
+	}
+
+	private static String documentName(String what, @Nullable String fullName, @Nullable String company) {
+		StringBuilder name = new StringBuilder(what);
 		if (fullName != null) {
 			name.append(' ').append(fullName);
 		}

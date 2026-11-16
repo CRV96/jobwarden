@@ -95,8 +95,8 @@ class TailoredCvControllerTests {
 	void offersToAskClaudeWhenThereIsNoneYet() {
 		assertThat(this.mvc.get().uri("/applications/7/cv/card")).hasStatusOk()
 			.bodyText()
-			.contains("AI-proof CV", "Claude rewrites your CV for this job", "hx-post=\"/applications/7/cv/request\"",
-					"Ask Claude to tailor it")
+			.contains("AI-proof CV", "The assistant rewrites your CV for this job", "hx-post=\"/applications/7/cv/request\"",
+					"Ask the AI Assistant to tailor it")
 			.doesNotContain("every 5s");
 	}
 
@@ -105,7 +105,7 @@ class TailoredCvControllerTests {
 		given(this.cvs.find(1)).willReturn(new Cv(null, CvDetails.NONE));
 
 		assertThat(this.mvc.get().uri("/applications/7/cv/card")).bodyText()
-			.contains("Claude needs your CV first", "href=\"/cv\"")
+			.contains("The assistant needs your CV first", "href=\"/cv\"")
 			.doesNotContain("/applications/7/cv/request");
 	}
 
@@ -117,9 +117,9 @@ class TailoredCvControllerTests {
 
 		assertThat(this.mvc.post().uri("/applications/7/cv/request")).hasStatusOk()
 			.bodyText()
-			.contains("Waiting for Claude", "Do JobWarden request 14: call get_request with request_id 14 and profile_id 1",
+			.contains("Waiting for the AI Assistant", "Do JobWarden request 14: call get_request with request_id 14 and profile_id 1",
 					"hx-trigger=\"every 5s\"", "/applications/7/cv/cancel")
-			.doesNotContain("Ask Claude to tailor it");
+			.doesNotContain("Ask the AI Assistant to tailor it");
 		then(this.discovery).should().createRequest(1, AiRequestKind.TAILOR_CV, 7);
 	}
 

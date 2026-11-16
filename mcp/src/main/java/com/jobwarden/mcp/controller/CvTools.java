@@ -1,7 +1,8 @@
 package com.jobwarden.mcp.controller;
 
-import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Stream;
 
 import com.jobwarden.cv.dto.Cv;
 import com.jobwarden.cv.dto.CvCertification;
@@ -9,6 +10,7 @@ import com.jobwarden.cv.dto.CvDetails;
 import com.jobwarden.cv.dto.CvEducation;
 import com.jobwarden.cv.dto.CvExperience;
 import com.jobwarden.cv.dto.CvLanguage;
+import com.jobwarden.cv.dto.CvProject;
 import com.jobwarden.cv.dto.TailoredCv;
 import com.jobwarden.cv.service.CvService;
 import com.jobwarden.jobs.dto.ApplicationDetails;
@@ -21,6 +23,7 @@ import tools.jackson.databind.node.ObjectNode;
 import org.springframework.stereotype.Component;
 
 import static com.jobwarden.mcp.controller.JobTools.properties;
+import static com.jobwarden.mcp.controller.Schemas.bool;
 import static com.jobwarden.mcp.controller.Schemas.integer;
 import static com.jobwarden.mcp.controller.Schemas.list;
 import static com.jobwarden.mcp.controller.Schemas.object;
@@ -28,14 +31,29 @@ import static com.jobwarden.mcp.controller.Schemas.string;
 import static com.jobwarden.mcp.controller.Schemas.strings;
 
 /**
- * The profile's CV, for Claude to match jobs against, and to rewrite for one job.
+ * The profile's CV, for the assistant to match jobs against, and to rewrite for one job.
  */
 @Component
 @RequiredArgsConstructor
 class CvTools implements McpToolSet {
 
-	/** The most of the file's text it returns: a CV is far shorter, and Claude's context is shared. */
+	/** The most of the file's text it returns: a CV is far shorter, and the assistant's context is shared. */
 	static final int MAX_TEXT_LENGTH = 30_000;
+
+	/**
+	 * The most of the file's text a request hands out with its other data (a posting of up to 12,000 characters, the
+	 * fields), less when they leave less room: get_cv with full=true gives up to MAX_TEXT_LENGTH of it.
+	 */
+	static final int REQUEST_TEXT_LENGTH = 15_000;
+
+	/** Where a file's text is when a CV is handed out without it, or with less of it (up to 30,000 characters). */
+	static final String FILE_TEXT_WITH = "get_cv with full=true";
+
+	/** The most of it a brief CV returns: the first pages say who the person is. */
+	static final int BRIEF_TEXT_LENGTH = 8_000;
+
+	/** The least of a field's text (a job's points, a project's, a school's, the summary) a request keeps when it cuts. */
+	static final int LEAST_FIELD_TEXT = 300;
 
 	private final Profiles profiles;
 
@@ -50,19 +68,117 @@ class CvTools implements McpToolSet {
 
 	private McpTool getCv() {
 		return new McpTool("get_cv", "Get the CV",
-				"The profile's CV, to find jobs that fit it: the fields filled in on the CV page (headline, summary, "
-						+ "experience, education, skills, languages, certifications) and the text of the CV file uploaded. "
-						+ "Either may be missing; has_cv is false when both are.",
-				object(properties(Profiles.ARGUMENT, Profiles.schema())), true, false, call -> {
-					long userId = this.profiles.of(call);
-					Cv cv = this.cvs.find(userId);
-					FileView file = (cv.file() == null) ? null
-							: new FileView(cv.file().fileName(), cv.file().uploadedAt(),
-									this.cvs.fileText(userId).map(CvTools::shortened).orElse(null));
-					CvDetails details = cv.details();
-					boolean filledIn = details.isFilledIn() || !details.skills().isEmpty() || details.summary() != null;
-					return new CvView(filledIn || file != null, filledIn ? details(details) : null, file);
+				"The profile's CV: the CV page's fields, or without them the uploaded file's text; has_cv false if "
+						+ "neither. Brief by default: jobs without their points.",
+				object(properties(Profiles.ARGUMENT, Profiles.schema(),
+						"full", bool("Every job's points, and the file's text too"))),
+				true, false, call -> {
+					boolean full = call.arguments().path("full").asBoolean(false);
+					return view(this.profiles.of(call), full ? Depth.FULL : Depth.BRIEF);
 				});
+	}
+
+	/**
+	 * How much of the CV: the jobs alone, enough to know who the person is; every point, to write from what they did;
+	 * or every point and the file's text too, to rewrite the CV.
+	 */
+	enum Depth {
+
+		BRIEF,
+
+		/** Every job's points, and the file's text when the fields have none: they'd say the same twice. */
+		POINTS,
+
+		/** Every job's points, and the file's text as well as the fields. */
+		FULL
+
+	}
+
+	/**
+	 * The CV as get_cv gives it, which get_request also hands out with the requests that need it.
+	 */
+	CvView view(long userId, Depth depth) {
+		return view(userId, depth, MAX_TEXT_LENGTH, Integer.MAX_VALUE);
+	}
+
+	/**
+	 * The same for get_request, which hands it out with the request's other data: the file's text no longer than
+	 * {@link #REQUEST_TEXT_LENGTH}.
+	 */
+	CvView viewForRequest(long userId, Depth depth) {
+		return view(userId, depth, REQUEST_TEXT_LENGTH, Integer.MAX_VALUE);
+	}
+
+	/**
+	 * The same, with no more of the file's text than given: for a request whose other data leaves less room.
+	 */
+	CvView viewForRequest(long userId, Depth depth, int fileTextMax) {
+		return viewForRequest(userId, depth, fileTextMax, Integer.MAX_VALUE);
+	}
+
+	/**
+	 * The same, with no field's text longer than given either: for a request whose CV fields alone leave too little
+	 * room.
+	 */
+	CvView viewForRequest(long userId, Depth depth, int fileTextMax, int fieldTextMax) {
+		return view(userId, depth, Math.min(fileTextMax, REQUEST_TEXT_LENGTH), fieldTextMax);
+	}
+
+	/**
+	 * How long a field's text may be for the fields' texts to be shorter by at least the given number of characters all
+	 * told, never under {@link #LEAST_FIELD_TEXT}.
+	 */
+	static int fieldTextMax(@Nullable CvView view, int shorterBy) {
+		List<Integer> lengths = (view == null || view.fields() == null) ? List.of()
+				: texts(view.fields()).map(String::length).toList();
+		int low = LEAST_FIELD_TEXT;
+		int high = Math.max(low, lengths.stream().mapToInt(Integer::intValue).max().orElse(0));
+		// The longest that still saves enough: the more it allows, the less it saves
+		while (low < high) {
+			int max = (low + high + 1) / 2;
+			long saved = lengths.stream().mapToLong(length -> Math.max(0, length - max)).sum();
+			if (saved >= shorterBy) {
+				low = max;
+			} else {
+				high = max - 1;
+			}
+		}
+		return low;
+	}
+
+	/**
+	 * @return the longest of the fields' texts, in characters; 0 without fields
+	 */
+	static int longestFieldText(@Nullable CvView view) {
+		return (view == null || view.fields() == null) ? 0
+				: texts(view.fields()).mapToInt(String::length).max().orElse(0);
+	}
+
+	/** The fields' long texts: the summary, and the jobs', projects' and schools' descriptions. */
+	private static Stream<String> texts(DetailsView fields) {
+		return Stream.of(Stream.ofNullable(fields.summary()), fields.experience().stream().map(CvExperience::description),
+				fields.projects().stream().map(CvProject::description),
+				fields.education().stream().map(CvEducation::description))
+			.flatMap(texts -> texts)
+			.filter(Objects::nonNull);
+	}
+
+	private CvView view(long userId, Depth depth, int fileTextMax, int fieldTextMax) {
+		Cv cv = this.cvs.find(userId);
+		CvDetails details = cv.details();
+		boolean filledIn = details.isFilledIn() || !details.skills().isEmpty() || details.summary() != null;
+		boolean points = depth != Depth.BRIEF;
+		// The file's text says again what the fields say: only without them, unless asked
+		boolean fileText = !filledIn || depth == Depth.FULL
+				|| (depth == Depth.POINTS && details.experience().stream().allMatch(job -> job.description() == null));
+		// Left out, or cut short, the file says where its text is, for the evidence only it has
+		String text = fileText ? fileText(userId, points, fileTextMax) : null;
+		// Cut, it's a character longer than its limit (the "…"); get_cv with full=true has more of it, unless it was that
+		int textMax = points ? fileTextMax : BRIEF_TEXT_LENGTH;
+		boolean more = text != null && text.length() > textMax && textMax < MAX_TEXT_LENGTH;
+		FileView file = (cv.file() == null) ? null
+				: new FileView(cv.file().fileName(), text, (!fileText || more) ? FILE_TEXT_WITH : null);
+		return new CvView(filledIn || file != null, filledIn ? details(details, points, fieldTextMax) : null, file);
 	}
 
 	/**
@@ -71,46 +187,50 @@ class CvTools implements McpToolSet {
 	 */
 	private McpTool saveTailoredCv() {
 		ObjectNode job = object(properties(
-				"role", string("The job title, as the CV had it"),
-				"company", string("The employer"),
-				"location", string("Where, e.g. Cluj-Napoca or Remote"),
-				"start", string("When it started, as the CV had it, e.g. 2021 or Mar 2021"),
-				"end", string("When it ended, e.g. Present"),
-				"description", string("The points, one per line, each starting with a verb")),
+				"role", string("As on the CV"),
+				"company", string(),
+				"location", string("e.g. Remote"),
+				"start", string("As on the CV, e.g. Mar 2021"),
+				"end", string("e.g. Present"),
+				"description", string("Points, one per line, each starting with a verb")),
 				"role");
 		ObjectNode school = object(properties(
-				"degree", string("The degree or the course"),
-				"school", string("The school"),
-				"location", string("Where"),
-				"start", string("When it started"),
-				"end", string("When it ended"),
-				"description", string("Anything else, a line per point")),
+				"degree", string("Degree or course"),
+				"school", string(),
+				"location", string(),
+				"start", string(),
+				"end", string(),
+				"description", string("Other points, one per line")),
 				"degree");
-		ObjectNode cv = object(properties(
-				"full_name", string("Only when the CV page has none: from the CV file"),
-				"headline", string("What the person does, under the name: the posting's title when it's true of them"),
-				"summary", string("Three or four lines on why the person fits the job"),
-				"skills", strings("The posting's keywords the person has first, in its words, then the other relevant ones"),
-				"experience", list(job, "The jobs, newest first: the same jobs and dates as the CV"),
-				"education", list(school, "As the CV has it"),
-				"languages", list(object(properties("language", string("e.g. English"),
-						"level", string("e.g. C1, or Native"))), "As the CV has it"),
-				"certifications", list(object(properties("name", string("The certification"),
-						"issuer", string("Who gave it"), "year", string("When"))), "As the CV has it"),
-				"location", string("Only when the CV page has none: where the person lives"),
-				"email", string("Only when the CV page has none"),
-				"phone", string("Only when the CV page has none"),
-				"linkedin", string("Only when the CV page has none: the profile's link")));
+		ObjectNode project = object(properties(
+				"name", string(),
+				"link", string("e.g. its repository"),
+				"technologies", string("In a few words"),
+				"description", string("What it does and what the person built, 1-3 sentences")),
+				"name");
+		ObjectNode cv = object("full_name and the contact fields only when the CV page has none", properties(
+				"full_name", string(),
+				"headline", string("The posting's title, if true of the person"),
+				"summary", string("3-4 lines on why the person fits"),
+				"skills", strings("The posting's keywords the person has first, in its words, then other relevant ones"),
+				"experience", list(job, "The CV's jobs and dates, newest first"),
+				"projects", list(project, "Those that fit the job first"),
+				"education", list(school),
+				"languages", list(object(properties("language", string(), "level", string("e.g. C1, Native")))),
+				"certifications", list(object(properties("name", string(), "issuer", string(), "year", string()))),
+				"location", string(),
+				"email", string(),
+				"phone", string(),
+				"linkedin", string()));
 		return new McpTool("save_tailored_cv", "Save a CV tailored to a job",
-				"Keeps the CV you rewrote for one of the profile's jobs, replacing the one there was for it. The job's page "
-						+ "shows it, with a preview and a PDF to download. Only what the person really did, in the posting's "
-						+ "words; the contact details you leave out are the CV page's.",
+				"Saves the CV rewritten for one job, replacing the job's previous one; its page shows it and its PDF. "
+						+ "Only what the person did, in the posting's words; contact details come from the CV page.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"job_id", integer("The job it's for, from get_request or list_jobs"),
+						"job_id", integer(),
 						"cv", cv,
-						"matched_keywords", strings("The posting's skills and keywords the CV now names"),
-						"missing_keywords", strings("Those the posting asks for that the person can't honestly claim"),
-						"notes", string("What you changed, and what to check before sending it, in a few lines")),
+						"matched_keywords", strings("The posting's keywords the CV now names"),
+						"missing_keywords", strings("Those it asks for that the person can't honestly claim"),
+						"notes", string("What you changed and what to check, in a few lines")),
 						"job_id", "cv"),
 				false, false, call -> {
 					long userId = this.profiles.of(call);
@@ -127,8 +247,8 @@ class CvTools implements McpToolSet {
 	}
 
 	/**
-	 * The fields Claude wrote, with the CV page's contact details: the name and how to reach the person aren't
-	 * Claude's to change.
+	 * The fields the assistant wrote, with the CV page's contact details: the name and how to reach the person aren't
+	 * the assistant's to change.
 	 */
 	private static CvDetails tailored(ToolCall cv, CvDetails saved) {
 		return CvDetails.builder()
@@ -145,6 +265,7 @@ class CvTools implements McpToolSet {
 			.experience(cv.items("experience").stream().map(job -> new CvExperience(job.requiredString("role"),
 					job.string("company"), job.string("location"), job.string("start"), job.string("end"),
 					job.string("description"))).toList())
+			.projects(cv.items("projects").stream().map(ProjectTools::project).toList())
 			.education(cv.items("education").stream().map(school -> new CvEducation(school.requiredString("degree"),
 					school.string("school"), school.string("location"), school.string("start"), school.string("end"),
 					school.string("description"))).toList())
@@ -156,17 +277,52 @@ class CvTools implements McpToolSet {
 			.build();
 	}
 
+	/** The file's text: all of it with the points (up to max), else its start */
+	private @Nullable String fileText(long userId, boolean full, int max) {
+		int length = full ? max : BRIEF_TEXT_LENGTH;
+		return this.cvs.fileText(userId).map(text -> shortened(text, length)).orElse(null);
+	}
+
 	private static @Nullable String firstOf(@Nullable String saved, @Nullable String written) {
 		return (saved != null) ? saved : written;
 	}
 
-	private static DetailsView details(CvDetails cv) {
-		return new DetailsView(cv.fullName(), cv.headline(), cv.location(), cv.summary(), cv.skills(), cv.experience(),
-				cv.education(), cv.languages(), cv.certifications(), cv.updatedAt());
+	/**
+	 * @param full with every job's points; else only the jobs' roles, companies, places and dates
+	 * @param textMax the longest a field's text may be: longer, it's cut, and says get_cv with full=true has it whole
+	 */
+	private static DetailsView details(CvDetails cv, boolean full, int textMax) {
+		List<CvExperience> experience = cv.experience()
+			.stream()
+			.map(job -> new CvExperience(job.role(), job.company(), job.location(), job.start(), job.end(),
+					full ? cut(job.description(), textMax) : null))
+			.toList();
+		List<CvProject> projects = cv.projects()
+			.stream()
+			.map(project -> new CvProject(project.name(), project.link(), project.technologies(),
+					cut(project.description(), textMax)))
+			.toList();
+		List<CvEducation> education = cv.education()
+			.stream()
+			.map(school -> new CvEducation(school.degree(), school.school(), school.location(), school.start(),
+					school.end(), cut(school.description(), textMax)))
+			.toList();
+		DetailsView whole = new DetailsView(cv.fullName(), cv.headline(), cv.location(), cv.summary(), cv.skills(),
+				full ? cv.experience() : experience, cv.projects(), cv.education(), cv.languages(), cv.certifications(),
+				null);
+		if (longestFieldText(new CvView(true, whole, null)) <= textMax) {
+			return whole;
+		}
+		return new DetailsView(cv.fullName(), cv.headline(), cv.location(), cut(cv.summary(), textMax), cv.skills(),
+				experience, projects, education, cv.languages(), cv.certifications(), FILE_TEXT_WITH);
 	}
 
-	private static String shortened(String text) {
-		return (text.length() <= MAX_TEXT_LENGTH) ? text : text.substring(0, MAX_TEXT_LENGTH) + "…";
+	private static @Nullable String cut(@Nullable String text, int maxLength) {
+		return (text == null) ? null : shortened(text, maxLength);
+	}
+
+	private static String shortened(String text, int maxLength) {
+		return (text.length() <= maxLength) ? text : text.substring(0, maxLength) + "…";
 	}
 
 	/**
@@ -175,16 +331,22 @@ class CvTools implements McpToolSet {
 	record CvView(boolean hasCv, @Nullable DetailsView fields, @Nullable FileView file) {
 	}
 
-	/** The fields, without the contact details: Claude needs none of them to find jobs. */
+	/**
+	 * The fields, without the contact details: the assistant needs none of them to find jobs.
+	 *
+	 * @param cutWith where the texts cut short (ending in …) are whole, when a request cut them
+	 */
 	record DetailsView(@Nullable String fullName, @Nullable String headline, @Nullable String location,
-			@Nullable String summary, List<String> skills, List<CvExperience> experience, List<CvEducation> education,
-			List<CvLanguage> languages, List<CvCertification> certifications, @Nullable Instant updatedAt) {
+			@Nullable String summary, List<String> skills, List<CvExperience> experience, List<CvProject> projects,
+			List<CvEducation> education, List<CvLanguage> languages, List<CvCertification> certifications,
+			@Nullable String cutWith) {
 	}
 
 	/**
-	 * @param text what could be read out of it; none for a scanned PDF
+	 * @param text its text, or none when the fields say it already
+	 * @param textWith then, how to get it: for evidence only the file has
 	 */
-	record FileView(String name, Instant uploadedAt, @Nullable String text) {
+	record FileView(String name, @Nullable String text, @Nullable String textWith) {
 	}
 
 	/**

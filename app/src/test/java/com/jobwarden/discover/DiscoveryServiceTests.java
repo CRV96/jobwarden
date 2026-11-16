@@ -302,9 +302,18 @@ class DiscoveryServiceTests {
 		assertThatExceptionOfType(IllegalArgumentException.class)
 			.isThrownBy(() -> this.discovery.createRequest(this.userId, AiRequestKind.FIND_JOBS, job));
 
-		// Deleting the job takes its requests with it
+		// Preparing for its interview, and scoring it, name the job too
+		AiRequest prep = this.discovery.createRequest(this.userId, AiRequestKind.PREPARE_INTERVIEW, job);
+		assertThat(prep.applicationId()).isEqualTo(job);
+		assertThat(this.discovery.createRequest(this.userId, AiRequestKind.SCORE_JOB, job).applicationId()).isEqualTo(job);
+		assertThat(this.discovery.createRequest(this.userId, AiRequestKind.SCORE_JOBS, AiRequirements.NONE).applicationId())
+			.isNull();
+		assertThat(this.discovery.findLatestRequest(this.userId, AiRequestKind.PREPARE_INTERVIEW, job)).contains(prep);
+
+		// Deleting the job takes its requests with it, not those about every job
 		this.applications.delete(this.userId, job);
-		assertThat(this.discovery.findRequests(this.userId, 10)).isEmpty();
+		assertThat(this.discovery.findRequests(this.userId, 10)).extracting(AiRequest::kind)
+			.containsExactly(AiRequestKind.SCORE_JOBS);
 	}
 
 	@Test

@@ -81,10 +81,10 @@
     "message": "Wo JobWarden läuft. Auf diesem Computer meist http://localhost:8080."
   },
   "profileIdHint": {
-    "message": "JobWarden zeigt sie auf der Seite Profile."
+    "message": "JobWarden zeigt sie in den Einstellungen unter Dein Profil, mit einem Knopf zum Kopieren."
   },
   "openProfiles": {
-    "message": "Seite Profile öffnen"
+    "message": "Einstellungen von JobWarden öffnen"
   },
   "save": {
     "message": "Speichern"
@@ -94,6 +94,9 @@
   },
   "notSaved": {
     "message": "Die Einstellungen konnten nicht gespeichert werden."
+  },
+  "profileNotFound": {
+    "message": "Kein Profil hat diese ID auf diesem Server. Kopiere sie aus den Einstellungen von JobWarden, unter Dein Profil."
   },
   "serverUrlInvalid": {
     "message": "Gib eine Adresse ein, die mit http:// oder https:// beginnt."
@@ -170,6 +173,9 @@
   "status_POSITION_CLOSED": {
     "message": "Stelle geschlossen"
   },
+  "status_POSITION_REOPENED": {
+    "message": "Stelle wieder offen"
+  },
   "status_WITHDRAWN": {
     "message": "Zurückgezogen"
   },
@@ -205,6 +211,18 @@
   },
   "showOnIconHint": {
     "message": "★ gemerkt, ✓ beworben. Chrome fragt, ob JobWarden die Adressen deiner Tabs sehen darf; jede geöffnete Seite wird dann auf deinem Server nachgeschlagen."
+  },
+  "showReminders": {
+    "message": "Meine Erinnerungen als Benachrichtigungen zeigen"
+  },
+  "showRemindersHint": {
+    "message": "Die Erinnerungen, die du im Kalender von JobWarden setzt, kommen als Benachrichtigungen deines Systems, solange der Browser läuft, auch ohne offene JobWarden-Seite. Der Browser fragt, ob JobWarden Benachrichtigungen zeigen darf."
+  },
+  "reloadExtension": {
+    "message": "Die Erweiterung muss zuerst neu geladen werden: Sie wurde geladen, bevor es diese Option gab. Öffne chrome://extensions (in Firefox about:debugging), klicke bei JobWarden auf Neu laden und versuche es noch einmal."
+  },
+  "permissionError": {
+    "message": "Konnte nicht geändert werden: $1"
   },
   "updateAvailable": {
     "message": "JobWarden $1 ist da: hol dir den neuesten Code"
@@ -319,5 +337,23 @@
   },
   "runClose": {
     "message": "Schließen"
+  },
+  "watchReading": {
+    "message": "Stellenseite wird gelesen…"
+  },
+  "watchAdded": {
+    "message": "Du beobachtest jetzt $1. Stellen, die zu deinen gespeicherten Suchen passen: $2."
+  },
+  "openWatchlist": {
+    "message": "Beobachtungsliste öffnen"
+  },
+  "watchTooltip": {
+    "message": "$1 beobachten: JobWarden liest seine Stellenseite und fügt die Stellen hinzu, die zu deinen gespeicherten Suchen passen"
+  },
+  "watchingTooltip": {
+    "message": "Du beobachtest $1. Klicke, um es nicht mehr zu beobachten"
+  },
+  "unwatched": {
+    "message": "Du beobachtest $1 nicht mehr. Die auf seiner Stellenseite gefundenen Stellen bleiben in JobWarden."
   }
 }

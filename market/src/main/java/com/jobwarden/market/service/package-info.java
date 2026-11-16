@@ -3,6 +3,9 @@
  * {@code propagate = false} keeps the {@code impl} sub-package internal.
  */
 @NamedInterface(name = "service", propagate = false)
+@NullMarked
 package com.jobwarden.market.service;
+
+import org.jspecify.annotations.NullMarked;
 
 import org.springframework.modulith.NamedInterface;

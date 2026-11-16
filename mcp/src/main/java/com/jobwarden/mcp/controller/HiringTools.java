@@ -21,6 +21,7 @@ import tools.jackson.databind.node.ObjectNode;
 import org.springframework.stereotype.Component;
 
 import static com.jobwarden.mcp.controller.JobTools.properties;
+import static com.jobwarden.mcp.controller.Schemas.bool;
 import static com.jobwarden.mcp.controller.Schemas.date;
 import static com.jobwarden.mcp.controller.Schemas.integer;
 import static com.jobwarden.mcp.controller.Schemas.list;
@@ -39,6 +40,9 @@ class HiringTools implements McpToolSet {
 
 	private static final int MAX_LISTED = 200;
 
+	/** How many a list gives unless asked for more: adding leaves out what the profile has, so lists are rarely needed. */
+	private static final int LISTED = 50;
+
 	private static final int MAX_RECRUITERS_AT_ONCE = 50;
 
 	private final Profiles profiles;
@@ -52,32 +56,37 @@ class HiringTools implements McpToolSet {
 
 	private McpTool listRecruiters() {
 		return new McpTool("list_recruiters", "List recruiters",
-				"The recruiters and hiring managers the profile knows, from the Who's hiring page: those it follows first, "
-						+ "then those with the most posts. Look at the followed ones' recent posts first. The contacts saved "
-						+ "on its jobs are among them; those it removed aren't, and can't be added again.",
-				object(properties(Profiles.ARGUMENT, Profiles.schema())), true, false, call -> {
+				"Recruiters and hiring managers the profile knows (Who's hiring page), followed ones first; its jobs' "
+						+ "contacts included, removed ones not. Not needed before add_recruiters: it skips known ones.",
+				object(properties(Profiles.ARGUMENT, Profiles.schema(),
+						"followed_only", bool(),
+						"limit", integer("Default " + LISTED + ", max " + MAX_LISTED))),
+				true, false, call -> {
 					long userId = this.profiles.of(call);
-					return Map.of("recruiters", this.hiring.findRecruiters(userId).stream().map(HiringTools::row).toList());
+					boolean followedOnly = call.arguments().path("followed_only").asBoolean(false);
+					return Map.of("recruiters", this.hiring.findRecruiters(userId)
+						.stream()
+						.filter(recruiter -> !followedOnly || recruiter.followed())
+						.limit(call.limit("limit", LISTED, MAX_LISTED))
+						.map(HiringTools::row)
+						.toList());
 				});
 	}
 
 	private McpTool addRecruiters() {
 		ObjectNode recruiter = object(properties(
-				"name", string("Their name, as their profile shows it"),
-				"headline", string("What they do, as their profile says, e.g. Technical Recruiter at Acme"),
-				"profile_url", string("Their profile, e.g. https://www.linkedin.com/in/name"),
-				"company", string("Where they recruit, or the agency they recruit from"),
-				"country", string("Where they recruit, as an ISO 3166 code, e.g. RO"),
-				"note", string("Why they're worth following, in a sentence: the roles they hire for, the jobs of the "
-						+ "profile's they're behind")),
+				"name", string(),
+				"headline", string("e.g. Technical Recruiter at Acme"),
+				"profile_url", string("e.g. https://www.linkedin.com/in/name"),
+				"company", string("Employer or agency"),
+				"country", string("ISO 3166 code, e.g. RO"),
+				"note", string("Why follow them, one sentence")),
 				"name", "profile_url");
 		return new McpTool("add_recruiters", "Add recruiters",
-				"Adds recruiters, talent partners and hiring managers you found to the profile's Who's hiring page, to "
-						+ "follow. Only real people who recruit for the roles now. Profiles the profile already has, removed "
-						+ "ones included, and those that aren't web addresses, are left out and listed as skipped. At most "
-						+ MAX_RECRUITERS_AT_ONCE + " at once.",
-				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"recruiters", list(recruiter, "The recruiters found")), "recruiters"),
+				"Adds recruiters and hiring managers you found to the Who's hiring page. Only real people recruiting for "
+						+ "the roles now; known or removed profiles, and non-URLs, are skipped. Max " + MAX_RECRUITERS_AT_ONCE
+						+ ".",
+				object(properties(Profiles.ARGUMENT, Profiles.schema(), "recruiters", list(recruiter)), "recruiters"),
 				false, false, call -> {
 					long userId = this.profiles.of(call);
 					List<ToolCall> items = call.items("recruiters");
@@ -94,20 +103,19 @@ class HiringTools implements McpToolSet {
 							.note(item.string("note"))
 							.build())
 						.toList());
-					return Map.of("added", added.added().stream().map(HiringTools::row).toList(), "skipped",
-							added.skipped());
+					return Map.of("added", added.added().size(), "skipped", added.skipped());
 				});
 	}
 
 	private McpTool listHiringPosts() {
 		return new McpTool("list_hiring_posts", "List hiring posts",
-				"The hiring posts the profile has, the latest first, to skip them when adding more: their links, roles and "
-						+ "authors. Hidden ones are left out but can't be added again either.",
+				"The profile's hiring posts, latest first: links, roles and authors; hidden ones left out. Not needed "
+						+ "before add_hiring_posts: it skips known links.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"limit", integer("How many, at most; " + MAX_LISTED + " if left out"))),
+						"limit", integer("Default " + LISTED + ", max " + MAX_LISTED))),
 				true, false, call -> {
 					long userId = this.profiles.of(call);
-					int limit = call.limit("limit", MAX_LISTED, MAX_LISTED);
+					int limit = call.limit("limit", LISTED, MAX_LISTED);
 					return Map.of("posts", this.hiring.findPosts(userId, HiringPostQuery.ALL)
 						.stream()
 						.limit(limit)
@@ -118,25 +126,23 @@ class HiringTools implements McpToolSet {
 
 	private McpTool addHiringPosts() {
 		ObjectNode author = object(properties(
-				"name", string("Their name, as their profile shows it"),
-				"headline", string("What they do, as their profile says, e.g. IT Recruiter at Acme"),
-				"profile_url", string("Their profile, e.g. https://www.linkedin.com/in/name")),
+				"name", string(),
+				"headline", string("e.g. IT Recruiter at Acme"),
+				"profile_url", string("e.g. https://www.linkedin.com/in/name")),
 				"name", "profile_url");
 		ObjectNode post = object(properties(
-				"link", string("The post's own address"),
-				"text", string("The post as posted, shortened when it's long, never rewritten"),
-				"posted_on", date("The day it was posted, as YYYY-MM-DD"),
-				"role", string("The job it's for, e.g. Java Developer"),
-				"company", string("The company hiring"),
-				"country", string("Where the job is, as an ISO 3166 code, e.g. RO"),
+				"link", string("The post's own URL"),
+				"text", string("As posted, shortened if long, never rewritten"),
+				"posted_on", date(),
+				"role", string("e.g. Java Developer"),
+				"company", string("Who's hiring"),
+				"country", string("The job's, ISO 3166 code"),
 				"author", author),
 				"link", "text", "author");
 		return new McpTool("add_hiring_posts", "Add hiring posts",
-				"Adds recruiters' and hiring managers' posts saying they're hiring to the profile's Who's hiring page, with "
-						+ "their authors. Only real posts about open roles. Links the profile already has, and posts whose "
-						+ "link or author's profile isn't a web address, are left out and listed as skipped. At most "
-						+ MAX_POSTS_AT_ONCE + " at once.",
-				object(properties(Profiles.ARGUMENT, Profiles.schema(), "posts", list(post, "The posts found")), "posts"),
+				"Adds posts by recruiters or hiring managers saying they're hiring to the Who's hiring page. Only real "
+						+ "posts about open roles; known links and non-URLs are skipped. Max " + MAX_POSTS_AT_ONCE + ".",
+				object(properties(Profiles.ARGUMENT, Profiles.schema(), "posts", list(post)), "posts"),
 				false, false, call -> {
 					long userId = this.profiles.of(call);
 					List<ToolCall> items = call.items("posts");
@@ -158,7 +164,7 @@ class HiringTools implements McpToolSet {
 							.build();
 					}).toList();
 					AddedHiringPosts added = this.hiring.addPosts(userId, found);
-					return Map.of("added", added.added().stream().map(HiringTools::row).toList(), "skipped", added.skipped());
+					return Map.of("added", added.added().size(), "skipped", added.skipped());
 				});
 	}
 
@@ -174,7 +180,7 @@ class HiringTools implements McpToolSet {
 	}
 
 	/**
-	 * @param origin how they came: POST (a post's author), FOUND (by Claude), CONTACT (on a job) or HAND
+	 * @param origin how they came: POST (a post's author), FOUND (by the assistant), CONTACT (on a job) or HAND
 	 * @param contactFor the jobs they're the contact for
 	 */
 	record RecruiterRow(long id, String name, @Nullable String headline, String profileUrl, @Nullable String company,

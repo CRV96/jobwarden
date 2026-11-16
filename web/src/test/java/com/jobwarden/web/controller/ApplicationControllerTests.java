@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -11,6 +12,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -27,16 +29,21 @@ import com.jobwarden.jobs.dto.CsvImportProblem;
 import com.jobwarden.jobs.dto.FollowUp;
 import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.dto.NewTimelineEvent;
+import com.jobwarden.jobs.dto.SalaryRange;
 import com.jobwarden.jobs.dto.TimelineEvent;
-import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.ApplicationSort;
 import com.jobwarden.jobs.enums.ApplicationStatus;
+import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.CsvProblem;
 import com.jobwarden.jobs.enums.InterviewFormat;
+import com.jobwarden.jobs.enums.PayBasis;
 import com.jobwarden.jobs.enums.RejectionReason;
+import com.jobwarden.jobs.enums.SalaryPeriod;
 import com.jobwarden.jobs.exception.JobsErrorCode;
 import com.jobwarden.jobs.service.ApplicationCsvService;
 import com.jobwarden.jobs.service.ApplicationService;
+import com.jobwarden.jobs.service.JobFitService;
+import com.jobwarden.jobs.service.SalaryService;
 import com.jobwarden.web.user.CurrentUser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,6 +64,7 @@ import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willAnswer;
@@ -114,7 +122,13 @@ class ApplicationControllerTests {
 	private ApplicationService applications;
 
 	@MockitoBean
+	private JobFitService fits;
+
+	@MockitoBean
 	private ApplicationCsvService csv;
+
+	@MockitoBean
+	private SalaryService salaries;
 
 	@MockitoBean
 	private DiscoveryService discovery;
@@ -130,6 +144,7 @@ class ApplicationControllerTests {
 	void selectRobert() {
 		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
 		given(this.applications.findById(1, 7)).willReturn(Optional.of(APPLICATION));
+		given(this.salaries.currencies()).willReturn(List.of("EUR", "RON", "USD"));
 	}
 
 	@Test
@@ -151,7 +166,7 @@ class ApplicationControllerTests {
 	@Test
 	void listsTheApplicationsTheAddressAsksFor() {
 		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of(SUMMARY), PageRequest.of(1, 50), 51));
-		given(this.applications.countByStatus(1, "engineer")).willReturn(counts(ApplicationStatus.INTERVIEWING, 51));
+		given(this.applications.countByStatus(1, "engineer", false)).willReturn(counts(ApplicationStatus.INTERVIEWING, 51));
 
 		assertThat(this.mvc.get()
 			.uri("/applications")
@@ -184,10 +199,10 @@ class ApplicationControllerTests {
 			.appliedBy(AppliedBy.CLAUDE)
 			.capturedAt(Instant.now())
 			.build(), SUMMARY)));
-		given(this.applications.countByStatus(1, null)).willReturn(counts(ApplicationStatus.APPLIED, 2));
+		given(this.applications.countByStatus(1, null, false)).willReturn(counts(ApplicationStatus.APPLIED, 2));
 
 		assertThat(this.mvc.get().uri("/applications")).bodyText()
-			.containsOnlyOnce("title=\"Claude applied to it for you, from the Auto-apply page\"");
+			.containsOnlyOnce("title=\"The assistant applied to it for you, from the Auto-apply page\"");
 	}
 
 	@Test
@@ -199,18 +214,18 @@ class ApplicationControllerTests {
 			.appliedBy(AppliedBy.EXTENSION)
 			.capturedAt(Instant.now())
 			.build(), SUMMARY)));
-		given(this.applications.countByStatus(1, null)).willReturn(counts(ApplicationStatus.APPLIED, 2));
+		given(this.applications.countByStatus(1, null, false)).willReturn(counts(ApplicationStatus.APPLIED, 2));
 
 		assertThat(this.mvc.get().uri("/applications")).bodyText()
 			.containsOnlyOnce("title=\"The extension’s Easy Apply run sent it on LinkedIn\"")
 			.contains("ph-puzzle-piece")
-			.doesNotContain("Claude applied to it for you");
+			.doesNotContain("The assistant applied to it for you");
 	}
 
 	@Test
 	void showsTheSitesIconWhereTheProfileHasOne() {
 		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of(SUMMARY)));
-		given(this.applications.countByStatus(1, null)).willReturn(counts(ApplicationStatus.INTERVIEWING, 1));
+		given(this.applications.countByStatus(1, null, false)).willReturn(counts(ApplicationStatus.INTERVIEWING, 1));
 
 		assertThat(this.mvc.get().uri("/applications")).bodyText()
 			.contains("ph-globe-simple")
@@ -225,7 +240,7 @@ class ApplicationControllerTests {
 	@Test
 	void showsTheCompanysLogoOrItsInitials() {
 		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of(SUMMARY)));
-		given(this.applications.countByStatus(1, null)).willReturn(counts(ApplicationStatus.INTERVIEWING, 1));
+		given(this.applications.countByStatus(1, null, false)).willReturn(counts(ApplicationStatus.INTERVIEWING, 1));
 
 		assertThat(this.mvc.get().uri("/applications")).bodyText()
 			.containsPattern("class=\"company-logo[^\"]*\"[^>]*>\\s*A\\s*</span>")
@@ -246,7 +261,7 @@ class ApplicationControllerTests {
 	@Test
 	void listsTheNewestFirstByDefault() {
 		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of(SUMMARY)));
-		given(this.applications.countByStatus(1, null)).willReturn(counts(ApplicationStatus.INTERVIEWING, 1));
+		given(this.applications.countByStatus(1, null, false)).willReturn(counts(ApplicationStatus.INTERVIEWING, 1));
 
 		assertThat(this.mvc.get().uri("/applications")).hasStatusOk();
 
@@ -271,7 +286,7 @@ class ApplicationControllerTests {
 	@Test
 	void saysSoWhenTheSearchFindsNothing() {
 		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of()));
-		given(this.applications.countByStatus(1, "nothing")).willReturn(counts(ApplicationStatus.APPLIED, 0));
+		given(this.applications.countByStatus(1, "nothing", false)).willReturn(counts(ApplicationStatus.APPLIED, 0));
 
 		assertThat(this.mvc.get().uri("/applications").param("q", "nothing")).hasStatusOk()
 			.bodyText()
@@ -286,6 +301,91 @@ class ApplicationControllerTests {
 					"25 Sep 2026, 14:30", "21 Sep 2026", "Clear time",
 					"hx-post=\"/applications/7/events\"", "id=\"request-error\"")
 			.doesNotContain("21 Sep 2026, ");
+	}
+
+	@Test
+	void linksThePostingAndTheAddressesInItsTextAndExplainsThePage() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(APPLICATION.toBuilder()
+			.description("Apply at https://jobs.example.com/7. <b>Not bold</b>")
+			.build()));
+
+		assertThat(this.mvc.get().uri("/applications/7")).hasStatusOk()
+			.bodyText()
+			.contains("href=\"https://example.com/jobs/7\" target=\"_blank\"", ">example.com/jobs/7</a>",
+					"href=\"https://jobs.example.com/7\"", "&lt;b&gt;Not bold&lt;/b&gt;", "How it works", "id=\"how-job\"",
+					"A status is said once")
+			.doesNotContain("<b>Not bold</b>");
+	}
+
+	@Test
+	void offersEveryStatusAndReopensOnlyAClosedJob() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(APPLICATION.toBuilder()
+			.status(ApplicationStatus.POSITION_CLOSED)
+			.build()));
+
+		// Closed again can still go earlier on the timeline, between two other steps: the service says when it can't
+		assertThat(this.mvc.get().uri("/applications/7")).hasStatusOk()
+			.bodyText()
+			.contains("<option value=\"POSITION_CLOSED\">Position closed</option>", "value=\"POSITION_REOPENED\"",
+					">Position re-opened</button>")
+			.doesNotContain("disabled=\"disabled\">Position closed");
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(APPLICATION));
+		assertThat(this.mvc.get().uri("/applications/7")).hasStatusOk()
+			.bodyText()
+			.doesNotContain(">Position re-opened</button>")
+			// An interview can follow an interview: another round
+			.contains("<option value=\"INTERVIEWING\" selected=\"selected\">");
+	}
+
+	@Test
+	void archivesTheJobsTickedAndBringsThemBack() {
+		assertThat(this.mvc.post().uri("/applications/archive").param("ids", "7", "8").header("HX-Request", "true"))
+			.hasStatus(HttpStatus.NO_CONTENT)
+			.headers()
+			.hasValue("HX-Refresh", "true");
+		then(this.applications).should().archive(1, List.of(7L, 8L));
+
+		this.mvc.post().uri("/applications/restore").param("ids", "7").header("HX-Request", "true").exchange();
+		then(this.applications).should().restore(1, List.of(7L));
+	}
+
+	@Test
+	void archivesAJobFromItsPageAndSaysSo() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(APPLICATION.toBuilder()
+			.archivedAt(Instant.now())
+			.build()));
+
+		assertThat(this.mvc.post().uri("/applications/7/archive").header("HX-Request", "true")).hasStatusOk()
+			.hasHeader("HX-Trigger", "applications-changed")
+			.bodyText()
+			.contains("Archived: Today", "restore=true", "Bring back");
+		then(this.applications).should().archive(1, List.of(7L));
+	}
+
+	@Test
+	void listsTheArchivedJobs() {
+		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(List.of(SUMMARY)));
+		given(this.applications.countByStatus(1, null, true)).willReturn(counts(ApplicationStatus.REJECTED, 1));
+		given(this.applications.countArchived(1)).willReturn(1L);
+
+		assertThat(this.mvc.get().uri("/applications?archived=true")).hasStatusOk()
+			.bodyText()
+			.contains("All archived", "/applications/restore", "Bring back")
+			.doesNotContain("hx-post=\"/applications/archive\"");
+		ArgumentCaptor<ApplicationQuery> query = ArgumentCaptor.forClass(ApplicationQuery.class);
+		then(this.applications).should().find(eq(1L), query.capture());
+		assertThat(query.getValue().archived()).isTrue();
+	}
+
+	@Test
+	void archivesTheJobsUnchangedSinceADayFromTheSettings() {
+		given(this.applications.archiveUnchangedSince(1, LocalDate.of(2026, 8, 1), true)).willReturn(12);
+
+		assertThat(this.mvc.post().uri("/applications/archive-unchanged").param("before", "2026-08-01").param("endedOnly", "true"))
+			.hasStatus(HttpStatus.FOUND)
+			.hasRedirectedUrl("/settings#jobs-data")
+			.flash()
+			.containsEntry("archivedByDate", 12);
 	}
 
 	@Test
@@ -644,6 +744,80 @@ class ApplicationControllerTests {
 	}
 
 	@Test
+	void savesTheLocationAndTheSalaryTypedIn() {
+		assertThat(this.mvc.post()
+			.uri("/applications/7/details")
+			.param("location", " Bucharest, hybrid ")
+			.param("salaryFrom", "8000")
+			.param("salaryTo", "6000")
+			.param("currency", "RON")
+			.param("period", "MONTH")
+			.param("basis", "NET")).hasStatusOk()
+			.satisfies(result -> assertThat(result).headers().hasValue("HX-Trigger", "applications-changed"))
+			.bodyText()
+			.contains("id=\"application\"")
+			.doesNotContain("<html");
+		then(this.applications).should().updateLocation(1, 7, "Bucharest, hybrid");
+		ArgumentCaptor<SalaryRange> range = ArgumentCaptor.forClass(SalaryRange.class);
+		then(this.salaries).should().change(eq(1L), eq(7L), range.capture(), any(Locale.class));
+		assertThat(range.getValue().sameAs(new SalaryRange(new BigDecimal("6000"), new BigDecimal("8000"), "RON",
+				SalaryPeriod.MONTH, PayBasis.NET))).isTrue();
+	}
+
+	@Test
+	void savesNoSalaryWithoutAmounts() {
+		assertThat(this.mvc.post()
+			.uri("/applications/7/details")
+			.param("location", "")
+			.param("salaryFrom", "")
+			.param("salaryTo", "")
+			.param("currency", "EUR")
+			.param("period", "")
+			.param("basis", "")
+			.param("view", "DRAWER")).hasStatusOk().bodyText().contains("id=\"drawer-application\"");
+		then(this.applications).should().updateLocation(1, 7, null);
+		then(this.salaries).should().change(eq(1L), eq(7L), isNull(), any(Locale.class));
+	}
+
+	@Test
+	void keepsTheDetailsFormOpenWithWhatIsWrong() {
+		assertThat(this.mvc.post()
+			.uri("/applications/7/details")
+			.param("location", "Cluj")
+			.param("salaryFrom", "-5")
+			.param("currency", "")).hasStatusOk()
+			.bodyText()
+			.contains("Type the amounts as numbers above zero", "Pick the salary’s currency.", "value=\"Cluj\"")
+			.doesNotContain("hx-post=\"/applications/7/details\" hidden");
+		then(this.applications).should(never()).updateLocation(anyLong(), anyLong(), any());
+		then(this.salaries).should(never()).change(anyLong(), anyLong(), any(), any());
+	}
+
+	@Test
+	void startsTheSalaryFormWithWhatTheSalaryReadsAs() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(withSalary("6.000–8.000 RON net pe lună")));
+		given(this.salaries.read("6.000–8.000 RON net pe lună")).willReturn(Optional.of(new SalaryRange(
+				new BigDecimal("6000"), new BigDecimal("8000"), "RON", SalaryPeriod.MONTH, PayBasis.NET)));
+
+		assertThat(this.mvc.get().uri("/applications/7")).hasStatusOk()
+			.bodyText()
+			.contains("hx-post=\"/applications/7/details\" hidden=\"hidden\"", "value=\"6000\"", "value=\"8000\"", "<option value=\"RON\" selected=\"selected\">RON</option>",
+					"<option value=\"MONTH\" selected=\"selected\">Month</option>",
+					"<option value=\"NET\" selected=\"selected\">After tax</option>", "Empty the amounts to remove the salary.");
+	}
+
+	@Test
+	void saysWhatASalaryItCannotReadSays() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(withSalary("Competitive")));
+
+		assertThat(this.mvc.get().uri("/applications/7/drawer")).hasStatusOk()
+			.bodyText()
+			.contains("The posting says “Competitive”, which has no amounts JobWarden can compare.",
+					"<option value=\"EUR\" selected=\"selected\">EUR</option>", "ph-address-book", "ph-note-pencil")
+			.doesNotContain("Empty the amounts");
+	}
+
+	@Test
 	void correctsASalaryAndReloadsThePage() {
 		assertThat(this.mvc.post().uri("/applications/7/salary").param("salary", " 5,000 EUR a month "))
 			.hasStatus(HttpStatus.NO_CONTENT)
@@ -738,6 +912,20 @@ class ApplicationControllerTests {
 			.param("stageCategory", status)
 			.param("stageLabel", stageLabel)
 			.param("rejectionReason", rejectionReason)).hasStatusOk();
+	}
+
+	/** The job, with that salary. */
+	private static ApplicationDetails withSalary(String salary) {
+		return ApplicationDetails.builder()
+			.id(APPLICATION.id())
+			.title(APPLICATION.title())
+			.company(APPLICATION.company())
+			.location(APPLICATION.location())
+			.salary(salary)
+			.status(APPLICATION.status())
+			.capturedAt(APPLICATION.capturedAt())
+			.timeline(APPLICATION.timeline())
+			.build();
 	}
 
 }

@@ -1,6 +1,7 @@
 package com.jobwarden.cv.service.impl;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -15,7 +16,9 @@ import com.jobwarden.cv.dto.CvEducation;
 import com.jobwarden.cv.dto.CvExperience;
 import com.jobwarden.cv.dto.CvFile;
 import com.jobwarden.cv.dto.CvFileContent;
+import com.jobwarden.cv.dto.CvFilePreview;
 import com.jobwarden.cv.dto.CvLanguage;
+import com.jobwarden.cv.dto.CvProject;
 import com.jobwarden.cv.dto.TailoredCv;
 import com.jobwarden.cv.entity.CvDetailsEntity;
 import com.jobwarden.cv.entity.CvFileEntity;
@@ -62,12 +65,26 @@ class DefaultCvService implements CvService {
 	@Override
 	@Transactional
 	public CvDetails saveDetails(long userId, CvDetails changed) {
+		return save(userId, changed);
+	}
+
+	@Override
+	@Transactional
+	public CvDetails saveProjects(long userId, List<CvProject> projects) {
+		CvDetails current = this.details.findById(userId).map(DefaultCvService::toCvDetails).orElse(CvDetails.NONE);
+		CvDetails changed = save(userId, current.toBuilder().projects(projects).build());
+		log.info("Saved {} projects on the CV of profile {}", changed.projects().size(), userId);
+		return changed;
+	}
+
+	/** In the transaction of the method that calls it */
+	private CvDetails save(long userId, CvDetails changed) {
 		CvDetails tidied = tidied(changed);
 		CvDetailsEntity entity = this.details.findById(userId).orElseGet(() -> new CvDetailsEntity(userId));
 		entity.changePersonalDetails(tidied.fullName(), tidied.headline(), tidied.email(), tidied.phone(),
 				tidied.location(), tidied.website(), tidied.linkedin(), tidied.github(), tidied.summary());
-		entity.changeLists(tidied.skills(), CvJson.write(tidied.experience()), CvJson.write(tidied.education()),
-				CvJson.write(tidied.languages()), CvJson.write(tidied.certifications()));
+		entity.changeLists(tidied.skills(), CvJson.write(tidied.experience()), CvJson.write(tidied.projects()),
+				CvJson.write(tidied.education()), CvJson.write(tidied.languages()), CvJson.write(tidied.certifications()));
 		CvDetails saved = toCvDetails(this.details.saveAndFlush(entity));
 		log.info("Saved the CV details of profile {}", userId);
 		return saved;
@@ -119,6 +136,32 @@ class DefaultCvService implements CvService {
 	public CvFileContent downloadFile(long userId) {
 		CvFileEntity file = this.files.findById(userId).orElseThrow(() -> new CvFileNotFoundException(userId));
 		return new CvFileContent(file.getFileName(), file.getContentType(), file.getContent());
+	}
+
+	/**
+	 * @throws CvFileNotFoundException if there's none
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public CvFilePreview previewFile(long userId) {
+		CvFileEntity file = this.files.findById(userId).orElseThrow(() -> new CvFileNotFoundException(userId));
+		CvFileType type = CvFileType.claimedBy(file.getFileName(), file.getContentType()).orElse(CvFileType.TEXT);
+		return switch (type) {
+			case PDF -> new CvFilePreview(file.getFileName(), true, null, null);
+			case DOCX -> new CvFilePreview(file.getFileName(), false, docxHtml(userId, file.getContent()), null);
+			case TEXT -> new CvFilePreview(file.getFileName(), false, null,
+					new String(file.getContent(), StandardCharsets.UTF_8));
+		};
+	}
+
+	/** It was read once already, when uploaded; a document that can't be read again shows its text alone. */
+	private static @Nullable String docxHtml(long userId, byte[] content) {
+		try {
+			return DocxHtml.render(content);
+		} catch (IOException unreadable) {
+			log.warn("Couldn't show the CV file of profile {}: {}", userId, unreadable.getMessage());
+			return null;
+		}
 	}
 
 	@Override
@@ -185,16 +228,18 @@ class DefaultCvService implements CvService {
 			.github(text(details.github()))
 			.summary(text(details.summary()))
 			.skills(keywords(details.skills()))
-			.experience(entries(details.experience(), job -> new CvExperience(text(job.role()), text(job.company()),
-					text(job.location()), text(job.start()), text(job.end()), text(job.description())), CvExperience::role))
-			.education(entries(details.education(), school -> new CvEducation(text(school.degree()), text(school.school()),
-					text(school.location()), text(school.start()), text(school.end()), text(school.description())),
-					CvEducation::degree))
-			.languages(entries(details.languages(), language -> new CvLanguage(text(language.language()),
-					text(language.level())), CvLanguage::language))
-			.certifications(entries(details.certifications(), certification -> new CvCertification(
-					text(certification.name()), text(certification.issuer()), text(certification.year())),
-					CvCertification::name))
+			.experience(entries(details.experience(), CvExperience::role, job -> new CvExperience(job.role().strip(),
+					text(job.company()), text(job.location()), text(job.start()), text(job.end()), text(job.description()))))
+			.projects(entries(details.projects(), CvProject::name, project -> new CvProject(project.name().strip(),
+					text(project.link()), text(project.technologies()), text(project.description()))))
+			.education(entries(details.education(), CvEducation::degree, school -> new CvEducation(
+					school.degree().strip(), text(school.school()), text(school.location()), text(school.start()),
+					text(school.end()), text(school.description()))))
+			.languages(entries(details.languages(), CvLanguage::language,
+					language -> new CvLanguage(language.language().strip(), text(language.level()))))
+			.certifications(entries(details.certifications(), CvCertification::name,
+					certification -> new CvCertification(certification.name().strip(), text(certification.issuer()),
+							text(certification.year()))))
 			.build();
 	}
 
@@ -216,9 +261,13 @@ class DefaultCvService implements CvService {
 			.build();
 	}
 
-	private static <T> List<T> entries(List<T> entries, UnaryOperator<T> tidied, Function<T, @Nullable String> mainField) {
-		Predicate<T> hasMainField = entry -> mainField.apply(entry) != null;
-		return entries.stream().filter(entry -> entry != null).map(tidied).filter(hasMainField).toList();
+	/**
+	 * The entries whose main field (a job's role, a school's degree...) isn't blank, tidied. A form or the assistant
+	 * may send one without it, whatever the record says: those are left out before they're tidied.
+	 */
+	private static <T> List<T> entries(List<T> entries, Function<T, @Nullable String> mainField, UnaryOperator<T> tidied) {
+		Predicate<@Nullable T> hasMainField = entry -> entry != null && text(mainField.apply(entry)) != null;
+		return entries.stream().filter(hasMainField).map(tidied).toList();
 	}
 
 	private static @Nullable String text(@Nullable String text) {
@@ -261,6 +310,7 @@ class DefaultCvService implements CvService {
 			.summary(entity.getSummary())
 			.skills(entity.getSkills())
 			.experience(CvJson.experience(entity.getExperience()))
+			.projects(CvJson.projects(entity.getProjects()))
 			.education(CvJson.education(entity.getEducation()))
 			.languages(CvJson.languages(entity.getLanguages()))
 			.certifications(CvJson.certifications(entity.getCertifications()))

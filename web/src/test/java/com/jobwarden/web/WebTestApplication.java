@@ -1,13 +1,17 @@
 package com.jobwarden.web;
 
+import java.time.Clock;
+
 import com.jobwarden.web.view.CountryNames;
 import com.jobwarden.web.view.Dates;
+import com.jobwarden.web.view.Links;
 import com.jobwarden.web.view.Money;
 import com.jobwarden.web.view.Names;
 import com.jobwarden.web.view.QuerySyntax;
 import com.jobwarden.web.view.Sharing;
 
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 
 /**
@@ -18,7 +22,13 @@ import org.springframework.context.annotation.Import;
  * call are imported here, for every web test.
  */
 @SpringBootApplication
-@Import({ CountryNames.class, Dates.class, Money.class, Names.class, QuerySyntax.class, Sharing.class })
+@Import({ CountryNames.class, Dates.class, Links.class, Money.class, Names.class, QuerySyntax.class, Sharing.class })
 class WebTestApplication {
+
+	/** "Now", as the app's own JobWardenApplication gives it to every module. */
+	@Bean
+	Clock clock() {
+		return Clock.systemDefaultZone();
+	}
 
 }

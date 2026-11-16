@@ -36,6 +36,17 @@ public class Money {
 	}
 
 	/**
+	 * In full, for a total to read: €96,800, 1.234,50 € in German; whole above a thousand, else to the cent.
+	 */
+	public String full(BigDecimal amount, String currency) {
+		Locale locale = LocaleContextHolder.getLocale();
+		NumberFormat number = NumberFormat.getNumberInstance(locale);
+		number.setMaximumFractionDigits((amount.abs().compareTo(THOUSAND) < 0) ? 2 : 0);
+		number.setRoundingMode(RoundingMode.HALF_UP);
+		return withCurrency(number.format(amount), currency, locale);
+	}
+
+	/**
 	 * A range, or one amount when both ends are the same: €40K – €80K, with thin spaces around the dash.
 	 */
 	public String range(BigDecimal low, BigDecimal high, String currency) {

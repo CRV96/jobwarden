@@ -1,0 +1,40 @@
+# Weekly pull requests that update the dependencies, each ecosystem's minor and patch versions in one. Security fixes
+# come apart from these, as soon as there is one (Dependabot security updates, on in the repository's settings).
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      maven:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 10
+
+  # Tailwind, which builds the CSS (web/package.json)
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      tailwind:
+        patterns: ['tailwindcss', '@tailwindcss/*']
+
+  # The workflows' actions, pinned to commits
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ['*']
+
+  # The Dockerfile's Java images
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday

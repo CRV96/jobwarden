@@ -1,10 +1,19 @@
 package com.jobwarden.web.controller;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
+import com.jobwarden.discover.dto.SavedSearch;
 import com.jobwarden.discover.service.DiscoveryService;
+import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.service.UserService;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.search.DescriptionParser;
 import com.jobwarden.search.QueryGenerator;
+import com.jobwarden.search.SearchCriteria;
+import com.jobwarden.search.WorkType;
 import com.jobwarden.web.user.CurrentUser;
 import org.junit.jupiter.api.Test;
 
@@ -16,6 +25,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 /**
  * The query rules are covered in the search module; these check what the page does with them.
@@ -39,13 +50,43 @@ class SearchControllerTests {
 	@MockitoBean
 	private DiscoveryService discovery;
 
+	private static final User ROBERT = new User(1, "Robert", Instant.parse("2026-09-28T10:00:00Z"));
+
+	@Test
+	void opensTheSavedFiltersWithTheirFilters() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+		given(this.discovery.findSearches(1)).willReturn(List.of(new SavedSearch(3, "Remote Java", SearchCriteria.builder()
+			.titles(List.of("Java Developer"))
+			.workTypes(Set.of(WorkType.REMOTE))
+			.build(), Instant.now())));
+
+		assertThat(this.mvc.get().uri("/search")).bodyText()
+			.contains("Saved filters", "Remote Java", "href=\"/search?titles=Java%20Developer&amp;workTypes=REMOTE",
+					"hx-post=\"/search/saved/3/delete\"", "Save these filters");
+	}
+
+	@Test
+	void forgetsSavedFilters() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+
+		assertThat(this.mvc.post().uri("/search/saved/3/delete").header("HX-Request", "true")).hasStatusOk()
+			.bodyText()
+			.contains("Nothing saved yet");
+		then(this.discovery).should().deleteSearch(1, 3);
+	}
+
+	@Test
+	void savesNothingWithoutAProfile() {
+		assertThat(this.mvc.get().uri("/search")).bodyText().doesNotContain("saved-filters-menu");
+	}
+
 	@Test
 	void startsWithTheDefaultSites() {
 		assertThat(this.mvc.get().uri("/search")).hasStatusOk()
 			.bodyText()
 			.contains("name=\"sites\" value=\"jobs.lever.co\"", "name=\"platform\" value=\"GOOGLE\"")
 			// They're in the Google query once there's something to search for
-			.contains("Your queries show here");
+			.contains("Your Warden Queries show here");
 		assertThat(this.mvc.get().uri("/search?titles=Java Developer")).bodyText()
 			.contains("<span class=\"q-paren\">(</span><span class=\"q-field\">site:jobs.lever.co</span>",
 					"<span class=\"q-operator\">OR</span>", "<span class=\"q-phrase\">&quot;Java Developer&quot;</span>",
@@ -68,7 +109,7 @@ class SearchControllerTests {
 			// Every platform's query at once
 			.contains("id=\"query-GOOGLE\"", "id=\"query-LINKEDIN\"", "id=\"query-REDDIT\"", "id=\"query-X\"",
 					"id=\"query-REMOTE_BOARDS\"")
-			.doesNotContain("Your queries show here");
+			.doesNotContain("Your Warden Queries show here");
 	}
 
 	@Test
@@ -89,7 +130,7 @@ class SearchControllerTests {
 	@Test
 	void saysWhereTheQueriesGoWhenThereAreNone() {
 		assertThat(this.mvc.get().uri("/search?locations=Europe&workTypes=REMOTE&platform=GOOGLE")).bodyText()
-			.contains("Your queries show here")
+			.contains("Your Warden Queries show here")
 			.doesNotContain("id=\"query-GOOGLE\"");
 	}
 
@@ -112,7 +153,7 @@ class SearchControllerTests {
 			.hasStatusOk()
 			.bodyText()
 			// The whole page: HTMX swaps the filters, and the queries out of band
-			.contains("id=\"boolean-search\"", "id=\"search-output\"", "value=\"Backend Engineer\"", "value=\"Europe\"",
+			.contains("id=\"warden-query\"", "id=\"search-output\"", "value=\"Backend Engineer\"", "value=\"Europe\"",
 					"name=\"workTypes\" value=\"REMOTE\" checked", "value=\"junior\"",
 					"<span class=\"q-field\">site:apply.workable.com</span>", "<span class=\"q-exclude\">-junior</span>")
 			.doesNotContain("site:jobs.lever.co");

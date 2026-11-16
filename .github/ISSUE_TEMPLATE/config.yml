@@ -1,0 +1,9 @@
+# Issues are for bugs and ideas. Vulnerabilities are reported in private (SECURITY.md), never in an issue.
+blank_issues_enabled: true
+contact_links:
+  - name: Report a vulnerability
+    url: https://github.com/CRV96/jobwarden/security/advisories/new
+    about: In private, so it can be fixed before anyone else knows of it.
+  - name: Questions and ideas
+    url: https://github.com/CRV96/jobwarden/discussions
+    about: Ask how something works, or share an idea before it becomes an issue.

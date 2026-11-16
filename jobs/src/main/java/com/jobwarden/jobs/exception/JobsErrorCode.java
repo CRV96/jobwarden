@@ -16,7 +16,13 @@ public enum JobsErrorCode implements ErrorCode {
 	CANNOT_REMOVE_LAST_EVENT("JOBS-005"),
 	INTERVIEW_DETAILS_NOT_ALLOWED("JOBS-006"),
 
-	CSV_WITHOUT_TITLE_COLUMN("JOBS-007");
+	CSV_WITHOUT_TITLE_COLUMN("JOBS-007"),
+
+	CALENDAR_ENTRY_NOT_FOUND("JOBS-008"),
+	REMINDER_NOT_ALLOWED("JOBS-009"),
+
+	/** The event would say again what the one before it says, e.g. Position closed right after Position closed. */
+	STATUS_REPEATED("JOBS-010");
 
 	private final String code;
 

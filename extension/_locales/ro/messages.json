@@ -21,7 +21,7 @@
     "message": "Link"
   },
   "profileId": {
-    "message": "ID-ul profilului"
+    "message": "ID profil"
   },
   "includeTime": {
     "message": "Include ora"
@@ -81,10 +81,10 @@
     "message": "Unde rulează JobWarden. Pe acest calculator, de obicei http://localhost:8080."
   },
   "profileIdHint": {
-    "message": "JobWarden îl afișează pe pagina Profiluri."
+    "message": "JobWarden îl arată în Setări, la Profilul tău, cu un buton care îl copiază."
   },
   "openProfiles": {
-    "message": "Deschide pagina Profiluri"
+    "message": "Deschide Setările JobWarden"
   },
   "save": {
     "message": "Salvează"
@@ -94,6 +94,9 @@
   },
   "notSaved": {
     "message": "Setările nu au putut fi salvate."
+  },
+  "profileNotFound": {
+    "message": "Niciun profil nu are acest ID pe acest server. Copiază-l din Setările JobWarden, la Profilul tău."
   },
   "serverUrlInvalid": {
     "message": "Introdu o adresă care începe cu http:// sau https://."
@@ -170,6 +173,9 @@
   "status_POSITION_CLOSED": {
     "message": "Post închis"
   },
+  "status_POSITION_REOPENED": {
+    "message": "Post redeschis"
+  },
   "status_WITHDRAWN": {
     "message": "Retrasă"
   },
@@ -205,6 +211,18 @@
   },
   "showOnIconHint": {
     "message": "★ salvată, ✓ trimisă. Chrome îți cere să-i permiți lui JobWarden să vadă adresele filelor; fiecare pagină deschisă e apoi căutată pe serverul tău."
+  },
+  "showReminders": {
+    "message": "Arată-mi mementourile ca notificări"
+  },
+  "showRemindersHint": {
+    "message": "Mementourile puse în calendarul JobWarden vin ca notificări ale sistemului cât timp browserul rulează, chiar fără nicio pagină JobWarden deschisă. Browserul îți cere să-i permiți lui JobWarden să afișeze notificări."
+  },
+  "reloadExtension": {
+    "message": "Mai întâi extensia trebuie reîncărcată: a fost încărcată înainte să existe această opțiune. Deschide chrome://extensions (în Firefox, about:debugging), apasă butonul de reîncărcare al JobWarden, apoi încearcă din nou."
+  },
+  "permissionError": {
+    "message": "Nu s-a putut schimba: $1"
   },
   "updateAvailable": {
     "message": "A apărut JobWarden $1: ia cel mai nou cod"
@@ -319,5 +337,23 @@
   },
   "runClose": {
     "message": "Închide"
+  },
+  "watchReading": {
+    "message": "Citesc pagina de joburi…"
+  },
+  "watchAdded": {
+    "message": "Acum urmărești $1. Joburi potrivite căutărilor tale salvate: $2."
+  },
+  "openWatchlist": {
+    "message": "Deschide lista de urmărire"
+  },
+  "watchTooltip": {
+    "message": "Urmărește $1: JobWarden îi citește pagina de joburi și adaugă joburile potrivite căutărilor tale salvate"
+  },
+  "watchingTooltip": {
+    "message": "Urmărești $1. Apasă ca să nu mai urmărești"
+  },
+  "unwatched": {
+    "message": "Nu mai urmărești $1. Joburile găsite pe pagina ei rămân în JobWarden."
   }
 }

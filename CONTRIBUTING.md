@@ -2,13 +2,13 @@
 
 Thanks for your interest in JobWarden!
 
-JobWarden is source-available software owned by Robert-Vasile Ciapă and released under the [PolyForm Shield License 1.0.0](LICENSE.md). Contributions are welcome, but the project owner must stay free to license, relicense and sell the project. For that reason, **every contribution requires agreeing to the [Contributor License Agreement](#contributor-license-agreement) below before it can be merged.**
+JobWarden is open-source software owned by Robert-Vasile Ciapă and released under the [MIT License](LICENSE.md). Contributions are welcome. So that the project owner stays free to license and relicense the project, including under terms other than MIT, **every contribution requires agreeing to the [Contributor License Agreement](#contributor-license-agreement) below before it can be merged.**
 
 ## How to contribute
 
 1. For anything beyond a small fix, open an issue first so the approach can be agreed on before you write code.
 2. Fork the repository and create a branch from `main`.
-3. Make sure the build passes: `./mvnw verify`.
+3. Make sure the build passes, with the null-safety checks CI runs: `./mvnw verify -Pnullaway`.
 4. Open a pull request describing what changed and why.
 5. Sign the CLA by posting this exact comment on your pull request:
 
@@ -17,6 +17,8 @@ JobWarden is source-available software owned by Robert-Vasile Ciapă and release
    You only need to sign once. Your signature covers all your future contributions to this project.
 
 Pull requests from contributors who have not signed the CLA will not be merged.
+
+Each pull request is checked on its own: the build and all the tests, CodeQL, SonarCloud's quality gate, a review of the dependencies it adds, and the Docker image's build, and CodeRabbit reviews it. It merges once they pass and its review threads are resolved. A security problem is never reported in an issue or a pull request: see [SECURITY.md](SECURITY.md).
 
 ## Contributor License Agreement
 

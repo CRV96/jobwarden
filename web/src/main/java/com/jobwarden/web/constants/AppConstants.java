@@ -15,11 +15,24 @@ public final class AppConstants {
 		public static final String APPLY = "/apply";
 		public static final String CV = "/cv";
 		public static final String DISCOVER = "/discover";
+		/** The companies whose job boards JobWarden reads itself, with no Claude tokens. */
+		public static final String WATCHLIST = "/watchlist";
 		public static final String PIPELINE = "/pipeline";
+		public static final String INBOX = "/inbox";
+		/** Setting the reminders of a calendar entry, and those that are due, which the pages ask for. */
+		public static final String REMINDERS = "/reminders";
 		public static final String PROFILES = "/profiles";
 		public static final String SALARIES = "/salaries";
+		/** The profile's offers side by side, with what the market pays. */
+		public static final String OFFERS = "/offers";
+		/** Every job's cover letter and messages in one place, and the base letter they start from. */
+		public static final String LETTERS = "/letters";
+
+		public static final String STATISTICS = "/statistics";
 		public static final String SEARCH = "/search";
 		public static final String SETTINGS = "/settings";
+		/** Run: JobWarden starts the profile's AI assistant itself, in the background, on requests waiting. */
+		public static final String ASSISTANT_RUN = "/assistant/run";
 		/** The icons of the sites postings came from: /sources/{source}/icon. */
 		public static final String SOURCES = "/sources";
 	}
@@ -37,6 +50,10 @@ public final class AppConstants {
 		public static final String REFRESH = "HX-Refresh";
 		/** Tells HTMX to fire these events on the page, for the parts of it that listen. */
 		public static final String TRIGGER = "HX-Trigger";
+		/** Tells HTMX to swap the response into this element instead of the one the request named. */
+		public static final String RETARGET = "HX-Retarget";
+		/** Tells HTMX how to swap the response instead of how the request said. */
+		public static final String RESWAP = "HX-Reswap";
 	}
 
 	/**
@@ -49,6 +66,13 @@ public final class AppConstants {
 		public static final String APPLICATIONS_CHANGED = "applications-changed";
 		/** Claude added jobs to review, so the AI Assistant page's card loads again. */
 		public static final String FOUND_JOBS_CHANGED = "found-jobs-changed";
+		/** A job's contact and follow-up were saved, so its reminders, which list its follow-up dates, load again. */
+		public static final String FOLLOW_UP_CHANGED = "follow-up-changed";
+		/**
+		 * A job's cover letter or messages changed, asking Claude for the letter included, so the Cover letters page's
+		 * row of the job loads again.
+		 */
+		public static final String LETTERS_CHANGED = "letters-changed";
 	}
 
 	/**
@@ -67,9 +91,46 @@ public final class AppConstants {
 		/** What the contact and follow-up card shows once its fields are saved, or why they aren't. */
 		public static final String FOLLOW_UP_STATUS_FRAGMENT = "applications/fragments :: follow-up-status";
 		public static final String NEW_APPLICATION = "applications/new";
+		/** A job's fit, which HTMX loads after the job and swaps as it changes. */
+		public static final String JOB_FIT_FRAGMENT = "applications/job-fit :: card";
+		/** A job's interview brief, which HTMX loads after the job and swaps as it changes. */
+		public static final String INTERVIEW_BRIEF_FRAGMENT = "applications/interview-brief :: card";
 		/** A job's AI-proof CV, which HTMX loads after the job and swaps as it changes. */
 		public static final String TAILORED_CV_FRAGMENT = "applications/tailored-cv :: card";
+		/** A job's offer terms, on its page while it's at Offer, which HTMX loads after the job. */
+		public static final String OFFER_TERMS_FRAGMENT = "applications/offer :: terms";
+		/** What the offer terms card shows once its fields are saved, or why they aren't. */
+		public static final String OFFER_TERMS_STATUS_FRAGMENT = "applications/offer :: terms-status";
+		/** A job's negotiation brief, which HTMX loads after the job and swaps as it changes. */
+		public static final String NEGOTIATION_FRAGMENT = "applications/offer :: negotiation";
+		/** A job's cover letter, which HTMX loads after the job and swaps as it changes. */
+		public static final String COVER_LETTER_FRAGMENT = "applications/cover-letter :: card";
+		/** A cover letter as a page: its preview, and the HTML its PDF is made from. */
+		public static final String COVER_LETTER_DOCUMENT = "applications/letter-document";
+		/** A job's messages to the people who hire for it, which HTMX loads after the job and swaps as they change. */
+		public static final String OUTREACH_FRAGMENT = "applications/outreach :: card";
+		/** One message, which HTMX swaps once it's saved. */
+		public static final String OUTREACH_DRAFT_FRAGMENT = "applications/outreach :: draft";
+		/** The request for a job's messages while it's open, which HTMX asks for again until it isn't. */
+		public static final String OUTREACH_WAITING_FRAGMENT = "applications/outreach :: waiting";
+		/** That the request is done, with a button to show what Claude wrote: messages typed in meanwhile stay. */
+		public static final String OUTREACH_DONE_FRAGMENT = "applications/outreach :: done";
+		public static final String LETTERS = "letters/letters";
+		/** The Cover letters page's base letter, which HTMX swaps as it's changed. */
+		public static final String BASE_LETTER_FRAGMENT = LETTERS + " :: base";
+		/** One job's letter and messages, beside the list, which HTMX loads as a job is picked. */
+		public static final String LETTERS_PANEL_FRAGMENT = LETTERS + " :: panel";
+		/** One job of the list, which HTMX asks for again while Claude writes its letter. */
+		public static final String LETTERS_ROW_FRAGMENT = LETTERS + " :: row(oob=false)";
+		/** The letters Claude has to write, with what to paste into Claude Code, asked for again while there are any. */
+		public static final String LETTERS_WAITING_FRAGMENT = LETTERS + " :: waiting";
+		/** What asking Claude for letters, or cancelling them, answers: the letters waiting, and the jobs' rows. */
+		public static final String LETTERS_ASKED_FRAGMENT = LETTERS + " :: asked";
 		public static final String CALENDAR = "calendar/calendar";
+		/** The Subscribe menu's content, which HTMX swaps once there's a new address. */
+		public static final String CALENDAR_FEED_FRAGMENT = CALENDAR + " :: feed";
+		/** A job's reminders, in its side panel and on its page, which HTMX loads after the job. */
+		public static final String REMINDERS_FRAGMENT = "calendar/reminders :: job-reminders";
 		public static final String HIRING = "hiring/hiring";
 		public static final String APPLY = "apply/apply";
 		/** The Auto-apply page's run of Claude, which HTMX asks for again while it's open. */
@@ -83,21 +144,50 @@ public final class AppConstants {
 		public static final String CV = "cv/cv";
 		/** The CV built from the CV page's fields: its preview, and the HTML its PDF is made from. */
 		public static final String CV_DOCUMENT = "cv/document";
+		public static final String CV_FILE_PREVIEW = "cv/file-preview";
+		public static final String GITHUB_FRAGMENT = "cv/github :: card";
+		/** The CV page's story bank, which HTMX loads after the page and swaps after each change. */
+		public static final String STORIES_FRAGMENT = "cv/stories :: card";
 		public static final String DISCOVER = "discover/discover";
 		/** The card to review and what changes with it, which HTMX swaps after a decision. */
 		public static final String DISCOVER_REVIEW_FRAGMENT = DISCOVER + " :: review";
+		/** What the AI Assistant has for a job, under its facts: the fit, and each card's state. */
+		public static final String JOB_ASSISTANT_FRAGMENT = "applications/overview :: overview";
+		/** What Run answers: that the assistant started, or why not, in place of the button. */
+		public static final String ASSISTANT_RUN_FRAGMENT = "applications/claude :: run-result";
 		/** The requests to Claude, which HTMX swaps as one is made, cancelled, or changes while it's open. */
 		public static final String DISCOVER_REQUESTS_FRAGMENT = DISCOVER + " :: requests";
-		/** What the search page shows once a search is saved. */
-		public static final String SEARCH_SAVED_FRAGMENT = "search/search :: search-saved";
+		public static final String WATCHLIST = "watchlist/watchlist";
+		/** The watchlist's companies, the form to add some and the suggestions, which HTMX swaps after each change. */
+		public static final String WATCHLIST_FRAGMENT = WATCHLIST + " :: watchlist";
+		/** What saving a search answers: that it's saved, and the menu of saved filters, out of band. */
+		public static final String SEARCH_SAVED_FRAGMENT = "search/search :: saved-answer";
+
+		public static final String SAVED_FILTERS_FRAGMENT = "search/search :: saved-filters";
 		public static final String PIPELINE = "pipeline/board";
+		public static final String INBOX = "inbox/inbox";
+		/** The emails waiting, which HTMX swaps once one is applied or dismissed. */
+		public static final String EMAIL_UPDATES_FRAGMENT = INBOX + " :: updates";
+		/** The mailbox card, which HTMX swaps when connecting fails, with why. */
+		public static final String MAILBOX_FRAGMENT = INBOX + " :: mailbox";
+
+		public static final String SORTING_FRAGMENT = INBOX + " :: sorting";
+		/** A column's next cards, which HTMX adds at its end as it's scrolled. */
+		public static final String PIPELINE_CARDS_FRAGMENT = PIPELINE + " :: cards";
 		public static final String PROFILE_LIST = "profiles/list";
 		public static final String SALARIES = "salaries/salaries";
+		public static final String OFFERS = "offers/offers";
+		/** The offers page's row of market salaries, which HTMX loads after the page. */
+		public static final String OFFERS_MARKET_FRAGMENT = "offers/market :: market";
+
+		public static final String STATISTICS = "statistics/statistics";
+
+		public static final String HOME = "home/home";
 		/** The salaries page's market section, which HTMX loads after the page and swaps as its choices change. */
 		public static final String SALARIES_MARKET_FRAGMENT = "salaries/market :: market";
 		public static final String SEARCH = "search/search";
 		/** The search page's queries, which HTMX swaps as the filters change. */
-		public static final String SEARCH_OUTPUT_FRAGMENT = SEARCH + " :: output";
+		public static final String SEARCH_OUTPUT_FRAGMENT = SEARCH + " :: queries";
 		public static final String SETTINGS = "settings/settings";
 	}
 
@@ -117,6 +207,50 @@ public final class AppConstants {
 		public static final String APPLICATION_COUNT = "applicationCount";
 		/** How many found jobs wait on the AI Assistant page, next to AI Assistant in the sidebar. */
 		public static final String DISCOVER_COUNT = "discoverCount";
+		/** How many recruiters' emails wait in the inbox, next to Inbox in the sidebar. */
+		public static final String INBOX_COUNT = "inboxCount";
+		/**
+		 * The inbox page: the profile's mailbox (a {@code MailAccount}) or {@code null}, the emails waiting (a list of
+		 * {@code EmailUpdate}), the jobs to pick for one (a list of {@code ApplicationSummary}), the statuses an email can
+		 * give, the providers to pick the server from, the form as typed and why it failed.
+		 */
+		public static final String MAIL_ACCOUNT = "mailAccount";
+		public static final String EMAIL_UPDATES = "emailUpdates";
+		public static final String INBOX_JOBS = "inboxJobs";
+		public static final String EMAIL_STATUSES = "emailStatuses";
+		public static final String MAIL_PROVIDERS = "mailProviders";
+		/** The provider the mailbox form starts on. */
+		public static final String MAIL_PROVIDER = "mailProvider";
+		public static final String MAIL_FORM = "mailForm";
+		public static final String MAIL_ERROR = "mailError";
+		/** How often the mailbox is read, as Settings offers it; and the choices there. */
+		public static final String READING_INTERVAL = "readingInterval";
+		public static final String READING_INTERVALS = "readingIntervals";
+		public static final String INBOX_AUTOMATIONS = "inboxAutomations";
+		public static final String INBOX_SAVED = "inboxSaved";
+		/** The profile's photo: saved or removed, said once back on the settings page, or why it wasn't saved */
+		public static final String PROFILE_IMAGE_SAVED = "profileImageSaved";
+		public static final String PROFILE_IMAGE_REMOVED = "profileImageRemoved";
+		public static final String PROFILE_IMAGE_ERROR = "profileImageError";
+		/** The profile's new name, said once back on the settings page; or why not, with the name typed. */
+		public static final String PROFILE_NAME_SAVED = "profileNameSaved";
+		public static final String PROFILE_NAME_ERROR = "profileNameError";
+		public static final String PROFILE_NAME_TYPED = "profileNameTyped";
+		/** A profile deleted (its name, said once on the Profiles page), or not, as its name wasn't typed to confirm. */
+		public static final String PROFILE_DELETED = "profileDeleted";
+		public static final String PROFILE_DELETE_ERROR = "profileDeleteError";
+		/** The largest photo file, in bytes, which the page checks before sending one. */
+		public static final String PROFILE_IMAGE_MAX_BYTES = "profileImageMaxBytes";
+		/** Claude's latest sorting of the updates waiting, and its prompt; what JobWarden and Claude decided lately. */
+		public static final String SORT_REQUEST = "sortRequest";
+		public static final String SORT_PROMPT = "sortPrompt";
+		public static final String DECIDED_FOR_YOU = "decidedForYou";
+		/** The statistics page: how the applications went, the verdict on the fit scores, and the tailored CVs' gaps. */
+		public static final String STATISTICS = "statistics";
+		public static final String CALIBRATION = "calibration";
+		public static final String MISSING_KEYWORDS = "missingKeywords";
+		/** Whether Claude finished sorting since the card last asked: the card then loads the updates anew. */
+		public static final String SORT_FINISHED = "sortFinished";
 		/** The languages the settings page offers. */
 		public static final String LANGUAGES = "languages";
 		/** The selected language, as a {@code Language}. */
@@ -127,6 +261,10 @@ public final class AppConstants {
 		public static final String LIST_PARAMS = "listParams";
 		/** The list's rows, a {@code Page} of them. */
 		public static final String APPLICATION_PAGE = "applicationPage";
+		/** How many jobs archiving those unchanged since a day archived: said once, in the settings. */
+		public static final String ARCHIVED_BY_DATE = "archivedByDate";
+		/** How many applications the profile archived, for the list's Archived filter. */
+		public static final String ARCHIVED_COUNT = "archivedCount";
 		/** How many of the applications the search finds have each status, for the status filter. */
 		public static final String STATUS_COUNTS = "statusCounts";
 		/** The sites the profile has an icon for (a set of sources): the pages show it instead of a generic one. */
@@ -140,14 +278,54 @@ public final class AppConstants {
 		public static final String CALENDAR_VIEW = "calendarView";
 		public static final String CALENDAR_VIEWS = "calendarViews";
 		public static final String CALENDAR_DATE = "calendarDate";
+		/** Every type the calendar's legend can show, and the ones it shows, a set of {@code CalendarEntryType}. */
+		public static final String CALENDAR_TYPES = "calendarTypes";
+		public static final String CALENDAR_SHOWN_TYPES = "calendarShownTypes";
+		/** The address calendar apps subscribe to the profile's calendar at, and the same as webcal:. */
+		public static final String CALENDAR_FEED_URL = "calendarFeedUrl";
+		public static final String CALENDAR_WEBCAL_URL = "calendarWebcalUrl";
+		/** What the feed whose address the Subscribe menu gives has, a set of {@code CalendarEntryType}. */
+		public static final String CALENDAR_FEED_TYPES = "calendarFeedTypes";
 		/** The month view's grid, a {@code CalendarMonth}; the week and day views' days, a {@code CalendarDays}. */
 		public static final String CALENDAR_MONTH = "calendarMonth";
 		public static final String CALENDAR_DAYS = "calendarDays";
 		/** What's coming up, next to the calendar: a list of {@code CalendarEntry}. */
 		public static final String UPCOMING = "upcoming";
+		/**
+		 * A job's interview brief card: the job's id, its brief (an {@code InterviewBrief}) or {@code null}, the latest
+		 * request for one or {@code null}, and while that waits, what to paste into Claude Code.
+		 */
+		public static final String PREP_JOB_ID = "prepJobId";
+		/**
+		 * A job's fit card: the job's id, its fit (a {@code JobFit}) or {@code null}, what JobWarden noticed (a list of
+		 * {@code FitFlag}), the latest request to score it or {@code null}, and while that waits, what to paste into
+		 * Claude Code. The list and the pipeline have the scores of the jobs they show, by job.
+		 */
+		public static final String FIT_JOB_ID = "fitJobId";
+		public static final String JOB_FIT = "jobFit";
+		public static final String FIT_FLAGS = "fitFlags";
+		public static final String FIT_REQUEST = "fitRequest";
+		public static final String FIT_PROMPT = "fitPrompt";
+		public static final String FIT_SCORES = "fitScores";
+		public static final String INTERVIEW_BRIEF = "interviewBrief";
+		public static final String PREP_REQUEST = "prepRequest";
+		public static final String PREP_PROMPT = "prepPrompt";
+		/** A job's entries from today on, each with its reminders (a list of {@code CalendarEntry}), and the job. */
+		public static final String REMINDER_ENTRIES = "reminderEntries";
+		public static final String REMINDER_JOB_ID = "reminderJobId";
 		/** The profile's CV, a {@code Cv}, and the fields the CV page shows, a {@code CvDetails}. */
 		public static final String CV = "cv";
 		public static final String CV_DETAILS = "cvDetails";
+		/** The uploaded CV file, as the CV page shows it. */
+		public static final String CV_FILE_PREVIEW = "cvFilePreview";
+		/** The CV page's GitHub card: the account, its repositories, why GitHub couldn't be asked, Claude writing the projects. */
+		public static final String GITHUB_ACCOUNT = "githubAccount";
+		public static final String GITHUB_REPOSITORIES = "githubRepositories";
+		public static final String GITHUB_ERROR = "githubError";
+		public static final String GITHUB_USERNAME = "githubUsername";
+		public static final String PROJECTS_REQUEST = "projectsRequest";
+		public static final String PROJECTS_PROMPT = "projectsPrompt";
+		public static final String MAX_REPOSITORIES = "maxRepositories";
 		/** Why the uploaded CV file wasn't kept, or {@code null}. */
 		public static final String UPLOAD_ERROR = "uploadError";
 		/** The largest CV file, in bytes, which the page checks before sending one. */
@@ -167,8 +345,26 @@ public final class AppConstants {
 		public static final String ADZUNA_REMOVED = "adzunaRemoved";
 		/** Today's date, for the pages that mark it. */
 		public static final String TODAY = "today";
-		/** The pipeline's columns: each status with its applications, in the order of the statuses. */
+		/**
+		 * The homepage: what the profile did lately (a {@code JobActivity}), its jobs by status (an
+		 * {@code ApplicationStatus} → how many, in order) and the most in one, the next days' interviews, deadlines and
+		 * follow-ups ({@code CalendarEntry}), how many requests are open for the assistant, and how many jobs are at Offer.
+		 */
+		public static final String ACTIVITY = "activity";
+		public static final String JOBS_BY_STATUS = "jobsByStatus";
+		public static final String MOST_IN_A_STATUS = "mostInAStatus";
+		public static final String COMING_UP = "comingUp";
+		public static final String OPEN_REQUESTS = "openRequests";
+		public static final String OPEN_APPLY_REQUESTS = "openApplyRequests";
+		public static final String OFFER_COUNT = "offerCount";
+		/**
+		 * The pipeline's columns: each status with the first page of its applications (a {@code Page}), in the order of
+		 * the statuses. A column's next cards are a page too, of the status, for the search, or {@code null}.
+		 */
 		public static final String PIPELINE_COLUMNS = "pipelineColumns";
+		public static final String PIPELINE_CARDS = "pipelineCards";
+		public static final String PIPELINE_STATUS = "pipelineStatus";
+		public static final String PIPELINE_SEARCH = "pipelineSearch";
 		public static final String APPLICATIONS = "applications";
 		public static final String JOB_APPLICATION = "jobApplication";
 		public static final String STATUSES = "statuses";
@@ -184,6 +380,16 @@ public final class AppConstants {
 		/** Each form field's error message, by field name. */
 		public static final String FIELD_ERRORS = "fieldErrors";
 		public static final String EVENT_ERROR = "eventError";
+		/** What the job's salary reads as, a {@code SalaryRange}, or {@code null}: the salary form starts with it. */
+		public static final String SALARY_RANGE = "salaryRange";
+		/** The currencies a salary can be typed in, ISO 4217 codes. */
+		public static final String SALARY_CURRENCIES = "salaryCurrencies";
+		/** What a salary can pay for, and whether it's before tax or after: the salary form's choices. */
+		public static final String PAY_PERIODS = "payPeriods";
+		public static final String PAY_BASES = "payBases";
+		/** Why the location and salary weren't saved, and what was typed, a {@code JobDetailsForm}. */
+		public static final String DETAILS_ERROR = "detailsError";
+		public static final String DETAILS_FORM = "detailsForm";
 		public static final String PROFILES = "profiles";
 		public static final String NAME = "name";
 		public static final String NAME_ERROR = "nameError";
@@ -203,6 +409,98 @@ public final class AppConstants {
 		/** The roles and skills the market section offers, lists of text. */
 		public static final String MARKET_ROLES = "marketRoles";
 		public static final String MARKET_SKILLS = "marketSkills";
+		/**
+		 * The offers page: the offers side by side (an {@code OfferComparison}), what the market pays beside each (job id
+		 * → {@code OfferMarket}), and the address that loads that row.
+		 */
+		public static final String OFFER_COMPARISON = "offerComparison";
+		public static final String OFFER_MARKETS = "offerMarkets";
+		public static final String OFFER_MARKET_URL = "offerMarketUrl";
+		/**
+		 * A job's offer: its id, its terms (a {@code JobOffer}), and its negotiation brief card: the brief (a
+		 * {@code NegotiationBrief}) or {@code null}, the latest request for one or {@code null}, and while that waits,
+		 * what to paste into the assistant.
+		 */
+		public static final String OFFER_JOB_ID = "offerJobId";
+		public static final String JOB_OFFER = "jobOffer";
+		/**
+		 * What an offer pays all in (an {@code OfferTotal}, or {@code null}), and the choices of its extras' rows: their
+		 * kinds ({@code OfferExtraKind}) and how often they're paid ({@code PayFrequency}).
+		 */
+		public static final String OFFER_TOTAL = "offerTotal";
+		public static final String OFFER_EXTRA_KINDS = "offerExtraKinds";
+		public static final String PAY_FREQUENCIES = "payFrequencies";
+		public static final String NEGOTIATION_BRIEF = "negotiationBrief";
+		public static final String NEGOTIATION_REQUEST = "negotiationRequest";
+		public static final String NEGOTIATION_PROMPT = "negotiationPrompt";
+		/**
+		 * A job's cover letter card: the job's id, its {@code CoverLetter} or {@code null}, the latest request to write it
+		 * or {@code null}, the prompt for Claude Code while it waits, whether it's being changed, and why a change wasn't
+		 * saved. The letter as a page: the letter, the CV's details for its header, and the job.
+		 */
+		public static final String LETTER_JOB_ID = "letterJobId";
+		public static final String COVER_LETTER = "coverLetter";
+		public static final String LETTER_REQUEST = "letterRequest";
+		public static final String LETTER_PROMPT = "letterPrompt";
+		public static final String LETTER_EDITING = "letterEditing";
+		public static final String LETTER_ERROR = "letterError";
+		public static final String LETTER_DRAFT = "letterDraft";
+		/** The day a cover letter is dated, written out in the profile's language. */
+		public static final String LETTER_DATE = "letterDate";
+		/**
+		 * A job's outreach card: the job's id, its messages (a list of {@code OutreachDraft}), the latest request to
+		 * write them or {@code null} and its prompt; one message, and why it wasn't saved.
+		 */
+		public static final String OUTREACH_JOB_ID = "outreachJobId";
+		public static final String OUTREACH_DRAFTS = "outreachDrafts";
+		public static final String OUTREACH_REQUEST = "outreachRequest";
+		public static final String OUTREACH_PROMPT = "outreachPrompt";
+		public static final String OUTREACH_DRAFT = "draft";
+		public static final String OUTREACH_ERROR = "outreachError";
+		/** How many messages the card showed as it asked Claude: ones that could be being changed when Claude is done. */
+		public static final String OUTREACH_SHOWN = "outreachShown";
+		/** Whether the job's letter being written starts from the profile's base letter, filled in for the job. */
+		public static final String LETTER_FROM_BASE = "letterFromBase";
+		/**
+		 * The Cover letters page: its jobs (each a {@code LetterRow}), the one a fragment shows, which of them it lists
+		 * (a {@code LetterFilter}), each filter's count, the job picked and its details, and the jobs a request was just
+		 * made or cancelled for.
+		 */
+		public static final String LETTER_ROWS = "letterRows";
+		public static final String LETTER_ROW = "row";
+		public static final String LETTER_FILTER = "letterFilter";
+		public static final String LETTER_FILTERS = "letterFilters";
+		public static final String LETTER_COUNTS = "letterCounts";
+		public static final String LETTER_TOTAL = "letterTotal";
+		public static final String LETTERS_SELECTED = "lettersSelected";
+		public static final String LETTERS_JOB = "lettersJob";
+		public static final String LETTERS_ASKED = "lettersAsked";
+		/**
+		 * The letters Claude has to write, or is writing; those waiting, and what to paste into Claude Code for them, or
+		 * {@code null}.
+		 */
+		public static final String LETTERS_OPEN = "lettersOpen";
+		public static final String LETTERS_WAITING = "lettersWaiting";
+		public static final String LETTERS_PROMPT = "lettersPrompt";
+		/** The most letters asked of Claude at once: one session writes them all. */
+		public static final String LETTERS_MAX_ASKED = "lettersMaxAsked";
+		/** The profile's base letter or {@code null}, whether it's being changed, why a change wasn't kept, and what was typed. */
+		public static final String BASE_LETTER = "baseLetter";
+		public static final String BASE_LETTER_EDITING = "baseLetterEditing";
+		public static final String BASE_LETTER_ERROR = "baseLetterError";
+		public static final String BASE_LETTER_DRAFT = "baseLetterDraft";
+		/**
+		 * The CV page's story bank: the stories (a list of {@code Story}), the one being written or changed (a
+		 * {@code Story}) or {@code null}, why it wasn't saved, and Claude drafting stories: its latest request and prompt.
+		 */
+		public static final String STORIES = "stories";
+		public static final String STORY_FORM = "storyForm";
+		public static final String STORY_ERROR = "storyError";
+		public static final String STORY_REQUEST = "storyRequest";
+		public static final String STORY_PROMPT = "storyPrompt";
+		public static final String MAX_STORIES = "maxStories";
+		/** An interview brief's stories from the story bank, a list of {@code Story}. */
+		public static final String BRIEF_STORIES = "briefStories";
 		/** The found job to review now, a {@code FoundJob}, or {@code null} when none waits. */
 		public static final String FOUND_JOB = "foundJob";
 		/** How many found jobs wait for a decision, for the search shown, and for all of them. */
@@ -229,6 +527,15 @@ public final class AppConstants {
 		public static final String AI_LOOP_PROMPT = "aiLoopPrompt";
 		/** Whether the profile has a CV, uploaded or filled in, for the preset that matches jobs against it. */
 		public static final String HAS_CV = "hasCv";
+		/** The companies the profile watches, and those its jobs suggest. */
+		public static final String WATCHED_COMPANIES = "watchedCompanies";
+		public static final String WATCHLIST_SUGGESTIONS = "watchlistSuggestions";
+		/** Whether the profile has saved searches, which the watchlist's postings are matched against. */
+		public static final String WATCHLIST_HAS_SEARCHES = "watchlistHasSearches";
+		/** What adding or checking did, why each link that couldn't be watched couldn't, and those links, to correct. */
+		public static final String WATCHLIST_MESSAGES = "watchlistMessages";
+		public static final String WATCHLIST_ERRORS = "watchlistErrors";
+		public static final String WATCHLIST_LINKS = "watchlistLinks";
 		/**
 		 * A job's AI-proof CV: the job's id, its {@code TailoredCv} or {@code null}, the latest request to tailor it or
 		 * {@code null}, and the prompt that hands that request to Claude Code while it waits.
@@ -287,8 +594,34 @@ public final class AppConstants {
 		public static final String RECENT_DECISIONS = "recentDecisions";
 		/** A search just saved, a {@code SavedSearch}. */
 		public static final String SAVED_SEARCH = "savedSearch";
-		/** The address Claude connects to: the app's MCP endpoint. */
+		/** The address the AI assistant connects to: the app's MCP endpoint. */
 		public static final String MCP_URL = "mcpUrl";
+		/** The AI assistants a profile can work with, each an {@code Assistant}, and whether its choice was just saved. */
+		public static final String ASSISTANTS = "assistants";
+		public static final String ASSISTANT_SAVED = "assistantSaved";
+		/** How to connect each assistant to the MCP server (an {@code Assistant} → a command, or what to add to its configuration). */
+		public static final String ASSISTANT_CONNECTION = "assistantConnection";
+		/** Whether each assistant has JobWarden's MCP server on this computer (an {@code Assistant} → a {@code Connection}). */
+		public static final String ASSISTANT_STATES = "assistantStates";
+		/** About JobWarden: its repository on GitHub (e.g. CRV96/jobwarden), and who made it, with their GitHub profile. */
+		public static final String REPOSITORY = "repository";
+		public static final String AUTHOR = "author";
+		public static final String AUTHOR_URL = "authorUrl";
+		/**
+		 * What Run did: the assistant's name, and whether it started, or else why not ({@code RunRefusedException.Reason}).
+		 */
+		public static final String RUN_ASSISTANT = "runAssistant";
+		/** How one signs the assistant in on this computer, e.g. claude auth login: when Run finds it signed out. */
+		public static final String RUN_SIGN_IN = "runSignIn";
+		/**
+		 * A job's AI Assistant overview: the job, its cards ({@code AssistantCard}), and whether the assistant is on
+		 * one, so the overview asks again; with the job's fit as {@code jobFit}.
+		 */
+		public static final String OVERVIEW_JOB_ID = "overviewJobId";
+		public static final String OVERVIEW_CARDS = "overviewCards";
+		public static final String OVERVIEW_WORKING = "overviewWorking";
+		public static final String RUN_STARTED = "runStarted";
+		public static final String RUN_REFUSED = "runRefused";
 		/** What the search page searches for, a {@code SearchCriteria}. */
 		public static final String SEARCH_CRITERIA = "criteria";
 		/** The search page's queries, a {@code GeneratedQueries}, and the platform whose query it shows. */

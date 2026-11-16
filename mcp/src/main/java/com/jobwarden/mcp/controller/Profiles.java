@@ -21,9 +21,11 @@ class Profiles {
 
 	private final UserService users;
 
+	/**
+	 * Without a description, which every tool would repeat: list_profiles says what it is, once.
+	 */
 	static ObjectNode schema() {
-		return Schemas.integer("The profile to work on, from list_profiles. Leave it out when there's only one profile, "
-				+ "or when the server was told which one to use");
+		return Schemas.integer();
 	}
 
 	List<User> all() {
@@ -34,12 +36,19 @@ class Profiles {
 	 * @throws ToolException if the profile doesn't exist, or none is named and there are several
 	 */
 	long of(ToolCall call) {
-		Long named = (call.number(ARGUMENT) != null) ? call.number(ARGUMENT) : call.profileHeader();
+		Long named = call.number(ARGUMENT);
 		if (named != null) {
 			if (!this.users.exists(named)) {
 				throw new ToolException("There's no profile " + named + ": list_profiles lists them");
 			}
 			return named;
+		}
+		// The client's own: the profile's public id, or its id as given before
+		String header = call.profileHeader();
+		if (header != null && !header.isBlank()) {
+			return this.users.findByKey(header)
+				.map(User::id)
+				.orElseThrow(() -> new ToolException("There's no profile " + header.strip() + ": list_profiles lists them"));
 		}
 		List<User> all = this.users.findAll();
 		if (all.size() == 1) {
