@@ -572,7 +572,7 @@ class McpControllerTests {
 			.createdAt(Instant.now())
 			.build());
 
-		given(this.fits.findUnscored(1, RequestTools.SCORE_AT_ONCE)).willReturn(List.of(ApplicationSummary.builder()
+		given(this.fits.findUnscored(1, RequestInstructions.SCORE_AT_ONCE)).willReturn(List.of(ApplicationSummary.builder()
 			.id(9)
 			.title("Kotlin Developer")
 			.status(ApplicationStatus.SAVED)

@@ -47,7 +47,8 @@ final class SponsorshipCheck {
 	/** Lower case, without accents, the same length as the text: the place found in one is the place in the other. */
 	private static String fold(String text) {
 		StringBuilder folded = new StringBuilder(text.length());
-		for (char letter : text.toCharArray()) {
+		for (int at = 0; at < text.length(); at++) {
+			char letter = text.charAt(at);
 			String plain = Normalizer.normalize(String.valueOf(letter), Normalizer.Form.NFD).replaceAll("\\p{M}", "");
 			folded.append(plain.isEmpty() ? letter : Character.toLowerCase(plain.charAt(0)));
 		}

@@ -16,16 +16,15 @@ import com.jobwarden.search.Recency;
 import com.jobwarden.search.SearchCriteria;
 import com.jobwarden.search.SearchSuggestions;
 import com.jobwarden.search.WorkType;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.HtmxHeaders;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
 import com.jobwarden.web.dto.SearchFilters;
 import com.jobwarden.web.dto.TagSuggestion;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,15 +34,17 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import static com.jobwarden.web.controller.Pages.requireProfile;
+
 /**
  * The Boolean search generator. It needs no profile: the address holds the filters (see {@link SearchFilters}), so a
  * search can be bookmarked. With one, the filters can be saved under a name (DiscoverController.saveSearch), to open
  * them again here, and for Claude to find jobs for.
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.SEARCH)
 @RequiredArgsConstructor
-class SearchController extends BaseController {
+class SearchController {
 
 	private static final Map<String, String> PLATFORM_ICONS = Map.of(Platform.GOOGLE.name(), "ph-google-logo",
 			Platform.LINKEDIN.name(), "ph-linkedin-logo", Platform.REDDIT.name(), "ph-reddit-logo", Platform.X.name(),

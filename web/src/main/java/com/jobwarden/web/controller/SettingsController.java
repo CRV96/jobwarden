@@ -17,20 +17,21 @@ import com.jobwarden.inbox.service.InboxService;
 import com.jobwarden.market.enums.AdzunaKeyCheck;
 import com.jobwarden.market.service.AdzunaKeyService;
 import com.jobwarden.web.assistant.AssistantConnections.Connection;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.assistant.PromptCards;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
 import com.jobwarden.web.dto.AdzunaKeyForm;
 import com.jobwarden.web.dto.InboxSettingsForm;
 import com.jobwarden.web.enums.Language;
 import com.jobwarden.web.enums.ReadingInterval;
 import com.jobwarden.web.view.AssistantPrompts;
+import com.jobwarden.web.view.FormTexts;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,6 +42,9 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import static com.jobwarden.web.controller.Pages.redirectTo;
+import static com.jobwarden.web.controller.Pages.requireProfile;
+
 /**
  * Settings of this browser, not of a profile, so the page needs none: the theme (kept by the browser), the language
  * (kept in a cookie, see LocaleConfiguration), and what the extension and the AI assistant need to know. One of the
@@ -48,10 +52,10 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
  * ads. And, when a profile is chosen, its own: its jobs as a CSV file, how its inbox reads its mailbox, and which AI
  * assistant it works with, Claude Code or Codex.
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.SETTINGS)
 @RequiredArgsConstructor
-class SettingsController extends BaseController {
+class SettingsController {
 
 	/** Where the page shows the Adzuna key */
 	private static final String SALARIES_SECTION = ControllerConstants.SETTINGS + "#salaries";
@@ -80,6 +84,10 @@ class SettingsController extends BaseController {
 	@Value("${jobwarden.updates.repository:CRV96/jobwarden}")
 	private final String repository;
 
+	private final FormTexts formTexts;
+
+	private final PromptCards promptCards;
+
 	@GetMapping
 	String settings(Model model, Locale locale) {
 		model.addAttribute(ModelAttributes.TODAY, LocalDate.now(this.clock));
@@ -102,7 +110,7 @@ class SettingsController extends BaseController {
 		// Whether each has it already, from its own configuration on this computer
 		Map<Assistant, Connection> states = new EnumMap<>(Assistant.class);
 		for (Assistant assistant : Assistant.values()) {
-			states.put(assistant, connection(assistant));
+			states.put(assistant, this.promptCards.connection(assistant));
 		}
 		model.addAttribute(ModelAttributes.ASSISTANT_STATES, states);
 		model.addAttribute(ModelAttributes.ADZUNA_KEY, this.adzunaKeys.find());
@@ -111,7 +119,9 @@ class SettingsController extends BaseController {
 		// The repository's owner, e.g. CRV96 of CRV96/jobwarden
 		model.addAttribute(ModelAttributes.AUTHOR_URL, "https://github.com/" + this.repository.split("/")[0]);
 		model.addAttribute(ModelAttributes.PROFILE_IMAGE_MAX_BYTES, UserService.MAX_IMAGE_BYTES);
+		model.addAttribute(ModelAttributes.PROFILE_PASSWORD_MIN_LENGTH, UserService.PASSWORD_MIN_LENGTH);
 		if (model.getAttribute(ModelAttributes.CURRENT_PROFILE) instanceof User profile) {
+			model.addAttribute(ModelAttributes.PROFILE_HAS_PASSWORD, this.users.hasPassword(profile.id()));
 			Optional<MailAccount> mailbox = this.inbox.findAccount(profile.id());
 			model.addAttribute(ModelAttributes.MAIL_ACCOUNT, mailbox.orElse(null));
 			model.addAttribute(ModelAttributes.READING_INTERVAL,
@@ -129,10 +139,12 @@ class SettingsController extends BaseController {
 	@PostMapping("/inbox")
 	String saveInbox(@Valid InboxSettingsForm form, BindingResult result, Model model, RedirectAttributes redirect) {
 		long userId = requireProfile(model).id();
-		if (result.hasErrors() || form.readEvery() == null || form.automation() == null) {
+		ReadingInterval readEvery = form.readEvery();
+		InboxAutomation automation = form.automation();
+		if (result.hasErrors() || readEvery == null || automation == null) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Inbox settings without a choice");
 		}
-		this.inbox.changeSettings(userId, form.readEvery().getMinutes(), form.automation());
+		this.inbox.changeSettings(userId, readEvery.getMinutes(), automation);
 		redirect.addFlashAttribute(ModelAttributes.INBOX_SAVED, true);
 		return redirectTo(INBOX_SECTION);
 	}
@@ -157,7 +169,7 @@ class SettingsController extends BaseController {
 		if (result.hasErrors()) {
 			// Both fields may break the same rule
 			redirect.addFlashAttribute(ModelAttributes.ADZUNA_ERROR,
-					String.join(" ", new LinkedHashSet<>(fieldErrors(result).values())));
+					String.join(" ", new LinkedHashSet<>(this.formTexts.fieldErrors(result).values())));
 			redirect.addFlashAttribute(ModelAttributes.ADZUNA_APP_ID, form.appId());
 			return redirectTo(SALARIES_SECTION);
 		}

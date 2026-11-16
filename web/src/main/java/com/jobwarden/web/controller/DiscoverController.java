@@ -21,14 +21,16 @@ import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.search.Recency;
 import com.jobwarden.search.SearchCriteria;
 import com.jobwarden.search.WorkType;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.HtmxEvents;
-import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.assistant.PromptCards;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.HtmxEvents;
+import com.jobwarden.web.constants.HtmxHeaders;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
 import com.jobwarden.web.dto.AiRequestForm;
 import com.jobwarden.web.dto.SearchFilters;
 import com.jobwarden.web.view.AssistantPrompts;
+import com.jobwarden.web.view.FormTexts;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
@@ -37,7 +39,6 @@ import org.jspecify.annotations.Nullable;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.util.MultiValueMap;
 import org.springframework.validation.BindingResult;
@@ -49,16 +50,19 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import static com.jobwarden.web.controller.Pages.redirectTo;
+import static com.jobwarden.web.controller.Pages.requireProfile;
+
 /**
  * The AI Assistant page: what the profile asks Claude to do (its presets, as requests Claude picks up through the MCP
  * server), the jobs Claude found, one card at a time, to save, apply to or discard, and the searches it finds them for,
  * which the search page saves here.
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.DISCOVER)
 @CustomLog
 @RequiredArgsConstructor
-class DiscoverController extends BaseController {
+class DiscoverController {
 
 	/** How many of the latest decisions the page lists, to undo one. */
 	private static final int RECENT = 8;
@@ -92,6 +96,10 @@ class DiscoverController extends BaseController {
 	@Value("${jobwarden.mcp.path:/mcp}")
 	private final String mcpPath;
 
+	private final FormTexts formTexts;
+
+	private final PromptCards promptCards;
+
 	/**
 	 * @param search only the jobs found for this saved search
 	 */
@@ -117,8 +125,8 @@ class DiscoverController extends BaseController {
 	String ask(@Valid AiRequestForm form, BindingResult result, Model model, Locale locale) {
 		long userId = requireProfile(model).id();
 		if (result.hasErrors()) {
-			log.debug("Request not made, fields with errors: {}", fieldErrors(result).keySet());
-			model.addAttribute(ModelAttributes.AI_ERROR, errorMessage(result));
+			log.debug("Request not made, fields with errors: {}", this.formTexts.fieldErrors(result).keySet());
+			model.addAttribute(ModelAttributes.AI_ERROR, this.formTexts.errorMessage(result));
 		} else {
 			AiRequest request = this.discovery.createRequest(userId, form.kind(), form.toRequirements());
 			if (request.kind() == AiRequestKind.FOLLOW_UP) {
@@ -257,8 +265,8 @@ class DiscoverController extends BaseController {
 		model.addAttribute(ModelAttributes.AI_PROMPTS, requests.stream()
 			.filter(request -> request.status() == AiRequestStatus.WAITING)
 			.collect(Collectors.toMap(AiRequest::id, request -> (request.kind() == AiRequestKind.AUTO_APPLY)
-					? connected(AssistantPrompts.forApplying(request.id(), userId), requireProfile(model))
-					: prompt(model, request.id()))));
+					? this.promptCards.connected(AssistantPrompts.forApplying(request.id(), userId), requireProfile(model))
+					: this.promptCards.prompt(requireProfile(model), request.id()))));
 		model.addAttribute(ModelAttributes.AI_LOOP_PROMPT, AssistantPrompts.loop(requireProfile(model).assistant(), userId,
 				ServletUriComponentsBuilder.fromCurrentContextPath().path(this.requestsPath).toUriString(),
 				ServletUriComponentsBuilder.fromCurrentContextPath().path(this.mcpPath).toUriString()));

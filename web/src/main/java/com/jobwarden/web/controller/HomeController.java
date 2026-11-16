@@ -19,15 +19,17 @@ import com.jobwarden.jobs.enums.CalendarEntryKind;
 import com.jobwarden.jobs.service.ActivityService;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.jobs.service.StatisticsService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
 import com.jobwarden.web.dto.SearchFilters;
+import com.jobwarden.web.view.JobImages;
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+
+import static com.jobwarden.web.controller.Pages.requireProfile;
 
 /**
  * The homepage: how the job hunt goes lately and what waits for the profile. The applications sent and the jobs saved
@@ -36,9 +38,9 @@ import org.springframework.web.bind.annotation.GetMapping;
  * and the next days' interviews and deadlines; and the searches saved in the Search Builder, to run again or hand to the
  * assistant. Each links to where it's done. Worked out from the data, without AI.
  */
-@Controller
+@PageController
 @RequiredArgsConstructor
-class HomeController extends BaseController {
+class HomeController {
 
 	/** How many days ahead "Coming up" looks. */
 	static final int COMING_UP_DAYS = 7;
@@ -58,6 +60,8 @@ class HomeController extends BaseController {
 	private final DiscoveryService discovery;
 
 	private final Clock clock;
+
+	private final JobImages jobImages;
 
 	@GetMapping(ControllerConstants.HOMEPAGE)
 	String home(Model model) {
@@ -103,7 +107,7 @@ class HomeController extends BaseController {
 		model.addAttribute(ModelAttributes.SAVED_SEARCHES, searches);
 		model.addAttribute(ModelAttributes.SEARCH_URLS,
 				searches.stream().collect(Collectors.toMap(SavedSearch::id, search -> SearchFilters.url(search.criteria()))));
-		addImages(model, userId);
+		this.jobImages.addImages(model, userId);
 		return Views.HOME;
 	}
 

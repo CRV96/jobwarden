@@ -103,8 +103,9 @@ public class CalendarIcs {
 			line(ics, "TRANSP:TRANSPARENT");
 		}
 		line(ics, "SUMMARY:" + text(summary));
-		if (entry.interviewLocation() != null) {
-			line(ics, "LOCATION:" + text(entry.interviewLocation()));
+		String location = entry.interviewLocation();
+		if (location != null) {
+			line(ics, "LOCATION:" + text(location));
 		}
 		String format = (entry.interviewFormat() != null)
 				? this.messages.getMessage("interviewFormat." + entry.interviewFormat(), null, locale) + "\n" : "";
@@ -166,7 +167,7 @@ public class CalendarIcs {
 			return (lead == ReminderLead.AT_TIME) ? "PT0M" : "-PT" + lead.minutes() + "M";
 		}
 		long minutes = ReminderLead.ALL_DAY_START.toSecondOfDay() / 60L - lead.minutes();
-		return (minutes >= 0) ? "PT" + minutes + "M" : "-PT" + (-minutes) + "M";
+		return (minutes >= 0) ? "PT" + minutes + "M" : "-PT" + Math.abs(minutes) + "M";
 	}
 
 	private static String utc(LocalDateTime time, ZoneId zone) {

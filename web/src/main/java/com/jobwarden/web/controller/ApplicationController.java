@@ -30,11 +30,11 @@ import com.jobwarden.jobs.service.ApplicationCsvService;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.jobs.service.JobFitService;
 import com.jobwarden.jobs.service.SalaryService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.HtmxEvents;
-import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.HtmxEvents;
+import com.jobwarden.web.constants.HtmxHeaders;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
 import com.jobwarden.web.dto.ApplicationListParams;
 import com.jobwarden.web.dto.FollowUpForm;
 import com.jobwarden.web.dto.JobDetailsForm;
@@ -43,6 +43,8 @@ import com.jobwarden.web.dto.NewEventForm;
 import com.jobwarden.web.dto.NotesForm;
 import com.jobwarden.web.dto.SalaryForm;
 import com.jobwarden.web.enums.ApplicationView;
+import com.jobwarden.web.view.FormTexts;
+import com.jobwarden.web.view.JobImages;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
@@ -53,7 +55,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -67,18 +68,22 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import static com.jobwarden.web.controller.Pages.attachment;
+import static com.jobwarden.web.controller.Pages.redirectTo;
+import static com.jobwarden.web.controller.Pages.requireProfile;
+
 /**
- * Every page here needs a profile: {@link #requireProfile} sends the browser to the profile picker if none is
+ * Every page here needs a profile: {@link Pages#requireProfile} sends the browser to the profile picker if none is
  * selected. An application the profile doesn't own answers 404.
  * <p>
  * An application's parts render on its own page or in the side panel over the list ({@link ApplicationView}); the
  * HTMX requests from them say which, and get that part back.
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.APPLICATIONS)
 @CustomLog
 @RequiredArgsConstructor
-class ApplicationController extends BaseController {
+class ApplicationController {
 
 	private static final MediaType CSV = new MediaType("text", "csv", StandardCharsets.UTF_8);
 
@@ -91,6 +96,10 @@ class ApplicationController extends BaseController {
 	private final SalaryService salaries;
 
 	private final Clock clock;
+
+	private final FormTexts formTexts;
+
+	private final JobImages jobImages;
 
 	/**
 	 * The list, searched, filtered, sorted and paged as its address says. An address past the last page (e.g. after
@@ -109,7 +118,7 @@ class ApplicationController extends BaseController {
 		model.addAttribute(ModelAttributes.STATUS_COUNTS,
 				this.applications.countByStatus(userId, listParams.q(), listParams.isArchived()));
 		model.addAttribute(ModelAttributes.ARCHIVED_COUNT, this.applications.countArchived(userId));
-		addImages(model, userId);
+		this.jobImages.addImages(model, userId);
 		addFormChoices(model);
 		return Views.APPLICATION_LIST;
 	}
@@ -135,7 +144,7 @@ class ApplicationController extends BaseController {
 					this.csv.importCsv(userId, new StringReader(text(file.getBytes()))));
 		} catch (BusinessRuleException refused) {
 			log.debug("CSV file of profile {} not imported: {}", userId, refused.getMessage());
-			redirect.addFlashAttribute(ModelAttributes.CSV_IMPORT_ERROR, message(refused));
+			redirect.addFlashAttribute(ModelAttributes.CSV_IMPORT_ERROR, this.formTexts.message(refused));
 		}
 		return redirectTo(ControllerConstants.SETTINGS + "#jobs-data");
 	}
@@ -167,7 +176,7 @@ class ApplicationController extends BaseController {
 	String create(@Valid NewApplicationForm form, BindingResult result, Model model) {
 		User user = requireProfile(model);
 		if (result.hasErrors()) {
-			Map<String, String> errors = fieldErrors(result);
+			Map<String, String> errors = this.formTexts.fieldErrors(result);
 			log.debug("New application not added, fields with errors: {}", errors.keySet());
 			return showNewApplicationForm(model, form, errors);
 		}
@@ -198,7 +207,7 @@ class ApplicationController extends BaseController {
 	String addEvent(@PathVariable long id, @Valid NewEventForm form, BindingResult result,
 			@RequestParam(defaultValue = "PAGE") ApplicationView view, Model model, HttpServletResponse response) {
 		long userId = requireProfile(model).id();
-		String error = result.hasErrors() ? errorMessage(result) : tryAddEvent(userId, id, form);
+		String error = result.hasErrors() ? this.formTexts.errorMessage(result) : tryAddEvent(userId, id, form);
 		if (error != null) {
 			log.debug("Event not added to application {}: {}", id, error);
 		}
@@ -216,7 +225,7 @@ class ApplicationController extends BaseController {
 		try {
 			this.applications.removeEvent(userId, id, eventId);
 		} catch (BusinessRuleException exception) {
-			error = message(exception);
+			error = this.formTexts.message(exception);
 			log.debug("Event {} not removed from application {}: {}", eventId, id, error);
 		}
 		return showChangedApplication(model, response, userId, id, view, error);
@@ -240,7 +249,7 @@ class ApplicationController extends BaseController {
 			HttpServletResponse response) {
 		long userId = requireProfile(model).id();
 		if (result.hasErrors()) {
-			Map<String, String> errors = fieldErrors(result);
+			Map<String, String> errors = this.formTexts.fieldErrors(result);
 			log.debug("Follow-up of application {} not saved, fields with errors: {}", id, errors.keySet());
 			model.addAttribute(ModelAttributes.FIELD_ERRORS, errors);
 		} else {
@@ -262,8 +271,8 @@ class ApplicationController extends BaseController {
 		long userId = requireProfile(model).id();
 		if (result.hasErrors()) {
 			log.debug("Location and salary of application {} not saved, fields with errors: {}", id,
-					fieldErrors(result).keySet());
-			model.addAttribute(ModelAttributes.DETAILS_ERROR, errorMessage(result));
+					this.formTexts.fieldErrors(result).keySet());
+			model.addAttribute(ModelAttributes.DETAILS_ERROR, this.formTexts.errorMessage(result));
 			model.addAttribute(ModelAttributes.DETAILS_FORM, form);
 			addApplication(model, userId, id, view);
 			return view.getFragment();
@@ -346,7 +355,7 @@ class ApplicationController extends BaseController {
 			this.applications.addEvent(userId, applicationId, form.toNewTimelineEvent(this.clock));
 			return null;
 		} catch (BusinessRuleException exception) {
-			return message(exception);
+			return this.formTexts.message(exception);
 		}
 	}
 
@@ -384,7 +393,7 @@ class ApplicationController extends BaseController {
 		model.addAttribute(ModelAttributes.SALARY_CURRENCIES, this.salaries.currencies());
 		model.addAttribute(ModelAttributes.PAY_PERIODS, SalaryPeriod.values());
 		model.addAttribute(ModelAttributes.PAY_BASES, PayBasis.values());
-		addImages(model, userId);
+		this.jobImages.addImages(model, userId);
 		addFormChoices(model);
 	}
 

@@ -12,15 +12,15 @@ import com.jobwarden.watchlist.dto.WatchResult;
 import com.jobwarden.watchlist.dto.WatchlistCheck;
 import com.jobwarden.watchlist.exception.WatchlistErrorCode;
 import com.jobwarden.watchlist.service.WatchlistService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
+import com.jobwarden.web.view.FormTexts;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.context.MessageSource;
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,17 +28,19 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import static com.jobwarden.web.controller.Pages.requireProfile;
+
 /**
  * The watchlist: the companies whose job boards on Greenhouse, Lever and Ashby JobWarden reads itself every few hours,
  * with no Claude tokens, adding the postings that match the saved searches to the AI Assistant page. Watching some by
  * their links, several at once, or those the profile's jobs suggest; Check now; and removing one. Each change answers
  * with the page's watchlist part again, for HTMX to swap.
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.WATCHLIST)
 @CustomLog
 @RequiredArgsConstructor
-class WatchlistController extends BaseController {
+class WatchlistController {
 
 	/** How many companies the profile's jobs suggest. */
 	static final int SUGGESTIONS = 8;
@@ -53,6 +55,8 @@ class WatchlistController extends BaseController {
 	private final DiscoveryService discovery;
 
 	private final MessageSource messages;
+
+	private final FormTexts formTexts;
 
 	@GetMapping
 	String page(Model model) {
@@ -88,7 +92,7 @@ class WatchlistController extends BaseController {
 				newJobs += watched.newJobs();
 			} catch (BusinessRuleException refused) {
 				log.debug("Company not watched for profile {}: {}", userId, refused.getMessage());
-				errors.add(this.messages.getMessage("watchlist.failedLink", new Object[] { link, message(refused) },
+				errors.add(this.messages.getMessage("watchlist.failedLink", new Object[] { link, this.formTexts.message(refused) },
 						locale));
 				failed.add(link);
 			}

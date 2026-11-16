@@ -17,28 +17,29 @@ import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.jobs.service.InterviewBriefService;
 import com.jobwarden.jobs.service.JobFitService;
 import com.jobwarden.jobs.service.OfferService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
 import com.jobwarden.web.view.AssistantCard;
 import com.jobwarden.web.view.AssistantCard.State;
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+
+import static com.jobwarden.web.controller.Pages.requireProfile;
 
 /**
  * What the AI Assistant has for a job, at a glance, under its facts: the fit, its score and why, and each card (the
  * AI-proof CV, the cover letter, the messages, the interview prep, and at Offer the negotiation), made, in progress or
  * not yet, each a link to its card. HTMX loads it after the job, and again while the assistant is on one.
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.APPLICATIONS + "/{id}/assistant")
 @RequiredArgsConstructor
-class JobAssistantController extends BaseController {
+class JobAssistantController {
 
 	private final ApplicationService applications;
 

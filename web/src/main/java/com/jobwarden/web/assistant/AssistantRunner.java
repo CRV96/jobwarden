@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
+import com.jobwarden.common.exception.CommonErrorCode;
 import com.jobwarden.common.exception.JobWardenException;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.enums.Assistant;
@@ -182,16 +183,34 @@ public class AssistantRunner {
 		}
 		requestIds.forEach(this.refusals::remove);
 		log.info("Started {} on requests {} of profile {}", assistant.product(), requestIds, userId);
-		process.onExit()
+		inBackground(process.onExit()
 			.orTimeout(this.timeout.toMillis(), TimeUnit.MILLISECONDS)
-			.whenComplete((ended, failure) -> {
+			.handle((ended, failure) -> {
 				if (!(failure instanceof TimeoutException)) {
 					finish(assistant, userId, requestIds, process, output, process.exitValue());
-					return;
+					return null;
 				}
 				// Too long: it keeps its requests until it's gone, so nothing else picks them up while it still runs
-				stopped(process, STOP_GRACE).whenComplete((gone, error) -> finish(assistant, userId, requestIds, process, output, null));
-			});
+				inBackground(stopped(process, STOP_GRACE)
+					.handle((gone, error) -> {
+						finish(assistant, userId, requestIds, process, output, null);
+						return null;
+					}), "Finishing the stopped run of requests " + requestIds);
+				return null;
+			}), "Finishing the run of requests " + requestIds);
+	}
+
+	/**
+	 * Work that goes on with nothing waiting for it, e.g. a run's end: what fails in it is logged here, as no caller
+	 * would hear of it. The one place a future is left on its own.
+	 */
+	@SuppressWarnings("FutureReturnValueIgnored")
+	private static void inBackground(CompletableFuture<?> work, String what) {
+		work.whenComplete((done, failed) -> {
+			if (failed != null) {
+				log.error(CommonErrorCode.UNEXPECTED_ERROR, "{} failed", what, failed);
+			}
+		});
 	}
 
 	/**
@@ -283,7 +302,7 @@ public class AssistantRunner {
 			this.refusals.remove(requestId);
 			Process process = this.running.remove(requestId);
 			if (process != null) {
-				stopped(process, STOP_GRACE);
+				inBackground(stopped(process, STOP_GRACE), "Stopping the run of request " + requestId);
 				log.info("Stopped the run of request {}: its profile is deleted", requestId);
 			}
 			try {

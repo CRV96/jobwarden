@@ -169,8 +169,8 @@ class DefaultWatchlistService implements WatchlistService {
 				.orElseThrow(() -> watchedMeanwhile);
 		}
 		log.info("Profile {} watches {} ({}, {} jobs on its board)", userId, companyName, board, postings.size());
-		this.reading.lock();
 		int newJobs;
+		this.reading.lock();
 		try {
 			newJobs = readBoard(board, postings, List.of(company), new ConcurrentHashMap<>()).newJobs();
 		} finally {

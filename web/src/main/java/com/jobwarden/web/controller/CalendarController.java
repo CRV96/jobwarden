@@ -15,19 +15,19 @@ import com.jobwarden.jobs.dto.CalendarEntry;
 import com.jobwarden.jobs.enums.CalendarEntryKind;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.jobs.service.CalendarFeedService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
 import com.jobwarden.web.enums.CalendarEntryType;
 import com.jobwarden.web.enums.CalendarView;
 import com.jobwarden.web.view.CalendarDays;
 import com.jobwarden.web.view.CalendarMonth;
+import com.jobwarden.web.view.JobImages;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -36,6 +36,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import static com.jobwarden.web.controller.Pages.requireProfile;
+
 /**
  * The applications' timelines on a calendar, a month, a week or a day at a time: every status they got, the interviews,
  * the deadlines and the days to follow up. Next to it, what's coming up: the interviews, deadlines and days to follow
@@ -43,10 +45,10 @@ import org.springframework.web.util.UriComponentsBuilder;
  * picks what it shows: interviews, other status changes, deadlines, days to follow up; the browser session remembers
  * the choice.
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.CALENDAR)
 @RequiredArgsConstructor
-class CalendarController extends BaseController {
+class CalendarController {
 
 	/** How far ahead the upcoming list looks, and how much it shows at most: it scrolls. */
 	private static final int UPCOMING_DAYS = 30;
@@ -70,6 +72,8 @@ class CalendarController extends BaseController {
 	private final CalendarFeedService feeds;
 
 	private final Clock clock;
+
+	private final JobImages jobImages;
 
 	/**
 	 * @param view {@code month}, {@code week} or {@code day}; the month without one
@@ -113,7 +117,7 @@ class CalendarController extends BaseController {
 			.limit(UPCOMING_MAX)
 			.toList());
 		model.addAttribute(ModelAttributes.TODAY, today);
-		addImages(model, userId);
+		this.jobImages.addImages(model, userId);
 		addFeed(model, this.feeds.token(userId), CalendarEntryType.FEED);
 		return Views.CALENDAR;
 	}

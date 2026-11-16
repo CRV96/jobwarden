@@ -5,7 +5,7 @@ import java.util.Optional;
 
 import com.jobwarden.jobs.dto.PngImage;
 import com.jobwarden.jobs.service.ApplicationService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
+import com.jobwarden.web.constants.ControllerConstants;
 import com.jobwarden.web.user.CurrentUser;
 import lombok.RequiredArgsConstructor;
 

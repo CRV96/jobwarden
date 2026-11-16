@@ -230,6 +230,9 @@
   "updateReload": {
     "message": "Dein JobWarden-Server läuft mit $1: Lade die Erweiterung neu, damit sie passt"
   },
+  "updateHide": {
+    "message": "Bis zur nächsten Version ausblenden"
+  },
   "extensionVersion": {
     "message": "JobWarden-Erweiterung $1"
   },

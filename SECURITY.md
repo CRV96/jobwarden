@@ -48,7 +48,8 @@ Out of scope:
 
 ## Running JobWarden safely
 
-- **It has no sign-in.** Profiles keep people's job hunts apart; they don't protect them from each other, or from anyone who reaches the server. Run it on your own computer (`http://localhost:8080`) or on a network you trust, and never publish it to the internet. To keep it to your own computer, set `server.address=127.0.0.1` (the `SERVER_ADDRESS` environment variable); with Docker, publish the port as `-p 127.0.0.1:8080:8080`.
+- **It has no sign-in.** Profiles keep people's job hunts apart; they don't protect them from each other, or from anyone who reaches the server. A profile's password keeps others using the same browser out of its pages, nothing more: the API the browser extension and the assistants use names a profile by its ID, without the password, and whoever has the database has everything. Run it on your own computer (`http://localhost:8080`) or on a network you trust, and never publish it to the internet. To keep it to your own computer, set `server.address=127.0.0.1` (the `SERVER_ADDRESS` environment variable); with Docker, publish the port as `-p 127.0.0.1:8080:8080`.
+- **Host names.** The server only answers to a host it knows as its own: an IP address, `localhost`, a name without a dot (a LAN computer, a Docker service) or under `.local`, `.lan`, `.home.arpa` or `.internal`, and the computer's own name. That stops a web page on another domain from reaching it by pointing its name at your computer (DNS rebinding). To reach it by another name, e.g. through a reverse proxy, list that name in `JOBWARDEN_ALLOWED_HOSTS`. The calendar feed answers any host.
 - **The calendar feed.** For Google Calendar, which fetches the feed from Google's servers, put only `/calendar/feed.ics` behind a reverse proxy with HTTPS, not the whole server. The token in its address is all that protects it: **New address** on the calendar page stops one that got where it shouldn't.
 - **Passwords and tokens.** The mailboxes' passwords and the GitHub token are kept encrypted (AES-GCM), with `JOBWARDEN_SECRET_KEY` or else a key file JobWarden makes in `~/.jobwarden/`, readable only by you. Keep a backup of the key apart from the database's: whoever has both can read them. Give JobWarden an app password for the mailbox, never your account's own, and a fine-grained, read-only GitHub token.
 - **The extension** only talks to the server you set in its settings. The server answers its API for the extension alone, never for web pages (CORS).
@@ -57,7 +58,7 @@ Out of scope:
 
 ## How the project is checked
 
-- **CodeQL**, GitHub's default setup, on every pull request, on `main` and weekly: the Java, the JavaScript and the workflows.
+- **CodeQL**, a job of the CI workflow, on every pull request and on `main`: the Java, the JavaScript and the workflows.
 - **SonarCloud**: a pull request merges only when its quality gate passes.
 - **Dependabot**: alerts and security fixes as soon as a vulnerability is known, version updates weekly. A pull request that adds a dependency with a high-severity vulnerability fails its dependency review.
 - **Secret scanning**, with push protection: a push with a token in it is refused.

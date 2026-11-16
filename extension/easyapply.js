@@ -13,6 +13,9 @@
 // whose form is a modal <dialog>. It runs in the tab's isolated world: it sees the page's DOM, not its JavaScript. It reaches the server through
 // runs.js in the background, as LinkedIn's page can't, and keeps its state in chrome.storage.local (RUN_KEY), so it
 // goes on where it was after LinkedIn loads the page anew.
+// Its parts, in easyapply/, are injected before it (EASY_APPLY_SCRIPTS, injected.js): waiting for LinkedIn and
+// stopping (waiting.js), the form's questions and the answers that fit them (questions.js), where things are on
+// LinkedIn's pages (linkedin.js), and the bar (bar.js). What's left here is the run itself: the results, a job, its form.
 (async () => {
   // Injected again into a page that has it: the run is already going
   if (window.jobWardenEasyApply) {
@@ -20,11 +23,21 @@
   }
   window.jobWardenEasyApply = true;
 
+  const {
+    Stopped, TIMEOUT_MILLIS, isStopped, markStopped, settle, shown, usable, waitFor,
+  } = globalThis.jobWarden.easyApply.waiting;
+  const {
+    RULES, fieldsOf, isAnswered, normalized, put, questionsOf, valueOf,
+  } = globalThis.jobWarden.easyApply.questions;
+  const {
+    NOT_NOW, SELECTORS, applyButton, cardOf, cardTitle, detailsShow, discardConfirmation, dismissButton,
+    easyApplyDialog, formErrors, forwardButton, hasFields, isEasyApply, isSubmit, pageAfter, postApplyDialog, resultIds,
+    securityCheck, shownJobId, stepOf, textButtons,
+  } = globalThis.jobWarden.easyApply.linkedin;
+  const { createBar, message } = globalThis.jobWarden.easyApply.bar;
+
   /** Where runs.js keeps the run: its options, what it did, and whether it's going. */
   const RUN_KEY = 'easyApplyRun';
-
-  /** How long to wait for LinkedIn to show something (a job, a form, the next step) before asking the user. */
-  const TIMEOUT_MILLIS = 10000;
 
   /** How long sending can take before the run asks the user whether it went. */
   const SENDING_TIMEOUT_MILLIS = 15000;
@@ -34,151 +47,6 @@
 
   /** How many times a step's fields are filled in: an answer can make LinkedIn show another question. */
   const FILL_PASSES = 3;
-
-  /**
-   * Where things are on LinkedIn's two job searches. The older one has classes such as jobs-apply-button; the newer
-   * one's classes are made up anew with each of its releases, so only its attributes (componentkey, data-testid,
-   * data-sdui-screen), aria-labels and icon ids are used there. LinkedIn changes its pages now and then: each place
-   * has a few, and the run stops for the user rather than guess when none is there.
-   */
-  const SELECTORS = {
-    results: '.scaffold-layout__list, .jobs-search-results-list, .jobs-search__results-list, '
-      + '[componentkey="SearchResultsMainContent"]',
-    card: '[data-occludable-job-id], [data-job-id], [componentkey^="job-card-component-ref-"]',
-    cardLink: '.job-card-container--clickable, a.job-card-list__title--link, a.job-card-container__link, '
-      + 'a[href*="/jobs/view/"]',
-    cardTitle: '.job-card-list__title--link, .job-card-list__title, .artdeco-entity-lockup__title, '
-      + 'a[href*="/jobs/view/"]',
-    details: '.jobs-search__job-details--wrapper, .jobs-search__job-details, .jobs-details, .job-view-layout, '
-      + '[data-sdui-screen*="JobDetails"]',
-    applyButton: '.jobs-apply-button--top-card button, button.jobs-apply-button, a.jobs-apply-button, '
-      + 'button[data-live-test-job-apply-button], button[aria-label]:has(svg[id^="inbug"]), '
-      + 'a[target="_blank"][aria-label]:has(svg[id*="arrow-diagonal"])',
-    easyApplyIcon: '[data-test-icon^="linkedin-bug"], use[href*="linkedin-bug"], svg[id^="inbug"]',
-    externalIcon: '[data-test-icon="link-external-small"], use[href*="link-external"], svg[id*="arrow-diagonal"]',
-    easyApplyDialog: '.jobs-easy-apply-modal, [data-test-modal-id="easy-apply-modal"]',
-    forward: 'button[data-live-test-easy-apply-submit-button], button[data-live-test-easy-apply-review-button], '
-      + 'button[data-live-test-easy-apply-next-button], button[data-easy-apply-next-button]',
-    primaryButton: 'button.artdeco-button--primary',
-    dismiss: '.artdeco-modal__dismiss, button[data-test-modal-close-btn], button[aria-label="Dismiss"]',
-    discard: 'button[data-control-name="discard_application_confirm_btn"], button[data-test-dialog-secondary-btn]',
-    // On the newer page, a field's helper (its aria-describedby) has the error in front of its character count
-    fieldError: '.artdeco-inline-feedback--error, [data-test-form-element-error-messages], '
-      + '.fb-dash-form-element-error, [data-testid$="helper-text"] > p',
-    fieldGroup: 'fieldset, .jobs-easy-apply-form-element, .fb-dash-form-element, [data-test-form-element], '
-      + '.jobs-easy-apply-form-section__grouping',
-    nextPage: 'button.jobs-search-pagination__button--next, button[aria-label="View next page"]',
-    currentPage: '.artdeco-pagination__indicator--number.active, .artdeco-pagination__indicator--number.selected, '
-      + '[data-testid^="pagination-indicator-"][aria-current="true"]',
-    securityCheck: '#captcha-internal, iframe[src*="captcha" i], iframe[title*="captcha" i], '
-      + 'iframe[src*="arkoselabs"], iframe[src*="challenge" i]',
-  };
-
-  /** Field types that aren't questions: files go with the CV LinkedIn has, buttons are LinkedIn's. */
-  const IGNORED_TYPES = new Set(['hidden', 'file', 'submit', 'button', 'reset', 'image', 'search']);
-
-  /** Yes and no as LinkedIn's options say them, in the extension's languages. */
-  const YES = /^(yes|da|ja|oui|sí|si|sim|tak)\b/i;
-  const NO = /^(no|nu|nein|non|nie|não|nao)\b/i;
-
-  /** The option that declines a voluntary question. */
-  const DECLINE_OPTION = /decline|prefer not|rather not|don.?t wish|do not wish|choose not|not (to )?(say|answer|disclose)|nu doresc|nu vreau|keine angabe|möchte (ich )?nicht|ne (souhaite|pas)|prefiero no|nie chcę|wolę nie|prefiro não/i;
-
-  /** The button that sends the application, in the extension's languages, when LinkedIn's attribute isn't there. */
-  const SUBMIT = /submit|trimite|envoyer|soumettre|absenden|enviar|wyślij|złóż/i;
-
-  /**
-   * How to close what LinkedIn shows once it sent an application ("Your application was sent", and an offer to do
-   * more with the CV): Not now, or Done, never what it offers.
-   */
-  const NOT_NOW = /^(not now|done|no,? thanks|nu acum|nu,? mulțumesc|gata|jetzt nicht|nicht jetzt|fertig|pas maintenant|terminé|ahora no|listo|agora não|concluído|nie teraz|gotowe)$/i;
-
-  /** A select's first option when nothing is chosen yet. */
-  const PLACEHOLDER = /select an option|selectați|alege|wählen|sélectionn|selecciona|wybierz|selecione/i;
-
-  /** A label's mark of a required question. */
-  const REQUIRED_MARK = /\*\s*$|\(required\)\s*$/i;
-
-  /**
-   * A question that asks for a number: the newer page's number fields are text fields like any other, so the question
-   * says it. "Notice period (in days)" then takes "30", not "1 month".
-   */
-  const NUMBER_QUESTION = /how many|number of|\(?in (days|weeks|months|years)\)?|câț[ia]|câte|număr(ul)? de|în (zile|săptămâni|luni|ani)|wie viele|anzahl|in (tagen|wochen|monaten|jahren)|combien|nombre d|en (jours|semaines|mois|années)|cuánt[oa]s|número de|en (días|semanas|meses|años)|\bile\b|liczba|w (dniach|tygodniach|miesiącach|latach)|quant[oa]s|em (dias|semanas|meses|anos)/i;
-
-  /** The voluntary questions the Auto-apply page's "Decline the voluntary questions" is about. */
-  const VOLUNTARY = /gender|\bsex\b|race|ethnic|veteran|disabilit|sexual orientation|pronoun|transgender|lgbt/i;
-
-  /** The answer to a voluntary question when the profile declines them: the option that says so. */
-  const DECLINE = Symbol('decline');
-
-  /**
-   * The questions the profile's answers cover, by what they ask, in the extension's languages. The first rule whose
-   * question matches decides, also when its answer is empty: then the user answers. Answers learned during runs come
-   * before all of these.
-   */
-  const RULES = [
-    { question: /country code|prefix|prefijo|indicatif|vorwahl|kierunkowy|indicativo/i, answer: () => null },
-    { question: /e-?mail/i, answer: (answers) => answers.contact.email },
-    { question: /phone|mobile|telefon|téléphone|teléfono|celular|komórk/i, answer: (answers) => answers.contact.phone },
-    { question: /linkedin/i, answer: (answers) => answers.contact.linkedin },
-    { question: /github/i, answer: (answers) => answers.contact.github },
-    {
-      question: /website|portfolio|site web|sitio web|página web|webseite|strona (www|internetowa)/i,
-      answer: (answers) => answers.contact.website,
-    },
-    {
-      question: /^(first name|given name|prenume|vorname|prénom|nombre|imię|primeiro nome)$/i,
-      answer: (answers) => nameParts(answers.contact.fullName)?.first,
-    },
-    {
-      question: /^(last name|surname|family name|nume( de familie)?|nachname|nom( de famille)?|apellidos?|nazwisko|sobrenome|apelido)$/i,
-      answer: (answers) => nameParts(answers.contact.fullName)?.last,
-    },
-    {
-      question: /^(full name|name|nume complet|vollständiger name|nom complet|nombre completo|imię i nazwisko|nome completo)$/i,
-      answer: (answers) => answers.contact.fullName,
-    },
-    {
-      question: /^(city|location|town|oraș|localitate|stadt|wohnort|ville|ciudad|ubicación|miasto|lokalizacja|cidade|localização)\b/i,
-      answer: (answers) => answers.contact.location,
-    },
-    { question: /sponsor/i, answer: (answers) => answers.needsSponsorship },
-    {
-      question: /relocat|relocare|mutați|umzieh|umzug|déménag|reubic|przeprowadz|mudar-se|realoca/i,
-      answer: (answers) => answers.willingToRelocate,
-    },
-    {
-      question: /notice period|preaviz|kündigungsfrist|préavis|preaviso|okres wypowiedzenia|aviso prévio/i,
-      answer: (answers) => answers.noticePeriod,
-    },
-    {
-      question: /salary|compensation|remuneration|pay expectation|salari|gehalt|salaire|wynagrodzeni|salário|remunera/i,
-      answer: (answers) => answers.salaryExpectation,
-    },
-    {
-      question: /start date|earliest start|when can you start|available to start|data de (î|i)nceput|startdatum|eintrittsdatum|date de début|fecha de (inicio|incorporación)|data rozpoczęcia|data de início/i,
-      answer: (answers) => answers.earliestStart,
-    },
-    {
-      // Years of work in all, not with one skill: "...experience do you have with Java?" is the profile's to answer
-      question: /^how many years of (total |overall )?(work |professional )?experience do you have\??$/i,
-      answer: (answers) => answers.yearsOfExperience,
-    },
-    {
-      question: /authori[sz]ed to work|work authori[sz]ation|work permit|right to work|eligible to work/i,
-      kinds: ['text'],
-      answer: (answers) => answers.workAuthorization,
-    },
-    {
-      question: /work preference|preferred work (arrangement|setting|model)|remote or (on-?site|hybrid)/i,
-      kinds: ['text'],
-      answer: (answers) => answers.workPreference,
-    },
-    { question: VOLUNTARY, answer: (answers) => (answers.declineVoluntary ? DECLINE : null) },
-  ];
-
-  /** Thrown wherever the run waits, once the user stopped it. */
-  class Stopped extends Error {}
 
   /** The buttons the bar shows when the run needs the user. */
   const CONTINUE = 'runContinue';
@@ -191,14 +59,13 @@
     window.jobWardenEasyApply = false;
     return;
   }
-  let stopped = false;
   // Stop on the bar, or Stop the run in the popup
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes[RUN_KEY] && changes[RUN_KEY].newValue?.status !== 'running') {
-      stopped = true;
+      markStopped();
     }
   });
-  const bar = createBar();
+  const bar = createBar(() => saveRun({ status: 'stopped' }));
   bar.state(message('runStarting'));
   bar.counts(run);
 
@@ -247,36 +114,6 @@
     bar.end(text, run);
   }
 
-  /** The jobs of the results' page, in the order it shows them. */
-  function resultIds() {
-    const list = document.querySelector(SELECTORS.results) ?? document;
-    const ids = [...list.querySelectorAll(SELECTORS.card)]
-      .filter((card) => !card.closest(SELECTORS.details))
-      .map((card) => card.dataset.occludableJobId ?? card.dataset.jobId
-        ?? card.getAttribute('componentkey')?.replace('job-card-component-ref-', ''));
-    return [...new Set(ids.filter((id) => /^\d+$/.test(id ?? '')))];
-  }
-
-  /** On the older page, the card's list item; on the newer one, the card, which is a button itself. */
-  function cardOf(id) {
-    return document.querySelector(`[data-occludable-job-id="${id}"], [data-job-id="${id}"], `
-      + `[componentkey="job-card-component-ref-${id}"][role="button"]`)
-      ?? document.querySelector(`[componentkey="job-card-component-ref-${id}"]`);
-  }
-
-  /** The newer page's card tells screen readers "Selected, <title>" before the title it shows. */
-  function cardTitle(card) {
-    const titled = card?.querySelector(SELECTORS.cardTitle);
-    if (titled) {
-      return cleanText(titled);
-    }
-    const [first = '', second = ''] = [...(card?.querySelectorAll('p, span, strong') ?? [])]
-      .filter((element) => element.childElementCount === 0)
-      .map((element) => cleanText(element.textContent))
-      .filter(Boolean);
-    return (second && first.endsWith(second)) ? second : first;
-  }
-
   /** @returns {Promise<boolean>} false on the last page */
   async function nextPage() {
     const button = [...document.querySelectorAll(SELECTORS.nextPage)].find(usable)
@@ -287,15 +124,6 @@
     const before = resultIds().join();
     button.click();
     return Boolean(await waitFor(() => resultIds().length > 0 && resultIds().join() !== before, TIMEOUT_MILLIS));
-  }
-
-  /** The newer page numbers its page buttons: pagination-indicator-0, -1... */
-  function pageAfter(current) {
-    const index = current?.dataset.testid?.match(/^pagination-indicator-(\d+)$/)?.[1];
-    if (index !== undefined) {
-      return document.querySelector(`[data-testid="pagination-indicator-${Number(index) + 1}"]`);
-    }
-    return current?.nextElementSibling?.querySelector('button') ?? null;
   }
 
   // A job
@@ -355,33 +183,6 @@
 
   function skipped() {
     return saveRun({ skipped: run.skipped + 1 });
-  }
-
-  /** The job the page shows beside the results, by its address. */
-  function shownJobId() {
-    const url = new URL(window.location.href);
-    return url.searchParams.get('currentJobId') ?? url.pathname.match(/\/jobs\/view\/(?:[^/]*-)?(\d+)/)?.[1] ?? null;
-  }
-
-  /** Whether the job's details are the job's: the address changes before them. */
-  function detailsShow(id) {
-    return Boolean(document.querySelector(SELECTORS.details)
-      ?.querySelector(`a[href*="/jobs/view/${id}"], [data-job-id="${id}"]`));
-  }
-
-  function applyButton() {
-    const details = document.querySelector(SELECTORS.details) ?? document;
-    return [...details.querySelectorAll(SELECTORS.applyButton)].find(usable) ?? null;
-  }
-
-  /** Easy Apply, or the company's own site: LinkedIn's icon on the button says which, whatever its language. */
-  function isEasyApply(button) {
-    if (button.querySelector(SELECTORS.externalIcon) || button.getAttribute('role') === 'link'
-        || (button.tagName === 'A' && button.target === '_blank')) {
-      return false;
-    }
-    return Boolean(button.querySelector(SELECTORS.easyApplyIcon))
-      || /easy apply/i.test(`${button.getAttribute('aria-label') ?? ''} ${button.textContent}`);
   }
 
   // The form
@@ -472,26 +273,6 @@
   }
 
   /**
-   * Whether the button sends the application: LinkedIn's attribute for it, the form's last step (its progress at
-   * 100%), or the button saying so.
-   */
-  function isSubmit(dialog, button) {
-    return button.matches('[data-live-test-easy-apply-submit-button]') || progressOf(dialog) >= 100
-      || SUBMIT.test(`${button.getAttribute('aria-label') ?? ''} ${button.textContent}`);
-  }
-
-  /** @returns {number} how far through the form, in percent; 0 when it doesn't say */
-  function progressOf(dialog) {
-    const progress = dialog.querySelector('progress');
-    if (progress) {
-      return (100 * progress.value) / (progress.max || 100);
-    }
-    const bar = dialog.querySelector('[role="progressbar"]');
-    const max = Number(bar?.getAttribute('aria-valuemax') ?? 100) || 100;
-    return (100 * Number(bar?.getAttribute('aria-valuenow') ?? 0)) / max;
-  }
-
-  /**
    * The form closed. After Submit, LinkedIn sent it; otherwise (the user closed it?) LinkedIn shows that it sent it,
    * and the job has no apply button any more, or the user says whether it went.
    */
@@ -530,12 +311,6 @@
     }
   }
 
-  /** Whether a dialog asks anything: a field the run would fill in, not a file to upload. */
-  function hasFields(dialog) {
-    return [...dialog.querySelectorAll('input, select, textarea')]
-      .some((field) => !IGNORED_TYPES.has(field.type) && !field.disabled && shown(boxOf(field)));
-  }
-
   /** Closes the form without sending it, as the user chose to skip the job. */
   async function discard() {
     const dialog = easyApplyDialog();
@@ -546,66 +321,6 @@
       await waitFor(() => !easyApplyDialog(), 5000);
     }
     return false;
-  }
-
-  /** The form: on the older page a modal with known classes, on the newer one the <dialog> with a progress bar. */
-  function easyApplyDialog() {
-    const known = [...document.querySelectorAll(SELECTORS.easyApplyDialog)].find(shown);
-    return known ?? [...document.querySelectorAll('dialog[open], [role="dialog"]')]
-      .find((dialog) => shown(dialog) && dialog.querySelector('progress, [role="progressbar"]')) ?? null;
-  }
-
-  /** LinkedIn's "Application sent", or what it shows once a form is gone. */
-  function postApplyDialog() {
-    return [...document.querySelectorAll('dialog[open], [role="dialog"]')]
-      .find((dialog) => shown(dialog) && !dialog.querySelector('form, progress, [role="progressbar"]')) ?? null;
-  }
-
-  /** Next, Review or Submit: the form's one primary button; on the newer page, the last one in its footer. */
-  function forwardButton(dialog) {
-    return [...dialog.querySelectorAll(SELECTORS.forward)].find(usable)
-      ?? [...dialog.querySelectorAll(SELECTORS.primaryButton)].filter(usable).at(-1)
-      ?? textButtons(dialog.querySelectorAll('footer button')).at(-1) ?? null;
-  }
-
-  /** A dialog's close button: on the newer page, the one with an icon and no text. */
-  function dismissButton(dialog) {
-    return dialog?.querySelector(SELECTORS.dismiss)
-      ?? [...(dialog?.querySelectorAll('button') ?? [])].find((button) => usable(button) && !button.textContent.trim())
-      ?? null;
-  }
-
-  /** "Save this application?", which closing a form asks: its Discard button, which comes before Save. */
-  function discardConfirmation() {
-    const known = document.querySelector(SELECTORS.discard);
-    if (known) {
-      return known;
-    }
-    const confirmation = [...document.querySelectorAll('dialog[open], [role="dialog"], [role="alertdialog"]')]
-      .find((dialog) => shown(dialog) && !dialog.querySelector('progress, [role="progressbar"]')
-        && textButtons(dialog.querySelectorAll('button')).length >= 2);
-    return confirmation ? textButtons(confirmation.querySelectorAll('button'))[0] : null;
-  }
-
-  function textButtons(buttons) {
-    return [...buttons].filter((button) => usable(button) && button.textContent.trim());
-  }
-
-  /**
-   * Changes from one step to the next: the headings, the progress, the fields, the buttons. LinkedIn's "Your application
-   * was sent" can come in the form's own dialog, under the same title, at 100% and without fields, like the review
-   * step before it: its heading and buttons tell them apart.
-   */
-  function stepOf(dialog) {
-    const headings = [...dialog.querySelectorAll('h1, h2, h3, h4')].map((heading) => cleanText(heading));
-    const fields = [...dialog.querySelectorAll('input, select, textarea')].map((field) => field.id || field.name);
-    const buttons = textButtons(dialog.querySelectorAll('button')).map((button) => cleanText(button));
-    return [headings.join('/'), progressOf(dialog), fields.join(), buttons.join('/')].join('|');
-  }
-
-  function securityCheck() {
-    return window.location.pathname.startsWith('/checkpoint/')
-      || [...document.querySelectorAll(SELECTORS.securityCheck)].some(shown);
   }
 
   /**
@@ -674,106 +389,6 @@
     return true;
   }
 
-  /** The errors LinkedIn shows under fields, and the questions they're about. */
-  function formErrors(dialog) {
-    const errors = dialog ? [...dialog.querySelectorAll(SELECTORS.fieldError)]
-      .filter((error) => shown(error) && error.textContent.trim()) : [];
-    const groups = errors.map((error) => error.closest(SELECTORS.fieldGroup) ?? error.parentElement);
-    const questions = dialog ? questionsOf(dialog).filter((question) => fieldsOf(question).some((field) =>
-      field.getAttribute('aria-invalid') === 'true' || groups.some((group) => group.contains(field))
-      || describedBy(field).some((element) => errors.some((error) => element.contains(error))))) : [];
-    return { text: [...new Set(errors.map((error) => cleanText(error)))].join(' '), questions };
-  }
-
-  /** What a field's aria-describedby names: on the newer page, its helper with its error. */
-  function describedBy(field) {
-    return (field.getAttribute('aria-describedby') ?? '').split(/\s+/).filter(Boolean)
-      .map((id) => document.getElementById(id)).filter(Boolean);
-  }
-
-  // The questions
-
-  /**
-   * The step's questions: a text field, a select, a group of radio buttons or of checkboxes, each with its label.
-   * A question is {kind, text, required, field} or, for a group, {kind, text, required, fields}.
-   */
-  function questionsOf(dialog) {
-    const scope = dialog.querySelector('form') ?? dialog;
-    const questions = [];
-    const grouped = new Set();
-    for (const field of scope.querySelectorAll('input, select, textarea')) {
-      if (grouped.has(field) || IGNORED_TYPES.has(field.type) || field.disabled || !shown(boxOf(field))) {
-        continue;
-      }
-      if (field.type === 'radio' || field.type === 'checkbox') {
-        const fieldset = field.closest('fieldset');
-        const fields = fieldset ? [...fieldset.querySelectorAll(`input[type="${field.type}"]`)]
-          : (field.type === 'radio' && field.name)
-            ? [...scope.querySelectorAll(`input[type="radio"][name="${CSS.escape(field.name)}"]`)] : [field];
-        fields.forEach((member) => grouped.add(member));
-        const legend = fieldset?.querySelector('legend');
-        const rawText = legend ? rawTextOf(legend) : labelOf(field);
-        questions.push({
-          kind: field.type,
-          text: cleanText(rawText),
-          required: REQUIRED_MARK.test(rawText) || fields.some((member) => member.required)
-            || fieldset?.getAttribute('aria-required') === 'true',
-          fields,
-          single: !fieldset && fields.length === 1,
-        });
-        continue;
-      }
-      const rawText = labelOf(field);
-      questions.push({
-        kind: kindOf(field, cleanText(rawText)),
-        text: cleanText(rawText),
-        required: field.required || field.getAttribute('aria-required') === 'true' || REQUIRED_MARK.test(rawText),
-        field,
-      });
-    }
-    return questions;
-  }
-
-  function kindOf(field, text) {
-    if (field.tagName === 'SELECT') {
-      return 'select';
-    }
-    if (field.getAttribute('role') === 'combobox' || field.getAttribute('aria-autocomplete') === 'list') {
-      return 'typeahead';
-    }
-    if (field.type === 'number' || field.inputMode === 'numeric' || /numeric/i.test(field.id)
-        || (field.tagName === 'INPUT' && NUMBER_QUESTION.test(text))) {
-      return 'number';
-    }
-    return 'text';
-  }
-
-  function fieldsOf(question) {
-    return question.fields ?? (question.field ? [question.field] : []);
-  }
-
-  /** What to check the visibility of: LinkedIn hides radio buttons and checkboxes behind their labels. */
-  function boxOf(field) {
-    return (field.type === 'radio' || field.type === 'checkbox')
-      ? (field.closest('fieldset') ?? labelElementOf(field) ?? field) : field;
-  }
-
-  function isAnswered(question) {
-    switch (question.kind) {
-      case 'select': {
-        const option = question.field.options[question.field.selectedIndex];
-        return Boolean(option) && !isPlaceholder(option);
-      }
-      case 'radio':
-        return question.fields.some((field) => field.checked);
-      case 'checkbox':
-        // A single box left unticked is an answer too, unless it must be ticked
-        return question.fields.some((field) => field.checked) || (question.single && !question.required);
-      default:
-        return question.field.value.trim() !== '';
-    }
-  }
-
   /** @returns {string | number | boolean | symbol | null} null when nothing covers the question */
   function answerFor(question) {
     const known = learned.get(normalized(question.text));
@@ -784,234 +399,6 @@
       && (!candidate.kinds || candidate.kinds.includes(question.kind)));
     const answer = rule?.answer(answers);
     return (answer === undefined || answer === '') ? null : answer;
-  }
-
-  /** @returns {Promise<boolean>} whether the answer fit the field */
-  async function put(question, answer) {
-    switch (question.kind) {
-      case 'text': {
-        const text = textOf(answer);
-        return text !== null && type(question.field, text);
-      }
-      case 'number': {
-        const number = numberOf(answer);
-        return number !== null && type(question.field, number);
-      }
-      case 'typeahead':
-        return pickSuggestion(question.field, textOf(answer));
-      case 'select': {
-        const option = [...question.field.options].find((candidate) => !isPlaceholder(candidate)
-          && fits(candidate.text, answer));
-        if (!option) {
-          return false;
-        }
-        question.field.value = option.value;
-        fire(question.field, 'input', 'change');
-        return true;
-      }
-      case 'radio': {
-        const choice = question.fields.find((field) => fits(labelOf(field), answer));
-        choice?.click();
-        return Boolean(choice);
-      }
-      case 'checkbox': {
-        const wanted = question.single ? [] : String(answer).split(/\s*,\s*/).map(normalized);
-        const boxes = question.single ? (YES.test(String(answer)) || answer === true ? question.fields : [])
-          : question.fields.filter((field) => wanted.includes(normalized(cleanText(labelOf(field)))));
-        boxes.filter((field) => !field.checked).forEach((field) => field.click());
-        return boxes.length > 0;
-      }
-      default:
-        return false;
-    }
-  }
-
-  /** The answer the user gave on the form, to learn: for a choice, its option's text. */
-  function valueOf(question) {
-    switch (question.kind) {
-      case 'select': {
-        const option = question.field.options[question.field.selectedIndex];
-        return (option && !isPlaceholder(option)) ? cleanText(option.text) : null;
-      }
-      case 'radio':
-      case 'checkbox': {
-        const checked = question.fields.filter((field) => field.checked);
-        if (question.single) {
-          return checked.length > 0 ? 'Yes' : null;
-        }
-        return checked.map((field) => cleanText(labelOf(field))).join(', ') || null;
-      }
-      default:
-        return question.field.value.trim() || null;
-    }
-  }
-
-  /** Whether an option says the answer: yes or no for a yes-or-no answer, the same words for any other. */
-  function fits(optionText, answer) {
-    const option = cleanText(optionText);
-    if (answer === DECLINE) {
-      return DECLINE_OPTION.test(option);
-    }
-    if (typeof answer === 'boolean') {
-      return (answer ? YES : NO).test(option);
-    }
-    return normalized(option) === normalized(String(answer));
-  }
-
-  /** Text for a text field: a yes or no, or declining, isn't one. */
-  function textOf(answer) {
-    if (typeof answer === 'number') {
-      return String(answer);
-    }
-    return (typeof answer === 'string') ? answer : null;
-  }
-
-  /** A number field takes an answer that's only a number: "5,500 EUR a month" isn't, and the user answers. */
-  function numberOf(answer) {
-    if (typeof answer === 'number') {
-      return String(answer);
-    }
-    return (typeof answer === 'string' && /^\s*\d+([.,]\d+)?\s*$/.test(answer)) ? answer.trim().replace(',', '.')
-      : null;
-  }
-
-  function isPlaceholder(option) {
-    return option.value === '' || option.disabled || PLACEHOLDER.test(option.text);
-  }
-
-  /** Types into a field the way LinkedIn's own scripts notice: they listen for input and change. */
-  function type(field, value) {
-    field.focus();
-    field.value = value;
-    fire(field, 'input', 'change');
-    field.blur();
-    return true;
-  }
-
-  /** A field that suggests as it's typed in, such as the city: the first suggestion, or nothing. */
-  async function pickSuggestion(field, text) {
-    if (!text) {
-      return false;
-    }
-    field.focus();
-    field.value = text;
-    fire(field, 'input');
-    const listId = field.getAttribute('aria-controls') ?? field.getAttribute('aria-owns');
-    const option = await waitFor(() => [...(listId ? document.getElementById(listId) ?? document : document)
-      .querySelectorAll('[role="listbox"] [role="option"], [role="option"]')].find(shown) ?? null, 4000);
-    if (!option) {
-      field.value = '';
-      fire(field, 'input', 'change');
-      return false;
-    }
-    option.click();
-    await settle(field.closest('form') ?? document.body);
-    return field.value.trim() !== '';
-  }
-
-  function fire(field, ...types) {
-    for (const eventType of types) {
-      field.dispatchEvent(new Event(eventType, { bubbles: true }));
-    }
-  }
-
-  // Labels
-
-  function labelElementOf(field) {
-    return (field.id && document.querySelector(`label[for="${CSS.escape(field.id)}"]`)) || field.closest('label');
-  }
-
-  /** A field's label as it's written, the required mark included. */
-  function labelOf(field) {
-    const label = labelElementOf(field);
-    if (label) {
-      return rawTextOf(label);
-    }
-    const labelledBy = field.getAttribute('aria-labelledby');
-    if (labelledBy) {
-      return labelledBy.split(/\s+/).map((id) => document.getElementById(id)).filter(Boolean).map(rawTextOf).join(' ');
-    }
-    return field.getAttribute('aria-label') ?? field.placeholder ?? '';
-  }
-
-  /** LinkedIn writes a label twice, once for the eye (aria-hidden) and once for screen readers: the first. */
-  function rawTextOf(element) {
-    const shownText = element.querySelector('[aria-hidden="true"]')?.textContent.trim();
-    return (shownText || element.textContent).replace(/\s+/g, ' ').trim();
-  }
-
-  /** The text without its required mark, and said once where it's written twice. */
-  function cleanText(elementOrText) {
-    if (!elementOrText) {
-      return '';
-    }
-    let text = (typeof elementOrText === 'string') ? elementOrText.replace(/\s+/g, ' ').trim()
-      : rawTextOf(elementOrText);
-    text = text.replace(REQUIRED_MARK, '').trim();
-    const half = text.slice(0, Math.floor(text.length / 2)).trim();
-    return (half && text === `${half} ${half}`) ? half : text;
-  }
-
-  /** Questions match whatever their case and spacing, like the server's. */
-  function normalized(text) {
-    return String(text).trim().replace(/\s+/g, ' ').toLowerCase();
-  }
-
-  function nameParts(fullName) {
-    const [first, ...rest] = (fullName ?? '').trim().split(/\s+/);
-    return first ? { first, last: rest.join(' ') || null } : null;
-  }
-
-  // Waiting
-
-  function shown(element) {
-    return Boolean(element) && element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden';
-  }
-
-  function usable(button) {
-    return shown(button) && !button.disabled && button.getAttribute('aria-disabled') !== 'true';
-  }
-
-  /**
-   * @returns {Promise<any>} what find found, or null after the timeout
-   * @throws {Stopped} once the user stopped the run, unless it can't stop here
-   */
-  async function waitFor(find, timeout = TIMEOUT_MILLIS, { stoppable = true } = {}) {
-    const end = Date.now() + timeout;
-    for (;;) {
-      if (stoppable && stopped) {
-        throw new Stopped();
-      }
-      const found = find();
-      if (found) {
-        return found;
-      }
-      if (Date.now() >= end) {
-        return null;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 200));
-    }
-  }
-
-  /** Waits until LinkedIn is done changing the part of the page: no change for a moment, or at most a few seconds. */
-  function settle(root, quietMillis = 400, maxMillis = 3000) {
-    return new Promise((resolve) => {
-      let quiet;
-      let longest;
-      const observer = new MutationObserver(() => {
-        clearTimeout(quiet);
-        quiet = setTimeout(done, quietMillis);
-      });
-      function done() {
-        observer.disconnect();
-        clearTimeout(quiet);
-        clearTimeout(longest);
-        resolve();
-      }
-      observer.observe(root, { childList: true, subtree: true, attributes: true, characterData: true });
-      quiet = setTimeout(done, quietMillis);
-      longest = setTimeout(done, maxMillis);
-    });
   }
 
   // The server, through runs.js
@@ -1056,136 +443,10 @@
    */
   async function askUser(text, choices) {
     const choice = await bar.ask(text, choices);
-    if (choice === null || stopped) {
+    if (choice === null || isStopped()) {
       throw new Stopped();
     }
     return choice;
-  }
-
-  /** The bar at the bottom of the page, in a shadow root so LinkedIn's styles leave it alone. */
-  function createBar() {
-    document.getElementById('jobwarden-easy-apply')?.remove();
-    const host = document.createElement('div');
-    host.id = 'jobwarden-easy-apply';
-    const root = host.attachShadow({ mode: 'open' });
-    const style = document.createElement('style');
-    // JobWarden's own look (ui.css, from the app's tokens), light or dark as the system is
-    style.textContent = `
-      :host { --ink: #1d1d1f; --surface: #ffffff; --accent: #007aff; --orange: #c56a00; --red: #e0302a;
-        --control: #ffffff; --shadow: 0 0 0 0.5px rgb(0 0 0 / 0.12), 0 20px 50px rgb(0 0 0 / 0.18); }
-      @media (prefers-color-scheme: dark) {
-        :host { --ink: #f5f5f7; --surface: #2a2a2c; --accent: #0a84ff; --orange: #ff9f0a; --red: #ff453a;
-          --control: #48484a; --shadow: 0 0 0 0.5px rgb(255 255 255 / 0.16), 0 20px 50px rgb(0 0 0 / 0.55); }
-      }
-      section { position: fixed; left: 16px; bottom: 16px; z-index: 2147483647; width: 340px; box-sizing: border-box;
-        padding: 12px 14px; border-radius: 12px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow);
-        font: 13px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
-        letter-spacing: -0.005em; -webkit-font-smoothing: antialiased; }
-      header { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 600; }
-      header span { display: flex; align-items: center; gap: 8px; }
-      header span::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--accent);
-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
-      p { margin: 6px 0 0; }
-      .counts { color: color-mix(in srgb, var(--ink) 60%, transparent); font-size: 12px; }
-      .question { padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--orange) 12%, transparent); }
-      .choices { display: flex; gap: 8px; margin-top: 10px; }
-      button { flex: 1; padding: 6px 12px; border: 0; border-radius: 6px; background: var(--control); color: var(--ink);
-        box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.18), 0 0.5px 1.5px rgb(0 0 0 / 0.12); font: inherit; font-weight: 500;
-        cursor: pointer; }
-      button:hover { background: color-mix(in srgb, var(--control) 92%, var(--ink)); }
-      button.primary { background: var(--accent); color: #fff; box-shadow: 0 0.5px 1px rgb(0 0 0 / 0.15); }
-      button.primary:hover { background: color-mix(in srgb, var(--accent) 88%, #fff); }
-      button:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 1px; }
-      header button { flex: none; padding: 3px 10px; background: transparent; box-shadow: none; color: var(--red); }
-      header button:hover { background: color-mix(in srgb, var(--red) 10%, transparent); }
-      [hidden] { display: none !important; }`;
-    const section = element('section', { role: 'status', 'aria-live': 'polite' });
-    const header = element('header');
-    const title = element('span');
-    title.textContent = message('runBarTitle');
-    const stop = element('button', { type: 'button' });
-    stop.textContent = message('runStop');
-    header.append(title, stop);
-    const state = element('p');
-    const question = element('p', { class: 'question', hidden: '' });
-    const counts = element('p', { class: 'counts' });
-    const choices = element('div', { class: 'choices', hidden: '' });
-    section.append(header, state, question, counts, choices);
-    root.append(style, section);
-    document.body.append(host);
-    // A modal <dialog>, like the newer page's form, leaves the rest of the page unclickable: the bar goes into it
-    // while it's open, and back when LinkedIn takes it away
-    const placing = setInterval(() => {
-      const parent = document.querySelector('dialog:modal') ?? document.body;
-      if (host.parentElement !== parent) {
-        parent.append(host);
-      }
-    }, 300);
-
-    /** Resolves the question the bar shows: with the choice, or null on Stop. */
-    let answer = null;
-    stop.addEventListener('click', async () => {
-      stopped = true;
-      answer?.(null);
-      await saveRun({ status: 'stopped' });
-    });
-
-    return {
-      state(text) {
-        state.textContent = text;
-      },
-      counts({ applied, limit, saved, skipped }) {
-        counts.textContent = message('runCounts', String(applied), String(limit), String(saved), String(skipped));
-      },
-      ask(text, options) {
-        question.textContent = text;
-        question.hidden = false;
-        choices.replaceChildren(...options.map((option, index) => {
-          const button = element('button', { type: 'button', class: (index === 0) ? 'primary' : '' });
-          button.textContent = message(option);
-          button.addEventListener('click', () => answer?.(option));
-          return button;
-        }));
-        choices.hidden = false;
-        return new Promise((resolve) => {
-          answer = (choice) => {
-            answer = null;
-            question.hidden = true;
-            choices.hidden = true;
-            resolve(choice);
-          };
-        });
-      },
-      end(text, finalRun) {
-        state.textContent = text;
-        question.hidden = true;
-        this.counts(finalRun);
-        const close = element('button', { type: 'button' });
-        close.textContent = message('runClose');
-        close.addEventListener('click', () => {
-          clearInterval(placing);
-          host.remove();
-        });
-        choices.replaceChildren(close);
-        choices.hidden = false;
-        stop.hidden = true;
-        window.jobWardenEasyApply = false;
-      },
-    };
-  }
-
-  function element(tag, attributes = {}) {
-    const created = document.createElement(tag);
-    for (const [name, value] of Object.entries(attributes)) {
-      if (value !== '' || name === 'hidden') {
-        created.setAttribute(name, value);
-      }
-    }
-    return created;
-  }
-
-  function message(key, ...substitutions) {
-    return chrome.i18n.getMessage(key, substitutions) || key;
   }
 })();
 

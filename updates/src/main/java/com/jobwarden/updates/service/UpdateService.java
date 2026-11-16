@@ -8,8 +8,8 @@ import com.jobwarden.updates.dto.UpdateStatus;
 public interface UpdateService {
 
 	/**
-	 * Answers right away, with what it last heard from GitHub: when that's older than a few hours, it asks again in
-	 * the background, so the next answer has it. The first one, right after the app starts, may not have it yet.
+	 * Answers right away, with what it last heard from GitHub, which it asks as the app starts and then daily. The
+	 * first answer, right after the app starts, may not have it yet.
 	 */
 	UpdateStatus status();
 

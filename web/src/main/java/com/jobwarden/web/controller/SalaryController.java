@@ -10,30 +10,32 @@ import com.jobwarden.jobs.enums.SalaryPeriod;
 import com.jobwarden.jobs.service.SalaryService;
 import com.jobwarden.market.dto.MarketSalaries;
 import com.jobwarden.market.service.MarketSalaryService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
 import com.jobwarden.web.dto.MarketForm;
 import com.jobwarden.web.view.ChartScale;
+import com.jobwarden.web.view.JobImages;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import static com.jobwarden.web.controller.Pages.requireProfile;
+
 /**
  * What the profile's jobs pay, compared in one currency and per one period, both picked on the page; and below, what
  * the market pays a position across countries. That section loads after the page (HTMX), since its sources may take
  * a moment to answer.
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.SALARIES)
 @RequiredArgsConstructor
-class SalaryController extends BaseController {
+class SalaryController {
 
 	/** The periods to show salaries per: the others are rarely how people think of one. */
 	private static final List<SalaryPeriod> PERIODS = List.of(SalaryPeriod.YEAR, SalaryPeriod.MONTH, SalaryPeriod.HOUR);
@@ -43,6 +45,8 @@ class SalaryController extends BaseController {
 	private final SalaryService salaries;
 
 	private final MarketSalaryService market;
+
+	private final JobImages jobImages;
 
 	/**
 	 * @param currency an ISO 4217 code; without one, euros
@@ -62,7 +66,7 @@ class SalaryController extends BaseController {
 		model.addAttribute(ModelAttributes.MARKET_FORM, marketForm);
 		model.addAttribute(ModelAttributes.MARKET_URL,
 				marketForm.url(ControllerConstants.SALARIES + MARKET, overview.currency(), period, null));
-		addImages(model, userId);
+		this.jobImages.addImages(model, userId);
 		return Views.SALARIES;
 	}
 

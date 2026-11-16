@@ -7,7 +7,6 @@ import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -24,22 +23,23 @@ import com.jobwarden.inbox.service.InboxService;
 import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.service.ApplicationService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.HtmxEvents;
-import com.jobwarden.web.constants.AppConstants.HtmxHeaders;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.assistant.PromptCards;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.HtmxEvents;
+import com.jobwarden.web.constants.HtmxHeaders;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
 import com.jobwarden.web.dto.EmailUpdateForm;
 import com.jobwarden.web.dto.MailAccountForm;
 import com.jobwarden.web.enums.MailProvider;
 import com.jobwarden.web.enums.ReadingInterval;
+import com.jobwarden.web.view.FormTexts;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.context.MessageSource;
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,17 +47,19 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import static com.jobwarden.web.controller.Pages.requireProfile;
+
 /**
  * The inbox: recruiters' emails JobWarden read from the profile's mailbox, each with what it says about one of the
  * profile's jobs, to apply to the job's timeline or dismiss, or for Claude to sort; what JobWarden and Claude applied
  * or dismissed on their own lately, to look over; and the mailbox itself, to connect, check now or disconnect. How often
  * it's read, and what becomes of the updates, are in Settings.
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.INBOX)
 @CustomLog
 @RequiredArgsConstructor
-class InboxController extends BaseController {
+class InboxController {
 
 	/** How many of the jobs an update can be applied to the page offers: those changed last. */
 	static final int JOBS_TO_PICK = 200;
@@ -83,6 +85,10 @@ class InboxController extends BaseController {
 
 	private final Clock clock;
 
+	private final FormTexts formTexts;
+
+	private final PromptCards promptCards;
+
 	@GetMapping
 	String page(Model model) {
 		long userId = requireProfile(model).id();
@@ -100,22 +106,21 @@ class InboxController extends BaseController {
 		long userId = requireProfile(model).id();
 		String error = null;
 		if (result.hasErrors()) {
-			error = errorMessage(result);
+			error = this.formTexts.errorMessage(result);
 		} else {
 			try {
 				this.inbox.connect(userId, form.toNewMailAccount());
 			} catch (BusinessRuleException refused) {
-				error = message(refused);
+				error = this.formTexts.message(refused);
 			}
 		}
 		if (error != null) {
 			model.addAttribute(ModelAttributes.MAIL_FORM, form);
 			model.addAttribute(ModelAttributes.MAIL_ERROR, error);
-			addMailbox(model, userId);
-			return Views.MAILBOX_FRAGMENT;
+		} else {
+			readNow(userId);
+			response.setHeader(HtmxHeaders.REFRESH, "true");
 		}
-		readNow(userId);
-		response.setHeader(HtmxHeaders.REFRESH, "true");
 		addMailbox(model, userId);
 		return Views.MAILBOX_FRAGMENT;
 	}
@@ -150,7 +155,7 @@ class InboxController extends BaseController {
 			HttpServletResponse response) {
 		long userId = requireProfile(model).id();
 		if (result.hasErrors()) {
-			model.addAttribute(ModelAttributes.MAIL_ERROR, errorMessage(result));
+			model.addAttribute(ModelAttributes.MAIL_ERROR, this.formTexts.errorMessage(result));
 		} else {
 			EmailUpdate update = this.inbox.findPending(userId)
 				.stream()
@@ -266,7 +271,7 @@ class InboxController extends BaseController {
 		Optional<AiRequest> sorting = latestSorting(userId);
 		model.addAttribute(ModelAttributes.SORT_REQUEST, sorting.orElse(null));
 		model.addAttribute(ModelAttributes.SORT_PROMPT,
-				sorting.map(request -> prompt(model, request.id())).orElse(null));
+				sorting.map(request -> this.promptCards.prompt(requireProfile(model), request.id())).orElse(null));
 		model.addAttribute(ModelAttributes.DECIDED_FOR_YOU,
 				this.inbox.findDecidedForYou(userId, this.clock.instant().minus(DECIDED_FOR_YOU)));
 		List<EmailUpdate> updates = this.inbox.findPending(userId);
@@ -277,10 +282,12 @@ class InboxController extends BaseController {
 			.limit(JOBS_TO_PICK)
 			.toList());
 		for (EmailUpdate update : updates) {
-			if (update.applicationId() != null && jobs.stream().noneMatch(job -> job.id() == update.applicationId())) {
+			Long applicationId = update.applicationId();
+			if (applicationId != null && jobs.stream().noneMatch(job -> job.id() == applicationId)) {
+				String jobTitle = update.jobTitle();
 				jobs.add(ApplicationSummary.builder()
-					.id(update.applicationId())
-					.title(Objects.requireNonNullElse(update.jobTitle(), ""))
+					.id(applicationId)
+					.title((jobTitle != null) ? jobTitle : "")
 					.company(update.company())
 					.status(ApplicationStatus.SAVED)
 					.capturedAt(update.receivedAt())

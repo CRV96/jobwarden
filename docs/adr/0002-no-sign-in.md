@@ -20,5 +20,6 @@ health, info and metrics only.
 - Nothing to set up, no password to forget; the extension and the assistant connect with an address.
 - The server must not be published to the internet. SECURITY.md says so, and how to keep it to one computer
   (`SERVER_ADDRESS=127.0.0.1`, `-p 127.0.0.1:8080:8080`).
-- A page on a domain that resolves to 127.0.0.1 (DNS rebinding) is same-origin with the server; a `Host` allow-list
-  would stop it, at the cost of a setting for servers reached by a LAN name. Open in docs/quality-roadmap.md.
+- A page on a domain that resolves to 127.0.0.1 (DNS rebinding) is same-origin with the server, so the server only
+  answers to the host names it knows as its own (`HostCheckFilter`): local ones by default, others listed in
+  `jobwarden.allowed-hosts`. The calendar feed, reached through a proxy and protected by its token, answers any.

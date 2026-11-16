@@ -2,6 +2,7 @@ package com.jobwarden.identity.service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.enums.Assistant;
@@ -11,6 +12,12 @@ public interface UserService {
 
 	/** The largest photo file, in bytes: one straight from a phone fits */
 	int MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+	/** The shortest password a profile takes */
+	int PASSWORD_MIN_LENGTH = 6;
+
+	/** The longest: enough for a passphrase, not enough to make hashing it a chore */
+	int PASSWORD_MAX_LENGTH = 128;
 
 	User create(String name);
 
@@ -67,5 +74,34 @@ public interface UserService {
 	 * @return the profile's photo, a PNG, if it has one
 	 */
 	Optional<byte[]> findImage(long id);
+
+	/**
+	 * Whether the profile has a password, which the pages then ask for whenever it's chosen. The browser extension and
+	 * the assistants, which name it by its id on this computer, don't need it.
+	 */
+	boolean hasPassword(long id);
+
+	/**
+	 * @return the ids of the profiles that have a password, for the lists that mark them
+	 */
+	Set<Long> findIdsWithPassword();
+
+	/**
+	 * Gives the profile a password, changes it, or removes it.
+	 *
+	 * @param current its password now, which changing or removing one needs; ignored when it has none
+	 * @param password the new one, or {@code null} or blank to remove it
+	 * @throws com.jobwarden.common.exception.BusinessRuleException PASSWORD_WRONG when the current one isn't right,
+	 * PASSWORD_TRIES_EXCEEDED after too many wrong ones, PASSWORD_TOO_SHORT or PASSWORD_TOO_LONG for the new one
+	 */
+	void changePassword(long id, @Nullable String current, @Nullable String password);
+
+	/**
+	 * Checks the password a profile was chosen with. One without a password needs none.
+	 *
+	 * @throws com.jobwarden.common.exception.BusinessRuleException PASSWORD_WRONG when it isn't right, and
+	 * PASSWORD_TRIES_EXCEEDED after too many wrong ones in a row: then even the right one waits a minute
+	 */
+	void checkPassword(long id, @Nullable String password);
 
 }

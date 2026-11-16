@@ -5,22 +5,18 @@ import java.io.Reader;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.time.Clock;
-import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.jobs.dto.ApplicationSummary;
@@ -32,13 +28,14 @@ import com.jobwarden.jobs.dto.NewTimelineEvent;
 import com.jobwarden.jobs.entity.ApplicationEntity;
 import com.jobwarden.jobs.entity.TimelineEventEntity;
 import com.jobwarden.jobs.enums.ApplicationStatus;
-import com.jobwarden.jobs.enums.AppliedBy;
 import com.jobwarden.jobs.enums.CsvProblem;
 import com.jobwarden.jobs.enums.RejectionReason;
 import com.jobwarden.jobs.exception.JobsErrorCode;
 import com.jobwarden.jobs.repository.ApplicationRepository;
 import com.jobwarden.jobs.service.ApplicationCsvService;
 import com.jobwarden.jobs.service.ApplicationService;
+import com.jobwarden.jobs.service.impl.JobsCsvFormat.Column;
+import com.jobwarden.jobs.service.impl.JobsCsvFormat.InvalidRow;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
@@ -58,23 +55,6 @@ class DefaultApplicationCsvService implements ApplicationCsvService {
 	private static final DateTimeFormatter TIME_WITH_SECONDS = DateTimeFormatter.ofPattern("HH:mm:ss");
 
 	private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-
-	/** 2026-10-28, with a time or not: 2026-10-28 14:30, 2026-10-28 20:31:05, 2026-10-28T14:30:00Z */
-	private static final Pattern YEAR_FIRST = Pattern
-		.compile("(\\d{4})-(\\d{1,2})-(\\d{1,2})(?:[T ](\\d{1,2}):(\\d{2})(?::(\\d{2}))?.*)?");
-
-	/** 28.10.2026, 28/10/2026 or 28-10-2026, with a time or not: the day first, as in Europe */
-	private static final Pattern DAY_FIRST = Pattern
-		.compile("(\\d{1,2})[./-](\\d{1,2})[./-](\\d{4})(?: (\\d{1,2}):(\\d{2})(?::(\\d{2}))?.*)?");
-
-	/** Statuses under the names other trackers and spreadsheets give them */
-	private static final Map<String, ApplicationStatus> STATUS_NAMES = Map.ofEntries(
-			Map.entry("WISHLIST", ApplicationStatus.SAVED), Map.entry("BOOKMARKED", ApplicationStatus.SAVED),
-			Map.entry("INTERESTED", ApplicationStatus.SAVED), Map.entry("INTERVIEW", ApplicationStatus.INTERVIEWING),
-			Map.entry("INTERVIEWED", ApplicationStatus.INTERVIEWING), Map.entry("OFFERED", ApplicationStatus.OFFER),
-			Map.entry("OFFER_RECEIVED", ApplicationStatus.OFFER), Map.entry("GHOSTED", ApplicationStatus.NO_RESPONSE),
-			Map.entry("CLOSED", ApplicationStatus.POSITION_CLOSED), Map.entry("DECLINED", ApplicationStatus.WITHDRAWN),
-			Map.entry("REOPENED", ApplicationStatus.POSITION_REOPENED));
 
 	private final ApplicationRepository applications;
 
@@ -99,7 +79,7 @@ class DefaultApplicationCsvService implements ApplicationCsvService {
 		StringWriter text = new StringWriter();
 		in.transferTo(text);
 		List<List<String>> records = Csv.parse(text.toString());
-		Map<Column, Integer> columns = records.isEmpty() ? Map.of() : columnsOf(records.getFirst());
+		Map<Column, Integer> columns = records.isEmpty() ? Map.of() : JobsCsvFormat.columnsOf(records.getFirst());
 		if (!columns.containsKey(Column.TITLE)) {
 			throw new BusinessRuleException(JobsErrorCode.CSV_WITHOUT_TITLE_COLUMN, "The CSV file has no title column");
 		}
@@ -138,8 +118,9 @@ class DefaultApplicationCsvService implements ApplicationCsvService {
 		NewApplication application = job.application();
 		long userId = application.userId();
 		long id = this.applicationService.create(application);
-		if (job.laterStatus() != null) {
-			this.applicationService.addEvent(userId, id, job.laterStatus());
+		NewTimelineEvent laterStatus = job.laterStatus();
+		if (laterStatus != null) {
+			this.applicationService.addEvent(userId, id, laterStatus);
 		}
 		if (!job.followUp().equals(FollowUp.NONE)) {
 			this.applicationService.updateFollowUp(userId, id, job.followUp());
@@ -158,13 +139,13 @@ class DefaultApplicationCsvService implements ApplicationCsvService {
 		if (title == null) {
 			throw new InvalidRow(CsvProblem.NO_TITLE, null);
 		}
-		LocalDate appliedOn = date(row.get(Column.APPLIED_ON));
-		ApplicationStatus status = status(row.get(Column.STATUS), appliedOn);
-		LocalDateTime statusAt = dateTime(row.get(Column.STATUS_DATE));
+		LocalDate appliedOn = JobsCsvFormat.date(row.get(Column.APPLIED_ON));
+		ApplicationStatus status = JobsCsvFormat.status(row.get(Column.STATUS), appliedOn);
+		LocalDateTime statusAt = JobsCsvFormat.dateTime(row.get(Column.STATUS_DATE));
 		LocalDate statusDate = statusDate(statusAt, status, appliedOn);
 		LocalTime statusTime = (statusAt != null && !statusAt.toLocalTime().equals(LocalTime.MIDNIGHT))
 				? statusAt.toLocalTime() : null;
-		RejectionReason rejectionReason = status.hasRejectionReason() ? rejectionReason(row.get(Column.REJECTION_REASON))
+		RejectionReason rejectionReason = status.hasRejectionReason() ? JobsCsvFormat.rejectionReason(row.get(Column.REJECTION_REASON))
 				: null;
 
 		// The day it was applied to, when that came before a later status: the job starts as applied, then moves on
@@ -176,11 +157,11 @@ class DefaultApplicationCsvService implements ApplicationCsvService {
 			.title(title)
 			.company(row.get(Column.COMPANY))
 			.location(row.get(Column.LOCATION))
-			.link(link(row.get(Column.LINK)))
+			.link(JobsCsvFormat.link(row.get(Column.LINK)))
 			.salary(row.get(Column.SALARY))
 			.employmentType(row.get(Column.EMPLOYMENT_TYPE))
 			.description(row.get(Column.DESCRIPTION))
-			.appliedBy(appliedBy(row.get(Column.APPLIED_BY)))
+			.appliedBy(JobsCsvFormat.appliedBy(row.get(Column.APPLIED_BY)))
 			.initialStatus(appliedBefore ? ApplicationStatus.APPLIED : status)
 			.initialStatusDate((appliedFirst != null) ? appliedFirst : statusDate)
 			.initialStatusTime(appliedBefore ? null : statusTime)
@@ -197,10 +178,10 @@ class DefaultApplicationCsvService implements ApplicationCsvService {
 			.contactRole(row.get(Column.CONTACT_ROLE))
 			.contactEmail(row.get(Column.CONTACT_EMAIL))
 			.contactPhone(row.get(Column.CONTACT_PHONE))
-			.contactLink(link(row.get(Column.CONTACT_LINK)))
+			.contactLink(JobsCsvFormat.link(row.get(Column.CONTACT_LINK)))
 			.referredBy(row.get(Column.REFERRED_BY))
-			.deadline(date(row.get(Column.DEADLINE)))
-			.followUpOn(date(row.get(Column.FOLLOW_UP_ON)))
+			.deadline(JobsCsvFormat.date(row.get(Column.DEADLINE)))
+			.followUpOn(JobsCsvFormat.date(row.get(Column.FOLLOW_UP_ON)))
 			.build();
 		return new ImportedJob(application, laterStatus, followUp, row.get(Column.NOTES));
 	}
@@ -217,122 +198,6 @@ class DefaultApplicationCsvService implements ApplicationCsvService {
 			return appliedOn;
 		}
 		return LocalDate.now(this.clock);
-	}
-
-	private static ApplicationStatus status(@Nullable String value, @Nullable LocalDate appliedOn) throws InvalidRow {
-		if (value == null) {
-			return (appliedOn != null) ? ApplicationStatus.APPLIED : ApplicationStatus.SAVED;
-		}
-		String name = constantName(value);
-		if (STATUS_NAMES.containsKey(name)) {
-			return STATUS_NAMES.get(name);
-		}
-		return Arrays.stream(ApplicationStatus.values())
-			.filter(status -> status.name().equals(name))
-			.findFirst()
-			.orElseThrow(() -> new InvalidRow(CsvProblem.UNKNOWN_STATUS, value));
-	}
-
-	/**
-	 * YOU or CLAUDE; anything else isn't known.
-	 */
-	private static @Nullable AppliedBy appliedBy(@Nullable String value) {
-		String name = (value != null) ? constantName(value) : "";
-		return Arrays.stream(AppliedBy.values()).filter(by -> by.name().equals(name)).findFirst().orElse(null);
-	}
-
-	private static @Nullable RejectionReason rejectionReason(@Nullable String value) throws InvalidRow {
-		if (value == null) {
-			return null;
-		}
-		String name = constantName(value);
-		return Arrays.stream(RejectionReason.values())
-			.filter(reason -> reason.name().equals(name))
-			.findFirst()
-			.orElseThrow(() -> new InvalidRow(CsvProblem.UNKNOWN_REJECTION_REASON, value));
-	}
-
-	private static @Nullable LocalDate date(@Nullable String value) throws InvalidRow {
-		LocalDateTime dateTime = dateTime(value);
-		return (dateTime != null) ? dateTime.toLocalDate() : null;
-	}
-
-	/**
-	 * @return the date, at midnight when the value has no time
-	 */
-	private static @Nullable LocalDateTime dateTime(@Nullable String value) throws InvalidRow {
-		if (value == null) {
-			return null;
-		}
-		Matcher yearFirst = YEAR_FIRST.matcher(value);
-		Matcher dayFirst = DAY_FIRST.matcher(value);
-		try {
-			if (yearFirst.matches()) {
-				return at(Integer.parseInt(yearFirst.group(1)), Integer.parseInt(yearFirst.group(2)),
-						Integer.parseInt(yearFirst.group(3)), yearFirst.group(4), yearFirst.group(5), yearFirst.group(6));
-			}
-			if (dayFirst.matches()) {
-				return at(Integer.parseInt(dayFirst.group(3)), Integer.parseInt(dayFirst.group(2)),
-						Integer.parseInt(dayFirst.group(1)), dayFirst.group(4), dayFirst.group(5), dayFirst.group(6));
-			}
-		} catch (DateTimeException notADate) {
-			// e.g. 2026-02-30: reported below, like text that isn't a date
-		}
-		throw new InvalidRow(CsvProblem.BAD_DATE, value);
-	}
-
-	private static LocalDateTime at(int year, int month, int day, @Nullable String hour, @Nullable String minute,
-			@Nullable String second) {
-		LocalTime time = (hour != null) ? LocalTime.of(Integer.parseInt(hour), Integer.parseInt(minute),
-				(second != null) ? Integer.parseInt(second) : 0) : LocalTime.MIDNIGHT;
-		return LocalDate.of(year, month, day).atTime(time);
-	}
-
-	/**
-	 * A web address; one without its scheme, e.g. linkedin.com/jobs/view/1, gets https://.
-	 */
-	private static @Nullable String link(@Nullable String value) throws InvalidRow {
-		if (value == null) {
-			return null;
-		}
-		String lower = value.toLowerCase(Locale.ROOT);
-		if (lower.startsWith("https://") || lower.startsWith("http://")) {
-			return value;
-		}
-		if (value.contains(".") && value.chars().noneMatch(Character::isWhitespace) && !value.contains(":")) {
-			return "https://" + value;
-		}
-		throw new InvalidRow(CsvProblem.BAD_LINK, value);
-	}
-
-	/**
-	 * "No response", "no-response" and "NO_RESPONSE" all become NO_RESPONSE.
-	 */
-	private static String constantName(String value) {
-		return value.strip().toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "_").replaceAll("^_|_$", "");
-	}
-
-	/**
-	 * "Job title", "job-title" and "JOB_TITLE" all become job_title.
-	 */
-	private static String headerName(String value) {
-		return constantName(value).toLowerCase(Locale.ROOT);
-	}
-
-	/**
-	 * Which value of a row each column is, by the header's names. The first column with a name wins.
-	 */
-	private static Map<Column, Integer> columnsOf(List<String> header) {
-		Map<Column, Integer> columns = new EnumMap<>(Column.class);
-		for (int i = 0; i < header.size(); i++) {
-			String name = headerName(header.get(i));
-			for (Column column : Column.values()) {
-				if (column.imported && column.names.contains(name)) {
-					columns.putIfAbsent(column, i);
-				}
-			}
-		}
-		return columns;
 	}
 
 	private @Nullable String valueOf(ApplicationEntity application, Column column) {
@@ -388,56 +253,6 @@ class DefaultApplicationCsvService implements ApplicationCsvService {
 	}
 
 	/**
-	 * The columns, in the order an export writes them, under the names an import knows them by. The first name is
-	 * the header an export writes.
-	 */
-	enum Column {
-
-		TITLE("title", "job_title", "position", "role", "job", "job_name"),
-		COMPANY("company", "company_name", "employer", "organization", "organisation"),
-		LOCATION("location", "city", "place"),
-		STATUS("status", "stage", "state"),
-		STATUS_DATE("status_date", "status_since", "date", "updated"),
-		APPLIED_ON("applied_on", "applied", "date_applied", "applied_date", "application_date"),
-		APPLIED_BY("applied_by"),
-		SALARY("salary", "pay", "compensation"),
-		EMPLOYMENT_TYPE("employment_type", "job_type", "type", "contract"),
-		LINK("link", "url", "job_url", "job_link", "posting", "posting_url"),
-		SOURCE(false, "source"),
-		REJECTION_REASON("rejection_reason"),
-		CONTACT_NAME("contact_name", "contact", "recruiter"),
-		CONTACT_ROLE("contact_role"),
-		CONTACT_EMAIL("contact_email", "email"),
-		CONTACT_PHONE("contact_phone", "phone"),
-		CONTACT_LINK("contact_link", "linkedin"),
-		REFERRED_BY("referred_by", "referral"),
-		DEADLINE("deadline", "closing_date"),
-		FOLLOW_UP_ON("follow_up_on", "follow_up", "next_follow_up"),
-		NOTES("notes", "note", "comments"),
-		DESCRIPTION("description", "job_description"),
-		ADDED_ON(false, "added_on"),
-		LAST_MODIFIED(false, "last_modified");
-
-		final String header;
-
-		final Set<String> names;
-
-		/** Whether an import reads it: JobWarden sets the others itself */
-		final boolean imported;
-
-		Column(String... names) {
-			this(true, names);
-		}
-
-		Column(boolean imported, String... names) {
-			this.header = names[0];
-			this.names = Set.of(names);
-			this.imported = imported;
-		}
-
-	}
-
-	/**
 	 * A data row, read by column. A value is stripped, and blank is {@code null}.
 	 */
 	private record Row(List<String> values, Map<Column, Integer> columns) {
@@ -479,23 +294,6 @@ class DefaultApplicationCsvService implements ApplicationCsvService {
 			}
 			return this.titlesAtCompanies.add(title.strip().toLowerCase(Locale.ROOT) + "\n"
 					+ Objects.requireNonNullElse(company, "").strip().toLowerCase(Locale.ROOT));
-		}
-
-	}
-
-	/**
-	 * Why a row can't be imported. Checked, so that every row's reading is sure to report it.
-	 */
-	private static final class InvalidRow extends Exception {
-
-		private final CsvProblem problem;
-
-		private final @Nullable String value;
-
-		InvalidRow(CsvProblem problem, @Nullable String value) {
-			super(problem + ": " + value, null, false, false);
-			this.problem = problem;
-			this.value = value;
 		}
 
 	}

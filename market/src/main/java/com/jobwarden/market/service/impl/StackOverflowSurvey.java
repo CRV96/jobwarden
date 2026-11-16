@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.jobwarden.common.net.HttpClients;
 import lombok.CustomLog;
 import org.jspecify.annotations.Nullable;
 
@@ -55,10 +56,7 @@ class StackOverflowSurvey {
 
 	private final int year;
 
-	private final HttpClient http = HttpClient.newBuilder()
-		.connectTimeout(CONNECT_TIMEOUT)
-		.followRedirects(HttpClient.Redirect.NORMAL)
-		.build();
+	private final HttpClient http = HttpClients.followingRedirects(CONNECT_TIMEOUT);
 
 	StackOverflowSurvey(MarketProperties properties) {
 		this.address = properties.stackOverflow().url();

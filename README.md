@@ -1,12 +1,14 @@
 # JobWarden
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a-Coffee-FFDD00?logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/robertciapa)
-[![Support me on Revolut](https://img.shields.io/badge/Support%20me-Revolut-0075EB?logo=revolut&logoColor=white)](https://revolut.me/robertcrv)
+[![Support me](https://img.shields.io/badge/Support%20me-Revolut-0075EB?logo=revolut&logoColor=white)](https://revolut.me/robertcrv)
 
 The keeper of your job hunt: save job postings from the browser in one click, and keep every application's story, from the first save to the offer.
 
 [![Build](https://github.com/CRV96/jobwarden/actions/workflows/build.yml/badge.svg)](https://github.com/CRV96/jobwarden/actions/workflows/build.yml)
+
 [![Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?logo=discord&logoColor=white)](https://discord.gg/A4U2eVNck)
-![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/CRV96/jobwarden?utm_source=oss&utm_medium=github&utm_campaign=CRV96%2Fjobwarden&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+
+[![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/CRV96/jobwarden?utm_source=oss&utm_medium=github&utm_campaign=CRV96%2Fjobwarden&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
 
 ## Running locally
 
@@ -24,30 +26,19 @@ Build and run all tests (tests use Testcontainers, so Docker must be running):
 
 ### Running with Docker
 
-The [Dockerfile](Dockerfile) builds the server from these sources; each release and every merge to `main` also publish it as `ghcr.io/crv96/jobwarden` (`latest` and the version, or `edge` for `main`). It needs PostgreSQL:
+The [Dockerfile](Dockerfile) builds the server from these sources; each release and every merge to `main` also publish it as `ghcr.io/crv96/jobwarden` (`latest` and the version, or `edge` for `main`). [deploy/compose.yaml](deploy/compose.yaml) runs it with PostgreSQL, and each release attaches its own copy, which names that release's image:
 
-```yaml
-# compose.yaml: docker compose up -d, then http://localhost:8080
-services:
-  postgres:
-    image: postgres:18-alpine
-    environment: [POSTGRES_DB=jobwarden, POSTGRES_USER=jobwarden, POSTGRES_PASSWORD=jobwarden]
-    volumes: [postgres-data:/var/lib/postgresql]
-  jobwarden:
-    image: ghcr.io/crv96/jobwarden:latest
-    depends_on: [postgres]
-    ports: ['127.0.0.1:8080:8080']
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/jobwarden
-      - SPRING_DATASOURCE_USERNAME=jobwarden
-      - SPRING_DATASOURCE_PASSWORD=jobwarden
-    volumes: [jobwarden-key:/home/jobwarden/.jobwarden]
-volumes:
-  postgres-data:
-  jobwarden-key:
+```bash
+docker compose up -d        # next to compose.yaml; then http://localhost:8080
 ```
 
-The `jobwarden-key` volume keeps the key that encrypts the mailboxes' passwords and the GitHub token; without it, a new container means connecting them again. JobWarden has no sign-in, so the port is published on this computer only: see [SECURITY.md](SECURITY.md#running-jobwarden-safely).
+**Upgrading keeps the data.** Everything JobWarden keeps is in two Docker volumes, never in a container: `postgres-data`, the database, and `jobwarden-key`, the key that encrypts the mailboxes' passwords and the GitHub token. An upgrade only replaces the JobWarden container: back up (see [docs/operations.md](docs/operations.md#backups)), put the new release's `compose.yaml` in the same folder as the old one, since Compose names the volumes after the folder (or keep yours and set `JOBWARDEN_VERSION`), then:
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+The new version upgrades the database's schema as it starts. `docker compose down` keeps the volumes; only `down --volumes` deletes them. JobWarden has no sign-in, so the port is published on this computer only: see [SECURITY.md](SECURITY.md#running-jobwarden-safely).
 
 ### Running it day to day
 
@@ -65,6 +56,8 @@ Pages are server-rendered with Thymeleaf; HTMX handles partial updates without a
 ```bash
 ./mvnw -pl web frontend:npm@tailwind-watch
 ```
+
+The pages' JavaScript is plain ES modules, with no bundler: [static/js/app.js](web/src/main/resources/static/js/app.js) imports one module per feature from `static/js/app/` (dialogs, forms, the list's selection, fields of chips, the calendar, reminders, the pipeline...). A module listens for the events only it handles; a click, change or input that several features might claim goes through one ordered chain in `app.js`, where the first handler that says it was its own ends it. ESLint checks it, and the extension's, on `./mvnw verify` (`web/eslint.config.mjs`); in `web/`, `npm run lint` runs it alone.
 
 ### Browser extension
 
@@ -92,7 +85,7 @@ In the settings, **Show on the toolbar icon whether a page is already in JobWard
 
 The popup, the settings and the Easy Apply bar look like the app: its colours, light or dark as the system is, its type, buttons, fields and status colours ([ui.css](extension/ui.css), from the tokens of `app.css`), and its icons ([icons/phosphor.svg](extension/icons/phosphor.svg), the few Phosphor icons the extension uses).
 
-**Easy Apply run:** on a LinkedIn job search, the popup has **Start the run**. The extension then goes down the search's results, page after page, one job at a time ([easyapply.js](extension/easyapply.js), kept going by [runs.js](extension/runs.js)):
+**Easy Apply run:** on a LinkedIn job search, the popup has **Start the run**. The extension then goes down the search's results, page after page, one job at a time ([easyapply.js](extension/easyapply.js), with its parts in [easyapply/](extension/easyapply), kept going by [runs.js](extension/runs.js)):
 
 - **Easy Apply jobs:** it opens the form, fills each step in and sends it, and the job is saved to JobWarden as Applied, **by the extension** (`applied_by` `EXTENSION`, shown like **by the AI Assistant**). The answers are your CV's contact details and your answers on the Auto-apply page, its own questions included; LinkedIn's own answers from earlier applications stay as they are, and the CV is the one LinkedIn has.
 - **It never makes an answer up.** A required question none of your answers covers stops the run: a bar at the bottom of the page shows the question, you answer it on LinkedIn's form, or under **Your own questions** on the Auto-apply page, and click **Continue** (or **Skip this job**, which closes the form without sending it). What you answered on the form is kept among the Auto-apply page's own questions, so the next form with that question is filled in; the run reads your answers from JobWarden again before each form and after each stop, so what you change on the Auto-apply page counts at once, during the run too. The run stops the same way at an error LinkedIn shows under a field, and at a LinkedIn security check, which it never touches: you do it, then **Continue**. A number field takes only a number (a salary written as "5,500 EUR a month" is for you to answer), and "how many years of experience with X" is yours too: the years-of-experience answer is for all your work.
@@ -100,11 +93,11 @@ The popup, the settings and the Easy Apply bar look like the app: its colours, l
 - **When it stops:** after the number of applications you set (25 unless you change it, 100 at most), at the end of the search, or when you click **Stop** on the bar or **Stop the run** in the popup. It doesn't pause between jobs to look like a person, and it doesn't hide from LinkedIn. **LinkedIn's terms don't allow automated applying, and LinkedIn can restrict accounts that do it**: the popup says so, and the risk is yours.
 - **Permissions:** starting a run asks for linkedin.com, so the run goes on when LinkedIn loads the page anew; without it, it runs until then. LinkedIn changes its pages now and then: the run works on both its older job search (`/jobs/search/`) and its newer one (`/jobs/search-results/`, whose class names change with each release, so the run goes by its `componentkey`, `data-testid` and `data-sdui-screen` attributes, aria-labels and icon ids), and stops for you rather than guess when a page isn't what it expects. On the newer page a number field looks like any text field, so a question that asks for a count ("how many", "in days") takes only an answer that's a number.
 
-- **What it reads:** each field from the first of these that has it:
+- **What it reads** ([extract.js](extension/extract.js), with its parts in [extract/](extension/extract)): each field from the first of these that has it:
   - Text you selected on the page before clicking the icon, as the description. Use it where nothing else finds the description.
   - The posting's schema.org `JobPosting`, which most job boards and career sites include for Google's job search, as JSON-LD or microdata. It has every field, and the whole object is kept as the application's raw payload.
   - On a search that shows a job beside the results, the job's own page, fetched in the background, with its `JobPosting`: on Indeed and Glassdoor. On LinkedIn, which doesn't include it for signed-in members: the job's public page (what visitors who aren't signed in see), then what's on screen, then the page title.
-  - What the page shows, on sites whose `JobPosting` leaves fields out or that have none: Indeed, Glassdoor, Greenhouse, Workday, pracuj.pl, InfoJobs and BestJobs (`SITES` in [extract.js](extension/extract.js)). Sites like Lever, Ashby, StepStone, XING, Reed, NoFluffJobs, Just Join IT and eJobs need nothing more than their `JobPosting`.
+  - What the page shows, on sites whose `JobPosting` leaves fields out or that have none: Indeed, Glassdoor, Greenhouse, Workday, pracuj.pl, InfoJobs and BestJobs (`SITES` in [extract/sites.js](extension/extract/sites.js)). Sites like Lever, Ashby, StepStone, XING, Reed, NoFluffJobs, Just Join IT and eJobs need nothing more than their `JobPosting`.
   - The page itself: the Open Graph tags, a block marked as the job description, the `h1` heading, the page title.
 - **The company's logo:** from the posting's `JobPosting` (its `hiringOrganization.logo`), which most job boards and career sites have, or on LinkedIn from the job's public page. The extension sends its address and the server downloads it, since most sites don't let the extension read their images, then shrinks it to a 64-pixel PNG shown before the job's title. The server only downloads from the public internet, never from its own machine or the local network: the address comes from the page. Without a logo, the pages show the company's initials.
 - **The site's icon:** what the tab shows, drawn into a 32×32 PNG and saved with the posting, so JobWarden shows it next to the site instead of a globe. Chrome gives the extension its own copy of any page's icon. Firefox doesn't, so there the extension uses the tab's icon only when it can read it (when the icon is already part of the page, or its site lets anyone fetch it); otherwise the site keeps the globe.
@@ -175,7 +168,7 @@ Other assistants that speak MCP over HTTP can connect the same way and paste the
 
 ## Profiles
 
-Several people, or several job hunts, can share one JobWarden: each profile has its own jobs, CV, searches, inbox and assistant's requests, and there's no sign-in (`/profiles` picks one). **Settings → Your profile** renames it (names are unique, ignoring case), changes its photo, shows its profile ID to copy, and deletes it: with its name typed to confirm, in a dialog that says what goes and offers to export its jobs first. Deleting a profile deletes everything of it for good, in every module (every table of a profile's cascades from `users`), stops the assistant's runs on its requests and deletes what they printed; the other profiles, and what the server keeps for all of them (the market's salaries, the Adzuna key), stay. `ProfileDeletionTests` fills two profiles across the modules, deletes one, and checks no table keeps a row of it, and none of the other's goes.
+Several people, or several job hunts, can share one JobWarden: each profile has its own jobs, CV, searches, inbox and assistant's requests, and there's no sign-in (`/profiles` picks one; **Log out**, in the profile menu, leaves it in this browser and goes back there). A profile can have a **password** (Settings → Your profile → Password; changing or removing it needs the current one): choosing the profile, on the Profiles page or from the menu, then asks for it first, and five wrong ones in a row make it wait a minute. Only its hash is kept (PBKDF2). It keeps others using the same browser out of the profile; it isn't a sign-in to the server, and the browser extension and the assistants, which name the profile by its ID on this computer, don't need it. **Settings → Your profile** also renames it (names are unique, ignoring case), changes its photo, shows its profile ID to copy, and deletes it: with its name typed to confirm, in a dialog that says what goes and offers to export its jobs first. Deleting a profile deletes everything of it for good, in every module (every table of a profile's cascades from `users`), stops the assistant's runs on its requests and deletes what they printed; the other profiles, and what the server keeps for all of them (the market's salaries, the Adzuna key), stay. `ProfileDeletionTests` fills two profiles across the modules, deletes one, and checks no table keeps a row of it, and none of the other's goes.
 
 ## The AI Assistant, the CV, Auto-apply, Who's hiring and the calendar
 
@@ -306,13 +299,13 @@ Conventions:
   - **ERROR:** only unexpected failures, always with a code.
 
   Log ids, never names or job details.
-- **Page controllers extend `BaseController`:**
-  - Before every handler it puts the selected profile in the model as `currentProfile`, which the header shows. That's the only time a request looks the profile up.
+- **Page controllers are made by composition, not inheritance:**
+  - A controller whose pages render in the layout is a `@PageController`. Before each of its handlers, `LayoutAdvice` (a `@ControllerAdvice`) puts the selected profile in the model as `currentProfile`, which the header shows, and what the sidebar counts. That's the only time a request looks the profile up. The other controllers (images, downloads, the calendar feed) are plain `@Controller`s and skip it.
   - Handlers that need a profile call `requireProfile(model)`. With no profile selected it throws `ProfileNotSelectedException`, and `WebExceptionHandler` sends the browser to `/profiles` (HTMX requests get an `HX-Redirect` header instead of a redirect).
-  - It also has `redirectTo(path)` and `fieldErrors(result)`, which maps each form field to its first validation message.
-  - It gets `CurrentUser` through a setter, so the subclasses keep their Lombok constructors. Its `@WebMvcTest`s need a `@MockitoBean CurrentUser`.
+  - `Pages` has that and the other static helpers, `redirectTo(path)` and `attachment(...)`, imported statically. What needs a bean is a component the controller takes in its constructor like anything else: `FormTexts` (an exception's or a form's messages, in the user's language: `fieldErrors(result)` maps each field to its first validation message), `PromptCards` (the cards that ask the AI assistant), `JobImages` (the sites' icons and companies' logos). Optional beans (the runner, the update check) come through `ObjectProvider`.
+  - Their `@WebMvcTest`s need `@MockitoBean`s of what `LayoutAdvice` reads: `CurrentUser`, `UserService`, `ApplicationService`, `DiscoveryService`. `WebTestApplication` imports the components.
 - **Constants instead of repeated strings:**
-  - `web`'s `AppConstants` holds the routes, template names, model attribute names and HTMX headers.
+  - `web`'s `constants` package holds the routes (`ControllerConstants`), template names (`Views`), model attribute names (`ModelAttributes`) and HTMX's headers and events (`HtmxHeaders`, `HtmxEvents`).
   - A form's length limits are constants on the form record (e.g. `NewEventForm.STAGE_LABEL_MAX_LENGTH`), and its validation messages use `{max}`.
   - `ErrorCode.PROPERTY_NAME` is the one name for the error code, in logs and in error responses.
 - **Dates and times:** a timeline event has a date, and a time of day only when it's known (`LocalDate` + `LocalTime`; `DATE` + `TIME` columns). Within a day, events without a time come first. They're wall-clock values, as entered; "now" is taken in the server's time zone, so set `TZ` when running in Docker (which defaults to UTC). Moments that are only ever recorded, like `capturedAt`, are instants (`Instant`, `TIMESTAMPTZ`). The forms have a date field and an optional time field with a Clear time button (a time emptied only in part is invalid, and the browser won't send the form); a form that sends no date, like the status buttons, means now, with the time. The capture API adds the time too, unless the request says `"includeTime": false`. Display patterns are the `format.date` and `format.dateTime` messages, so each language has its own.
@@ -346,13 +339,20 @@ The pages are in English, Romanian, French, German, Polish, Spanish, Portuguese 
 
 ## Testing
 
-`./mvnw verify` runs everything. On every pull request and every push to `main`, GitHub Actions runs:
+`./mvnw verify` runs everything. On every pull request, every push to `main` and every release tag, GitHub Actions runs one workflow, [CI](.github/workflows/ci.yml), whose jobs each wait for what they need:
 
-- [CI](.github/workflows/ci.yml): the build and all the tests, with what they cover (`-Pcoverage`, JaCoCo), then SonarCloud's analysis of it; on pull requests, a review of the dependencies they add, which fails on a high-severity vulnerability.
-- CodeQL: code scanning of the Java, the JavaScript and the workflows, weekly too. It's GitHub's default setup, in the repository's settings (Code security), not a workflow: the two can't both upload.
-- [Docker image](.github/workflows/docker.yml): builds the image, and on `main` and tags publishes it.
+| Job | What | After |
+|---|---|---|
+| `build` | Compiles every module with Error Prone and NullAway, checks the imports and the JavaScript (ESLint), builds the CSS, packages the jar | |
+| `test` | All the tests, with what they cover (`-Pcoverage`, JaCoCo) | `build` |
+| `sonar` | SonarCloud's analysis, with that coverage, and its quality gate's verdict. Skipped on pull requests from forks, which GitHub gives no secrets (`SONAR_TOKEN`): their code is analyzed once merged, on `main` (see below) | `test` |
+| `docker` | Builds the image | `build` |
+| `publish` | On `main` and tags: publishes the image | `test`, `docker` |
+| `release` | On tags: publishes the release (below) | `publish` |
+| `dependency-review` | On pull requests: the dependencies they add, failing on a high-severity vulnerability | |
+| `codeql` | Code scanning of the Java, the JavaScript and the workflows | |
 
-[CodeRabbit](.coderabbit.yaml) reviews each pull request, and [Dependabot](.github/dependabot.yml) keeps the dependencies and the actions up to date. The "Protect Main" ruleset ([.github/rulesets](.github/rulesets)) makes a pull request wait for the build, the dependency review, the image, SonarCloud's quality gate and CodeQL, and for the code owner's approval ([CODEOWNERS](.github/CODEOWNERS)). GitHub doesn't let anyone approve their own pull request, so the owner's go through the admin bypass, which skips the checks too: merge those only once they're green. The file doesn't apply itself; after changing it, run `gh api -X PUT repos/CRV96/jobwarden/rulesets/26456384 --input .github/rulesets/protect-main.json`. See [SECURITY.md](SECURITY.md) for reporting a vulnerability.
+[CodeRabbit](.coderabbit.yaml) reviews each pull request (a GitHub App, so its check shows beside the workflow's rather than in it), and [Dependabot](.github/dependabot.yml) keeps the dependencies and the actions up to date. The "Protect Main" ruleset ([.github/rulesets](.github/rulesets)) makes a pull request wait for the build, the tests, the dependency review, the image, SonarCloud's quality gate and CodeQL, and for the code owner's approval ([CODEOWNERS](.github/CODEOWNERS)). GitHub doesn't let anyone approve their own pull request, so the owner's go through the admin bypass, which skips the checks too: merge those only once they're green. A pull request from a fork never gets SonarCloud's check, as its run has no `SONAR_TOKEN`: the owner reviews its code with the other checks green, merges it through the same bypass, and `main`'s run analyzes it right after; a quality gate failing there is fixed in a pull request of the owner's. The file doesn't apply itself; after changing it, run `gh api -X PUT repos/CRV96/jobwarden/rulesets/26456384 --input .github/rulesets/protect-main.json`. See [SECURITY.md](SECURITY.md) for reporting a vulnerability.
 
 Each kind of test has one place:
 
@@ -371,6 +371,8 @@ Why database tests live in `app`: the migrations only run there, and `jobs`' tab
 
 ## Versions and releases
 
+What changed from one release to the next is in [CHANGELOG.md](CHANGELOG.md): each change adds its line under *Unreleased*.
+
 The app and the extension share one version: the Maven projects' (`<version>` in every `pom.xml`) and `version` in `extension/manifest.json`; [VersionTests](app/src/test/java/com/jobwarden/VersionTests.java) fails when they differ. Maven writes it into `jobwarden.version`, which Settings, the MCP server and the extension show.
 
 To release a version:
@@ -378,9 +380,9 @@ To release a version:
 1. Set it everywhere: `./mvnw versions:set -DnewVersion=0.2.0 -DgenerateBackupPoms=false`, and `"version": "0.2.0"` in the manifest.
 2. Commit, then tag the commit and push the tag: `git tag v0.2.0 && git push origin v0.2.0`.
 
-The [Release workflow](.github/workflows/release.yml) checks that the tag, the Maven projects and the manifest say the same, builds and tests, and publishes a GitHub release with the app's jar, the extension's zip, and notes made from the pull requests since the last release; the [Docker workflow](.github/workflows/docker.yml) publishes the tag's image. Each is attested as built from the tag ([SECURITY.md](SECURITY.md#how-the-project-is-checked) shows how to verify it).
+The tag's run of [CI](.github/workflows/ci.yml) checks that the tag, the Maven projects and the manifest say the same, builds and tests, publishes the tag's image, then a GitHub release with the app's jar, the extension's zip, and notes made from the pull requests since the last release. Each is attested as built from the tag ([SECURITY.md](SECURITY.md#how-the-project-is-checked) shows how to verify it).
 
-Running servers ask GitHub for the latest release as they start and every six hours (`jobwarden.updates.repository`; `jobwarden.updates.check=false` never asks). A newer one shows in the sidebar (until it's hidden for that version), in Settings → About, and in the extension's popup, which also says when the server already runs a newer version than the extension. To update: get the release's code (git pull, or its files), restart the app, then reload the extension.
+Running servers ask GitHub for the latest release as they start and then every day, whether or not a page is open (`jobwarden.updates.repository`, `jobwarden.updates.every`; `jobwarden.updates.check=false` never asks). A newer one shows in the sidebar (until it's hidden for that version), in Settings → About, and in the extension's popup, which also says when the server already runs a newer version than the extension. To update: get the release's code (git pull, or its files), restart the app, then reload the extension.
 
 ## License
 

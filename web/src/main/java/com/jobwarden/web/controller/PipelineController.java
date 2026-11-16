@@ -10,29 +10,31 @@ import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.enums.RejectionReason;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.jobs.service.JobFitService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
+import com.jobwarden.web.view.JobImages;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+
+import static com.jobwarden.web.controller.Pages.requireProfile;
 
 /**
  * Every application as a card, in a column per status, newest first. A column shows its first cards, and loads the
  * next ones as it's scrolled to its end: a profile with thousands of applications gets a page as quick as one with
  * ten. The search above narrows every column to the jobs whose title or company has the words.
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.PIPELINE)
 @RequiredArgsConstructor
-class PipelineController extends BaseController {
+class PipelineController {
 
 	/** How many cards a column shows at first, and loads at a time after. */
 	static final int PAGE_SIZE = 40;
@@ -40,6 +42,8 @@ class PipelineController extends BaseController {
 	private final ApplicationService applications;
 
 	private final JobFitService fits;
+
+	private final JobImages jobImages;
 
 	/**
 	 * @param q only the jobs whose title or company has these words; all of them when blank
@@ -59,7 +63,7 @@ class PipelineController extends BaseController {
 			.map(ApplicationSummary::id)
 			.toList()));
 		model.addAttribute(ModelAttributes.PIPELINE_SEARCH, search);
-		addImages(model, userId);
+		this.jobImages.addImages(model, userId);
 		// For the add-job dialog
 		model.addAttribute(ModelAttributes.STATUSES, ApplicationStatus.values());
 		model.addAttribute(ModelAttributes.REJECTION_REASONS, RejectionReason.values());
@@ -82,7 +86,7 @@ class PipelineController extends BaseController {
 				this.fits.findScores(userId, cards.getContent().stream().map(ApplicationSummary::id).toList()));
 		model.addAttribute(ModelAttributes.PIPELINE_STATUS, status);
 		model.addAttribute(ModelAttributes.PIPELINE_SEARCH, search);
-		addImages(model, userId);
+		this.jobImages.addImages(model, userId);
 		return Views.PIPELINE_CARDS_FRAGMENT;
 	}
 

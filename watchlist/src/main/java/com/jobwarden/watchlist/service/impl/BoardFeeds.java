@@ -18,6 +18,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import com.jobwarden.common.net.HttpClients;
 import com.jobwarden.watchlist.enums.Ats;
 import jakarta.annotation.PreDestroy;
 import lombok.CustomLog;
@@ -63,10 +64,7 @@ class BoardFeeds {
 
 	private static final BoardFeed ASHBY = new AshbyFeed();
 
-	private final HttpClient http = HttpClient.newBuilder()
-		.connectTimeout(CONNECT_TIMEOUT)
-		.followRedirects(HttpClient.Redirect.NORMAL)
-		.build();
+	private final HttpClient http = HttpClients.followingRedirects(CONNECT_TIMEOUT);
 
 	private final JsonMapper json = JsonMapper.builder().build();
 
@@ -93,7 +91,7 @@ class BoardFeeds {
 	 */
 	BoardFeeds(String version, WatchlistProperties properties, Duration readDeadline) {
 		this.readDeadline = readDeadline;
-		this.userAgent = "JobWarden/" + version + " (+https://github.com/CRV96/jobwarden)";
+		this.userAgent = HttpClients.userAgent(version);
 		this.properties = properties;
 	}
 
@@ -125,7 +123,7 @@ class BoardFeeds {
 			return null;
 		}
 		try {
-			return feed.descriptionOf(send(address, body -> this.json.readTree(body)));
+			return feed.descriptionOf(send(address, this.json::readTree));
 		} catch (BoardFailure | JacksonException failed) {
 			log.debug("Couldn't read the description of job {} on {}: {}", postingId, board, failed.getMessage());
 			return null;
@@ -225,8 +223,8 @@ class BoardFeeds {
 				// Closing it is all that's needed: the read stops either way
 			}
 		}, this.readDeadline.toMillis(), TimeUnit.MILLISECONDS);
-		try {
-			return reader.read(new Capped(body));
+		try (InputStream capped = new Capped(body)) {
+			return reader.read(capped);
 		} finally {
 			deadline.cancel(false);
 		}

@@ -8,8 +8,8 @@ import java.util.Map;
 import com.jobwarden.cv.dto.CoverLetter;
 import com.jobwarden.cv.dto.CvDetails;
 import com.jobwarden.jobs.dto.ApplicationDetails;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.stereotype.Component;

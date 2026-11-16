@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.function.Predicate;
 
 import com.jobwarden.common.image.Images;
+import com.jobwarden.common.net.HttpClients;
 import com.jobwarden.common.net.PublicAddresses;
 import com.jobwarden.jobs.dto.PngImage;
 import lombok.CustomLog;
@@ -43,11 +44,8 @@ class LogoDownloader {
 
 	private static final int MAX_REDIRECTS = 3;
 
-	private final HttpClient http = HttpClient.newBuilder()
-		.connectTimeout(TIMEOUT)
-		// Followed by hand, so each address is checked
-		.followRedirects(HttpClient.Redirect.NEVER)
-		.build();
+	// Followed by hand, so each address is checked
+	private final HttpClient http = HttpClients.notFollowingRedirects(TIMEOUT);
 
 	private final Predicate<InetAddress> allowed;
 

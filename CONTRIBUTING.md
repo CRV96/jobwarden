@@ -9,8 +9,9 @@ JobWarden is open-source software owned by Robert-Vasile Ciapă and released und
 1. For anything beyond a small fix, open an issue first so the approach can be agreed on before you write code.
 2. Fork the repository and create a branch from `main`.
 3. Make sure the build passes, with the null-safety checks CI runs: `./mvnw verify -Pnullaway`.
-4. Open a pull request describing what changed and why.
-5. Sign the CLA by posting this exact comment on your pull request:
+4. Add a line for anything a user or whoever runs the server would notice to [CHANGELOG.md](CHANGELOG.md), under *Unreleased*.
+5. Open a pull request describing what changed and why.
+6. Sign the CLA by posting this exact comment on your pull request:
 
    > I have read the CLA Document and I hereby sign the CLA
 
@@ -18,7 +19,7 @@ JobWarden is open-source software owned by Robert-Vasile Ciapă and released und
 
 Pull requests from contributors who have not signed the CLA will not be merged.
 
-Each pull request is checked on its own: the build and all the tests, CodeQL, SonarCloud's quality gate, a review of the dependencies it adds, and the Docker image's build, and CodeRabbit reviews it. It merges once they pass and its review threads are resolved. A security problem is never reported in an issue or a pull request: see [SECURITY.md](SECURITY.md).
+Each pull request is checked on its own, in one run of the CI workflow: the build, all the tests, SonarCloud's quality gate, the Docker image's build, CodeQL and a review of the dependencies it adds; CodeRabbit reviews it too. It merges once they pass and its review threads are resolved. A security problem is never reported in an issue or a pull request: see [SECURITY.md](SECURITY.md).
 
 ## Contributor License Agreement
 

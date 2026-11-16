@@ -154,7 +154,7 @@ class DefaultHiringService implements HiringService {
 		return this.recruiters.findByUserIdAndHiddenFalseOrderByNameAsc(userId)
 			.stream()
 			.map(recruiter -> toRecruiter(recruiter, counts, contacts.getOrDefault(recruiter.getProfileUrl(), List.of())))
-			.sorted(Comparator.comparing(Recruiter::followed).thenComparing(Recruiter::posts).reversed())
+			.sorted(Comparator.comparing(Recruiter::followed).thenComparingLong(Recruiter::posts).reversed())
 			.toList();
 	}
 
@@ -283,7 +283,7 @@ class DefaultHiringService implements HiringService {
 		return Comparator
 			.comparing((HiringPost post) -> post.day(this.clock.getZone()))
 			.thenComparing(HiringPost::foundAt)
-			.thenComparing(HiringPost::id)
+			.thenComparingLong(HiringPost::id)
 			.reversed();
 	}
 

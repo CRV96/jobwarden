@@ -2,8 +2,11 @@ package com.jobwarden.web;
 
 import java.time.Clock;
 
+import com.jobwarden.web.assistant.PromptCards;
 import com.jobwarden.web.view.CountryNames;
 import com.jobwarden.web.view.Dates;
+import com.jobwarden.web.view.FormTexts;
+import com.jobwarden.web.view.JobImages;
 import com.jobwarden.web.view.Links;
 import com.jobwarden.web.view.Money;
 import com.jobwarden.web.view.Names;
@@ -19,10 +22,11 @@ import org.springframework.context.annotation.Import;
  * in the app module, which this module can't see, so this one stands in for it during tests.
  * <p>
  * {@code @WebMvcTest} only picks up MVC components (controllers, advice, configurers), so the helpers the templates
- * call are imported here, for every web test.
+ * call, and those the page controllers are made with, are imported here, for every web test.
  */
 @SpringBootApplication
-@Import({ CountryNames.class, Dates.class, Links.class, Money.class, Names.class, QuerySyntax.class, Sharing.class })
+@Import({ CountryNames.class, Dates.class, Links.class, Money.class, Names.class, QuerySyntax.class, Sharing.class,
+		FormTexts.class, JobImages.class, PromptCards.class })
 class WebTestApplication {
 
 	/** "Now", as the app's own JobWardenApplication gives it to every module. */

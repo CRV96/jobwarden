@@ -11,15 +11,16 @@ import com.jobwarden.discover.dto.AiRequest;
 import com.jobwarden.discover.dto.AiRequirements;
 import com.jobwarden.discover.enums.AiRequestKind;
 import com.jobwarden.discover.service.DiscoveryService;
-import com.jobwarden.web.constants.AppConstants.ControllerConstants;
-import com.jobwarden.web.constants.AppConstants.ModelAttributes;
-import com.jobwarden.web.constants.AppConstants.Views;
+import com.jobwarden.web.assistant.PromptCards;
+import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.constants.Views;
 import com.jobwarden.web.dto.StoryForm;
+import com.jobwarden.web.view.FormTexts;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
-import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,22 +28,28 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import static com.jobwarden.web.controller.Pages.requireProfile;
+
 /**
  * The CV page's story bank: what the profile did, told the STAR way (situation, task, action, result), kept with its
  * CV for interviews; the interview briefs draw on them. Written here, or drafted by Claude from the CV (a WRITE_STORIES
  * request, save_stories) for the profile to check and finish. The card loads after the page and swaps after each
  * change (HTMX).
  */
-@Controller
+@PageController
 @RequestMapping(ControllerConstants.CV + "/stories")
 @RequiredArgsConstructor
-class StoryController extends BaseController {
+class StoryController {
 
 	private final StoryService stories;
 
 	private final CvService cvs;
 
 	private final DiscoveryService discovery;
+
+	private final FormTexts formTexts;
+
+	private final PromptCards promptCards;
 
 	/**
 	 * The card: HTMX loads it after the page, and again every few seconds while Claude drafts stories.
@@ -76,13 +83,13 @@ class StoryController extends BaseController {
 	String save(@Valid StoryForm form, BindingResult result, Model model) {
 		long userId = requireProfile(model).id();
 		if (result.hasErrors()) {
-			model.addAttribute(ModelAttributes.STORY_ERROR, errorMessage(result));
+			model.addAttribute(ModelAttributes.STORY_ERROR, this.formTexts.errorMessage(result));
 			return showCard(model, userId, form);
 		}
 		try {
 			this.stories.save(userId, form.toStory());
 		} catch (BusinessRuleException refused) {
-			model.addAttribute(ModelAttributes.STORY_ERROR, message(refused));
+			model.addAttribute(ModelAttributes.STORY_ERROR, this.formTexts.message(refused));
 			return showCard(model, userId, form);
 		}
 		return showCard(model, userId, null);
@@ -124,7 +131,7 @@ class StoryController extends BaseController {
 		model.addAttribute(ModelAttributes.HAS_CV, cv.file() != null || cv.details().isFilledIn());
 		model.addAttribute(ModelAttributes.STORY_REQUEST, request.orElse(null));
 		model.addAttribute(ModelAttributes.STORY_PROMPT,
-				request.map(asked -> prompt(model, asked.id())).orElse(null));
+				request.map(asked -> this.promptCards.prompt(requireProfile(model), asked.id())).orElse(null));
 		return Views.STORIES_FRAGMENT;
 	}
 

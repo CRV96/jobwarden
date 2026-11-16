@@ -22,9 +22,11 @@ defaults suit a server on your own computer.
 | `SPRING_DATASOURCE_URL`, `_USERNAME`, `_PASSWORD` | the Docker Compose database, when run from the sources | The PostgreSQL database |
 | `SERVER_PORT` | `8080` | The port. In Docker, set it this way only: the image's health check reads it. To publish the server on another port, `-p 9090:8080` is enough |
 | `SERVER_ADDRESS` | every address | `127.0.0.1` keeps the server to this computer |
+| `JOBWARDEN_ALLOWED_HOSTS` | none | Host names it answers to besides its local ones (IP addresses, `localhost`, LAN names), comma-separated: a name a reverse proxy serves it as. Any other is refused with 403 |
 | `TZ` | the machine's (UTC in Docker) | The time zone "today" and every time on the pages are in |
 | `JOBWARDEN_SECRET_KEY` | a key file made in `~/.jobwarden` | The key (32 bytes, Base64) the passwords and tokens are encrypted with. A wrong one stops the server from starting |
-| `JOBWARDEN_UPDATES_CHECK` | `true` | Whether to ask GitHub for a newer release, at start and every six hours |
+| `JOBWARDEN_UPDATES_CHECK` | `true` | Whether to ask GitHub for a newer release: at start, then daily |
+| `JOBWARDEN_UPDATES_EVERY`, `_TICK` | `P1D`, `PT1H` | How often GitHub is asked, and how often the server looks whether that's due (an hour after a failed check, it asks again) |
 | `JOBWARDEN_INBOX_TICK`, `_FIRST_CHECK` | `PT1M`, `PT2M` | How often the mailboxes whose time has come are read, and the first time after the start |
 | `JOBWARDEN_INBOX_TIMEOUT_MILLIS` | `20000` | How long the mail server may take to answer |
 | `JOBWARDEN_WATCHLIST_EVERY` | `PT6H` | How often each watched company's job board is read |
@@ -90,6 +92,12 @@ start the same version as the dump's or a newer one.
 1. Back up the database and the key (above).
 2. Start the new version: Flyway upgrades the schema as it starts, and the log says which migrations ran.
 3. Reload the browser extension, which should be the same version (the popup says when it isn't).
+
+With Docker ([deploy/compose.yaml](../deploy/compose.yaml), which each release attaches with its version), the data
+is in the volumes, never in a container, so the upgrade replaces the JobWarden container and keeps them: take the new
+release's `compose.yaml` (or set `JOBWARDEN_VERSION=0.2.0`), then `docker compose pull && docker compose up -d`.
+PostgreSQL's container stays as it is: its image names its major version (18), and moving to the next is a dump with
+the old one and a restore into the new one. `docker compose down` keeps the volumes; `down --volumes` deletes the data.
 
 There's no going back down: an older version refuses a schema a newer one migrated. To undo an upgrade, restore the
 backup taken before it, then start the older version.
