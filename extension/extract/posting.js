@@ -34,9 +34,10 @@ globalThis.jobWarden.extract.posting = (() => {
     return scope ? microdataItem(scope) : null;
   }
 
-  /** The item's properties as an object, so it reads like a JSON-LD JobPosting. */
+  /** The item's properties as an object, so it reads like a JSON-LD JobPosting. A nested item may have no itemtype. */
   function microdataItem(scope) {
-    const item = { '@type': scope.getAttribute('itemtype').trim().split('/').pop() };
+    const type = scope.getAttribute('itemtype')?.trim().split('/').pop();
+    const item = type ? { '@type': type } : {};
     for (const element of scope.querySelectorAll('[itemprop]')) {
       // A property of a nested item belongs to that item
       if (element.parentElement.closest('[itemscope]') !== scope) {
