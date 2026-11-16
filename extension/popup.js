@@ -2,6 +2,7 @@ import {
   capture, lookUp, moveBackToSaved, remove, ServerError, serverVersion, unwatch, watch, watchStatus,
 } from './api.js';
 import { message, translatePage } from './i18n.js';
+import { EXTRACT_SCRIPTS } from './injected.js';
 import { canonicalLink, isOnJobBoard } from './links.js';
 import { currentRun, isJobSearch, LINKEDIN_PERMISSION, loadRunOptions, MAX_LIMIT, stopRun } from './runs.js';
 import { APPLICATIONS_PATH, hostPermission, loadSettings, saveSettings, WATCHLIST_PATH } from './settings.js';
@@ -289,7 +290,7 @@ async function updateIcon() {
  */
 async function readPage() {
   try {
-    const [injection] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['extract.js'] });
+    const [injection] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: EXTRACT_SCRIPTS });
     job = injection?.result ?? null;
   } catch (error) {
     console.warn('Could not read the page', error);

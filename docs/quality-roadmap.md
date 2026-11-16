@@ -148,7 +148,15 @@ SonarCloud and Dependabot. What follows is what was missing.
       without a name, and an image without `alt`; none had slipped through. Keyboards could already do what the
       pointer does: the swipe card's arrow keys and A, and on the pipeline, each card's title opens its side panel,
       whose status buttons do what dropping it on a column does. Focus rings and `prefers-reduced-motion` were there.
-- [ ] `extension/easyapply.js` (1,194 lines) and `extract.js` (770) split by site and step.
+- [x] The extension's two injected scripts split by site and step. `extract.js` (770 lines, now 126) keeps the order of
+      its sources; `extract/` has what they share (`common.js`), the JobPosting (`posting.js`), the sites' own readers
+      (`sites.js`) and LinkedIn (`linkedin.js`). `easyapply.js` (1,194, now 455) keeps the run itself; `easyapply/` has
+      the waiting and stopping (`waiting.js`), the form's questions and answers (`questions.js`), where things are on
+      LinkedIn's pages (`linkedin.js`) and the bar (`bar.js`). Injected scripts can't be modules, so each part is a
+      classic script that registers what it gives on `globalThis.jobWarden`, and `injected.js` lists the files in their
+      order: Chrome and Firefox both hand back what the last one ends with. The functions moved unchanged; the old and
+      new `extract.js` read four test pages (JSON-LD, microdata, a remote job, a page with neither) the same, and the
+      Easy Apply run stops and ends the same, from its bar, from the popup, or out of results.
 
 ## 7. Documentation
 
