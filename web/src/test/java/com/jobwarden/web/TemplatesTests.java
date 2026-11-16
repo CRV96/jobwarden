@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -51,7 +52,7 @@ class TemplatesTests {
 	private static final Set<String> FIELDS_WITHOUT_LABELS = Set.of("hidden", "submit", "button", "reset", "image");
 
 	/** A fragment's name and parameters: tag-field(name, inputId). */
-	private static final Pattern FRAGMENT = Pattern.compile("([\\w-]+)\\s*\\(([^)]*)\\)");
+	private static final Pattern FRAGMENT = Pattern.compile("([\\w-]+)\\(([^()]*)\\)");
 
 	@Test
 	void noTemplateAsksForCodeThePolicyWouldntRun() throws IOException {
@@ -152,13 +153,13 @@ class TemplatesTests {
 		if (!id.matches() || signature == null || !signature.matches()) {
 			return false;
 		}
-		int index = List.of(signature.group(2).split("\\s*,\\s*")).indexOf(id.group(1));
+		int index = commaSeparated(signature.group(2)).indexOf(id.group(1));
 		Matcher call = Pattern.compile(":: " + Pattern.quote(signature.group(1)) + "\\(([^)]*)\\)").matcher(html);
 		int calls = 0;
 		while (index >= 0 && call.find()) {
-			String[] arguments = call.group(1).split("\\s*,\\s*");
-			if (index >= arguments.length || !arguments[index].matches("'[\\w-]+'")
-					|| !labelsFor.contains(arguments[index].substring(1, arguments[index].length() - 1))) {
+			List<String> arguments = commaSeparated(call.group(1));
+			if (index >= arguments.size() || !arguments.get(index).matches("'[\\w-]+'")
+					|| !labelsFor.contains(arguments.get(index).substring(1, arguments.get(index).length() - 1))) {
 				return false;
 			}
 			calls++;
@@ -178,6 +179,11 @@ class TemplatesTests {
 		assertThat(field).isNotNull();
 		assertThat(labelledByEachCall(html, field, Set.of("a-title"))).isFalse();
 		assertThat(labelledByEachCall(html, field, Set.of("a-title", "b-title"))).isTrue();
+	}
+
+	/** A fragment's parameters, or a call's arguments, each without the spaces around it. */
+	private static List<String> commaSeparated(String list) {
+		return Arrays.stream(list.split(",")).map(String::strip).toList();
 	}
 
 	private static List<Path> templates() throws IOException {
