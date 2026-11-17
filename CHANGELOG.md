@@ -26,6 +26,11 @@ a release renames it to its version and date.
 - The browser extension's popup can hide the notice of a newer JobWarden, until the next version.
 - Each release has a `compose.yaml` that runs its Docker image with PostgreSQL, and notes on upgrading with the data
   kept: it lives in Docker volumes, so `docker compose pull && docker compose up -d` only replaces the server.
+- The database's password, in Settings → Database: changed with the current one, it's given to PostgreSQL (its SCRAM
+  hash only), JobWarden connects with it at once, and `~/.jobwarden/database.password` keeps it, encrypted with the
+  secret key, for the next start, where it takes the place of the configured one (`SPRING_DATASOURCE_PASSWORD`, or the
+  Compose files' `jobwarden`). Settings says when it's still that default. When the database refuses the kept one, say
+  after restoring an older backup, the server starts with the configured one, and its log says so.
 
 ### Changed
 

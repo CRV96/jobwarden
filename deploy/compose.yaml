@@ -22,6 +22,8 @@ services:
     environment:
       POSTGRES_DB: jobwarden
       POSTGRES_USER: jobwarden
+      # Only for a database that doesn't exist yet: afterwards, change it in JobWarden's Settings → Database, which
+      # keeps the new one on the jobwarden-key volume (https://github.com/CRV96/jobwarden/wiki/Configuration#the-database-password)
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jobwarden}
     volumes:
       - postgres-data:/var/lib/postgresql

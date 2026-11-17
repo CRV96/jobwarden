@@ -57,6 +57,7 @@
 		<module>market</module>
 		<module>cv</module>
 		<module>updates</module>
+		<module>database</module>
 		<module>hiring</module>
 		<module>apply</module>
 		<module>inbox</module>
@@ -74,6 +75,9 @@
 		<openhtmltopdf.version>1.1.97</openhtmltopdf.version>
 		<jsoup.version>1.23.2</jsoup.version>
 		<greenmail.version>2.1.5</greenmail.version>
+		<!-- The annotations the PostgreSQL driver's classes carry, which NullAway reads (the database module): the version
+		     the driver is built with -->
+		<checker-qual.version>3.55.1</checker-qual.version>
 		<!-- Only the app module is runnable; lets `./mvnw -pl app -am spring-boot:run` work from the root. -->
 		<spring-boot.run.skip>true</spring-boot.run.skip>
 		<!-- The time every file in the jars carries, so the same commit always builds the same jars (reproducible builds).
@@ -134,6 +138,11 @@
 			<dependency>
 				<groupId>com.jobwarden</groupId>
 				<artifactId>jobwarden-updates</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.jobwarden</groupId>
+				<artifactId>jobwarden-database</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 			<dependency>

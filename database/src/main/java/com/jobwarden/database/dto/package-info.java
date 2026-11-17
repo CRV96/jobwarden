@@ -1,0 +1,10 @@
+/**
+ * Records the service returns. Part of the module's public API.
+ */
+@NamedInterface("dto")
+@NullMarked
+package com.jobwarden.database.dto;
+
+import org.jspecify.annotations.NullMarked;
+
+import org.springframework.modulith.NamedInterface;

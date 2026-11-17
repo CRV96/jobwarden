@@ -315,6 +315,67 @@
                 </div>
             </section>
 
+            <!--/* The password the server connects to its database with (the database module): the server's, not a
+                   profile's. Changed with the current one, the new one typed twice; SettingsController comes back here
+                   and says how it went, once. The database gets the new one, the server connects with it at once, and a
+                   file keeps it, encrypted, for the next start. Not shown when the server's connections don't come
+                   from the pool it can change. */-->
+            <section id="database" class="flex flex-col gap-2" th:if="${databaseLogin}">
+                <h2 class="section-title" th:text="#{settings.database}">Database</h2>
+                <output class="card flex items-center gap-2 p-3 text-success" th:if="${databasePasswordSaved}">
+                    <i class="ph ph-check-circle text-lg"></i><span th:text="#{settings.database.saved}">Saved.</span>
+                </output>
+                <div class="card flex items-start gap-3 p-3">
+                    <i class="ph ph-database text-[22px] text-accent"></i>
+                    <div class="flex min-w-0 flex-1 flex-col gap-3">
+                        <div>
+                            <div class="font-medium" th:text="#{settings.database.password}">Database password</div>
+                            <div class="text-xs text-pretty text-ink/60" th:text="#{settings.database.body}">
+                                The password JobWarden connects to PostgreSQL with.</div>
+                        </div>
+                        <dl class="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-1 text-xs">
+                            <dt class="text-ink/55" th:text="#{settings.database.address}">Address</dt>
+                            <dd class="min-w-0 truncate font-mono" th:text="${databaseLogin.address()}">localhost:5432/jobwarden</dd>
+                            <dt class="text-ink/55" th:text="#{settings.database.user}">User</dt>
+                            <dd class="min-w-0 truncate font-mono" th:text="${databaseLogin.user()}">jobwarden</dd>
+                            <dt class="text-ink/55" th:text="#{settings.password}">Password</dt>
+                            <dd class="flex flex-wrap items-center gap-2">
+                                <span th:text="${databaseLogin.changedHere()} ? #{settings.database.source.here} : #{settings.database.source.configured}">
+                                    From the server’s configuration</span>
+                                <span class="tag st-interviewing" th:if="${databaseLogin.defaultPassword()}">
+                                    <i class="ph ph-warning"></i><span th:text="#{settings.database.default}">Default password</span>
+                                </span>
+                            </dd>
+                        </dl>
+                        <p class="text-xs text-pretty text-ink/70" th:if="${databaseLogin.defaultPassword()}"
+                           th:text="#{settings.database.default.hint}">Still the password JobWarden’s Compose files start with…</p>
+                        <form class="flex flex-wrap items-end gap-2" method="post" th:action="@{/settings/database}">
+                            <label class="flex min-w-[140px] flex-1 flex-col gap-1">
+                                <span class="field-label" th:text="#{settings.password.current}">Current password</span>
+                                <input class="input" type="password" name="current" required autocomplete="off">
+                            </label>
+                            <label class="flex min-w-[140px] flex-1 flex-col gap-1">
+                                <span class="field-label" th:text="#{settings.password.new}">New password</span>
+                                <input class="input" type="password" name="password" required autocomplete="new-password"
+                                       th:minlength="${databasePasswordMinLength}" maxlength="128">
+                            </label>
+                            <label class="flex min-w-[140px] flex-1 flex-col gap-1">
+                                <span class="field-label" th:text="#{settings.password.confirm}">New password, again</span>
+                                <input class="input" type="password" name="confirm" required autocomplete="new-password"
+                                       th:minlength="${databasePasswordMinLength}" maxlength="128">
+                            </label>
+                            <button class="btn btn-secondary" type="submit">
+                                <i class="ph ph-key"></i><span th:text="#{settings.password.change}">Change password</span>
+                            </button>
+                        </form>
+                        <p class="field-error" role="alert" th:if="${databasePasswordError}" th:text="${databasePasswordError}">
+                            That isn’t the database’s current password.</p>
+                        <p class="text-xs text-pretty text-ink/60" th:text="#{settings.database.kept(${databaseLogin.keptIn()})}">
+                            JobWarden keeps it encrypted in ~/.jobwarden/database.password…</p>
+                    </div>
+                </div>
+            </section>
+
             <!--/* What to enter in the extension's own settings. */-->
             <section class="flex flex-col gap-2">
                 <h2 class="section-title" th:text="#{settings.extension}">Browser extension</h2>

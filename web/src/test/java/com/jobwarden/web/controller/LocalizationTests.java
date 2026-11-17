@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import com.jobwarden.common.exception.BusinessRuleException;
+import com.jobwarden.database.service.DatabasePasswordService;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.enums.IdentityErrorCode;
@@ -59,6 +60,9 @@ class LocalizationTests {
 
 	@MockitoBean
 	private InboxService inbox;
+
+	@MockitoBean
+	private DatabasePasswordService database;
 
 	@BeforeEach
 	void oneProfile() {
