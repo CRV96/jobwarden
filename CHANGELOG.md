@@ -37,6 +37,9 @@ a release renames it to its version and date.
 
 ### Changed
 
+- The database's 49 migrations are 9, one per module (V1 to V9), which build the very same schema. **Upgrading:** a
+  database the 49 built gets its migration history replaced by a baseline at V9 as the server starts, once; its tables
+  and rows stay as they are. One the 49 built only in part stops the start: run the version before first.
 - Every page runs under a Content Security Policy, with the browser's other defences on: no inline scripts, no framing
   by other sites, no referrer sent to the job boards the pages link to.
 - A setting that's wrong (`JOBWARDEN_SECRET_KEY` that isn't a key, a duration that isn't one, an update repository that
