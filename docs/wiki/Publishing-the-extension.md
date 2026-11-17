@@ -10,8 +10,8 @@ with no build step (so no source code to submit apart), and nothing is loaded fr
 Each release has `jobwarden-extension-<version>.zip`, with `manifest.json` at its root: upload it as it is to both
 stores. Its version is the release's, and a store only takes a version higher than the one it has.
 
-Both stores ask for the privacy policy's address:
-<https://github.com/CRV96/jobwarden/blob/main/PRIVACY.md>
+The privacy policy is [PRIVACY.md](https://github.com/CRV96/jobwarden/blob/main/PRIVACY.md): Chrome asks for its
+address, Firefox for its text.
 
 ## Firefox Add-ons
 
@@ -21,8 +21,9 @@ Both stores ask for the privacy policy's address:
    browser, and the linter's warning about Android's minimum version is about that.
 3. Source code: **No**: nothing is minified or built.
 4. The listing: the name, the summary (the manifest's description), the description from
-   [Browser extension](Browser-extension), the category *Productivity*, the
-   privacy policy above, screenshots.
+   [Browser extension](Browser-extension), up to two categories (*Bookmarks* fits best), the support site
+   (`https://github.com/CRV96/jobwarden/issues`), the MIT license, and screenshots. Tick **This add-on has a privacy
+   policy** and paste PRIVACY.md's text in: Firefox keeps the policy itself, not a link.
 5. **Notes to reviewer** (paste):
 
    > The extension needs a JobWarden server, which is self-hosted. To run one: download `compose.yaml` from
@@ -42,8 +43,9 @@ manifest's `strict_min_version`. The add-on's id, `jobwarden@crv96.github.io`, t
 
 1. Register as a developer in the [Developer Dashboard](https://chrome.google.com/webstore/devconsole) (a one-time
    fee), then **New item**: the zip.
-2. **Store listing**: the description, the category *Productivity*, the language, at least one screenshot (1280×800
-   or 640×400) and the small promo tile (440×280).
+2. **Store listing**: the description, the category *Productivity*, the language, and at least one screenshot
+   (1280×800 or 640×400, up to five). The store icon is the zip's 128×128 one. A small promo tile (440×280) is
+   optional, but items without one show after those with one.
 3. **Privacy**, with these texts:
 
    **Single purpose:** Saves job postings from the page you're on to your own self-hosted JobWarden server, and shows
