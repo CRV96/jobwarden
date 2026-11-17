@@ -74,6 +74,15 @@
   "settingsTitle": {
     "message": "JobWarden settings"
   },
+  "noJobWardenTitle": {
+    "message": "Don’t have JobWarden yet?"
+  },
+  "noJobWardenHint": {
+    "message": "The extension saves to JobWarden: a free server that runs on your own computer, set up in a few minutes."
+  },
+  "installJobWarden": {
+    "message": "Install JobWarden"
+  },
   "serverUrl": {
     "message": "Server URL"
   },

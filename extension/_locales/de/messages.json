@@ -74,6 +74,15 @@
   "settingsTitle": {
     "message": "JobWarden-Einstellungen"
   },
+  "noJobWardenTitle": {
+    "message": "Hast du JobWarden noch nicht?"
+  },
+  "noJobWardenHint": {
+    "message": "Die Erweiterung speichert in JobWarden: einem kostenlosen Server, der auf deinem eigenen Computer läuft und in wenigen Minuten eingerichtet ist."
+  },
+  "installJobWarden": {
+    "message": "JobWarden installieren"
+  },
   "serverUrl": {
     "message": "Server-URL"
   },

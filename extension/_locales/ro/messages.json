@@ -74,6 +74,15 @@
   "settingsTitle": {
     "message": "Setări JobWarden"
   },
+  "noJobWardenTitle": {
+    "message": "Nu ai încă JobWarden?"
+  },
+  "noJobWardenHint": {
+    "message": "Extensia salvează în JobWarden: un server gratuit care rulează pe propriul calculator și se instalează în câteva minute."
+  },
+  "installJobWarden": {
+    "message": "Instalează JobWarden"
+  },
   "serverUrl": {
     "message": "Adresa serverului"
   },

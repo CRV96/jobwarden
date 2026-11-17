@@ -74,6 +74,15 @@
   "settingsTitle": {
     "message": "Ustawienia JobWarden"
   },
+  "noJobWardenTitle": {
+    "message": "Nie masz jeszcze JobWarden?"
+  },
+  "noJobWardenHint": {
+    "message": "Rozszerzenie zapisuje do JobWarden: darmowego serwera, który działa na Twoim komputerze i jest gotowy w kilka minut."
+  },
+  "installJobWarden": {
+    "message": "Zainstaluj JobWarden"
+  },
   "serverUrl": {
     "message": "Adres serwera"
   },

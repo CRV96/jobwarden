@@ -74,6 +74,15 @@
   "settingsTitle": {
     "message": "Ajustes de JobWarden"
   },
+  "noJobWardenTitle": {
+    "message": "¿Aún no tienes JobWarden?"
+  },
+  "noJobWardenHint": {
+    "message": "La extensión guarda en JobWarden: un servidor gratuito que funciona en tu propio ordenador y se instala en unos minutos."
+  },
+  "installJobWarden": {
+    "message": "Instalar JobWarden"
+  },
   "serverUrl": {
     "message": "Dirección del servidor"
   },

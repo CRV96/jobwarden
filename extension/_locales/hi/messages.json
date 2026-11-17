@@ -74,6 +74,15 @@
   "settingsTitle": {
     "message": "JobWarden सेटिंग्स"
   },
+  "noJobWardenTitle": {
+    "message": "अभी तक JobWarden नहीं है?"
+  },
+  "noJobWardenHint": {
+    "message": "एक्सटेंशन JobWarden में सहेजता है: एक मुफ़्त सर्वर जो आपके अपने कंप्यूटर पर चलता है और कुछ ही मिनटों में सेट हो जाता है।"
+  },
+  "installJobWarden": {
+    "message": "JobWarden इंस्टॉल करें"
+  },
   "serverUrl": {
     "message": "सर्वर URL"
   },
