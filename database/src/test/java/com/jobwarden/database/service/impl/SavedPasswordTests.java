@@ -66,7 +66,9 @@ class SavedPasswordTests {
 	void cantBeReadWithAnotherKey() throws IOException {
 		saved(KEY).save("a long new password");
 
-		assertThatThrownBy(() -> saved(OTHER_KEY).read()).isInstanceOf(IllegalStateException.class);
+		SavedPassword withAnotherKey = saved(OTHER_KEY);
+
+		assertThatThrownBy(withAnotherKey::read).isInstanceOf(IllegalStateException.class);
 	}
 
 	@Test

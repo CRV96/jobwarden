@@ -38,6 +38,9 @@ class SquashedMigrations {
 
 	static final String BASELINE_DESCRIPTION = "Migrations 1 to 49, squashed into 1 to 9";
 
+	/** Flyway's history table, as JobWarden leaves it: spring.flyway.table isn't set */
+	static final String HISTORY = "flyway_schema_history";
+
 	@Bean
 	FlywayMigrationStrategy migrateOnceSquashed() {
 		return flyway -> {
@@ -51,13 +54,15 @@ class SquashedMigrations {
 	 * @throws IllegalStateException when the 49 built the database only in part: it must reach the 49th first
 	 */
 	static boolean convert(Flyway flyway) {
-		String table = flyway.getConfiguration().getTable();
+		if (!HISTORY.equals(flyway.getConfiguration().getTable())) {
+			return false;
+		}
 		try (Connection connection = flyway.getConfiguration().getDataSource().getConnection()) {
-			if (!historyExists(connection, table)) {
+			if (!historyExists(connection)) {
 				return false;
 			}
-			List<String> versions = appliedVersions(connection, table);
-			boolean allOld = versions.contains(LAST_OLD_VERSION) && lastOldApplied(connection, table);
+			List<String> versions = appliedVersions(connection);
+			boolean allOld = versions.contains(LAST_OLD_VERSION) && lastOldApplied(connection);
 			if (!allOld) {
 				if (versions.stream().anyMatch(version -> Integer.parseInt(version) > Integer.parseInt(SQUASHED_VERSION))) {
 					throw new IllegalStateException("The database was migrated by JobWarden's migrations from before they "
@@ -66,7 +71,7 @@ class SquashedMigrations {
 				}
 				return false;
 			}
-			replaceHistory(connection, table);
+			replaceHistory(connection);
 			log.info("Replaced the database's migration history, of the migrations 1 to {}, with a baseline at V{}: "
 					+ "its tables are as they were", LAST_OLD_VERSION, SQUASHED_VERSION);
 			return true;
@@ -75,9 +80,9 @@ class SquashedMigrations {
 		}
 	}
 
-	private static boolean historyExists(Connection connection, String table) throws SQLException {
+	private static boolean historyExists(Connection connection) throws SQLException {
 		try (PreparedStatement statement = connection.prepareStatement("SELECT to_regclass(?) IS NOT NULL")) {
-			statement.setString(1, quoted(table));
+			statement.setString(1, HISTORY);
 			try (ResultSet result = statement.executeQuery()) {
 				return result.next() && result.getBoolean(1);
 			}
@@ -85,11 +90,11 @@ class SquashedMigrations {
 	}
 
 	/** The versions applied, numbers only: a baseline at V9 is one of them */
-	private static List<String> appliedVersions(Connection connection, String table) throws SQLException {
+	private static List<String> appliedVersions(Connection connection) throws SQLException {
 		List<String> versions = new ArrayList<>();
 		try (Statement statement = connection.createStatement();
 				ResultSet result = statement
-					.executeQuery("SELECT version FROM " + quoted(table) + " WHERE version ~ '^[0-9]+$' AND success")) {
+					.executeQuery("SELECT version FROM flyway_schema_history WHERE version ~ '^[0-9]+$' AND success")) {
 			while (result.next()) {
 				versions.add(result.getString(1));
 			}
@@ -97,9 +102,9 @@ class SquashedMigrations {
 		return versions;
 	}
 
-	private static boolean lastOldApplied(Connection connection, String table) throws SQLException {
+	private static boolean lastOldApplied(Connection connection) throws SQLException {
 		try (PreparedStatement statement = connection.prepareStatement(
-				"SELECT count(*) FROM " + quoted(table) + " WHERE version = ? AND description = ? AND success")) {
+				"SELECT count(*) FROM flyway_schema_history WHERE version = ? AND description = ? AND success")) {
 			statement.setString(1, LAST_OLD_VERSION);
 			statement.setString(2, LAST_OLD_DESCRIPTION);
 			try (ResultSet result = statement.executeQuery()) {
@@ -109,14 +114,14 @@ class SquashedMigrations {
 	}
 
 	/** In one transaction: the old history goes only with the baseline in its place, as Flyway's own would be */
-	private static void replaceHistory(Connection connection, String table) throws SQLException {
+	private static void replaceHistory(Connection connection) throws SQLException {
 		boolean autoCommit = connection.getAutoCommit();
 		connection.setAutoCommit(false);
 		try (Statement delete = connection.createStatement();
-				PreparedStatement baseline = connection.prepareStatement("INSERT INTO " + quoted(table)
-						+ " (installed_rank, version, description, type, script, checksum, installed_by, execution_time, "
+				PreparedStatement baseline = connection.prepareStatement("INSERT INTO flyway_schema_history "
+						+ "(installed_rank, version, description, type, script, checksum, installed_by, execution_time, "
 						+ "success) VALUES (1, ?, ?, 'BASELINE', ?, NULL, current_user, 0, TRUE)")) {
-			delete.executeUpdate("DELETE FROM " + quoted(table));
+			delete.executeUpdate("DELETE FROM flyway_schema_history");
 			baseline.setString(1, SQUASHED_VERSION);
 			baseline.setString(2, BASELINE_DESCRIPTION);
 			baseline.setString(3, BASELINE_DESCRIPTION);
@@ -128,11 +133,6 @@ class SquashedMigrations {
 		} finally {
 			connection.setAutoCommit(autoCommit);
 		}
-	}
-
-	/** Flyway's table name, flyway_schema_history unless configured, in the connection's schema */
-	private static String quoted(String table) {
-		return '"' + table.replace("\"", "\"\"") + '"';
 	}
 
 }

@@ -118,9 +118,9 @@ class DefaultDatabasePasswordServiceTests {
 		// Where its folder should be, a file
 		Path file = Files.writeString(this.folder.resolve("not-a-folder"), "");
 		SavedPassword unwritable = new SavedPassword(file.resolve("database.password"), KEY, this.folder.resolve("inbox.key"));
-		DefaultDatabasePasswordService database = new DefaultDatabasePasswordService(this.pool, unwritable);
+		DefaultDatabasePasswordService keepingNothing = new DefaultDatabasePasswordService(this.pool, unwritable);
 
-		assertRefused(() -> database.changePassword(CURRENT, NEW_PASSWORD), DatabaseErrorCode.PASSWORD_NOT_KEPT);
+		assertRefused(() -> keepingNothing.changePassword(CURRENT, NEW_PASSWORD), DatabaseErrorCode.PASSWORD_NOT_KEPT);
 
 		then(this.postgres).should(never()).alterUserPassword(anyString(), any(char[].class), any());
 		then(this.pool).should(never()).setPassword(anyString());
@@ -160,10 +160,10 @@ class DefaultDatabasePasswordServiceTests {
 
 	@Test
 	void cantChangeThePasswordOfConnectionsThatDontComeFromHikari() {
-		DefaultDatabasePasswordService database = new DefaultDatabasePasswordService(mock(DataSource.class), this.saved);
+		DefaultDatabasePasswordService withoutHikari = new DefaultDatabasePasswordService(mock(DataSource.class), this.saved);
 
-		assertThat(database.login()).isEmpty();
-		assertRefused(() -> database.changePassword(CURRENT, NEW_PASSWORD), DatabaseErrorCode.PASSWORD_NOT_CHANGEABLE);
+		assertThat(withoutHikari.login()).isEmpty();
+		assertRefused(() -> withoutHikari.changePassword(CURRENT, NEW_PASSWORD), DatabaseErrorCode.PASSWORD_NOT_CHANGEABLE);
 	}
 
 	@Test

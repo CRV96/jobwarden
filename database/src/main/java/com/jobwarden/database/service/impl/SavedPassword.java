@@ -22,19 +22,19 @@ import org.springframework.stereotype.Component;
 class SavedPassword {
 
 	/** Where it's kept: {@code jobwarden.database.password-file} */
-	static final String FILE = "${jobwarden.database.password-file:${user.home}/.jobwarden/database.password}";
+	static final String FILE_SETTING = "${jobwarden.database.password-file:${user.home}/.jobwarden/database.password}";
 
 	/** The key, as the inbox's and the CV's secrets name it */
-	static final String KEY = "${jobwarden.secret-key:${jobwarden.inbox.secret-key:}}";
+	static final String KEY_SETTING = "${jobwarden.secret-key:${jobwarden.inbox.secret-key:}}";
 
 	/** The key file, as the inbox's and the CV's secrets name it */
-	static final String KEY_FILE = "${jobwarden.key-file:${jobwarden.inbox.key-file:${user.home}/.jobwarden/inbox.key}}";
+	static final String KEY_FILE_SETTING = "${jobwarden.key-file:${jobwarden.inbox.key-file:${user.home}/.jobwarden/inbox.key}}";
 
 	private final Path file;
 
 	private final Secrets secrets;
 
-	SavedPassword(@Value(FILE) Path file, @Value(KEY) String key, @Value(KEY_FILE) Path keyFile) {
+	SavedPassword(@Value(FILE_SETTING) Path file, @Value(KEY_SETTING) String key, @Value(KEY_FILE_SETTING) Path keyFile) {
 		this.file = file;
 		this.secrets = new Secrets(key, keyFile);
 	}
@@ -44,8 +44,8 @@ class SavedPassword {
 	 * {@code @Value} fills.
 	 */
 	static SavedPassword of(PropertyResolver settings) {
-		return new SavedPassword(Path.of(settings.resolvePlaceholders(FILE)), settings.resolvePlaceholders(KEY),
-				Path.of(settings.resolvePlaceholders(KEY_FILE)));
+		return new SavedPassword(Path.of(settings.resolvePlaceholders(FILE_SETTING)), settings.resolvePlaceholders(KEY_SETTING),
+				Path.of(settings.resolvePlaceholders(KEY_FILE_SETTING)));
 	}
 
 	Path file() {

@@ -82,10 +82,21 @@ class SquashedMigrationsTests {
 	}
 
 	@Test
+	void leavesAHistoryUnderAnotherNameToFlyway() {
+		historyOfTheOld(49);
+		Flyway elsewhere = Flyway.configure().dataSource(dataSource).table("other_history").load();
+
+		assertThat(SquashedMigrations.convert(elsewhere)).isFalse();
+
+		assertThat(history()).hasSize(49);
+	}
+
+	@Test
 	void refusesADatabaseTheOldOnesBuiltOnlyInPart() {
 		historyOfTheOld(30);
+		Flyway flyway = flyway();
 
-		assertThatThrownBy(() -> SquashedMigrations.convert(flyway())).isInstanceOf(IllegalStateException.class)
+		assertThatThrownBy(() -> SquashedMigrations.convert(flyway)).isInstanceOf(IllegalStateException.class)
 			.hasMessageContaining("not up to V49");
 		assertThat(history()).hasSize(30);
 	}

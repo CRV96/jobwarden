@@ -3,7 +3,6 @@ package com.jobwarden.database.service.impl;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
@@ -141,7 +140,7 @@ class DatabasePasswordTests {
 	}
 
 	private boolean logsIn(String password) throws SQLException {
-		try (Connection _ = DriverManager.getConnection(this.postgres.getJdbcUrl(), this.postgres.getUsername(), password)) {
+		try (var _ = DriverManager.getConnection(this.postgres.getJdbcUrl(), this.postgres.getUsername(), password)) {
 			return true;
 		} catch (SQLException refused) {
 			if ("28P01".equals(refused.getSQLState())) {

@@ -1,7 +1,6 @@
 package com.jobwarden.database.service.impl;
 
 import java.io.UncheckedIOException;
-import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Optional;
@@ -76,7 +75,7 @@ class SavedPasswordApplier implements BeanPostProcessor {
 			login.setProperty("user", user);
 		}
 		login.setProperty("password", password);
-		try (Connection _ = DriverManager.getConnection(url, login)) {
+		try (var _ = DriverManager.getConnection(url, login)) {
 			return false;
 		} catch (SQLException failed) {
 			String state = failed.getSQLState();

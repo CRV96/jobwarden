@@ -40,8 +40,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 class DefaultDatabasePasswordService implements DatabasePasswordService {
 
-	/** The password JobWarden's Compose files give the database unless told another: anyone can read it there */
-	static final String DEFAULT_PASSWORD = "jobwarden";
+	/** What JobWarden's Compose files give the database unless told another: anyone can read it there */
+	static final String COMPOSE_DEFAULT = "jobwarden";
 
 	private final DataSource dataSource;
 
@@ -53,7 +53,7 @@ class DefaultDatabasePasswordService implements DatabasePasswordService {
 	@Override
 	public Optional<DatabaseLogin> login() {
 		return pool().map(pool -> new DatabaseLogin(Objects.requireNonNullElse(pool.getUsername(), ""),
-				address(pool.getJdbcUrl()), changedHere(pool.getPassword()), DEFAULT_PASSWORD.equals(pool.getPassword()),
+				address(pool.getJdbcUrl()), changedHere(pool.getPassword()), COMPOSE_DEFAULT.equals(pool.getPassword()),
 				this.saved.file()));
 	}
 
@@ -103,7 +103,7 @@ class DefaultDatabasePasswordService implements DatabasePasswordService {
 		try {
 			return this.dataSource.isWrapperFor(HikariDataSource.class)
 					? Optional.of(this.dataSource.unwrap(HikariDataSource.class)) : Optional.empty();
-		} catch (SQLException notAWrapper) {
+		} catch (SQLException _) {
 			return Optional.empty();
 		}
 	}
@@ -133,7 +133,7 @@ class DefaultDatabasePasswordService implements DatabasePasswordService {
 	private boolean changedHere(@Nullable String inUse) {
 		try {
 			return inUse != null && this.saved.read().filter(inUse::equals).isPresent();
-		} catch (IllegalStateException | UncheckedIOException unreadable) {
+		} catch (IllegalStateException | UncheckedIOException _) {
 			return false;
 		}
 	}
@@ -162,7 +162,7 @@ class DefaultDatabasePasswordService implements DatabasePasswordService {
 	private @Nullable String keptBefore() {
 		try {
 			return this.saved.read().orElse(null);
-		} catch (IllegalStateException | UncheckedIOException unreadable) {
+		} catch (IllegalStateException | UncheckedIOException _) {
 			return null;
 		}
 	}
