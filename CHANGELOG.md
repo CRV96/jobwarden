@@ -31,6 +31,9 @@ a release renames it to its version and date.
   secret key, for the next start, where it takes the place of the configured one (`SPRING_DATASOURCE_PASSWORD`, or the
   Compose files' `jobwarden`). Settings says when it's still that default. When the database refuses the kept one, say
   after restoring an older backup, the server starts with the configured one, and its log says so.
+- Suggest a feature, from the profile menu, each page's How it works and Settings → About: it opens a new idea in
+  JobWarden's GitHub discussions with the feature request's questions and the version in it, and the ideas so far to
+  vote for.
 
 ### Changed
 

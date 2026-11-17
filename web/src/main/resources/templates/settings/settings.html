@@ -443,6 +443,21 @@
                         <p class="text-xs text-pretty text-ink/60" th:text="#{settings.about.free}">Free and open source…</p>
                     </div>
                 </div>
+                <!--/* Ideas for JobWarden, in its GitHub discussions (view/Ideas): a new one, the feature request's
+                       questions in it, or those suggested so far, to vote for */-->
+                <div id="ideas" class="card flex flex-wrap items-start gap-3 p-3">
+                    <i class="ph ph-lightbulb text-[22px] text-accent"></i>
+                    <div class="flex min-w-[200px] flex-1 flex-col gap-1">
+                        <div class="font-medium" th:text="#{settings.ideas}">Missing something?</div>
+                        <div class="text-xs text-pretty text-ink/60" th:text="#{settings.ideas.body}">
+                            Suggest a feature in JobWarden’s discussions on GitHub…</div>
+                        <a class="link self-start text-xs" th:with="ideasUrl=${@ideas.all()}" th:href="${ideasUrl}" target="_blank" rel="noopener noreferrer"
+                           th:text="#{ideas.all}">See the ideas suggested so far</a>
+                    </div>
+                    <a class="btn btn-secondary" th:with="ideaUrl=${@ideas.suggest()}" th:href="${ideaUrl}" target="_blank" rel="noopener noreferrer">
+                        <i class="ph ph-lightbulb"></i><span th:text="#{ideas.suggest}">Suggest a feature</span>
+                    </a>
+                </div>
             </section>
         </div>
         <div class="flex min-w-0 flex-col gap-6">

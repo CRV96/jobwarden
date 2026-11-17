@@ -24,7 +24,12 @@
                 </button>
             </div>
             <th:block th:replace="~{help/help :: steps(${topic})}"></th:block>
-            <div class="dialog-actions">
+            <!--/* What the page doesn't do yet, suggested in JobWarden's GitHub discussions (view/Ideas) */-->
+            <div class="dialog-actions items-center">
+                <a class="link mr-auto inline-flex items-center gap-1.5 text-[13px]" th:with="ideaUrl=${@ideas.suggest()}"
+                   th:href="${ideaUrl}" target="_blank" rel="noopener noreferrer">
+                    <i class="ph ph-lightbulb"></i><span th:text="#{help.ideas}">Missing something? Suggest it</span>
+                </a>
                 <button class="btn btn-primary" type="button" data-close-dialog th:text="#{help.done}">Got it</button>
             </div>
         </div>

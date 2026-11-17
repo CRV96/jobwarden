@@ -431,4 +431,16 @@ class SettingsControllerTests {
 			.contains("That isn’t the database’s current password.");
 	}
 
+	@Test
+	void pointsToTheIdeasOnGitHub() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+
+		assertThat(this.mvc.get().uri("/settings")).bodyText()
+			.contains("Missing something?", "Suggest a feature",
+					"href=\"https://github.com/CRV96/jobwarden/discussions/new?category=ideas&amp;body=",
+					"href=\"https://github.com/CRV96/jobwarden/discussions/categories/ideas\"",
+					// In the profile menu too, and in How it works
+					"role=\"menuitem\"", "Missing something? Suggest it");
+	}
+
 }
