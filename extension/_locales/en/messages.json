@@ -78,7 +78,7 @@
     "message": "Server URL"
   },
   "serverUrlHint": {
-    "message": "Where JobWarden runs. On this computer, that’s usually http://localhost:8080."
+    "message": "Where JobWarden runs. On this computer, that’s usually http://localhost:9273."
   },
   "profileIdHint": {
     "message": "JobWarden shows it in Settings, under Your profile, with a button to copy it."

@@ -78,7 +78,7 @@
     "message": "Adresse du serveur"
   },
   "serverUrlHint": {
-    "message": "Là où JobWarden tourne. Sur cet ordinateur, c’est en général http://localhost:8080."
+    "message": "Là où JobWarden tourne. Sur cet ordinateur, c’est en général http://localhost:9273."
   },
   "profileIdHint": {
     "message": "JobWarden l’affiche dans les Paramètres, sous Votre profil, avec un bouton pour le copier."

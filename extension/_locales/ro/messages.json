@@ -78,7 +78,7 @@
     "message": "Adresa serverului"
   },
   "serverUrlHint": {
-    "message": "Unde rulează JobWarden. Pe acest calculator, de obicei http://localhost:8080."
+    "message": "Unde rulează JobWarden. Pe acest calculator, de obicei http://localhost:9273."
   },
   "profileIdHint": {
     "message": "JobWarden îl arată în Setări, la Profilul tău, cu un buton care îl copiază."

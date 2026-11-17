@@ -78,7 +78,7 @@
     "message": "Endereço do servidor"
   },
   "serverUrlHint": {
-    "message": "Onde o JobWarden está a correr. Neste computador, normalmente é http://localhost:8080."
+    "message": "Onde o JobWarden está a correr. Neste computador, normalmente é http://localhost:9273."
   },
   "profileIdHint": {
     "message": "O JobWarden mostra-o nas Definições, em O seu perfil, com um botão para o copiar."

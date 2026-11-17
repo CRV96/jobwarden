@@ -1,4 +1,4 @@
-# JobWarden from its published image, with PostgreSQL: `docker compose up -d`, then http://localhost:8080.
+# JobWarden from its published image, with PostgreSQL: `docker compose up -d`, then http://localhost:9273.
 #
 # Everything JobWarden keeps is in the two volumes, never in a container: the database (postgres-data) and the key
 # that encrypts the mailboxes' passwords and the GitHub token (jobwarden-key). So upgrading replaces the JobWarden
@@ -41,7 +41,7 @@ services:
         condition: service_healthy
     # This computer only: JobWarden has no sign-in (SECURITY.md, Running JobWarden safely)
     ports:
-      - 127.0.0.1:8080:8080
+      - 127.0.0.1:9273:9273
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/jobwarden
       SPRING_DATASOURCE_USERNAME: jobwarden

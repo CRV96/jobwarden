@@ -41,7 +41,7 @@ import static org.mockito.Mockito.timeout;
 @DisabledOnOs(OS.WINDOWS)
 class AssistantRunnerTests {
 
-	private static final String MCP = "http://localhost:8080/mcp";
+	private static final String MCP = "http://localhost:9273/mcp";
 
 	/** Answers claude auth status that it's signed in, before what the script does when it runs. */
 	private static final String SIGNED_IN = "[ \"$1 $2\" = \"auth status\" ] && exit 0\n";

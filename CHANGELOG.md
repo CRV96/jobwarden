@@ -37,6 +37,10 @@ a release renames it to its version and date.
 
 ### Changed
 
+- The server listens on port **9273** ("WARD" on a phone's keypad) instead of 8080, which other tools often take.
+  **Upgrading:** open http://localhost:9273; in the browser extension's settings, change the server's address; and
+  connect your assistant again with the command Settings → AI Assistant shows (its old address has 8080). With Docker,
+  take the new `compose.yaml`. `SERVER_PORT=8080` keeps the old port.
 - The database's 49 migrations are 9, one per module (V1 to V9), which build the very same schema. **Upgrading:** a
   database the 49 built gets its migration history replaced by a baseline at V9 as the server starts, once; its tables
   and rows stay as they are. One the 49 built only in part stops the start: run the version before first.

@@ -389,7 +389,7 @@
                         </div>
                         <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
                             <dt class="text-ink/55" th:text="#{settings.extension.server}">Server</dt>
-                            <dd class="min-w-0 truncate font-mono" th:text="${serverUrl}">http://localhost:8080</dd>
+                            <dd class="min-w-0 truncate font-mono" th:text="${serverUrl}">http://localhost:9273</dd>
                             <dt class="text-ink/55" th:text="#{settings.extension.profileId}">Profile id</dt>
                             <dd class="flex min-w-0 items-center gap-2" th:if="${currentProfile}">
                                 <span class="min-w-0 truncate font-mono" th:text="${currentProfile.publicId}">5b1f3c2e-8a4d-4c6e-9f10-2d7b8e3a6c41</span>
@@ -598,7 +598,7 @@
                         </div>
                         <div class="text-xs text-ink/60" th:text="#{|settings.assistant.${choice}.command|}">In a terminal, run:</div>
                         <div class="flex items-start gap-2" th:with="connection=${assistantConnection.get(choice)}">
-                            <code class="query-box min-h-0 flex-1 py-2 text-[12px] whitespace-pre-wrap" th:text="${connection}">claude mcp add --scope user --transport http jobwarden http://localhost:8080/mcp</code>
+                            <code class="query-box min-h-0 flex-1 py-2 text-[12px] whitespace-pre-wrap" th:text="${connection}">claude mcp add --scope user --transport http jobwarden http://localhost:9273/mcp</code>
                             <button th:replace="~{settings/settings :: copy(${connection})}"></button>
                         </div>
                         <div class="text-xs text-ink/60" th:text="#{settings.assistant.then(${choice.product()})}">Then ask Claude Code, e.g. “Check my open applications…”.</div>
@@ -607,7 +607,7 @@
                 <div class="card flex flex-col gap-2 p-3">
                     <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
                         <dt class="text-ink/55" th:text="#{settings.assistant.address}">MCP address</dt>
-                        <dd class="min-w-0 truncate font-mono" th:text="${mcpUrl}">http://localhost:8080/mcp</dd>
+                        <dd class="min-w-0 truncate font-mono" th:text="${mcpUrl}">http://localhost:9273/mcp</dd>
                     </dl>
                     <div class="text-xs text-pretty text-ink/60" th:text="#{settings.assistant.body}">Lets your assistant do what you ask on the pages…</div>
                     <div class="text-xs text-pretty text-ink/60" th:text="#{settings.assistant.chatgpt}">The ChatGPT app can’t connect…</div>

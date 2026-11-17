@@ -144,7 +144,7 @@ public class AssistantRunner {
 	 * Starts the assistant on the requests, which must wait for it. It ends them itself, through the MCP server; when
 	 * it stops without, they fail.
 	 *
-	 * @param mcpUrl the MCP server's address, e.g. http://localhost:8080/mcp
+	 * @param mcpUrl the MCP server's address, e.g. http://localhost:9273/mcp
 	 * @throws RunRefusedException when the assistant isn't here, isn't signed in, the requests are already being run,
 	 * or too many runs are going on
 	 */

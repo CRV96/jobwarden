@@ -251,7 +251,7 @@ jobs:
 
           The image is `@IMAGE@:@VERSION@` (also `@MINOR@` and `latest`), attested as built from this tag: `gh attestation verify oci://@IMAGE@:@VERSION@ --repo @REPO@`.
 
-          **New:** download `compose.yaml` below, run `docker compose up -d` next to it, and open http://localhost:8080.
+          **New:** download `compose.yaml` below, run `docker compose up -d` next to it, and open http://localhost:9273.
 
           **Upgrading, keeping your data:** back up first ([Backups](https://github.com/@REPO@/blob/v@VERSION@/docs/operations.md#backups)), then put this release's `compose.yaml` in place of yours (or set `JOBWARDEN_VERSION=@VERSION@`), and next to it:
 

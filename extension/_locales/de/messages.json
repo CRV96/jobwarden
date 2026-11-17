@@ -78,7 +78,7 @@
     "message": "Server-URL"
   },
   "serverUrlHint": {
-    "message": "Wo JobWarden läuft. Auf diesem Computer meist http://localhost:8080."
+    "message": "Wo JobWarden läuft. Auf diesem Computer meist http://localhost:9273."
   },
   "profileIdHint": {
     "message": "JobWarden zeigt sie in den Einstellungen unter Dein Profil, mit einem Knopf zum Kopieren."

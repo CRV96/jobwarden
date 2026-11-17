@@ -78,7 +78,7 @@
     "message": "सर्वर URL"
   },
   "serverUrlHint": {
-    "message": "जहाँ JobWarden चलता है। इसी कंप्यूटर पर, आमतौर पर http://localhost:8080।"
+    "message": "जहाँ JobWarden चलता है। इसी कंप्यूटर पर, आमतौर पर http://localhost:9273।"
   },
   "profileIdHint": {
     "message": "JobWarden इसे सेटिंग्स में, आपकी प्रोफ़ाइल के नीचे, कॉपी करने के बटन के साथ दिखाता है।"
