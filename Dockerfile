@@ -7,6 +7,11 @@
 FROM eclipse-temurin:25-jdk AS build
 WORKDIR /src
 COPY . .
+# Maven itself first, as the wrapper names it, tried again after 10 and 30 seconds: the wrapper downloads it once, with
+# no second try, and a passing 404 from Maven Central failed a build that way. The build below finds it in the cache.
+RUN --mount=type=cache,target=/root/.m2 for delay in 0 10 30; do \
+        sleep "$delay"; ./mvnw -B -q --version > /dev/null && exit 0; \
+    done; exit 1
 RUN --mount=type=cache,target=/root/.m2 ./mvnw -B -q -DskipTests -pl app -am package \
     && cp app/target/jobwarden-app-*.jar /jobwarden.jar
 # In layers, the libraries apart from JobWarden's own classes: an image of a new version shares them with the last one
