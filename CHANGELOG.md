@@ -18,7 +18,9 @@ a release renames it to its version and date.
 - The Docker image checks its own health (`HEALTHCHECK`), sizes its heap to the container's memory, and stops on running
   out of it. In Docker, change the port with `SERVER_PORT`, which the health check reads.
 - The jar lists every library it carries (CycloneDX SBOM), for vulnerability scanners.
-- [docs/operations.md](docs/operations.md): settings, health, logs, backups, upgrading, troubleshooting.
+- The [wiki](https://github.com/CRV96/jobwarden/wiki): installing, getting started, updating, the settings, health
+  checks and logs, troubleshooting, every page of the app, and how it's built. Its pages are `docs/wiki/`, published
+  to the wiki on every push to `main`; the README keeps to what JobWarden is and how to start it.
 - A "Skip to the page" link, the first stop of the Tab key on every page, past the sidebar's links.
 - A password for a profile, in Settings → Your profile: choosing the profile asks for it, on the Profiles page or from
   the menu. Not a sign-in: the browser extension and the assistants don't need it.
@@ -26,9 +28,29 @@ a release renames it to its version and date.
 - The browser extension's popup can hide the notice of a newer JobWarden, until the next version.
 - Each release has a `compose.yaml` that runs its Docker image with PostgreSQL, and notes on upgrading with the data
   kept: it lives in Docker volumes, so `docker compose pull && docker compose up -d` only replaces the server.
+- The database's password, in Settings → Database: changed with the current one, it's given to PostgreSQL (its SCRAM
+  hash only), JobWarden connects with it at once, and `~/.jobwarden/database.password` keeps it, encrypted with the
+  secret key, for the next start, where it takes the place of the configured one (`SPRING_DATASOURCE_PASSWORD`, or the
+  Compose files' `jobwarden`). Settings says when it's still that default. When the database refuses the kept one, say
+  after restoring an older backup, the server starts with the configured one, and its log says so.
+- A privacy policy, [PRIVACY.md](PRIVACY.md): what the server and the extension send, and where.
+- Suggest a feature, from the profile menu, each page's How it works and Settings → About: it opens a new idea in
+  JobWarden's GitHub discussions with the feature request's questions and the version in it, and the ideas so far to
+  vote for.
 
 ### Changed
 
+- The browser extension needs Firefox 140 or later, and declares what it sends to your server (the postings you save,
+  the addresses it looks up), which Firefox asks you to accept as it's installed. Ready for Firefox Add-ons and the
+  Chrome Web Store: [Publishing the extension](https://github.com/CRV96/jobwarden/wiki/Publishing-the-extension).
+- The server listens on port **9273** ("WARD" on a phone's keypad) instead of 8080, which other tools often take.
+  **Upgrading:** open http://localhost:9273; in the browser extension's settings, change the server's address; and
+  connect your assistant again with the command Settings → AI Assistant shows (its old address has 8080). With Docker,
+  take the new `compose.yaml`. `SERVER_PORT=8080` keeps the old port.
+- A slim README; what it said is in the wiki, which replaces `docs/operations.md` too.
+- The database's 49 migrations are 9, one per module (V1 to V9), which build the very same schema. **Upgrading:** a
+  database the 49 built gets its migration history replaced by a baseline at V9 as the server starts, once; its tables
+  and rows stay as they are. One the 49 built only in part stops the start: run the version before first.
 - Every page runs under a Content Security Policy, with the browser's other defences on: no inline scripts, no framing
   by other sites, no referrer sent to the job boards the pages link to.
 - A setting that's wrong (`JOBWARDEN_SECRET_KEY` that isn't a key, a duration that isn't one, an update repository that

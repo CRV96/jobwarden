@@ -42,7 +42,7 @@ export default [
 	},
 	{
 		// Injected into the page they read (chrome.scripting.executeScript), as classic scripts
-		files: ['extension/extract.js', 'extension/extract/**/*.js', 'extension/easyapply.js', 'extension/easyapply/**/*.js'],
+		files: ['extension/extract.js', 'extension/extract/**/*.js'],
 		languageOptions: { sourceType: 'script' },
 	},
 ];

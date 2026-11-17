@@ -148,6 +148,11 @@
                     <a class="menu-item" role="menuitem" th:href="@{/settings}" th:aria-current="${section == 'settings'} ? 'page'">
                         <i class="ph ph-gear-six text-[15px]"></i><span th:text="#{nav.settings}">Settings</span>
                     </a>
+                    <!--/* A new idea in JobWarden's GitHub discussions (view/Ideas), in a new tab */-->
+                    <a class="menu-item" role="menuitem" th:with="ideaUrl=${@ideas.suggest()}" th:href="${ideaUrl}"
+                       target="_blank" rel="noopener noreferrer">
+                        <i class="ph ph-lightbulb text-[15px]"></i><span th:text="#{ideas.suggest}">Suggest a feature</span>
+                    </a>
                     <!--/* Leaves the profile in this browser: the Profiles page comes next (ProfileController.logout) */-->
                     <form method="post" th:action="@{/profiles/logout}">
                         <button class="menu-item" type="submit" role="menuitem">

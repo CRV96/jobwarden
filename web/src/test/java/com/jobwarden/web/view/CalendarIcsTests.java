@@ -60,7 +60,7 @@ class CalendarIcsTests {
 					.title("Data engineer")
 					.status(ApplicationStatus.APPLIED)
 					.build()),
-				CalendarEntryType.FEED, id -> "http://localhost:8080/applications/" + id, ZoneId.of("Europe/Bucharest"),
+				CalendarEntryType.FEED, id -> "http://localhost:9273/applications/" + id, ZoneId.of("Europe/Bucharest"),
 				Locale.ENGLISH);
 
 		assertThat(calendar).startsWith("BEGIN:VCALENDAR\r\nVERSION:2.0\r\n")
@@ -69,7 +69,7 @@ class CalendarIcsTests {
 			.contains("UID:event-12@jobwarden\r\n", "DTSTART:20261103T120000Z\r\n", "DTEND:20261103T133000Z\r\n",
 					"SUMMARY:Technical interview · Backend engineer at Acme\r\n",
 					"LOCATION:https://meet.example.com/abc\r\n",
-					"DESCRIPTION:Video call\\nhttp://localhost:8080/applications/7\r\n", "TRIGGER:-PT15M\r\n",
+					"DESCRIPTION:Video call\\nhttp://localhost:9273/applications/7\r\n", "TRIGGER:-PT15M\r\n",
 					"TRIGGER:-PT1440M\r\n",
 					// All day, its reminders from nine that morning
 					"UID:deadline-8@jobwarden\r\n", "DTSTART;VALUE=DATE:20261105\r\n", "DTEND;VALUE=DATE:20261106\r\n",

@@ -15,6 +15,8 @@
         .panel .checkbox + .hint { margin: 0 0 10px 23px; }
         .panel .hint:last-child { margin-bottom: 0; }
         form .btn { align-self: flex-start; margin-top: 4px; }
+        .get-started strong { font-size: 14px; }
+        .get-started .btn { align-self: flex-start; margin-top: 6px; }
     </style>
 </head>
 <body>
@@ -24,12 +26,24 @@
         <span data-i18n="settingsTitle">JobWarden settings</span>
     </h1>
 
+    <!-- For whoever installs the extension from a store without a JobWarden to save to: what it needs, and the guide
+         that installs it -->
+    <section class="card panel get-started">
+        <strong data-i18n="noJobWardenTitle">Don’t have JobWarden yet?</strong>
+        <p class="hint" data-i18n="noJobWardenHint">The extension saves to JobWarden: a free server that runs on your own computer, set up in a few minutes.</p>
+        <a class="btn btn-secondary" href="https://github.com/CRV96/jobwarden/wiki/Installation" target="_blank"
+           rel="noopener noreferrer">
+            <span data-i18n="installJobWarden">Install JobWarden</span>
+            <svg class="icon" aria-hidden="true"><use href="icons/phosphor.svg#arrow-square-out"/></svg>
+        </a>
+    </section>
+
     <form id="options" class="card panel">
         <label class="field">
             <span class="field-label" data-i18n="serverUrl">Server URL</span>
-            <input class="input" type="url" name="serverUrl" placeholder="http://localhost:8080" required>
+            <input class="input" type="url" name="serverUrl" placeholder="http://localhost:9273" required>
         </label>
-        <p class="hint" data-i18n="serverUrlHint">Where JobWarden runs. On this computer, that’s usually http://localhost:8080.</p>
+        <p class="hint" data-i18n="serverUrlHint">Where JobWarden runs. On this computer, that’s usually http://localhost:9273.</p>
 
         <label class="field">
             <span class="field-label" data-i18n="profileId">Profile id</span>

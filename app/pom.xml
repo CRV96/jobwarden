@@ -48,6 +48,10 @@
 		</dependency>
 		<dependency>
 			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-database</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
 			<artifactId>jobwarden-hiring</artifactId>
 		</dependency>
 		<dependency>
@@ -198,6 +202,10 @@
 								<goals>
 									<goal>report-aggregate</goal>
 								</goals>
+								<configuration>
+									<!-- This module's own classes too, which its own tests cover, not only the modules' -->
+									<includeCurrentProject>true</includeCurrentProject>
+								</configuration>
 							</execution>
 						</executions>
 					</plugin>

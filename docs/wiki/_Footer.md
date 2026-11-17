@@ -1,0 +1,1 @@
+[JobWarden](https://github.com/CRV96/jobwarden) · [Releases](https://github.com/CRV96/jobwarden/releases) · [Discord](https://discord.gg/A4U2eVNck) · [Suggest a feature](https://github.com/CRV96/jobwarden/discussions/categories/ideas) · [Report a bug](https://github.com/CRV96/jobwarden/issues/new/choose) · MIT License

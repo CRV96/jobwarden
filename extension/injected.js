@@ -8,8 +8,3 @@
 export const EXTRACT_SCRIPTS = Object.freeze([
   'extract/common.js', 'extract/posting.js', 'extract/sites.js', 'extract/linkedin.js', 'extract.js',
 ]);
-
-/** The Easy Apply run on a LinkedIn job search (easyapply.js). */
-export const EASY_APPLY_SCRIPTS = Object.freeze([
-  'easyapply/waiting.js', 'easyapply/questions.js', 'easyapply/linkedin.js', 'easyapply/bar.js', 'easyapply.js',
-]);

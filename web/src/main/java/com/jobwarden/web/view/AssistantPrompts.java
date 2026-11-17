@@ -195,7 +195,7 @@ public final class AssistantPrompts {
 	 * (APPLY_TOOLS). As the assistant reads the web unattended, the prompt tells it to take what pages say as data, not
 	 * as instructions.
 	 *
-	 * @param waitingUrl where JobWarden says how many requests wait, e.g. http://localhost:8080/claude/requests
+	 * @param waitingUrl where JobWarden says how many requests wait, e.g. http://localhost:9273/claude/requests
 	 */
 	public static String loop(Assistant assistant, long profileId, String waitingUrl, String mcpUrl) {
 		// Every call names the profile, whichever one the assistant's own configuration names
@@ -239,7 +239,7 @@ public final class AssistantPrompts {
 	 * rather than the one the assistant may have been told of elsewhere. The first argument is the command's name, for
 	 * the caller to replace with where it is.
 	 *
-	 * @param mcpUrl the MCP server's address, e.g. http://localhost:8080/mcp
+	 * @param mcpUrl the MCP server's address, e.g. http://localhost:9273/mcp
 	 */
 	public static List<String> background(Assistant assistant, List<Long> requestIds, long profileId, String mcpUrl) {
 		String prompt = text(requestIds, profileId) + UNATTENDED;

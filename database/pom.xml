@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>com.jobwarden</groupId>
+		<artifactId>jobwarden</artifactId>
+		<version>0.1.0</version>
+	</parent>
+	<artifactId>jobwarden-database</artifactId>
+	<name>JobWarden :: Database</name>
+	<description>The PostgreSQL login JobWarden connects with: its password, changed from Settings and kept for the next start</description>
+
+	<dependencies>
+		<dependency>
+			<groupId>com.jobwarden</groupId>
+			<artifactId>jobwarden-common</artifactId>
+		</dependency>
+
+		<!-- The connection pool (HikariCP), whose password changes while the server runs -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-jdbc</artifactId>
+		</dependency>
+		<!-- PGConnection.alterUserPassword: sends the database the password's SCRAM hash, never the password itself -->
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+		</dependency>
+		<!-- The driver's classes carry these annotations, which NullAway reads, but the driver doesn't bring them to the
+		     compiler: for it only, never in the jar -->
+		<dependency>
+			<groupId>org.checkerframework</groupId>
+			<artifactId>checker-qual</artifactId>
+			<version>${checker-qual.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<!-- @NamedInterface: marks the dto, exception and service packages as the module's public API -->
+		<dependency>
+			<groupId>org.springframework.modulith</groupId>
+			<artifactId>spring-modulith-api</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<optional>true</optional>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+</project>

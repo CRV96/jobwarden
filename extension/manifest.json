@@ -25,13 +25,16 @@
     "type": "module"
   },
   "permissions": ["activeTab", "scripting", "storage", "favicon", "alarms"],
-  "host_permissions": ["http://localhost:8080/*"],
+  "host_permissions": ["http://localhost:9273/*"],
   "optional_host_permissions": ["http://*/*", "https://*/*"],
   "optional_permissions": ["tabs", "notifications"],
   "browser_specific_settings": {
     "gecko": {
       "id": "jobwarden@crv96.github.io",
-      "strict_min_version": "128.0"
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": ["websiteContent", "browsingActivity"]
+      }
     }
   }
 }

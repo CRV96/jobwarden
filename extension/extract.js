@@ -1,4 +1,4 @@
-// Injected into the job posting page by popup.js (and runs.js), after its parts in extract/ (EXTRACT_SCRIPTS,
+// Injected into the job posting page by popup.js, after its parts in extract/ (EXTRACT_SCRIPTS,
 // injected.js): the browser hands back what the last file ends with, the result of the one function call below, and
 // waits for its promise. Nothing is declared outside it, and the parts only register what they give on
 // globalThis.jobWarden, so the popup can inject them again into the same page. It runs in an isolated world: it sees the

@@ -29,12 +29,12 @@ class AssistantConnectionsTests {
 		Path project = Files.createDirectories(this.home.resolve("jobs"));
 
 		claude("""
-				{"mcpServers": {"jobwarden": {"type": "http", "url": "http://localhost:8080/mcp"}}}""");
+				{"mcpServers": {"jobwarden": {"type": "http", "url": "http://localhost:9273/mcp"}}}""");
 		assertThat(connections.find(Assistant.CLAUDE_CODE)).isEqualTo(new Connection(State.CONNECTED, null));
 
 		// With the profile it works on when a tool isn't told one
 		claude("""
-				{"mcpServers": {"jobwarden": {"type": "http", "url": "http://localhost:8080/mcp",
+				{"mcpServers": {"jobwarden": {"type": "http", "url": "http://localhost:9273/mcp",
 				                              "headers": {"X-JobWarden-Profile": "5b1f3c2e-8a4d-4c6e-9f10-2d7b8e3a6c41"}}}}""");
 		assertThat(connections.find(Assistant.CLAUDE_CODE))
 			.isEqualTo(new Connection(State.CONNECTED, null, "5b1f3c2e-8a4d-4c6e-9f10-2d7b8e3a6c41"));
@@ -47,7 +47,7 @@ class AssistantConnectionsTests {
 		// In one folder alone (claude mcp add's local scope): the session starts there
 		claude("""
 				{"mcpServers": {"github": {"type": "http", "url": "https://api.githubcopilot.com/mcp/"}},
-				 "projects": {"%s": {"mcpServers": {"jobwarden": {"type": "http", "url": "http://localhost:8080/mcp",
+				 "projects": {"%s": {"mcpServers": {"jobwarden": {"type": "http", "url": "http://localhost:9273/mcp",
 				                                                  "headers": {"X-JobWarden-Profile": "1"}}}},
 				              "/no/longer/here": {"mcpServers": {"jobwarden": {}}}}}""".formatted(project));
 		assertThat(connections.find(Assistant.CLAUDE_CODE)).isEqualTo(new Connection(State.CONNECTED, project, "1"));
@@ -91,13 +91,13 @@ class AssistantConnectionsTests {
 				command = "node"
 
 				[mcp_servers.node_repl.env]
-				url = "http://localhost:8080/mcp"
+				url = "http://localhost:9273/mcp"
 				""");
 		assertThat(connections.find(Assistant.CODEX).isMissing()).isTrue();
 
 		codex("""
 				[mcp_servers.jobwarden]
-				url = "http://localhost:8080/mcp"
+				url = "http://localhost:9273/mcp"
 				http_headers = { "X-JobWarden-Profile" = "1" }
 				""");
 		assertThat(connections.find(Assistant.CODEX)).isEqualTo(new Connection(State.CONNECTED, null, "1"));
@@ -105,7 +105,7 @@ class AssistantConnectionsTests {
 		// The headers in a table of their own
 		codex("""
 				[mcp_servers.jobwarden]
-				url = "http://localhost:8080/mcp"
+				url = "http://localhost:9273/mcp"
 
 				[mcp_servers.jobwarden.http_headers]
 				"X-JobWarden-Profile" = "5b1f3c2e-8a4d-4c6e-9f10-2d7b8e3a6c41"
@@ -115,7 +115,7 @@ class AssistantConnectionsTests {
 
 		codex("""
 				[mcp_servers."jobwarden"]
-				url = "http://localhost:8080/mcp"
+				url = "http://localhost:9273/mcp"
 				enabled = false
 				""");
 		assertThat(connections.find(Assistant.CODEX).isMissing()).isTrue();
@@ -123,7 +123,7 @@ class AssistantConnectionsTests {
 		// A comment after the table's name, and a # inside a string
 		codex("""
 				[mcp_servers.jobwarden] # JobWarden, on this computer
-				url = "http://localhost:8080/mcp#not-a-comment"
+				url = "http://localhost:9273/mcp#not-a-comment"
 				""");
 		assertThat(connections.find(Assistant.CODEX).state()).isEqualTo(State.CONNECTED);
 		assertThat(AssistantConnections.withoutComment("url = \"http://x/#a\" # b")).isEqualTo("url = \"http://x/#a\" ");
@@ -132,7 +132,7 @@ class AssistantConnectionsTests {
 		codex("""
 				developer_instructions = \"\"\"
 				[mcp_servers.jobwarden]
-				url = "http://localhost:8080/mcp"
+				url = "http://localhost:9273/mcp"
 				\"\"\"
 				notes = \'\'\'
 				[mcp_servers.jw]\'\'\'
@@ -141,7 +141,7 @@ class AssistantConnectionsTests {
 
 		// Dotted, under another name
 		codex("""
-				mcp_servers.jw.url = "http://127.0.0.1:8080/mcp" # this computer
+				mcp_servers.jw.url = "http://127.0.0.1:9273/mcp" # this computer
 
 				[features]
 				web_search = true

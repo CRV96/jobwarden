@@ -9,6 +9,10 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import com.jobwarden.common.exception.BusinessRuleException;
+import com.jobwarden.database.dto.DatabaseLogin;
+import com.jobwarden.database.exception.DatabaseErrorCode;
+import com.jobwarden.database.service.DatabasePasswordService;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.enums.Assistant;
@@ -41,8 +45,10 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 
 /**
@@ -81,6 +87,9 @@ class SettingsControllerTests {
 
 	@MockitoBean
 	private InboxService inbox;
+
+	@MockitoBean
+	private DatabasePasswordService database;
 
 	@BeforeEach
 	void noAdzunaKey() {
@@ -342,6 +351,96 @@ class SettingsControllerTests {
 		assertThat(this.mvc.get().uri("/settings")).hasStatusOk()
 			.bodyText()
 			.contains("Choose a profile first", "href=\"/profiles\"");
+	}
+
+	@Test
+	void showsHowTheServerConnectsToItsDatabaseButNotThePassword() {
+		given(this.database.login()).willReturn(Optional.of(new DatabaseLogin("jobwarden", "localhost:5432/jobwarden", false,
+				true, Path.of("/home/robert/.jobwarden/database.password"))));
+
+		assertThat(this.mvc.get().uri("/settings")).bodyText()
+			.contains("id=\"database\"", "Database password", ">localhost:5432/jobwarden<", ">jobwarden<",
+					"From the server’s configuration", "Default password", "which anyone can read",
+					"action=\"/settings/database\"", "name=\"current\"", "name=\"confirm\"", "minlength=\"12\"",
+					"JobWarden keeps it encrypted in /home/robert/.jobwarden/database.password");
+	}
+
+	@Test
+	void saysWhenThePasswordWasChangedHere() {
+		given(this.database.login()).willReturn(Optional.of(new DatabaseLogin("jobwarden", "localhost:5432/jobwarden", true,
+				false, Path.of("/home/robert/.jobwarden/database.password"))));
+
+		assertThat(this.mvc.get().uri("/settings")).bodyText()
+			.contains("Changed here")
+			.doesNotContain("From the server’s configuration", "Default password");
+		assertThat(this.mvc.get().uri("/settings").flashAttr("databasePasswordSaved", true)).bodyText()
+			.contains("Saved: the database has the new password");
+	}
+
+	@Test
+	void leavesTheDatabaseOutWhenItsPasswordCantBeChangedHere() {
+		given(this.database.login()).willReturn(Optional.empty());
+
+		assertThat(this.mvc.get().uri("/settings")).bodyText().doesNotContain("id=\"database\"");
+	}
+
+	@Test
+	void changesTheDatabasePassword() {
+		assertThat(this.mvc.post()
+			.uri("/settings/database")
+			.param("current", "jobwarden")
+			.param("password", "a long new password")
+			.param("confirm", "a long new password")).hasStatus3xxRedirection()
+			.hasRedirectedUrl("/settings#database")
+			.flash()
+			.containsEntry("databasePasswordSaved", true);
+		then(this.database).should().changePassword("jobwarden", "a long new password");
+	}
+
+	@Test
+	void changesNothingWhenTheNewPasswordsDiffer() {
+		assertThat(this.mvc.post()
+			.uri("/settings/database")
+			.param("current", "jobwarden")
+			.param("password", "a long new password")
+			.param("confirm", "a long new passwort")).hasStatus3xxRedirection()
+			.flash()
+			.containsEntry("databasePasswordError", "The two new passwords aren’t the same.")
+			.doesNotContainKey("databasePasswordSaved");
+		then(this.database).should(never()).changePassword(anyString(), anyString());
+	}
+
+	@Test
+	void saysWhyTheDatabasePasswordWasntChanged() {
+		willThrow(new BusinessRuleException(DatabaseErrorCode.PASSWORD_TOO_SHORT, "Too short", "12")).given(this.database)
+			.changePassword("jobwarden", "short");
+
+		assertThat(this.mvc.post()
+			.uri("/settings/database")
+			.param("current", "jobwarden")
+			.param("password", "short")
+			.param("confirm", "short")).hasStatus3xxRedirection()
+			.hasRedirectedUrl("/settings#database")
+			.flash()
+			.containsEntry("databasePasswordError", "The new password is too short: at least 12 characters.");
+		given(this.database.login()).willReturn(Optional.of(new DatabaseLogin("jobwarden", "localhost:5432/jobwarden", false,
+				false, Path.of("/home/robert/.jobwarden/database.password"))));
+		assertThat(this.mvc.get()
+			.uri("/settings")
+			.flashAttr("databasePasswordError", "That isn’t the database’s current password.")).bodyText()
+			.contains("That isn’t the database’s current password.");
+	}
+
+	@Test
+	void pointsToTheIdeasOnGitHub() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+
+		assertThat(this.mvc.get().uri("/settings")).bodyText()
+			.contains("Missing something?", "Suggest a feature",
+					"href=\"https://github.com/CRV96/jobwarden/discussions/new?category=ideas&amp;body=",
+					"href=\"https://github.com/CRV96/jobwarden/discussions/categories/ideas\"",
+					// In the profile menu too, and in How it works
+					"role=\"menuitem\"", "Missing something? Suggest it");
 	}
 
 }

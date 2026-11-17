@@ -1,6 +1,6 @@
 // The extension's settings, in chrome.storage.sync: they follow the user to every browser they sign in to.
 
-export const DEFAULT_SERVER_URL = 'http://localhost:8080';
+export const DEFAULT_SERVER_URL = 'http://localhost:9273';
 
 /** Where the server takes captures: jobwarden.capture.path in the server's application.properties. */
 export const CAPTURE_PATH = '/api/captures';

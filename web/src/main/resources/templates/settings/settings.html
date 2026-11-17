@@ -315,6 +315,67 @@
                 </div>
             </section>
 
+            <!--/* The password the server connects to its database with (the database module): the server's, not a
+                   profile's. Changed with the current one, the new one typed twice; SettingsController comes back here
+                   and says how it went, once. The database gets the new one, the server connects with it at once, and a
+                   file keeps it, encrypted, for the next start. Not shown when the server's connections don't come
+                   from the pool it can change. */-->
+            <section id="database" class="flex flex-col gap-2" th:if="${databaseLogin}">
+                <h2 class="section-title" th:text="#{settings.database}">Database</h2>
+                <output class="card flex items-center gap-2 p-3 text-success" th:if="${databasePasswordSaved}">
+                    <i class="ph ph-check-circle text-lg"></i><span th:text="#{settings.database.saved}">Saved.</span>
+                </output>
+                <div class="card flex items-start gap-3 p-3">
+                    <i class="ph ph-database text-[22px] text-accent"></i>
+                    <div class="flex min-w-0 flex-1 flex-col gap-3">
+                        <div>
+                            <div class="font-medium" th:text="#{settings.database.password}">Database password</div>
+                            <div class="text-xs text-pretty text-ink/60" th:text="#{settings.database.body}">
+                                The password JobWarden connects to PostgreSQL with.</div>
+                        </div>
+                        <dl class="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-1 text-xs">
+                            <dt class="text-ink/55" th:text="#{settings.database.address}">Address</dt>
+                            <dd class="min-w-0 truncate font-mono" th:text="${databaseLogin.address()}">localhost:5432/jobwarden</dd>
+                            <dt class="text-ink/55" th:text="#{settings.database.user}">User</dt>
+                            <dd class="min-w-0 truncate font-mono" th:text="${databaseLogin.user()}">jobwarden</dd>
+                            <dt class="text-ink/55" th:text="#{settings.password}">Password</dt>
+                            <dd class="flex flex-wrap items-center gap-2">
+                                <span th:text="${databaseLogin.changedHere()} ? #{settings.database.source.here} : #{settings.database.source.configured}">
+                                    From the server’s configuration</span>
+                                <span class="tag st-interviewing" th:if="${databaseLogin.defaultPassword()}">
+                                    <i class="ph ph-warning"></i><span th:text="#{settings.database.default}">Default password</span>
+                                </span>
+                            </dd>
+                        </dl>
+                        <p class="text-xs text-pretty text-ink/70" th:if="${databaseLogin.defaultPassword()}"
+                           th:text="#{settings.database.default.hint}">Still the password JobWarden’s Compose files start with…</p>
+                        <form class="flex flex-wrap items-end gap-2" method="post" th:action="@{/settings/database}">
+                            <label class="flex min-w-[140px] flex-1 flex-col gap-1">
+                                <span class="field-label" th:text="#{settings.password.current}">Current password</span>
+                                <input class="input" type="password" name="current" required autocomplete="off">
+                            </label>
+                            <label class="flex min-w-[140px] flex-1 flex-col gap-1">
+                                <span class="field-label" th:text="#{settings.password.new}">New password</span>
+                                <input class="input" type="password" name="password" required autocomplete="new-password"
+                                       th:minlength="${databasePasswordMinLength}" maxlength="128">
+                            </label>
+                            <label class="flex min-w-[140px] flex-1 flex-col gap-1">
+                                <span class="field-label" th:text="#{settings.password.confirm}">New password, again</span>
+                                <input class="input" type="password" name="confirm" required autocomplete="new-password"
+                                       th:minlength="${databasePasswordMinLength}" maxlength="128">
+                            </label>
+                            <button class="btn btn-secondary" type="submit">
+                                <i class="ph ph-key"></i><span th:text="#{settings.password.change}">Change password</span>
+                            </button>
+                        </form>
+                        <p class="field-error" role="alert" th:if="${databasePasswordError}" th:text="${databasePasswordError}">
+                            That isn’t the database’s current password.</p>
+                        <p class="text-xs text-pretty text-ink/60" th:text="#{settings.database.kept(${databaseLogin.keptIn()})}">
+                            JobWarden keeps it encrypted in ~/.jobwarden/database.password…</p>
+                    </div>
+                </div>
+            </section>
+
             <!--/* What to enter in the extension's own settings. */-->
             <section class="flex flex-col gap-2">
                 <h2 class="section-title" th:text="#{settings.extension}">Browser extension</h2>
@@ -328,7 +389,7 @@
                         </div>
                         <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
                             <dt class="text-ink/55" th:text="#{settings.extension.server}">Server</dt>
-                            <dd class="min-w-0 truncate font-mono" th:text="${serverUrl}">http://localhost:8080</dd>
+                            <dd class="min-w-0 truncate font-mono" th:text="${serverUrl}">http://localhost:9273</dd>
                             <dt class="text-ink/55" th:text="#{settings.extension.profileId}">Profile id</dt>
                             <dd class="flex min-w-0 items-center gap-2" th:if="${currentProfile}">
                                 <span class="min-w-0 truncate font-mono" th:text="${currentProfile.publicId}">5b1f3c2e-8a4d-4c6e-9f10-2d7b8e3a6c41</span>
@@ -381,6 +442,21 @@
                         </dl>
                         <p class="text-xs text-pretty text-ink/60" th:text="#{settings.about.free}">Free and open source…</p>
                     </div>
+                </div>
+                <!--/* Ideas for JobWarden, in its GitHub discussions (view/Ideas): a new one, the feature request's
+                       questions in it, or those suggested so far, to vote for */-->
+                <div id="ideas" class="card flex flex-wrap items-start gap-3 p-3">
+                    <i class="ph ph-lightbulb text-[22px] text-accent"></i>
+                    <div class="flex min-w-[200px] flex-1 flex-col gap-1">
+                        <div class="font-medium" th:text="#{settings.ideas}">Missing something?</div>
+                        <div class="text-xs text-pretty text-ink/60" th:text="#{settings.ideas.body}">
+                            Suggest a feature in JobWarden’s discussions on GitHub…</div>
+                        <a class="link self-start text-xs" th:with="ideasUrl=${@ideas.all()}" th:href="${ideasUrl}" target="_blank" rel="noopener noreferrer"
+                           th:text="#{ideas.all}">See the ideas suggested so far</a>
+                    </div>
+                    <a class="btn btn-secondary" th:with="ideaUrl=${@ideas.suggest()}" th:href="${ideaUrl}" target="_blank" rel="noopener noreferrer">
+                        <i class="ph ph-lightbulb"></i><span th:text="#{ideas.suggest}">Suggest a feature</span>
+                    </a>
                 </div>
             </section>
         </div>
@@ -522,7 +598,7 @@
                         </div>
                         <div class="text-xs text-ink/60" th:text="#{|settings.assistant.${choice}.command|}">In a terminal, run:</div>
                         <div class="flex items-start gap-2" th:with="connection=${assistantConnection.get(choice)}">
-                            <code class="query-box min-h-0 flex-1 py-2 text-[12px] whitespace-pre-wrap" th:text="${connection}">claude mcp add --scope user --transport http jobwarden http://localhost:8080/mcp</code>
+                            <code class="query-box min-h-0 flex-1 py-2 text-[12px] whitespace-pre-wrap" th:text="${connection}">claude mcp add --scope user --transport http jobwarden http://localhost:9273/mcp</code>
                             <button th:replace="~{settings/settings :: copy(${connection})}"></button>
                         </div>
                         <div class="text-xs text-ink/60" th:text="#{settings.assistant.then(${choice.product()})}">Then ask Claude Code, e.g. “Check my open applications…”.</div>
@@ -531,7 +607,7 @@
                 <div class="card flex flex-col gap-2 p-3">
                     <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
                         <dt class="text-ink/55" th:text="#{settings.assistant.address}">MCP address</dt>
-                        <dd class="min-w-0 truncate font-mono" th:text="${mcpUrl}">http://localhost:8080/mcp</dd>
+                        <dd class="min-w-0 truncate font-mono" th:text="${mcpUrl}">http://localhost:9273/mcp</dd>
                     </dl>
                     <div class="text-xs text-pretty text-ink/60" th:text="#{settings.assistant.body}">Lets your assistant do what you ask on the pages…</div>
                     <div class="text-xs text-pretty text-ink/60" th:text="#{settings.assistant.chatgpt}">The ChatGPT app can’t connect…</div>

@@ -229,7 +229,7 @@ jobs:
           name: jar
           path: app/target
       - name: Package the extension
-        run: cd extension && zip -r "../jobwarden-extension-${GITHUB_REF_NAME#v}.zip" . -x '.*'
+        run: cd extension && zip -r "../jobwarden-extension-${GITHUB_REF_NAME#v}.zip" . -x '.*' '*/.*'
       # deploy/compose.yaml, its image this version's unless JOBWARDEN_VERSION says another
       - name: Pin the compose file to this version
         run: |
@@ -251,9 +251,9 @@ jobs:
 
           The image is `@IMAGE@:@VERSION@` (also `@MINOR@` and `latest`), attested as built from this tag: `gh attestation verify oci://@IMAGE@:@VERSION@ --repo @REPO@`.
 
-          **New:** download `compose.yaml` below, run `docker compose up -d` next to it, and open http://localhost:8080.
+          **New:** download `compose.yaml` below, run `docker compose up -d` next to it, and open http://localhost:9273.
 
-          **Upgrading, keeping your data:** back up first ([Backups](https://github.com/@REPO@/blob/v@VERSION@/docs/operations.md#backups)), then put this release's `compose.yaml` in place of yours (or set `JOBWARDEN_VERSION=@VERSION@`), and next to it:
+          **Upgrading, keeping your data:** back up first ([Backups](https://github.com/@REPO@/wiki/Updating#back-up-first)), then put this release's `compose.yaml` in place of yours (or set `JOBWARDEN_VERSION=@VERSION@`), and next to it:
 
           ```bash
           docker compose pull && docker compose up -d

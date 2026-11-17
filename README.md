@@ -1,397 +1,112 @@
-# JobWarden
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a-Coffee-FFDD00?logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/robertciapa)
-[![Support me](https://img.shields.io/badge/Support%20me-Revolut-0075EB?logo=revolut&logoColor=white)](https://revolut.me/robertcrv)
+<p align="center">
+  <img src="docs/branding/social-preview.png" alt="JobWarden: the keeper of your job hunt" width="720">
+</p>
 
-The keeper of your job hunt: save job postings from the browser in one click, and keep every application's story, from the first save to the offer.
+<p align="center">
+  <b>The keeper of your job hunt.</b><br>
+  Save job postings from your browser in one click, and keep every application's story, from the first save to the
+  offer. Self-hosted, in 8 languages, with the AI assistant you already have.
+</p>
 
-[![Build](https://github.com/CRV96/jobwarden/actions/workflows/build.yml/badge.svg)](https://github.com/CRV96/jobwarden/actions/workflows/build.yml)
+<p align="center">
+  <a href="https://github.com/CRV96/jobwarden/actions/workflows/ci.yml"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/CRV96/jobwarden/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=Build"></a>
+  <a href="https://sonarcloud.io/summary/overall?id=CRV96_job_tracker"><img alt="Quality gate" src="https://img.shields.io/sonar/quality_gate/CRV96_job_tracker?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge&logo=sonarqubecloud&logoColor=white&label=Quality%20gate"></a>
+  <a href="https://sonarcloud.io/component_measures?id=CRV96_job_tracker&metric=coverage"><img alt="Coverage" src="https://img.shields.io/sonar/coverage/CRV96_job_tracker?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge&logo=sonarqubecloud&logoColor=white&label=Coverage"></a>
+  <a href="https://coderabbit.ai"><img alt="CodeRabbit reviews" src="https://img.shields.io/coderabbit/prs/github/CRV96/jobwarden?style=for-the-badge&logo=coderabbit&logoColor=white&labelColor=171717&color=FF570A&label=CodeRabbit%20reviews"></a>
+  <a href="LICENSE.md"><img alt="MIT License" src="https://img.shields.io/github/license/CRV96/jobwarden?style=for-the-badge&logo=opensourceinitiative&logoColor=white&color=3DA639"></a>
+  <a href="https://discord.gg/A4U2eVNck"><img alt="Discord" src="https://img.shields.io/discord/1570434652211118110?style=for-the-badge&logo=discord&logoColor=white&label=Discord&color=5865F2"></a>
+</p>
+<h3 align="center">Support project</h3>
+<p align="center">
+  <a href="https://www.buymeacoffee.com/robertciapa"><img alt="Buy me a coffee" src="https://img.shields.io/badge/Buy_me_a_coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black"></a>
+  <a href="https://revolut.me/robertcrv"><img alt="Support me on Revolut" src="https://img.shields.io/badge/Support_me_on_Revolut-191C1F?style=for-the-badge&logo=revolut&logoColor=white"></a>
+</p>
 
-[![Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?logo=discord&logoColor=white)](https://discord.gg/A4U2eVNck)
+<h4 align="center">Guides</h4>
+<p align="center">
+  <a href="https://github.com/CRV96/jobwarden/wiki/Installation">Install</a> ·
+  <a href="https://github.com/CRV96/jobwarden/wiki/Getting-started">Get started</a> ·
+  <a href="https://github.com/CRV96/jobwarden/wiki">Wiki</a> ·
+  <a href="https://github.com/CRV96/jobwarden/wiki/Browser-extension">Browser extension</a> ·
+  <a href="https://discord.gg/A4U2eVNck">Discord</a>
+</p>
 
-[![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/CRV96/jobwarden?utm_source=oss&utm_medium=github&utm_campaign=CRV96%2Fjobwarden&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
+## What it does
 
-## Running locally
+- **Every job in one place.** Save postings from Chrome or Firefox with the
+  [browser extension](https://github.com/CRV96/jobwarden/wiki/Browser-extension), and follow each one on a timeline, a pipeline and a
+  calendar, with reminders, statistics and CSV import and export.
+- **Finds jobs for you.** Your AI assistant searches for jobs that fit your CV, the watchlist reads the job boards of the
+  companies you'd work for, and the Search Builder writes the queries for Google, LinkedIn, Reddit and X.
+- **Applies better.** A CV tailored to each posting, cover letters, messages to the people hiring, a fit score,
+  interview prep from your own stories, and Auto-apply in your own browser.
+- **Reads your inbox.** Recruiters' replies become updates of the right job: rejections, interviews, offers.
+- **Weighs offers.** Your offers side by side, what the market pays from three sources, and a brief to negotiate.
+- **Yours.** It runs on your computer, with your data in your own PostgreSQL. Its AI runs on Claude Code or Codex, on
+  your own plan: JobWarden needs no API key, and sends nothing anywhere.
 
-Requires JDK 25+ and Docker. The app starts its own Postgres container from [app/compose.yaml](app/compose.yaml).
+## Quick start
 
-```bash
-./mvnw -pl app -am spring-boot:run
-```
-
-Build and run all tests (tests use Testcontainers, so Docker must be running):
-
-```bash
-./mvnw verify
-```
-
-### Running with Docker
-
-The [Dockerfile](Dockerfile) builds the server from these sources; each release and every merge to `main` also publish it as `ghcr.io/crv96/jobwarden` (`latest` and the version, or `edge` for `main`). [deploy/compose.yaml](deploy/compose.yaml) runs it with PostgreSQL, and each release attaches its own copy, which names that release's image:
-
-```bash
-docker compose up -d        # next to compose.yaml; then http://localhost:8080
-```
-
-**Upgrading keeps the data.** Everything JobWarden keeps is in two Docker volumes, never in a container: `postgres-data`, the database, and `jobwarden-key`, the key that encrypts the mailboxes' passwords and the GitHub token. An upgrade only replaces the JobWarden container: back up (see [docs/operations.md](docs/operations.md#backups)), put the new release's `compose.yaml` in the same folder as the old one, since Compose names the volumes after the folder (or keep yours and set `JOBWARDEN_VERSION`), then:
-
-```bash
-docker compose pull && docker compose up -d
-```
-
-The new version upgrades the database's schema as it starts. `docker compose down` keeps the volumes; only `down --volumes` deletes them. JobWarden has no sign-in, so the port is published on this computer only: see [SECURITY.md](SECURITY.md#running-jobwarden-safely).
-
-### Running it day to day
-
-[docs/operations.md](docs/operations.md) has it all: the settings, the health endpoints and metrics, the logs, backups, upgrading, and what to do when something's wrong. In short:
-
-- **Health:** `/actuator/health` says `UP` or `DOWN`, with `/actuator/health/liveness` and `/actuator/health/readiness` (the database too) for Docker, whose `HEALTHCHECK` asks the first, and for orchestrators. `/actuator/info` gives the version, the commit and the Java running, `/actuator/metrics` the requests', the scheduled checks' and the JVM's metrics. Nothing else of Actuator is exposed, as JobWarden has no sign-in.
-- **Logs:** every line logged while answering a request carries its id, e.g. `[3f9c2a71d04e8b65]`, which the `X-Request-Id` response header gives too; each run of a scheduled check has one of its own. For JSON logs (a log collector), set `LOGGING_STRUCTURED_FORMAT_CONSOLE=ecs`. Levels and codes: see *Logging* under [Project structure](#project-structure).
-- **Stopping** lets the requests under way finish, for up to 20 seconds.
-- **Which libraries:** the jar carries its software bill of materials (CycloneDX) at `META-INF/sbom/application.cdx.json`, for vulnerability scanners.
-
-### Frontend
-
-Pages are server-rendered with Thymeleaf; HTMX handles partial updates without a page reload. The menu lists the Search Builder, Who's hiring, AI Assistant, Auto-apply, Jobs, Pipeline, Calendar, Salaries and CV; Settings are in the profile menu at its foot. From 1024 pixels wide every page fills the window (`page-full` in `app.css`), and its lists and panels scroll on their own: the jobs under their header row, each pipeline column, the calendar. Pages of two panels side by side (the AI Assistant, the CV, the salaries, a job's page) do so from 1280 pixels (`page-split`, with `scroll-panel` for each panel); narrower, their panels stack and the page scrolls. Tailwind CSS is compiled during the Maven build, which downloads its own Node into `web/target/`, so nothing extra needs installing. While editing templates, keep the CSS up to date with:
+With [Docker](https://docs.docker.com/get-docker/): download `compose.yaml` from the
+[latest release](https://github.com/CRV96/jobwarden/releases/latest), then next to it:
 
 ```bash
-./mvnw -pl web frontend:npm@tailwind-watch
+docker compose up -d
 ```
 
-The pages' JavaScript is plain ES modules, with no bundler: [static/js/app.js](web/src/main/resources/static/js/app.js) imports one module per feature from `static/js/app/` (dialogs, forms, the list's selection, fields of chips, the calendar, reminders, the pipeline...). A module listens for the events only it handles; a click, change or input that several features might claim goes through one ordered chain in `app.js`, where the first handler that says it was its own ends it. ESLint checks it, and the extension's, on `./mvnw verify` (`web/eslint.config.mjs`); in `web/`, `npm run lint` runs it alone.
+and open <http://localhost:9273>. [Installation](https://github.com/CRV96/jobwarden/wiki/Installation) has the other
+ways, from the sources included; [Getting started](https://github.com/CRV96/jobwarden/wiki/Getting-started) the five
+minutes after.
 
-### Browser extension
+## Documentation
 
-The same `extension/` folder works in Chrome and Firefox (128 or later):
+Everything is in the **[wiki](https://github.com/CRV96/jobwarden/wiki)**:
 
-- **Chrome:** open `chrome://extensions`, turn on Developer mode, click **Load unpacked** and pick the `extension/` folder.
-- **Firefox:** open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on…** and pick `extension/manifest.json`. Firefox keeps it until it restarts; to keep it for good, sign it as an unlisted add-on on [addons.mozilla.org](https://addons.mozilla.org/developers/), e.g. with `npx web-ext sign --source-dir extension --channel unlisted`.
-
-In the extension's settings (⚙ in the popup, or **Options** in its menu), set the server URL and your profile ID: a UUID made when the profile was created, which **Settings → Your profile** shows with a button to copy it (the Profiles page and the profile menu show it too). The extension asks the server which profile it names (`GET /api/captures/profile?key=…`) and keeps the number the server counts it with for its captures; a number from before still works. The browser asks you to allow any server other than `http://localhost:8080`.
-
-On a job posting, click the extension's icon. It first looks the page up in JobWarden:
-
-- **Not saved yet:** it reads the posting and shows the title, company, location and description, which you can correct or paste in. Then click **I applied** or **Bookmark**.
-- **Bookmarked** (★): **I applied**, or **Remove bookmark**.
-- **Applied** (✓): **Move back to bookmarks**, for an application you didn't actually send, or **Remove application**. Moving back removes the Applied entries from the timeline; it's only offered while nothing else has happened since.
-- **Further along** (interviewing, offer, rejected, no response, position closed, withdrawn): only **Open in JobWarden**. The timeline says more than a click in the extension should undo.
-
-**Watch the company:** the eye beside ⚙ watches the company whose job board the page is on (a job or the careers page on Greenhouse, Lever or Ashby), adding it to the watchlist (see the Watchlist, below). It's coloured while you watch the company; click it again to stop. It shows only on those pages.
-
-Removing asks for a second click, and can't be undone. **Include the time** adds the time of day to the timeline entry, not only the date, and the extension remembers the choice.
-
-After updating the extension's files (a `git pull`), reload it: in `chrome://extensions` (in Firefox, `about:debugging`) click its reload button. The browser reads `manifest.json` only then, so an option needing a new permission can't be turned on before; the settings page says so.
-
-In the settings, **Show on the toolbar icon whether a page is already in JobWarden** puts ★ or ✓ on the icon of every tab showing a saved posting, as you browse, in the status's colour. The browser asks you to let the extension see your tabs' addresses for it, and each page you open is then looked up on your server. **Show my reminders as notifications** brings the reminders set on the calendar as the system's notifications, about once a minute while the browser runs ([reminders.js](extension/reminders.js), with an alarm); the browser asks you to let it show notifications. A click on one opens its job.
-
-The popup, the settings and the Easy Apply bar look like the app: its colours, light or dark as the system is, its type, buttons, fields and status colours ([ui.css](extension/ui.css), from the tokens of `app.css`), and its icons ([icons/phosphor.svg](extension/icons/phosphor.svg), the few Phosphor icons the extension uses).
-
-**Easy Apply run:** on a LinkedIn job search, the popup has **Start the run**. The extension then goes down the search's results, page after page, one job at a time ([easyapply.js](extension/easyapply.js), with its parts in [easyapply/](extension/easyapply), kept going by [runs.js](extension/runs.js)):
-
-- **Easy Apply jobs:** it opens the form, fills each step in and sends it, and the job is saved to JobWarden as Applied, **by the extension** (`applied_by` `EXTENSION`, shown like **by the AI Assistant**). The answers are your CV's contact details and your answers on the Auto-apply page, its own questions included; LinkedIn's own answers from earlier applications stay as they are, and the CV is the one LinkedIn has.
-- **It never makes an answer up.** A required question none of your answers covers stops the run: a bar at the bottom of the page shows the question, you answer it on LinkedIn's form, or under **Your own questions** on the Auto-apply page, and click **Continue** (or **Skip this job**, which closes the form without sending it). What you answered on the form is kept among the Auto-apply page's own questions, so the next form with that question is filled in; the run reads your answers from JobWarden again before each form and after each stop, so what you change on the Auto-apply page counts at once, during the run too. The run stops the same way at an error LinkedIn shows under a field, and at a LinkedIn security check, which it never touches: you do it, then **Continue**. A number field takes only a number (a salary written as "5,500 EUR a month" is for you to answer), and "how many years of experience with X" is yours too: the years-of-experience answer is for all your work.
-- **Other jobs:** saved to JobWarden for the Auto-apply page, unless you untick **Save the other jobs for Auto-apply**. Jobs JobWarden has as applied to or further along, and those LinkedIn shows as applied to or closed, are skipped.
-- **When it stops:** after the number of applications you set (25 unless you change it, 100 at most), at the end of the search, or when you click **Stop** on the bar or **Stop the run** in the popup. It doesn't pause between jobs to look like a person, and it doesn't hide from LinkedIn. **LinkedIn's terms don't allow automated applying, and LinkedIn can restrict accounts that do it**: the popup says so, and the risk is yours.
-- **Permissions:** starting a run asks for linkedin.com, so the run goes on when LinkedIn loads the page anew; without it, it runs until then. LinkedIn changes its pages now and then: the run works on both its older job search (`/jobs/search/`) and its newer one (`/jobs/search-results/`, whose class names change with each release, so the run goes by its `componentkey`, `data-testid` and `data-sdui-screen` attributes, aria-labels and icon ids), and stops for you rather than guess when a page isn't what it expects. On the newer page a number field looks like any text field, so a question that asks for a count ("how many", "in days") takes only an answer that's a number.
-
-- **What it reads** ([extract.js](extension/extract.js), with its parts in [extract/](extension/extract)): each field from the first of these that has it:
-  - Text you selected on the page before clicking the icon, as the description. Use it where nothing else finds the description.
-  - The posting's schema.org `JobPosting`, which most job boards and career sites include for Google's job search, as JSON-LD or microdata. It has every field, and the whole object is kept as the application's raw payload.
-  - On a search that shows a job beside the results, the job's own page, fetched in the background, with its `JobPosting`: on Indeed and Glassdoor. On LinkedIn, which doesn't include it for signed-in members: the job's public page (what visitors who aren't signed in see), then what's on screen, then the page title.
-  - What the page shows, on sites whose `JobPosting` leaves fields out or that have none: Indeed, Glassdoor, Greenhouse, Workday, pracuj.pl, InfoJobs and BestJobs (`SITES` in [extract/sites.js](extension/extract/sites.js)). Sites like Lever, Ashby, StepStone, XING, Reed, NoFluffJobs, Just Join IT and eJobs need nothing more than their `JobPosting`.
-  - The page itself: the Open Graph tags, a block marked as the job description, the `h1` heading, the page title.
-- **The company's logo:** from the posting's `JobPosting` (its `hiringOrganization.logo`), which most job boards and career sites have, or on LinkedIn from the job's public page. The extension sends its address and the server downloads it, since most sites don't let the extension read their images, then shrinks it to a 64-pixel PNG shown before the job's title. The server only downloads from the public internet, never from its own machine or the local network: the address comes from the page. Without a logo, the pages show the company's initials.
-- **The site's icon:** what the tab shows, drawn into a 32×32 PNG and saved with the posting, so JobWarden shows it next to the site instead of a globe. Chrome gives the extension its own copy of any page's icon. Firefox doesn't, so there the extension uses the tab's icon only when it can read it (when the icon is already part of the page, or its site lets anyone fetch it); otherwise the site keeps the globe.
-- **One posting, one application:** the server matches captures on the exact link. So the extension drops tracking parameters (`utm_*`, `trackingId`...), and on LinkedIn, Indeed and Glassdoor it saves the job's own link, even from a search page. Saving a posting you already saved doesn't create a duplicate, and clicking **I applied** on a posting you bookmarked marks it applied.
-- **The API it uses:** under `/api/captures`, set by `jobwarden.capture.path` in [application.properties](app/src/main/resources/application.properties); if you change it, change `CAPTURE_PATH` in [settings.js](extension/settings.js) too. `POST` saves a posting, with the site's icon as an optional `data:image/png;base64,...` URL in `icon` and the company logo's address in `logoUrl`; `GET ?userId=&link=` looks a link up (204 if it isn't saved); `POST /{id}/move-back-to-saved` takes back "I applied"; `DELETE /{id}?userId=` removes an application. Each answers with the application's current state: its id, title, company, status, and when it got that status. `POST /reminders/due?userId=` gives the reminders due, and takes them. The Easy Apply run saves what it sent with `"action": "EASY_APPLY"`, gets the answers to fill forms in with from `GET /answers?userId=`, and keeps what you answered during a run with `POST /answers?userId=` (`{"question", "answer"}`). `GET /watchlist?userId=&link=` says whether a page is on a Greenhouse, Lever or Ashby board and whether you watch its company (204 if it isn't on one), `POST /watchlist` (`{"userId", "link", "name"}`) watches it, and `DELETE /watchlist/{companyId}?userId=` stops. Firefox applies CORS to an extension's requests even with the host permission, and Chrome, which doesn't, still sends the extension's origin with a POST, so this API allows extension origins (`moz-extension://` and `chrome-extension://`); web pages still can't call it.
-- **Languages:** the app's, in `extension/_locales/<language>/messages.json`. Chrome uses the browser's language.
-
-## Salaries and the Search Builder
-
-**Salaries** (`/salaries`) compares what the jobs you track pay. Salaries are kept as the postings wrote them, so `SalaryService` in `jobs` reads them first: the first two amounts make the range (80,000, 80.000, 80 000, 80'000, 80k), a code or symbol gives the currency, and words in the extension's languages give the period (per hour, pro Monat, pe lună, प्रति माह...); Indian amounts grouped by lakhs (1,20,000) read too. A salary without a period gets the one its amount suggests: 15,000 RON is a month, $80k a year. Each is then converted to the currency (euros unless you pick another) and period you pick, with the European Central Bank's daily reference rates (downloaded when needed and kept for six hours; approximate built-in rates stand in when they can't be loaded, and the page says so). A year counts as 2,080 hours, 260 days or 12 months. The page shows the median, the middle half, the highest salary, each job's range, and the median by status; salaries it can't read are listed with a field to correct them.
-
-A job's location and salary can also be changed on its page and in its side panel: the pencil next to either opens a form under the facts (`POST /applications/{id}/details`) with the salary as amounts (from, to, the currency, what it pays for, before or after tax), filled in with what the salary reads as. What's typed is written in your language as postings write it ("60,000–80,000 EUR gross per year", "6.000 RON net pe lună", with the words from `jobs/src/main/resources/i18n/jobs-salaries*.properties`), so this page compares it like the others. The posting's own text stays when the amounts aren't changed, and a text with no amounts in it ("Competitive") stays until amounts replace it.
-
-**Market salaries**, beside your own on the same page (below them in a narrower window), show what a role pays across countries, in the page's currency and period, from three sources (the `market` module):
-
-- **The Stack Overflow Developer Survey** (2025): what developers in work said they earn in a year, as the median and the middle half, per country, role (`DevType`) and programming language, from groups of at least five answers. It covers Romania and 160+ other countries. The answers (a 140 MB CSV) are downloaded once, with the section's button, and only the figures are kept, in `market_salaries`. Data under [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/), credited on the page. The address is `jobwarden.market.stack-overflow.url`; a `file:` address works too.
-- **Adzuna** (live): the salaries current job ads give, from the API's salary histogram, for the role or the language ("java developer"). Adzuna has about 18 countries, Romania not among them. It needs a free `app_id` and `app_key` from [developer.adzuna.com](https://developer.adzuna.com): enter them in **Settings → Salaries**, which checks them with Adzuna, keeps them in the database (`market_adzuna_key`, one key for every profile) and uses them at once, with no restart; afterwards the page shows only the key's last characters. The `ADZUNA_APP_ID` and `ADZUNA_APP_KEY` environment variables still work, and a key saved in Settings takes their place. Without a key the page leaves job ads out and links to Settings. Answers are kept for a day, and asked again when the key changes. Adzuna is credited where its figures show, as its terms ask.
-- **Eurostat's Structure of Earnings Survey** (2022, live, no key): mean gross yearly earnings of professionals in information and communication, per country of the European Economic Area, and for the EU. Broad (every role together), and every four years, but official.
-
-The section loads after the page (HTMX), as its sources may take a moment. The dashed line on its chart is the median of your own jobs.
-
-**Search Builder** (`/search`) builds Warden Queries, JobWarden's name for what recruiters call Boolean searches, from job titles, locations, skills, work and employment types and terms to exclude: for Google limited to the job boards companies use (Lever, Greenhouse, Ashby...), LinkedIn, Reddit, X and the remote job boards. Google reads only the first 32 words of a query, so the generator leaves out the terms that don't fit, last ones first, and says so. A description of the job you want ("senior backend engineer, remote Europe, contract") fills in the filters. The address keeps the filters, so a search can be bookmarked; with a profile, **Save search** keeps them under a name, and **Saved filters** in the header opens them again with every filter filled in, or deletes them (the same saved searches the assistant finds jobs for). The page fills the window: the filters on the left, and on the right every platform's query at once, its operators, fields, phrases and exclusions in colour (`QuerySyntax` in `web`), each with Copy and Open search. The rules are in the `search` module (`QueryGenerator`, `DescriptionParser`).
-
-## Connecting an AI assistant
-
-Every AI feature is a request a page makes, which your own AI assistant then does through JobWarden's MCP server, at `http://localhost:8080/mcp`: `get_request` hands it the steps and the data they need, the other tools read and write your jobs, and `finish_request` ends it with a summary the page shows. JobWarden calls no AI itself and needs no API key: the assistant runs on your own plan. Connect one or both: **Settings → AI Assistant** shows how to connect each. Every request waiting on a page has **Open in Claude** and **Open in Codex**, which open the desktop app with the request typed in a new session (`claude://code/new?q=…`, `codex://threads/new?prompt=…`): press send and it starts. Neither app runs what a link brings without you, by design. Folded underneath are the prompt to paste and the terminal command. The profile's **main assistant**, picked in Settings, is the one **Run it here**, the terminal commands and the loop use. The MCP server names the assistant that calls it in the log (`claude-code/…` or `codex-mcp-client/…`, its User-Agent).
-
-| | Claude Code | Codex CLI | The ChatGPT app |
-|---|---|---|---|
-| Finding jobs, checking postings, scores, tailored CVs, cover letters, messages, interview and negotiation briefs, stories, projects, sorting the inbox | ✓ | ✓ | ✗ |
-| Auto-apply (drives your own Chrome) | ✓ with Claude in Chrome | ✗ | ✗ |
-| The terminal loop that does every request on its own | ✓ `claude -p` | ✓ `codex exec` | ✗ |
-
-**Claude Code** ([Anthropic](https://www.anthropic.com/claude-code), on a Claude plan):
-
-```bash
-claude mcp add --scope user --transport http jobwarden http://localhost:8080/mcp --header "X-JobWarden-Profile: 5b1f3c2e-8a4d-4c6e-9f10-2d7b8e3a6c41"
-```
-
-`--scope user` makes it Claude Code's in every folder, so the terminal loop works wherever it runs. The header is optional: it names the profile the server uses when a tool isn't told one (the prompts always name it), by the profile ID Settings shows (a number from before still works); Settings writes the command with yours. A page's command is `claude "…"`; Auto-apply's is `claude --chrome "…"`, which needs Claude in Chrome. The loop runs `claude -p` with JobWarden's tools, `WebSearch` and `WebFetch` allowed, and Auto-apply's four tools denied.
-
-**Codex CLI** ([OpenAI](https://github.com/openai/codex), on a ChatGPT plan): add JobWarden to `~/.codex/config.toml`:
-
-```toml
-[mcp_servers.jobwarden]
-url = "http://localhost:8080/mcp"
-http_headers = { "X-JobWarden-Profile" = "5b1f3c2e-8a4d-4c6e-9f10-2d7b8e3a6c41" }
-# Optional: run JobWarden's tools without asking. Codex asks before a tool that isn't read-only and reaches the web
-# (check_postings, watch_company), and in codex exec refuses it.
-# default_tools_approval_mode = "approve"
-```
-
-A page's command is `codex --search "…"`, with live web search: a request reads today's postings, not a cache of them. Codex reads pages through its web search; the steps say "read a page with a short question", which it does as well as Claude Code's `WebFetch`. The loop runs `codex exec --skip-git-repo-check -c 'web_search="live"'`, with `default_tools_approval_mode="approve"` for JobWarden's tools (unattended, `codex exec` would refuse those it asks about) and Auto-apply's four tools in `disabled_tools`, so it never has them. Codex cuts every tool's result to 10,000 tokens; JobWarden keeps its results well under that (`McpBudgetTests`).
-
-**Run it here**: when JobWarden runs on your own computer (not in Docker) and finds `claude` or `codex` there, each prompt also has **Run it here**: JobWarden starts the assistant itself, in the background, on that request alone, as the loop would (`claude -p` or `codex exec`, with the same tools allowed and Auto-apply's denied), and gives it its own MCP server on the command line (`--mcp-config` with `--strict-mcp-config`, or `-c mcp_servers.jobwarden.url=…`), so nothing needs adding first. The card follows the request as usual. It runs as the user JobWarden runs as, on that user's plan, so the command must be signed in there: JobWarden asks it first (`claude auth status`, `codex login status`), and when it isn't, starts nothing, leaves the request waiting, and the page says what to run once in a terminal (`claude auth login`, `codex login`). Claude Desktop's sign-in isn't the `claude` command's; the Codex in the ChatGPT app is signed in with the app. JobWarden looks for the command on its PATH and in the usual places (`/opt/homebrew/bin`, `/usr/local/bin`, `~/.local/bin`, `~/.claude/local`, `~/.npm-global/bin`..., and on a Mac the Codex that comes inside the ChatGPT app, `/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin`), or where `jobwarden.assistant.claude-command` and `jobwarden.assistant.codex-command` say; its log says which it found. Three runs at most go on at once, and one that takes over an hour (`jobwarden.assistant.run.timeout`) is stopped. A run that stops before ending its request fails it with the last line it printed, e.g. "API Error: 529 Overloaded", and what it printed stays in `~/.jobwarden/runs`. Only JobWarden's own pages can ask for a run: it takes HTMX's header and the page's own origin, which a page on another site can't send. `jobwarden.assistant.run.enabled=false` turns it off. Auto-apply has no Run: you're needed at the browser (`AssistantRunner` and `AssistantRunController`, in `web`).
-
-**Auto-apply is Claude Code's alone.** It fills forms in your own Chrome, with your sign-ins, which takes a browser the assistant drives in that Chrome: Claude Code has it, with Claude in Chrome; Codex doesn't. A profile that works with Codex still gets Auto-apply's prompt for Claude Code, and the page says why.
-
-**The ChatGPT app (web and desktop) can't connect.** Its connectors reach only servers on the internet, over HTTPS, from OpenAI's side; JobWarden's MCP server answers only browser pages and clients on its own computer, and has no sign-in, because whoever can reach it can read and change your job hunt. Putting it on the internet through a tunnel would hand that to anyone with the address, so JobWarden doesn't offer it.
-
-**Connected or not**: JobWarden reads each assistant's own configuration on this computer (Claude Code's `~/.claude.json`, for every folder or for one; Codex's `~/.codex/config.toml`, which the Codex app reads too) for a server called `jobwarden` or at this computer's `/mcp` (`AssistantConnections`). Settings tags each assistant **Connected**, **Connected to another profile** (its header names another profile: the pages' requests still work, as they name theirs, and the card says how to switch it), or **Not connected yet**. An **Open in** button whose assistant isn't connected first says so, in a popover, with a link to Settings, or opens anyway; Claude Code set up for one folder alone opens its session in that folder (`&folder=`). Where the configuration can't be read (JobWarden in Docker), the pages say nothing either way.
-
-Other assistants that speak MCP over HTTP can connect the same way and paste the same prompts; the pages write commands for Claude Code and Codex only.
-
-## The homepage
-
-**Home** (`/`, first in the sidebar, and where choosing a profile leads): a low banner with the logo, whose profile it is and the day; the applications sent today, this week and this month (with the jobs saved, and the week and the month before to compare) and the share answered; the last 30 days day by day, as two charts, the applications sent and the jobs saved, each day's count in its bar's tooltip; what waits (jobs to review, email updates, requests open for the assistant, offers, follow-ups due), each a link to where it's done; the next 7 days' interviews, deadlines and follow-ups; the latest entries on the jobs' timelines; the jobs by status; and the searches saved in the Search Builder, each to run again there or to hand to the assistant with the same filters (a `FIND_JOBS` request). Worked out from the data, without AI (`HomeController`, `ActivityService` in `jobs`).
-
-## Profiles
-
-Several people, or several job hunts, can share one JobWarden: each profile has its own jobs, CV, searches, inbox and assistant's requests, and there's no sign-in (`/profiles` picks one; **Log out**, in the profile menu, leaves it in this browser and goes back there). A profile can have a **password** (Settings → Your profile → Password; changing or removing it needs the current one): choosing the profile, on the Profiles page or from the menu, then asks for it first, and five wrong ones in a row make it wait a minute. Only its hash is kept (PBKDF2). It keeps others using the same browser out of the profile; it isn't a sign-in to the server, and the browser extension and the assistants, which name the profile by its ID on this computer, don't need it. **Settings → Your profile** also renames it (names are unique, ignoring case), changes its photo, shows its profile ID to copy, and deletes it: with its name typed to confirm, in a dialog that says what goes and offers to export its jobs first. Deleting a profile deletes everything of it for good, in every module (every table of a profile's cascades from `users`), stops the assistant's runs on its requests and deletes what they printed; the other profiles, and what the server keeps for all of them (the market's salaries, the Adzuna key), stay. `ProfileDeletionTests` fills two profiles across the modules, deletes one, and checks no table keeps a row of it, and none of the other's goes.
-
-## The AI Assistant, the CV, Auto-apply, Who's hiring and the calendar
-
-**AI Assistant** (`/discover`) is where your assistant works for you. Its presets ask it to find jobs matching your CV, find jobs for requirements you give (titles, where, skills, seniority, minimum salary, words to leave out...), run your saved searches, check which postings closed, score your jobs, or tidy up applications with no answer. Each preset saves a request (`ai_requests`) and shows a short prompt to paste into your assistant, or the command that starts it with the prompt (`AssistantPrompts` in `web`). The page also gives a terminal loop that picks up every request on its own: it asks JobWarden every five minutes whether one waits (`GET /claude/requests?profile=…`, a plain number), and only then starts the assistant, afresh each time (`claude -p` or `codex exec`), with JobWarden's tools and the web allowed. Waiting costs no tokens, and no request reads through the ones before it, as it would in one long session; Auto-apply, which needs you at the browser, isn't among them. The page follows each request as it goes, lists the jobs found for it with why each fits, and adds them to the cards to save, apply to or discard.
-
-**Sparing tokens**: the work that needs no AI, JobWarden does itself. Tidying up the applications with no answer runs at once when you ask, with no assistant (`ApplicationService.tidyUnanswered`; the assistant has it too, as `tidy_applications`). For the rest, each request comes with what its steps need, so the assistant asks for nothing call by call: the job it's about, the CV (brief, or with every job's points for what's written from it, and the file's text only where the fields don't say it), the story bank, the saved searches with their queries, the jobs to score, what you kept and discarded of the jobs found, the recruiters you follow, your jobs' companies. Adding jobs, posts or recruiters leaves out what you have, so nothing is listed first; `filter_links` tells which search results are new before any is opened; `check_postings` checks many addresses at once, on the server; a posting's description is cut at 12,000 characters, a README at 4,000 without its images, HTML and code; times go to the minute; and each tool's result goes once, as compact JSON without the empty fields. The tools describe themselves in a few words, with no description where a name says it, and the steps ask the assistant to read pages with a question rather than whole, and to judge search results from their snippets. Measured with `McpBudgetTests`, on the same profile: the tool list went from 51,487 bytes to 31,791 (from 43,585 characters the model reads to 25,166), and the 18 kinds of request from 172,701 characters read in 41 calls before their work began to 126,876 in 21. `McpBudgetTests` now also counts the first reads of Auto-apply, the inbox and the negotiation (`get_application_answers`, `list_apply_queue`, `list_email_updates`, `get_market_salaries`): 129,575 characters in 24 calls, which it keeps under 25,000 per request and 25 calls in all.
-
-**Watchlist** (`/watchlist`, in the sidebar): the companies you'd work for, read with no AI tokens at all. Paste a link to one of a company's jobs, or to its careers page, on Greenhouse (`boards.greenhouse.io/…`, `job-boards.greenhouse.io/…`), Lever (`jobs.lever.co/…`, `jobs.eu.lever.co/…`) or Ashby (`jobs.ashbyhq.com/…`), several at once if you like, one per line; or click the eye in the extension's popup on one of its jobs. The page also suggests the companies whose boards your jobs are on. JobWarden reads the boards' public feeds itself, which need no key, every six hours (`jobwarden.watchlist.every`, each board once for every profile watching it, a few at a time, with a timeout, a size cap and a `JobWarden/<version>` User-Agent), or now with **Check now**. The postings that match one of your saved searches go to the cards to review, like the jobs the assistant finds, with the search's name; those whose links you have are left out. The matching needs no AI: every word of a title term in the title, in any order (developer, engineer and programmer count as one); no excluded word in the title or the location; a location term in the location's words, or for a region or a country, a place in one of its countries (`Regions`, in the search module, knows the regions the Search Builder suggests, the countries by their names in several languages, and the big cities and US states boards name alone); remote, hybrid or on-site and the kind of contract as the feed says them; a skill in the description; and the search's recency. Where the feed leaves something out, the posting isn't held against it: one with no description passes the skills, one with no date passes the recency, one with no work type counts as on-site or hybrid. A reading adds at most 25 new postings per company, the newest; when a board has more matches, the next reading (or **Check now**) adds the next ones. The assistant helps fill the list: its steps for finding jobs name the companies watched, so it looks elsewhere, and `watch_company` adds the boards it comes across.
-
-**CV** (`/cv`): upload your CV (PDF, Word or text, up to 5 MB), kept in PostgreSQL with the text read out of it (PDFBox for PDFs), or fill in the fields (personal details, summary, experience, projects, education, skills, languages, certifications) and JobWarden builds one: previewed as HTML, downloaded as a PDF made from the same template with [openhtmltopdf](https://github.com/openhtmltopdf/openhtmltopdf). The PDF embeds Noto Sans (SIL Open Font License, in `web/src/main/resources/static/fonts`), so Romanian, Polish and German letters show. The preview has two tabs: the CV built from the fields, and your file, which the browser shows as it is when it's a PDF, and JobWarden shows as HTML when it's a Word document (its paragraphs, headings, bold and italic text, lists, tables, links and text boxes, read with StAX, every text escaped; `DocxHtml`) or as its text. The assistant reads the CV with the MCP tool `get_cv`.
-
-**Projects from GitHub**: on the CV page, connect your GitHub account by user name (the public repositories), or with a fine-grained token, read-only, for the repositories you pick (the private ones too: what the token is given is what the assistant may read). Tick up to 12 repositories, then ask the assistant to write your CV's projects from them (a `WRITE_PROJECTS` request): `list_github_projects` gives the assistant each one's description, languages, topics, stars, dates and the start of its README, which JobWarden reads from GitHub's API with your token; the assistant writes up to six projects from them, never claiming what a repository doesn't show, and saves them with `save_cv_projects`, in place of the ones you had. They show among the fields to review, and in the CV and its PDF. The token is kept encrypted, like the mailboxes' passwords (`github_accounts`, in `cv`).
-
-**AI-proof CV**: on a job's page (and its side panel), the assistant rewrites your CV for that job, so it gets through the screening software employers run CVs through and then reads well to the recruiter. The card asks the assistant with a request, like the AI Assistant's presets; the assistant reads your CV and the posting, puts what you really did in the posting's own words (never a skill, job, date or number you don't have), and saves it with `save_tailored_cv`, with the posting's keywords it covers, those it asks for that you can't honestly claim, and what it changed. The card shows all three, previews the CV and downloads it as a PDF ("CV Ana Pop - Acme.pdf"), laid out in one column with standard sections. The contact details stay the CV page's. Each job keeps one (`tailored_cvs`); the CV page lists them.
-
-**At a glance**: under a job's facts, **From the AI Assistant** shows its fit (the score, the verdict, and, unfolded, why) and each card the assistant makes for it, the AI-proof CV, the cover letter, the messages, the interview prep and at Offer the negotiation, as generated, in progress or not yet: a click goes to the card, and unfolds it (`JobAssistantController`).
-
-**Fit**: apply better to fewer. On a job's page (and its side panel), the assistant scores how well you fit the job (a `SCORE_JOB` request; **Score my jobs** on the AI Assistant page scores up to 15 saved and applied jobs at once, `SCORE_JOBS`). It lists 3 to 15 of the posting's requirements, each a must-have or a plus, met, partly met or missing by your CV, and saves them with `save_job_fit`. JobWarden works out the score from them, the same way for every job, so scores compare: 1 plus 4 times how much of the requirements the CV meets, a must-have weighing three times a plus and a partial match half, and a missing must-have keeping it at 3 at most (`JobFit.score`). 4 and up is a strong fit, 3 to 3.9 a partial one. The score shows next to each job in the list (which sorts by it) and the pipeline. With no AI, JobWarden also flags a posting that rules out sponsoring a visa when your Auto-apply answers say you need one, a job posted again (the same title at the same company under another link), and a posting up for more than 60 days (its job data's `datePosted`): maybe a ghost job (`job_fits`, in `jobs`).
-
-The cards of a job's page and side panel (fit, AI-proof CV, interview prep, reminders, contact, notes, timeline, description) fold to their header with the arrow on it; each kind stays folded or not, for every job.
-
-**Interview prep**: on a job's page (and its side panel), the assistant prepares you for its interview (a `PREPARE_INTERVIEW` request): it reads the posting and your CV, finds out about the company from a few pages (its own, the news, interview reviews), and saves a brief with `save_interview_brief` to read the evening before: who they are and what's new with them, what the role is about and what they'll look for, the questions likely asked, your own stories that answer them (from your story bank first, else from your CV, never what neither supports), questions to ask them, what to look into before saying yes, and where it read it all (`interview_briefs`, in `jobs`).
-
-**Cover letter**: on a job's page (and its side panel), the assistant writes a cover letter for the job (a `WRITE_COVER_LETTER` request): it reads the posting and your CV, and saves a letter of four short paragraphs with `save_cover_letter`, in the posting's language, from the greeting (the job's contact by name when it has one) to the sign-off, with what it highlighted and what to check. Change it on the card (or write one without the assistant), copy it, preview it, or download it as a PDF laid out like the CV, with the CV page's name and contact details at the top, the date and the job ("Cover letter Ana Pop - Acme.pdf"). Each job keeps one (`cover_letters`, in `cv`). Auto-apply uses it when a form asks for one.
-
-**Cover letters** (`/letters`): every job's cover letter and messages in one place. On top, your **base letter**: written once, in your voice, with the paragraphs you always use, and `{company}` and `{role}` where the job's company and title go (`base_letters`, in `cv`). A letter you write yourself starts from it, filled in for the job, and the assistant keeps its voice and structure when it writes one (`get_request` gives it as `base_letter`, and `get_cover_letter` for a job without a letter). Below, the jobs in use, those still to apply to first, each with its letter or none, the assistant writing it, and how many people its messages are to; jobs that ended show only when they have a letter. Pick one and its letter and messages open beside the list, the same cards as on its page. Tick the jobs without a letter and ask the assistant for them at once, up to 10: a `WRITE_COVER_LETTER` request each, and one prompt that does them one after the other.
-
-**Reach out**: also on a job's page, the assistant writes to the people who hire for it (a `WRITE_OUTREACH` request): its contact, the recruiters on the Who's hiring page who are its contact or work at its company, and the authors of the posts it was saved from or that say its company is hiring, which the request lists for it; with nobody known, it looks for the recruiter with two searches at most and adds them to Who's hiring. For each person, `save_outreach_draft` keeps a LinkedIn connection note, 300 characters at most (counted as LinkedIn does, and refused when longer), and an email. The card shows them to change, with the note's count, buttons that copy what's in the fields, a link to the person's profile and one that opens the email in your own email app. You send them yourself: JobWarden never sends anything, and the MCP server tells the assistant never to (`outreach_drafts`, in `cv`).
-
-**Offers** (`/offers`, in the sidebar): your offers side by side, a column per job at Offer and a row per term. On a job at Offer, its page (and side panel) has the offer's terms, saved as you type: the base salary (an amount, its currency and what it pays for, picked as the job's salary is; the posting's own when you give none; one typed in words before stays readable until you pick the figure), what it pays on top, a row each (a bonus, meal vouchers, shares, a signing bonus, or other money, from the company or from elsewhere: an amount in a currency or a percentage of the base salary, how often it's paid, per working day, monthly, quarterly, yearly, once or per event, and what for; `job_offer_extras`), time off, benefits, start date, when to answer by, and your notes (`job_offers`, in `jobs`). Under the extras, what the offer pays all in, a year of the base salary and the extras paid again and again, in the base salary's currency (a working day counts as one of 220 a year), with what's paid once or per event beside it (`OfferTotal`). The page shows each salary in one currency and per one period (the salaries page's exchange rates), and all in beside it, marks the one that pays the most, counts the days left to answer when there are three or fewer, shows the fit score, and beside each offer, what the market pays the role in the country its location names, from the salaries page's sources (the Stack Overflow survey first, then Adzuna, then Eurostat) for the role and language picked at the top: the middle half and the median, and how far above or below it the offer is (`OfferMarket`). That row loads after the page. A click on an offer opens its job in the side panel.
-
-**Negotiating**: on a job at Offer, the assistant writes a brief to negotiate it (a `NEGOTIATE_OFFER` request): `list_offers` gives it your offers with their terms and their yearly salaries in one currency, `get_market_salaries` the market's figures for the role in the offers' countries (the same as the salaries page, with the roles the survey knows when it doesn't know the one asked for), and it may read what the company pays on two or three pages. It saves with `save_negotiation_brief` where the offer stands against the market and your other offers, what to ask for and why, the least worth accepting, the leverage with its sources, what else to ask for should the salary not move, what to say on the call, an email to send, and what to watch out for, never with an offer or a figure it didn't get from them (`negotiation_briefs`, in `jobs`).
-
-**Story bank**: on the CV page, your stories for interviews, told the STAR way (the situation, the task, what you did, the result), with what each shows (skills), up to 40 (`cv_stories`, in `cv`). Write them there, or ask the assistant to draft them from your CV (a `WRITE_STORIES` request, `save_stories`, up to eight at once): only what the CV says, with a question in brackets where it doesn't say, e.g. "[How many users did it reach?]"; those are marked to finish, and those whose title the bank has are left out. The interview briefs draw on them: the assistant reads them with `list_stories`, tells them first, and names those that answer what they'll look for (`story_ids`); the brief shows them, each unfolding to its parts.
-
-**Inbox** (`/inbox`): recruiters' emails, read from your mailbox. Connect it once, over IMAP with an app password (Gmail, iCloud, Yahoo, Fastmail, GMX or any other; Outlook and Microsoft 365 let apps in with OAuth only, which JobWarden doesn't have yet): JobWarden reads the last 30 days, then the new emails every ten minutes, read-only; in Settings → Inbox, you choose how often, from every 5 minutes to once a day, or only when you click Check now (`InboxChecks` looks every minute for the mailboxes whose time has come; `jobwarden.inbox.tick`). It tells a rejection, an interview, an offer or a confirmation that an application arrived from the email's words, in the app's languages, and the job from the company's name (in the email, or as the sender's domain) and the title; job alerts, and emails it isn't sure of, it leaves alone. Each becomes an update to apply to the job's timeline (dated when the email came, noting which email it was) or dismiss: nothing changes a job on its own. One that names none of your jobs, when it's clear news, waits for you to pick the job. Settings → Inbox also says what becomes of them: you review each (as by default); JobWarden applies those it matched to a job on its own, oldest first, noting the email's subject and sender; or, besides, it asks the assistant to sort the others (a `SORT_INBOX` request, one at a time, which the AI Assistant's loop picks up): the assistant reads each email's start (`list_email_updates`), finds its job with `list_jobs`, applies it (`apply_email_update`) or dismisses what isn't news (`dismiss_email_update`), and leaves what it isn't sure of for you. **Ask the AI Assistant to sort them** on the Inbox page asks it once, whatever the setting. What JobWarden and the assistant did on their own in the last two weeks shows under **Done for you lately**: an update applied links to its job, whose timeline event can be removed; one the assistant dismissed can be brought back. Proton Mail has no IMAP of its own: pick Proton Mail (Bridge), with Proton Mail Bridge open on the same computer (a paid Proton plan), and sign in with the password Bridge shows. JobWarden turns TLS on with STARTTLS when a server starts without it, as Bridge does, and never reads without TLS; Bridge signs its own certificate, so for a server on this computer JobWarden keeps the certificate it showed when connected and trusts only that one after (a Bridge reset means connecting again). The password is kept encrypted (AES-GCM, `Secrets` in `common`) with `jobwarden.secret-key` (the `JOBWARDEN_SECRET_KEY` environment variable; `INBOX_SECRET_KEY` and `jobwarden.inbox.secret-key` still count), or else a key file JobWarden makes in `~/.jobwarden/` (in Docker, keep it on a volume): losing the key means connecting again, and entering the GitHub token again. The `inbox` module: `mail_accounts` and `email_updates`.
-
-**Auto-apply** (`/apply`): the assistant applies to your Saved jobs for you, in your own Chrome with your own sign-ins (Claude Code with Claude in Chrome: `claude --chrome`). You tick the jobs, choose whether the assistant sends each form or fills it in for you to check and send, and paste the prompt the page gives into Claude Code (an `AUTO_APPLY` request). For each job the assistant tailors your CV to it if it isn't yet, downloads it as a PDF to upload (from `/claude/cv?profile=…&job=…`, which, like the MCP server, trusts whoever can reach the server), and fills the form in from your CV's contact details and **your answers**, kept on the page: where you can work, visa sponsorship, notice period, earliest start, salary expectation, relocation, where and how you want to work, years of experience, cover letters (the assistant uses the job's own when it has one, and otherwise writes one per job, or only when a form needs one, and keeps it on the job's page so you see what was sent; the PDF to upload is at `/claude/cover-letter?profile=…&job=…`), the voluntary questions (declined by default), and your own questions and answers. It never makes an answer up: a question none of them covers stops the job, and the page asks it to you; your answer is kept for the next forms, and the job tries again. The assistant skips LinkedIn Easy Apply (the extension's Easy Apply run is for that) and sites whose terms forbid automated applying, and stops at a CAPTCHA for you to solve. The page shows how each job went (applied, filled in for you to send, waiting for your answer, skipped, failed); a job the assistant applied to moves to Applied, with what it did on its timeline, and shows **by the AI Assistant** next to its status in the list, the pipeline and its page (`applications.applied_by`; the `apply` module: `application_answers` and `apply_items`).
-
-**Who's hiring** (`/hiring`): recruiters' and hiring managers' posts saying they're hiring, the way LinkedIn feeds show them. The assistant finds them when the page asks (a `FIND_HIRING_POSTS` request, for the roles, places and time you give): it searches LinkedIn, X and Reddit, looks at the people you follow first (`list_recruiters`), and adds the real posts with `add_hiring_posts`; JobWarden logs in nowhere. The Discover tab shows every post, the latest first, filtered by time, country, hashtag or a search; Following, only those of the people you follow; Recruiters, everyone, with their company, their number of posts and how they came. Recruiters come from four places: the authors of the posts; the assistant, asked on the Recruiters tab (a `FIND_RECRUITERS` request for the roles and places you give, starting with the companies in your Jobs), which adds them with `add_recruiters` and a note on why each is worth following; the contacts you save on your jobs, with a name and a profile link, which become recruiters you follow the first time the page sees them, linked to their jobs; and those you add by hand. Follow a recruiter from any of their posts, remove one for good (the assistant won't add them again), hide a post for good, or save it as a job, bookmarked, with the post as its description (the `hiring` module: `recruiters` and `hiring_posts`).
-
-**Calendar** (`/calendar`): every job's timeline, interviews with their time, format and link, and the deadlines and days to follow up, by month, week or day (`?view=month|week|day&date=2026-10-27`). The month is a grid of days; each shows the entries its cell has room for and links to the day for the rest. The week and the day go hour by hour: interviews as long as they last, the entries without a time above the hours, overlapping ones side by side in a day (in a week, a "+N" badge that opens the day). Their days are never narrower than their text can be read at: the grid scrolls sideways instead, keeping the days and the hours in view, and an entry too short for its text shows all of it when pointed at. Every entry names its job with the company, e.g. "Software Engineer at Microsoft". Next to it, what's coming up in the next 30 days. Both resize with the window. A click opens the job in the side panel. The legend picks what the calendar shows: interviews, other status changes, deadlines, days to follow up (`?show=interview&show=deadline`, kept for the browser session).
-
-**Reminders**: any entry from today on can remind you, at its time, 15 minutes, an hour, a day or a week before; one without a time of day (a deadline, a day to follow up) that morning at 9:00, a day or a week before. Set them with the alarm next to each entry of the calendar's Coming up list, or in a job's side panel and page, which list its interviews, deadline and day to follow up (the `reminders` table, in `jobs`: `ReminderService`). Every JobWarden page asks for the ones due about once a minute (`POST /reminders/due`) and shows each as a card in its corner, or as the system's notification while it's behind other windows and the browser allows them. With **Show my reminders as notifications** in the extension's settings, they come as the system's notifications even with no JobWarden page open. Each comes once, to whichever asks first, and again only if its entry moves. Once its entry is over (a little after a timed one starts, the day after one without a time) or gone, a reminder is deleted: as it's asked for, and every six hours for every profile (`ReminderCleanup`). The texts are in `jobs/src/main/resources/i18n/jobs-reminders*.properties`.
-
-**In your calendar app**: **Subscribe** on the calendar page gives the calendar as a feed (iCalendar, `GET /calendar/feed.ics?token=…`): the interviews, deadlines and days to follow up, with your reminders as the app's own alarms, for Apple Calendar, Outlook, Google Calendar and the like, which check for changes about every hour. The address carries a secret of its own (`calendar_feeds`), since calendar apps ask with no session; **New address** stops the old one. Google Calendar fetches it from Google's servers, so JobWarden must be reachable from the internet for it; otherwise download the file once and import it. Pick what the feed has in the Subscribe menu: interviews, other status changes, deadlines, days to follow up, any of them (`?show=interview&show=follow-up`, the calendar's legend's names; interviews, deadlines and follow-ups when it names none). Each choice is an address of its own, named for what it has ("JobWarden · Interviews, Follow-ups"), so a calendar app can subscribe to several, and New address stops them all.
-
-**Export and import**, in Settings → Your jobs: Export downloads every job as a CSV file (UTF-8, which spreadsheets open with their letters right), one row per job: title, company, location, status, status_date, applied_on, applied_by (YOU, CLAUDE or EXTENSION), salary, employment_type, link, source, rejection_reason, the contact and follow-up fields, notes, description, added_on and last_modified. Import reads one back, or a spreadsheet's, or another tracker's: only `title` is needed, the columns go by their header in any order and under their usual names too (Job title, Company name, URL, Date applied...), commas, semicolons or tabs between the values, and statuses as other trackers name them (Wishlist, Interview, Ghosted...). A job applied to before its status starts its timeline at Applied. Jobs you already have, by link or else by title and company, are skipped, so importing the same file twice adds nothing twice; Settings says how many were added, skipped, and which rows couldn't be read and why. A value that a spreadsheet would run as a formula is exported with an apostrophe in front.
-
-**Statistics** (`/statistics`): how your applications went, counted from the jobs' timelines without AI (`StatisticsService` in `jobs`): how many you applied to, how often they got an answer (an interview, an offer, or a rejection that wasn't for no response) and an interview, the offers, and the median wait from applying to the first answer; from saved to offer; the answers by site and by who applied (you, the assistant, the extension); whether the jobs the assistant scored 4 or more got to an interview more often than the others (the calibration, once there are at least three of each); the requirements the fits found missing or partly met most often, and the keywords the tailored CVs couldn't claim (what to work on); and why you were turned down.
-
-**Pipeline** (`/pipeline`): a column per status, newest first. Drag a card to another column to give the job that status, as the status buttons of its side panel do; a click still opens it. Each column shows its first 40 cards and loads the next 40 as it's scrolled to its end (`GET /pipeline/column?status=&page=`), so thousands of jobs load as quickly as ten; the count above it is all of them. The search above narrows every column to the jobs whose title or company has the words.
-
-**Archive**: the jobs you're done with leave the list, the pipeline, the calendar and its feed, the offers, and the jobs the assistant lists, scores and checks, and stay in the statistics and the salaries. Archive one from its page or side panel, or tick several in the list; archive the old ones at once in Settings → Your jobs: those nothing changed on since a day you pick, only the ones that ended (rejected, no response, closed, withdrawn) unless you untick it. The list's **Archived** filter shows them, with their statuses, to bring any back; a posting saved again with the extension comes back on its own. Archiving changes nothing else about a job (`applications.archived_at`).
-
-**Statuses say something once**: a timeline step can't repeat the status of the step just before it, e.g. Position closed after Position closed (`ApplicationStatus.canRepeat`); Interviewing and Offer can, for each round. When a closed position opens again, **Position re-opened** puts the job back in play (the side panel offers it on a closed job), and it can close again after. The inbox leaves out an email that says what the job's timeline says already, e.g. an application confirmed after it was marked applied, rather than repeat it. The site under a job's facts and in the list opens the posting, and the web addresses in its description, its timeline's notes and Who's hiring posts are links (`Links`, which escapes the rest).
-
-**How it works**: every page has a **How it works** button by its title, which opens a short guide to the page, step by step, with a tip (`help/help.html`, its texts `howto.<page>.*` in every language). The Search Builder's guide also answers its questions.
-
-**Contact & follow-up**: each job keeps who to talk to (name, role, email, phone, profile link), who referred you, when applications close and when to follow up next, saved as you type on its page. An Interviewing step on the timeline can say how the interview takes place (phone, video, on site, take-home), where (an address or the meeting's link) and how long. The assistant sets them too, with `update_follow_up` and `update_job_status`.
-
-## Project structure
-
-Why it's built this way: the [architecture decision records](docs/adr/README.md). What's being improved next: the [code quality roadmap](docs/quality-roadmap.md).
-
-A modular monolith: one Spring Boot application split into Maven modules. The domain modules hold the business logic and know nothing about the web. Two adapter modules expose them: `web` to the browser, `capture` to the extension. `common` holds the little code they all share.
-
-| Module | Responsibility | Depends on |
+| Run it | Use it | Build it |
 |---|---|---|
-| `common` | Shared: `ErrorCode`, the base exceptions, the application logger (`JobWardenLogger`) and `Secrets`, which encrypts what the server keeps. No beans, no tables, no business logic | none |
-| `identity` | Domain: local profiles (`users` table) | `common` |
-| `jobs` | Domain: jobs bookmarked or applied to, with each application's status and event timeline, the reminders set on their calendar and its feed's secret, their fit scores and interview briefs, their salaries compared, their offers' terms and negotiation briefs, and the statistics of how they went | `common` |
-| `search` | Domain: the Warden Queries (Boolean job-search queries) for Google, LinkedIn, Reddit and X, the description parser that fills in their filters, and the countries of the regions and places postings name; stateless | none |
-| `discover` | Domain: saved searches, the jobs found for them, and the requests the AI Assistant page makes of the assistant | `common`, `jobs`, `search` |
-| `market` | Domain: market salaries across countries, from the Stack Overflow survey, Adzuna and Eurostat | `common`, `jobs` |
-| `cv` | Domain: the profile's CV, as an uploaded file with its text and its preview, as fields to build one from, and rewritten by the assistant for each job; the GitHub repositories its projects come from; each job's cover letter and messages to the people hiring; and the story bank | `common` |
-| `hiring` | Domain: who's hiring: recruiters, found by the assistant or saved as jobs' contacts, and their posts saying they're hiring | `common`, `jobs` |
-| `updates` | Domain: the version running, and the latest release on GitHub | `common` |
-| `apply` | Domain: auto-apply: the answers application forms ask for, and the jobs queued for the assistant to apply to | `common`, `jobs` |
-| `inbox` | Domain: recruiters' emails, read from the profile's mailbox over IMAP as often as it says, and offered as updates of its jobs, applied on their own or sorted by the assistant when it says so | `common`, `jobs`, `discover` |
-| `watchlist` | Domain: the companies a profile watches, by their job boards on Greenhouse, Lever and Ashby, read every few hours with no AI; the postings that match its saved searches become found jobs | `common`, `jobs`, `discover`, `search` |
-| `web` | Adapter: browser UI. Page controllers, templates, shared layout, Tailwind and HTMX; the CV's and the cover letters' PDFs and the calendar feed | `common`, `identity`, `jobs`, `search`, `discover`, `market`, `cv`, `hiring`, `apply`, `inbox`, `watchlist`, `updates` |
-| `capture` | Adapter: REST endpoint for the browser extension, the versions it compares with its own, and the answers of its Easy Apply run | `common`, `identity`, `jobs`, `updates`, `apply`, `cv` |
-| `mcp` | Adapter: the MCP server the AI assistant (Claude Code or Codex) works through, at `/mcp` | `common`, `identity`, `jobs`, `search`, `discover`, `market`, `cv`, `hiring`, `apply`, `inbox`, `watchlist` |
-| `app` | Runnable application and config; wires the modules together | all |
-| `extension/` | Chrome and Firefox extension (Manifest V3, plain JavaScript); not a Maven module | the `capture` API |
+| [Installation](https://github.com/CRV96/jobwarden/wiki/Installation) | [Tracking jobs](https://github.com/CRV96/jobwarden/wiki/Tracking-jobs) | [What's what](https://github.com/CRV96/jobwarden/wiki/Architecture) |
+| [Getting started](https://github.com/CRV96/jobwarden/wiki/Getting-started) | [Finding jobs](https://github.com/CRV96/jobwarden/wiki/Finding-jobs) | [Development](https://github.com/CRV96/jobwarden/wiki/Development) |
+| [Updating](https://github.com/CRV96/jobwarden/wiki/Updating) | [Your CV and applying](https://github.com/CRV96/jobwarden/wiki/CV-and-applying) | [Contributing](CONTRIBUTING.md) |
+| [Configuration](https://github.com/CRV96/jobwarden/wiki/Configuration) | [Offers and salaries](https://github.com/CRV96/jobwarden/wiki/Offers-and-salaries) | [Security](SECURITY.md) |
+| [Operations](https://github.com/CRV96/jobwarden/wiki/Operations) | [AI assistant](https://github.com/CRV96/jobwarden/wiki/AI-assistant) | [Changelog](CHANGELOG.md) |
 
-Every module groups its classes by type, with the same package names everywhere:
+The wiki's pages live in [docs/wiki](docs/wiki), so they change in pull requests with the code.
 
-| Package | Holds | Where |
-|---|---|---|
-| `dto` | Records that carry data: service inputs and outputs, form objects, REST request and response bodies | all modules |
-| `enums` | Enums, e.g. `ApplicationStatus`, `IdentityErrorCode`, `Language` | `jobs`, `identity`, `capture`, `web` |
-| `service` | Service interfaces | domain modules |
-| `service.impl` | Service implementations (`Default*Service`) | domain modules |
-| `entity` | JPA entities | domain modules |
-| `repository` | Spring Data repositories | domain modules |
-| `mapper` | Entity → DTO conversion (`*Mapper`, static methods) | domain modules |
-| `exception` | Exceptions the service throws, e.g. `ApplicationNotFoundException`, and the module's error codes, e.g. `JobsErrorCode`; in `common`, `ErrorCode`, `CommonErrorCode` and the base exceptions | domain modules, `common` |
-| `logging` | `JobWardenLogger` | `common` |
-| `controller` | Controllers and their exception handlers | `web`, `capture` |
-| `constants`, `user` | Route paths; `CurrentUser` | `web` |
-| `config` | Spring configuration, e.g. `LocaleConfiguration`, and the filters every request goes through: `RequestIdFilter`, `SecurityHeadersFilter` | `web` |
+## Code quality
 
-In the domain modules, `dto`, `enums`, `service` and `exception` are the public API. Each is marked `@NamedInterface` in its `package-info.java`, which tells Spring Modulith that other modules may use it. `service` uses `propagate = false`, so `service.impl` stays internal, as do `entity` and `repository`. In `common`, `exception` and `logging` are marked the same way.
+<p align="center">
+  <a href="https://sonarcloud.io/summary/overall?id=CRV96_job_tracker"><img alt="SonarQube Cloud quality gate" src="https://sonarcloud.io/api/project_badges/quality_gate?project=CRV96_job_tracker" width="141"></a>
+</p>
 
-Conventions:
+<p align="center">
+  <a href="https://sonarcloud.io/component_measures?id=CRV96_job_tracker&metric=security_rating"><img alt="Security rating" src="https://sonarcloud.io/api/project_badges/measure?project=CRV96_job_tracker&metric=security_rating" width="127"></a>
+  <a href="https://sonarcloud.io/project/issues?id=CRV96_job_tracker&impactSoftwareQualities=SECURITY"><img alt="Vulnerabilities" src="https://sonarcloud.io/api/project_badges/measure?project=CRV96_job_tracker&metric=vulnerabilities" width="171"></a>
+  <a href="https://sonarcloud.io/component_measures?id=CRV96_job_tracker&metric=sqale_rating"><img alt="Maintainability rating" src="https://sonarcloud.io/api/project_badges/measure?project=CRV96_job_tracker&metric=sqale_rating" width="180"></a>
+</p>
+<p align="center">
+  <a href="https://sonarcloud.io/component_measures?id=CRV96_job_tracker&metric=coverage"><img alt="Coverage" src="https://sonarcloud.io/api/project_badges/measure?project=CRV96_job_tracker&metric=coverage" width="177"></a>
+  <a href="https://sonarcloud.io/component_measures?id=CRV96_job_tracker&metric=duplicated_lines_density"><img alt="Duplicated lines" src="https://sonarcloud.io/api/project_badges/measure?project=CRV96_job_tracker&metric=duplicated_lines_density" width="216"></a>
+  <a href="https://sonarcloud.io/component_measures?id=CRV96_job_tracker&metric=ncloc"><img alt="Lines of code" src="https://sonarcloud.io/api/project_badges/measure?project=CRV96_job_tracker&metric=ncloc" width="181"></a>
+</p>
 
-- **Null-safety:** every package is `@NullMarked` (JSpecify) in its `package-info.java`: nothing is `null` unless its type says `@Nullable`. IntelliJ checks it as you type; NullAway checks it as the code compiles, with `./mvnw verify -Pnullaway`, which CI always runs (it's a profile because Error Prone needs the JVM flags in `.mvn/jvm.config`, which IntelliJ's own compiler doesn't get). A form field that validation requires is still `@Nullable` (binding leaves out what a request didn't send): read it with the form's `required…()` method, after validation. A helper that keeps a non-null argument non-null says so with Spring's `@Contract("!null -> !null")`. A new package needs its `package-info.java`, with `@NullMarked`.
-- **Time:** "now" comes from the `Clock` bean (`JobWardenApplication`): a class that needs it takes a `Clock` in its constructor and calls `Instant.now(this.clock)`, `LocalDate.now(this.clock)`, `this.clock.getZone()`, so a test can fix the moment. Entities stamp their own audit times (`updatedAt`...) with the system's clock.
-- **Settings:** a domain module's settings are one `@ConfigurationProperties` record in its `service.impl` (e.g. `WatchlistProperties`, `jobwarden.watchlist.*`), with its defaults (`@DefaultValue`) and constraints, registered by the module's `*Configuration` and checked as the app starts. Elsewhere, `@Value` goes on a `private final` field, which Lombok copies onto the constructor (`lombok.config`); never on a setter.
-- **Records for DTOs:** they need no constructors, getters or `equals`. Records with more than three fields also get Lombok's `@Builder`: build them with `NewApplication.builder().title(...).build()` rather than a constructor call full of `null`s, and leave out the fields that have no value. The records the modules take as input (`NewApplication`, `NewTimelineEvent`) check their required fields in their constructor, since a builder can't make sure every required field is set.
-- **Lombok for entities:** only `@Getter` and `@NoArgsConstructor(access = PROTECTED)`. Never use `@Data`, `@EqualsAndHashCode` or `@ToString` on entities. They trigger lazy loading, and on the two-way `ApplicationEntity` ↔ `TimelineEventEntity` link `toString` would recurse forever.
-- **Package-private controllers and service implementations:** only the service interfaces can be called from Java code.
-- **Entities never leave their module:** services return records, converted with the module's mapper.
-- **Errors:**
-  - Services throw the module's own exceptions. Each extends a base class from `common`, which decides the HTTP status: `NotFoundException` (404, one subclass per resource, such as `ApplicationNotFoundException`) or `BusinessRuleException` (400, thrown as is with the rule's code).
-  - Every exception carries an error code from its module's enum (`IdentityErrorCode`, `JobsErrorCode`), such as `JOBS-001`.
-  - The exception handlers log each one once, as a warning. Codes only go into ERROR logs, so these lines have none; `capture` still returns the code to the extension. Services don't log the exceptions they throw.
-  - HTMX ignores error responses, so `layout.html` shows a "That didn't work" banner when an HTMX request fails.
-  - Any other exception is unexpected: a bug or an outage. The handlers log it at ERROR with `COMMON-001` and its stack trace, and answer 500 without internal details. Spring MVC's own errors, such as text where a number was expected, keep their usual 4xx status.
-  - In `web`, `WebExceptionHandler` turns them into an HTTP status, and every error page renders with [error.html](web/src/main/resources/templates/error.html) inside the layout.
-  - In `capture`, `CaptureExceptionHandler` returns [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details (JSON) for the extension, with the code in an `errorCode` field. Every error carries a code, Spring MVC's own ones too: `COMMON-002` for a malformed request, and validation errors add an `errors` object (field → message).
-- **Logging:** put Lombok's `@CustomLog` on a class (not `@Slf4j`) to get a `log` field of type `JobWardenLogger`, set up in [lombok.config](lombok.config). `debug`, `info` and `warn` are plain SLF4J. `error` also takes an error code as its first argument, and needs one: `log.error(JobsErrorCode.SAVE_FAILED, "Could not save application {}", id, exception)`. The code is added to the message and as a separate `errorCode` field. Each module defines its codes as an enum implementing `ErrorCode` in its `exception` package, prefixed with the module's name (`JOBS-001`). Levels:
-  - **INFO:** what changes (created, moved to another status, deleted).
-  - **DEBUG:** reads, rejected forms and captures. Turn it on with `logging.level.com.jobwarden=DEBUG`; the line is ready in `application.properties`.
-  - **WARN:** the modules' own exceptions, logged once by the exception handlers.
-  - **ERROR:** only unexpected failures, always with a code.
-
-  Log ids, never names or job details.
-- **Page controllers are made by composition, not inheritance:**
-  - A controller whose pages render in the layout is a `@PageController`. Before each of its handlers, `LayoutAdvice` (a `@ControllerAdvice`) puts the selected profile in the model as `currentProfile`, which the header shows, and what the sidebar counts. That's the only time a request looks the profile up. The other controllers (images, downloads, the calendar feed) are plain `@Controller`s and skip it.
-  - Handlers that need a profile call `requireProfile(model)`. With no profile selected it throws `ProfileNotSelectedException`, and `WebExceptionHandler` sends the browser to `/profiles` (HTMX requests get an `HX-Redirect` header instead of a redirect).
-  - `Pages` has that and the other static helpers, `redirectTo(path)` and `attachment(...)`, imported statically. What needs a bean is a component the controller takes in its constructor like anything else: `FormTexts` (an exception's or a form's messages, in the user's language: `fieldErrors(result)` maps each field to its first validation message), `PromptCards` (the cards that ask the AI assistant), `JobImages` (the sites' icons and companies' logos). Optional beans (the runner, the update check) come through `ObjectProvider`.
-  - Their `@WebMvcTest`s need `@MockitoBean`s of what `LayoutAdvice` reads: `CurrentUser`, `UserService`, `ApplicationService`, `DiscoveryService`. `WebTestApplication` imports the components.
-- **Constants instead of repeated strings:**
-  - `web`'s `constants` package holds the routes (`ControllerConstants`), template names (`Views`), model attribute names (`ModelAttributes`) and HTMX's headers and events (`HtmxHeaders`, `HtmxEvents`).
-  - A form's length limits are constants on the form record (e.g. `NewEventForm.STAGE_LABEL_MAX_LENGTH`), and its validation messages use `{max}`.
-  - `ErrorCode.PROPERTY_NAME` is the one name for the error code, in logs and in error responses.
-- **Dates and times:** a timeline event has a date, and a time of day only when it's known (`LocalDate` + `LocalTime`; `DATE` + `TIME` columns). Within a day, events without a time come first. They're wall-clock values, as entered; "now" is taken in the server's time zone, so set `TZ` when running in Docker (which defaults to UTC). Moments that are only ever recorded, like `capturedAt`, are instants (`Instant`, `TIMESTAMPTZ`). The forms have a date field and an optional time field with a Clear time button (a time emptied only in part is invalid, and the browser won't send the form); a form that sends no date, like the status buttons, means now, with the time. The capture API adds the time too, unless the request says `"includeTime": false`. Display patterns are the `format.date` and `format.dateTime` messages, so each language has its own.
-- **Entities guard their own rules:** `ApplicationEntity.getEvents()` is read-only and `TimelineEventEntity`'s constructor is package-private, so events can only be added through `addEvent`, which keeps the status in step with the timeline.
-- **Formatting:** [.editorconfig](.editorconfig) sets tabs for Java and XML plus the import order. In IntelliJ, *Code → Reformat Code* with *Optimize imports* applies it. The build checks the imports (Spotless: `java`, `javax`, the rest, `org.springframework`, then static, none unused) and `./mvnw spotless:apply` puts them in order.
-- **The build** also stops on an older Java or Maven than the project needs, a dependency declared twice, or a version range (Maven Enforcer), and shows every compiler warning (`-Xlint:all`): don't add new ones.
-
-Templates live in `web/src/main/resources/templates/<feature>/`, and all pages share [layout.html](web/src/main/resources/templates/layout.html). Never name a model attribute `application`, `session` or `param`: Thymeleaf reserves those names, so the template would read something else. HTMX endpoints return a fragment of the page's template, e.g. `applications/detail :: application`. Pages run under a Content Security Policy (`SecurityHeadersFilter`): no inline `<script>`, no `onclick=` and the like, no `hx-on` or `js:` values. Behaviour goes in `static/js/app.js`, asked for with a `data-` attribute.
-
-Rules:
-
-- A module's public API is its root package plus the packages marked `@NamedInterface`. Everything else is private to that module. Other modules never touch another module's entities or repositories.
-- Domain modules never depend on the adapters. Business logic belongs in a domain module, never in a controller.
-- [ModularityTests](app/src/test/java/com/jobwarden/ModularityTests.java) (Spring Modulith) fails the build if a module uses another module's internals or if module dependencies form a cycle.
-- [ConventionsTests](app/src/test/java/com/jobwarden/ConventionsTests.java) (ArchUnit) fails it if the code leaves these conventions: package-private `Default*Service` implementations and controllers, records for public DTOs, constructor injection (no setter injection, `@Value` only on final fields), logging through `JobWardenLogger`, no `System.out`, no generic exceptions, no transactions in controllers, entities without `toString`/`equals`/`hashCode`, exceptions with an error code, `java.time` only, "now" from the `Clock`, and every error code unique and prefixed with its module's name, and every package `@NullMarked`.
-- Each module keeps its own Flyway migrations in `src/main/resources/db/migration`, named `V<n>__<module>_<description>.sql`. Version numbers are shared by all modules: a new migration takes the next free number across the whole project, not just its own module. Hibernate only validates the schema; it never changes it.
-
-## Languages
-
-The pages are in English, Romanian, French, German, Polish, Spanish, Portuguese and Hindi (`Language` in `web`). In Hindi, the CV's own headings (`cv.doc.*`) stay in English: they go into its PDF, whose font (Noto Sans) has no Devanagari, and CVs in India are mostly written in English.
-
-- **Which language:** the one picked in the header (remembered in a cookie for a year), otherwise the browser's preferred language if the app has it, otherwise English. The capture API answers in the language of the request's `Accept-Language` header, which the extension sends like any browser request.
-- **Where the texts live:** `web/src/main/resources/i18n/web.properties` (pages, form validation, status and rejection reason names), and each module's error messages next to its code in `<module>/src/main/resources/i18n/<module>-errors.properties`, under `error.<code>` (e.g. `error.JOBS-001`). Each has one file per language, e.g. `web_ro.properties`. English is the file without a suffix, and the fallback for everything.
-- **In templates:** `th:text="#{applications.title}"`; with arguments `#{application.added(${date})}`; an enum value `#{${'status.' + status}}`. Validation messages refer to a key: `@NotBlank(message = "{validation.profile.name.required}")`. The modules' exceptions carry arguments for their message's `{0}`, `{1}`...
-- **Adding a text:** add the key to the English file and to every translation. [MessageBundlesTests](app/src/test/java/com/jobwarden/MessageBundlesTests.java) fails if a translation is missing a key, or if an error code has no message.
-- **The extension:** its texts are in `extension/_locales/<language>/messages.json`; pages name them with `data-i18n="key"`, scripts with `message('key')`. [ExtensionMessagesTests](app/src/test/java/com/jobwarden/ExtensionMessagesTests.java) checks them the same way, and that every message they name exists.
-- **Adding a language:** a constant in `Language`, a file per bundle, and a folder in `extension/_locales`.
-- **Adding a module with error codes:** its `i18n/<module>-errors` files, plus the bundle in `spring.messages.basename` (application.properties) and in `MessageBundlesTests`.
-- **Apostrophes:** write `’`, not `'`. In a message with `{0}`, Java's `MessageFormat` treats `'` as a quote character and swallows text.
-- **Logs stay in English:** they're for whoever runs the app, not for users.
-
-## Testing
-
-`./mvnw verify` runs everything. On every pull request, every push to `main` and every release tag, GitHub Actions runs one workflow, [CI](.github/workflows/ci.yml), whose jobs each wait for what they need:
-
-| Job | What | After |
-|---|---|---|
-| `build` | Compiles every module with Error Prone and NullAway, checks the imports and the JavaScript (ESLint), builds the CSS, packages the jar | |
-| `test` | All the tests, with what they cover (`-Pcoverage`, JaCoCo) | `build` |
-| `sonar` | SonarCloud's analysis, with that coverage, and its quality gate's verdict. Skipped on pull requests from forks, which GitHub gives no secrets (`SONAR_TOKEN`): their code is analyzed once merged, on `main` (see below) | `test` |
-| `docker` | Builds the image | `build` |
-| `publish` | On `main` and tags: publishes the image | `test`, `docker` |
-| `release` | On tags: publishes the release (below) | `publish` |
-| `dependency-review` | On pull requests: the dependencies they add, failing on a high-severity vulnerability | |
-| `codeql` | Code scanning of the Java, the JavaScript and the workflows | |
-
-[CodeRabbit](.coderabbit.yaml) reviews each pull request (a GitHub App, so its check shows beside the workflow's rather than in it), and [Dependabot](.github/dependabot.yml) keeps the dependencies and the actions up to date. The "Protect Main" ruleset ([.github/rulesets](.github/rulesets)) makes a pull request wait for the build, the tests, the dependency review, the image, SonarCloud's quality gate and CodeQL, and for the code owner's approval ([CODEOWNERS](.github/CODEOWNERS)). GitHub doesn't let anyone approve their own pull request, so the owner's go through the admin bypass, which skips the checks too: merge those only once they're green. A pull request from a fork never gets SonarCloud's check, as its run has no `SONAR_TOKEN`: the owner reviews its code with the other checks green, merges it through the same bypass, and `main`'s run analyzes it right after; a quality gate failing there is fixed in a pull request of the owner's. The file doesn't apply itself; after changing it, run `gh api -X PUT repos/CRV96/jobwarden/rulesets/26456384 --input .github/rulesets/protect-main.json`. See [SECURITY.md](SECURITY.md) for reporting a vulnerability.
-
-Each kind of test has one place:
-
-| Test | Where | Example |
-|---|---|---|
-| Unit tests (plain JUnit + Mockito) | the module itself | [JobWardenLoggerTests](common/src/test/java/com/jobwarden/common/logging/JobWardenLoggerTests.java), [CurrentUserTests](web/src/test/java/com/jobwarden/web/user/CurrentUserTests.java) |
-| Controller tests (`@WebMvcTest`) | `web` and `capture`, next to the controller | [ApplicationControllerTests](web/src/test/java/com/jobwarden/web/controller/ApplicationControllerTests.java), [CaptureControllerTests](capture/src/test/java/com/jobwarden/capture/controller/CaptureControllerTests.java), [CaptureExceptionHandlerTests](capture/src/test/java/com/jobwarden/capture/controller/CaptureExceptionHandlerTests.java) |
-| Service tests against a real database (`@ApplicationModuleTest`) | `app`, in the module's package, e.g. `app/src/test/java/com/jobwarden/jobs/` | [ApplicationServiceTests](app/src/test/java/com/jobwarden/jobs/ApplicationServiceTests.java) |
-| Whole application and module boundaries | `app` | [ModularityTests](app/src/test/java/com/jobwarden/ModularityTests.java) |
-| The code's conventions (ArchUnit) | `app` | [ConventionsTests](app/src/test/java/com/jobwarden/ConventionsTests.java) |
-| What the AI assistant reads: the tool list and each kind of request, in characters, with budgets | `mcp` | [McpBudgetTests](mcp/src/test/java/com/jobwarden/mcp/controller/McpBudgetTests.java), which prints the table and writes it to `mcp/target/mcp-budget.tsv` |
-
-Why database tests live in `app`: the migrations only run there, and `jobs`' tables reference `identity`'s. `@ApplicationModuleTest` still starts just the one module, which also proves the module doesn't depend on other modules' beans.
-
-`web` and `capture` can't see the real application class, so each has a small `*TestApplication` in its test sources for `@WebMvcTest` to start from.
-
-## Versions and releases
-
-What changed from one release to the next is in [CHANGELOG.md](CHANGELOG.md): each change adds its line under *Unreleased*.
-
-The app and the extension share one version: the Maven projects' (`<version>` in every `pom.xml`) and `version` in `extension/manifest.json`; [VersionTests](app/src/test/java/com/jobwarden/VersionTests.java) fails when they differ. Maven writes it into `jobwarden.version`, which Settings, the MCP server and the extension show.
-
-To release a version:
-
-1. Set it everywhere: `./mvnw versions:set -DnewVersion=0.2.0 -DgenerateBackupPoms=false`, and `"version": "0.2.0"` in the manifest.
-2. Commit, then tag the commit and push the tag: `git tag v0.2.0 && git push origin v0.2.0`.
-
-The tag's run of [CI](.github/workflows/ci.yml) checks that the tag, the Maven projects and the manifest say the same, builds and tests, publishes the tag's image, then a GitHub release with the app's jar, the extension's zip, and notes made from the pull requests since the last release. Each is attested as built from the tag ([SECURITY.md](SECURITY.md#how-the-project-is-checked) shows how to verify it).
-
-Running servers ask GitHub for the latest release as they start and then every day, whether or not a page is open (`jobwarden.updates.repository`, `jobwarden.updates.every`; `jobwarden.updates.check=false` never asks). A newer one shows in the sidebar (until it's hidden for that version), in Settings → About, and in the extension's popup, which also says when the server already runs a newer version than the extension. To update: get the release's code (git pull, or its files), restart the app, then reload the extension.
-
-## License
-
-Open source under the [MIT License](LICENSE.md). You are free to use, copy, modify, merge, publish, distribute, sublicense and sell it, as long as the copyright notice and the license's text stay in every copy. It comes without any warranty.
+Every pull request is checked before it merges: [SonarQube Cloud](https://sonarcloud.io/summary/overall?id=CRV96_job_tracker)'s
+quality gate on the code and what the tests cover, CodeQL's code scanning, the dependency review, and a
+[CodeRabbit](https://coderabbit.ai) review. [SECURITY.md](SECURITY.md#how-the-project-is-checked) has the rest.
 
 ## Community
 
-Questions, ideas, or want to show how you use JobWarden? Join the [Discord server](https://discord.gg/A4U2eVNck): help, feature ideas, new releases and what's being worked on. Bugs go to [GitHub Issues](https://github.com/CRV96/jobwarden/issues), with the steps to reproduce.
+- **Questions, and what's being worked on:** the [Discord server](https://discord.gg/A4U2eVNck).
+- **Ideas:** the [Ideas discussions](https://github.com/CRV96/jobwarden/discussions/categories/ideas), where others vote
+  for them. **Suggest a feature**, in the app's profile menu, opens one with your version filled in.
+- **Bugs:** [GitHub Issues](https://github.com/CRV96/jobwarden/issues/new/choose), with the steps to reproduce.
+- **Vulnerabilities:** in private, as [SECURITY.md](SECURITY.md) says.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Contributions require agreeing to the Contributor License Agreement described there. To talk a change over first, ask in the [Discord server](https://discord.gg/A4U2eVNck).
+See [CONTRIBUTING.md](CONTRIBUTING.md). Contributions require agreeing to the Contributor License Agreement described
+there. To talk a change over first, ask on [Discord](https://discord.gg/A4U2eVNck).
+
+## License
+
+[MIT](LICENSE.md): use it, change it and share it, as long as the copyright notice and the license stay with it. It
+comes without any warranty.

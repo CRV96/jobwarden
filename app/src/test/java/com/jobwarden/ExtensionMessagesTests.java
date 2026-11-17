@@ -63,7 +63,7 @@ class ExtensionMessagesTests {
 	@Test
 	void everyMessageTheExtensionUsesExists() throws IOException {
 		Set<String> used = new HashSet<>();
-		// The injected scripts' parts too, in their folders (extract/, easyapply/)
+		// The injected scripts' parts too, in their folder (extract/)
 		try (Stream<Path> files = Files.walk(EXTENSION)) {
 			for (Path file : files.filter(ExtensionMessagesTests::usesMessages).toList()) {
 				Matcher matcher = MESSAGE_USE.matcher(Files.readString(file));

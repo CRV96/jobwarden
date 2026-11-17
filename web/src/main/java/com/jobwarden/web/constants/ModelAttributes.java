@@ -169,6 +169,15 @@ public final class ModelAttributes {
 	public static final String ADZUNA_ERROR = "adzunaError";
 	public static final String ADZUNA_APP_ID = "adzunaAppId";
 	public static final String ADZUNA_REMOVED = "adzunaRemoved";
+	/**
+	 * How the server connects to its database, a {@code DatabaseLogin}, or {@code null} when its password can't be
+	 * changed here; and the fewest characters a new password may have: in the settings.
+	 */
+	public static final String DATABASE_LOGIN = "databaseLogin";
+	public static final String DATABASE_PASSWORD_MIN_LENGTH = "databasePasswordMinLength";
+	/** After changing the database's password, shown once: that it was, or why it wasn't. */
+	public static final String DATABASE_PASSWORD_SAVED = "databasePasswordSaved";
+	public static final String DATABASE_PASSWORD_ERROR = "databasePasswordError";
 	/** Today's date, for the pages that mark it. */
 	public static final String TODAY = "today";
 	/**

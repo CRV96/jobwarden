@@ -8,6 +8,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
+import com.jobwarden.common.exception.BusinessRuleException;
+import com.jobwarden.database.service.DatabasePasswordService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.enums.Assistant;
 import com.jobwarden.identity.service.UserService;
@@ -28,6 +30,7 @@ import com.jobwarden.web.enums.ReadingInterval;
 import com.jobwarden.web.view.AssistantPrompts;
 import com.jobwarden.web.view.FormTexts;
 import jakarta.validation.Valid;
+import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -49,16 +52,20 @@ import static com.jobwarden.web.controller.Pages.requireProfile;
  * Settings of this browser, not of a profile, so the page needs none: the theme (kept by the browser), the language
  * (kept in a cookie, see LocaleConfiguration), and what the extension and the AI assistant need to know. One of the
  * server, the same for every profile: the key for Adzuna's API, which the Salaries page asks for the salaries in job
- * ads. And, when a profile is chosen, its own: its jobs as a CSV file, how its inbox reads its mailbox, and which AI
- * assistant it works with, Claude Code or Codex.
+ * ads, and the password it connects to its database with. And, when a profile is chosen, its own: its jobs as a CSV
+ * file, how its inbox reads its mailbox, and which AI assistant it works with, Claude Code or Codex.
  */
 @PageController
 @RequestMapping(ControllerConstants.SETTINGS)
 @RequiredArgsConstructor
+@CustomLog
 class SettingsController {
 
 	/** Where the page shows the Adzuna key */
 	private static final String SALARIES_SECTION = ControllerConstants.SETTINGS + "#salaries";
+
+	/** Where the page shows the database's password */
+	private static final String DATABASE_SECTION = ControllerConstants.SETTINGS + "#database";
 
 	/** Where the page shows the inbox's settings */
 	private static final String INBOX_SECTION = ControllerConstants.SETTINGS + "#inbox";
@@ -74,6 +81,8 @@ class SettingsController {
 	private final InboxService inbox;
 
 	private final UserService users;
+
+	private final DatabasePasswordService database;
 
 	private final Clock clock;
 
@@ -114,6 +123,8 @@ class SettingsController {
 		}
 		model.addAttribute(ModelAttributes.ASSISTANT_STATES, states);
 		model.addAttribute(ModelAttributes.ADZUNA_KEY, this.adzunaKeys.find());
+		model.addAttribute(ModelAttributes.DATABASE_LOGIN, this.database.login().orElse(null));
+		model.addAttribute(ModelAttributes.DATABASE_PASSWORD_MIN_LENGTH, DatabasePasswordService.PASSWORD_MIN_LENGTH);
 		model.addAttribute(ModelAttributes.REPOSITORY, this.repository);
 		model.addAttribute(ModelAttributes.AUTHOR, AUTHOR);
 		// The repository's owner, e.g. CRV96 of CRV96/jobwarden
@@ -179,6 +190,29 @@ class SettingsController {
 			redirect.addFlashAttribute(ModelAttributes.ADZUNA_APP_ID, form.requiredAppId().strip());
 		}
 		return redirectTo(SALARIES_SECTION);
+	}
+
+	/**
+	 * Gives the database a new password, typed twice, given the current one: the server's, the same for every profile.
+	 * Back on the page, it says how it went, once; no password goes back to it.
+	 */
+	@PostMapping("/database")
+	String changeDatabasePassword(@RequestParam(defaultValue = "") String current,
+			@RequestParam(defaultValue = "") String password, @RequestParam(defaultValue = "") String confirm,
+			RedirectAttributes redirect) {
+		if (!password.equals(confirm)) {
+			redirect.addFlashAttribute(ModelAttributes.DATABASE_PASSWORD_ERROR,
+					this.formTexts.text("settings.password.mismatch"));
+			return redirectTo(DATABASE_SECTION);
+		}
+		try {
+			this.database.changePassword(current, password);
+			redirect.addFlashAttribute(ModelAttributes.DATABASE_PASSWORD_SAVED, true);
+		} catch (BusinessRuleException refused) {
+			log.debug("Database password not changed: {}", refused.getErrorCode());
+			redirect.addFlashAttribute(ModelAttributes.DATABASE_PASSWORD_ERROR, this.formTexts.message(refused));
+		}
+		return redirectTo(DATABASE_SECTION);
 	}
 
 	/**

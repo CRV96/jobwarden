@@ -94,28 +94,6 @@ export async function serverVersion({ serverUrl }) {
 }
 
 /**
- * What the Easy Apply run fills LinkedIn's forms in with: the contact details from the CV page, and the answers from
- * the Auto-apply page, the profile's own questions among them.
- *
- * @param {Settings} settings
- */
-export async function formAnswers({ serverUrl, userId }) {
-  const response = await send(serverUrl, '/answers', { query: { userId } });
-  return response.json();
-}
-
-/**
- * Keeps an answer the user gave during a run among the profile's own questions, for the next forms.
- *
- * @param {Settings} settings
- * @returns {Promise<object>} the answers with it
- */
-export async function learnAnswer({ serverUrl, userId }, question, answer) {
-  const response = await send(serverUrl, '/answers', { method: 'POST', query: { userId }, body: { question, answer } });
-  return response.json();
-}
-
-/**
  * The reminders set on the calendar that are due, for the background to show as notifications. Each comes once: the
  * server takes it, so a JobWarden page asking next doesn't show it again.
  *

@@ -56,7 +56,8 @@ SonarCloud and Dependabot. What follows is what was missing.
       `tasks.scheduled.execution`, which Spring records once Actuator is there.
 - [x] Each run of a scheduled check logs with an id of its own, like a request (`LogContext`, set by an observation
       handler around each `@Scheduled` run, in `SchedulingConfiguration`), and so does the background update check.
-- [x] Runbook ([docs/operations.md](operations.md)): settings, health endpoints and metrics, logs, backups of the
+- [x] Runbook (now the wiki's [Configuration](wiki/Configuration.md), [Operations](wiki/Operations.md) and
+      [Updating](wiki/Updating.md)): settings, health endpoints and metrics, logs, backups of the
       database and the key, upgrading, what to do when something's wrong.
 
 ## 3. Security hardening
