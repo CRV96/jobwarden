@@ -14,7 +14,7 @@
 	<properties>
 		<spring-boot.run.skip>false</spring-boot.run.skip>
 		<!-- The version Spring Modulith's own boundary checks use, so both read the classes the same way -->
-		<archunit.version>1.4.2</archunit.version>
+		<archunit.version>1.5.1</archunit.version>
 	</properties>
 
 	<dependencies>
