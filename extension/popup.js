@@ -4,7 +4,6 @@ import {
 import { message, translatePage } from './i18n.js';
 import { EXTRACT_SCRIPTS } from './injected.js';
 import { canonicalLink, isOnJobBoard } from './links.js';
-import { currentRun, isJobSearch, LINKEDIN_PERMISSION, loadRunOptions, MAX_LIMIT, stopRun } from './runs.js';
 import { APPLICATIONS_PATH, hostPermission, loadSettings, saveSettings, WATCHLIST_PATH } from './settings.js';
 import { iconShowsStatus, showOnIcon, statusLook, statusName } from './status.js';
 import { isNewer } from './versions.js';
@@ -76,11 +75,6 @@ let icon = null;
 
 let reading = Promise.resolve();
 let readingIcon = Promise.resolve();
-
-if (settings.userId !== undefined && isJobSearch(tab.url)) {
-  // Not awaited: it doesn't wait for the page's lookup
-  showRun();
-}
 
 if (settings.userId === undefined) {
   showStatus(message('setupNeeded'));
@@ -473,55 +467,6 @@ async function toggleWatch() {
   } finally {
     watchToggle.disabled = false;
   }
-}
-
-/**
- * The Easy Apply run's section: the options and Start, or how far the run going on in this tab got, and Stop.
- */
-async function showRun() {
-  const section = document.getElementById('run');
-  const run = await currentRun();
-  const going = run?.status === 'running' && run.tabId === tab.id;
-  document.getElementById('run-options').hidden = going;
-  document.getElementById('run-going').hidden = !going;
-  if (going) {
-    document.getElementById('run-going-text').textContent = message('runGoing', String(run.applied));
-    document.getElementById('run-stop').onclick = async () => {
-      await stopRun();
-      window.close();
-    };
-  } else {
-    const options = await loadRunOptions();
-    const limit = document.getElementById('run-limit');
-    const saveOthers = document.getElementById('run-save-others');
-    limit.value = String(options.limit);
-    limit.max = String(MAX_LIMIT);
-    saveOthers.checked = options.saveOthers;
-    document.getElementById('run-start').onclick = () => start(limit, saveOthers);
-  }
-  section.hidden = false;
-}
-
-/**
- * The background starts the run, and the popup asks for LinkedIn at once: Chrome only asks while the click is going
- * on, and Firefox closes the popup to ask. With LinkedIn, the run goes on after LinkedIn loads the page anew.
- */
-async function start(limit, saveOthers) {
-  if (!limit.reportValidity()) {
-    return;
-  }
-  const starting = chrome.runtime.sendMessage({
-    type: 'easyApply:start', tabId: tab.id, limit: Number(limit.value), saveOthers: saveOthers.checked,
-  });
-  const asking = chrome.permissions.request({ origins: [LINKEDIN_PERMISSION] });
-  const [started] = await Promise.allSettled([starting, asking]);
-  if (started.status === 'rejected' || started.value?.error) {
-    const reason = String(started.reason?.message ?? started.reason ?? started.value.error);
-    console.warn('Could not start the Easy Apply run', reason);
-    showStatus(message('runCouldNotStart', reason), 'error');
-    return;
-  }
-  window.close();
 }
 
 /** The notice the user hid with its ×, as "release:1.0.1" or "reload:1.0.1": it shows again for another version. */

@@ -1,8 +1,7 @@
 // Keeps the toolbar icon of every tab showing whether its page is already in JobWarden: ★ bookmarked, ✓ applied.
 // Only once the user turns it on in the settings, which grants the "tabs" permission: without it, Chrome
 // doesn't tell extensions which page a tab shows. Each page a tab opens is then looked up on the user's server.
-// Also keeps an Easy Apply run going (runs.js), and the reminders set on the calendar coming as notifications
-// (reminders.js).
+// Also keeps the reminders set on the calendar coming as notifications (reminders.js).
 //
 // Chrome runs it as a service worker, Firefox as an event page: manifest.json lists it as both, and each browser
 // takes the one it supports.
@@ -10,14 +9,12 @@
 import { lookUp } from './api.js';
 import { canonicalLink } from './links.js';
 import { keepRemindersComing } from './reminders.js';
-import { keepRunsGoing } from './runs.js';
 import { hostPermission, loadSettings } from './settings.js';
 import { iconShowsStatus, showOnIcon } from './status.js';
 
 /** The page each tab was last looked up for, so the answer for a page the tab has since left is dropped. */
 const lookingUp = new Map();
 
-keepRunsGoing();
 keepRemindersComing();
 
 // Also for pages that change their address without loading, like LinkedIn's search showing another job
