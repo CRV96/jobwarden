@@ -10,7 +10,7 @@ Manifest V3, with no build step.
 1. Get the extension: the `jobwarden-extension-<version>.zip` of the [release](https://github.com/CRV96/jobwarden/releases)
    with your server's version (**Settings → About** says which), unzipped; or the `extension/` folder of a clone.
 2. **Chrome** (and Edge, Brave...): open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and pick
-   that folder. **Firefox** (128 or later): open `about:debugging#/runtime/this-firefox`, click
+   that folder. **Firefox** (140 or later): open `about:debugging#/runtime/this-firefox`, click
    **Load Temporary Add-on…** and pick its `manifest.json`. Firefox keeps it until it restarts; to keep it for good,
    sign it as an unlisted add-on on [addons.mozilla.org](https://addons.mozilla.org/developers/), e.g. with
    `npx web-ext sign --source-dir extension --channel unlisted`.
@@ -76,3 +76,9 @@ Its texts are in `extension/_locales/<language>/messages.json`, in JobWarden's l
 [ExtensionMessagesTests](https://github.com/CRV96/jobwarden/blob/main/app/src/test/java/com/jobwarden/ExtensionMessagesTests.java)
 checks that every language has every text and that every text named exists. ESLint checks its JavaScript with the
 pages', on `./mvnw verify` (in `web/`, `npm run lint`).
+
+## Privacy and the stores
+
+The extension talks only to the server entered in its settings: [PRIVACY.md](https://github.com/CRV96/jobwarden/blob/main/PRIVACY.md)
+says what it sends and when. [Publishing the extension](Publishing-the-extension) has what Firefox Add-ons and the
+Chrome Web Store ask for, and how to update it there.

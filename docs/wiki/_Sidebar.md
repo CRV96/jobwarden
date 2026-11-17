@@ -20,3 +20,4 @@
 **Build it**
 - [What's what](Architecture)
 - [Development](Development)
+- [Publishing the extension](Publishing-the-extension)

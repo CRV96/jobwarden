@@ -229,7 +229,7 @@ jobs:
           name: jar
           path: app/target
       - name: Package the extension
-        run: cd extension && zip -r "../jobwarden-extension-${GITHUB_REF_NAME#v}.zip" . -x '.*'
+        run: cd extension && zip -r "../jobwarden-extension-${GITHUB_REF_NAME#v}.zip" . -x '.*' '*/.*'
       # deploy/compose.yaml, its image this version's unless JOBWARDEN_VERSION says another
       - name: Pin the compose file to this version
         run: |

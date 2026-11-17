@@ -33,12 +33,16 @@ a release renames it to its version and date.
   secret key, for the next start, where it takes the place of the configured one (`SPRING_DATASOURCE_PASSWORD`, or the
   Compose files' `jobwarden`). Settings says when it's still that default. When the database refuses the kept one, say
   after restoring an older backup, the server starts with the configured one, and its log says so.
+- A privacy policy, [PRIVACY.md](PRIVACY.md): what the server and the extension send, and where.
 - Suggest a feature, from the profile menu, each page's How it works and Settings → About: it opens a new idea in
   JobWarden's GitHub discussions with the feature request's questions and the version in it, and the ideas so far to
   vote for.
 
 ### Changed
 
+- The browser extension needs Firefox 140 or later, and declares what it sends to your server (the postings you save,
+  the addresses it looks up), which Firefox asks you to accept as it's installed. Ready for Firefox Add-ons and the
+  Chrome Web Store: [Publishing the extension](https://github.com/CRV96/jobwarden/wiki/Publishing-the-extension).
 - The server listens on port **9273** ("WARD" on a phone's keypad) instead of 8080, which other tools often take.
   **Upgrading:** open http://localhost:9273; in the browser extension's settings, change the server's address; and
   connect your assistant again with the command Settings → AI Assistant shows (its old address has 8080). With Docker,
