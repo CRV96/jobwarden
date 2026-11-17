@@ -18,7 +18,9 @@ a release renames it to its version and date.
 - The Docker image checks its own health (`HEALTHCHECK`), sizes its heap to the container's memory, and stops on running
   out of it. In Docker, change the port with `SERVER_PORT`, which the health check reads.
 - The jar lists every library it carries (CycloneDX SBOM), for vulnerability scanners.
-- [docs/operations.md](docs/operations.md): settings, health, logs, backups, upgrading, troubleshooting.
+- The [wiki](https://github.com/CRV96/jobwarden/wiki): installing, getting started, updating, the settings, health
+  checks and logs, troubleshooting, every page of the app, and how it's built. Its pages are `docs/wiki/`, published
+  to the wiki on every push to `main`; the README keeps to what JobWarden is and how to start it.
 - A "Skip to the page" link, the first stop of the Tab key on every page, past the sidebar's links.
 - A password for a profile, in Settings → Your profile: choosing the profile asks for it, on the Profiles page or from
   the menu. Not a sign-in: the browser extension and the assistants don't need it.
@@ -41,6 +43,7 @@ a release renames it to its version and date.
   **Upgrading:** open http://localhost:9273; in the browser extension's settings, change the server's address; and
   connect your assistant again with the command Settings → AI Assistant shows (its old address has 8080). With Docker,
   take the new `compose.yaml`. `SERVER_PORT=8080` keeps the old port.
+- A slim README; what it said is in the wiki, which replaces `docs/operations.md` too.
 - The database's 49 migrations are 9, one per module (V1 to V9), which build the very same schema. **Upgrading:** a
   database the 49 built gets its migration history replaced by a baseline at V9 as the server starts, once; its tables
   and rows stay as they are. One the 49 built only in part stops the start: run the version before first.

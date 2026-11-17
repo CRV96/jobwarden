@@ -11,4 +11,4 @@
 - [ ] `./mvnw verify` passes
 - [ ] New text is in the messages, in every language (`*.properties`, `extension/_locales`)
 - [ ] A schema change is a new Flyway migration, not an edit of one already released
-- [ ] README.md says how to use what's new, if it's something to use
+- [ ] The wiki (`docs/wiki/`) says how to use what's new, if it's something to use

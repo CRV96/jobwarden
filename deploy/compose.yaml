@@ -6,7 +6,7 @@
 #
 #   docker compose pull && docker compose up -d
 #
-# It upgrades the database's schema as it starts. Back up first (docs/operations.md, Backups): there's no going back
+# It upgrades the database's schema as it starts. Back up first (https://github.com/CRV96/jobwarden/wiki/Updating#back-up-first): there's no going back
 # down. JOBWARDEN_VERSION picks a release (JOBWARDEN_VERSION=0.2.0 docker compose up -d); a release's own copy of this
 # file names its version. `docker compose down` keeps the volumes; `down --volumes` deletes the data.
 #
@@ -16,7 +16,7 @@
 
 services:
   postgres:
-    # PostgreSQL's major version stays: moving to the next one is a dump and restore (docs/operations.md, Backups)
+    # PostgreSQL's major version stays: moving to the next one is a dump and restore (https://github.com/CRV96/jobwarden/wiki/Updating#back-up-first)
     image: postgres:18-alpine
     restart: unless-stopped
     environment:

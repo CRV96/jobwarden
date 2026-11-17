@@ -1,0 +1,45 @@
+name: Wiki
+
+# The wiki's pages are docs/wiki/ (its README.md aside), reviewed in pull requests like the code. On every push to main
+# that changes them, this copies them to the GitHub wiki, replacing what's there: the wiki is always what was merged.
+# The actions are pinned to a commit; Dependabot keeps them up to date.
+on:
+  push:
+    branches: [main]
+    paths: ['docs/wiki/**', '.github/workflows/wiki.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One copy at a time, each finishing: the next one starts from what it pushed
+concurrency:
+  group: wiki
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # The wiki is a repository of its own, beside this one, which the token writes to with this
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Copy the pages to the wiki
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git clone --quiet --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git" wiki
+          rsync --archive --delete --exclude .git --exclude README.md docs/wiki/ wiki/
+          cd wiki
+          git add --all
+          if git diff --cached --quiet; then
+            echo "The wiki has these pages already"
+            exit 0
+          fi
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit --quiet --message "Pages from ${GITHUB_SHA::7}"
+          git push --quiet origin HEAD
