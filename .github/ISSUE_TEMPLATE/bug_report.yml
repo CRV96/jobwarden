@@ -21,7 +21,7 @@ body:
     attributes:
       label: JobWarden version
       description: Settings shows it, and the extension's popup.
-      placeholder: 0.1.0
+      placeholder: 1.0.0
     validations:
       required: true
   - type: dropdown

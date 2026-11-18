@@ -8,6 +8,10 @@ a release renames it to its version and date.
 
 ## Unreleased
 
+## 1.0.0 - 2026-11-18
+
+The first release.
+
 ### Added
 
 - Health checks at `/actuator/health`, with `/liveness` and `/readiness`; the version, commit and Java at
