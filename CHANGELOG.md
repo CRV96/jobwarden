@@ -55,7 +55,7 @@ The first release.
 
 - The browser extension needs Firefox 140 or later, and declares what it sends to your server (the postings you save,
   the addresses it looks up), which Firefox asks you to accept as it's installed. Ready for Firefox Add-ons and the
-  Chrome Web Store: [Publishing the extension](docs/publishing-the-extension.md).
+  Chrome Web Store.
 - The server listens on port **9273** ("WARD" on a phone's keypad) instead of 8080, which other tools often take.
   **Upgrading:** open http://localhost:9273; in the browser extension's settings, change the server's address; and
   connect your assistant again with the command Settings → AI Assistant shows (its old address has 8080). With Docker,
