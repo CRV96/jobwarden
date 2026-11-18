@@ -10,6 +10,8 @@ the [browser extension](Browser-extension) saves postings to it; your [AI assist
 ## With Docker (recommended)
 
 You need [Docker](https://docs.docker.com/get-docker/) with Compose (Docker Desktop has both).
+The image runs on Intel and AMD computers (amd64) and on ARM ones (arm64): Apple Silicon Macs, ARM laptops, a
+Raspberry Pi 4 or 5 with a 64-bit system, ARM NAS boxes. Not on 32-bit ARM, which Java 25 isn't made for.
 
 1. Make a folder for JobWarden, e.g. `~/jobwarden`, and download the latest release's `compose.yaml` into it, from
    [Releases](https://github.com/CRV96/jobwarden/releases/latest). It runs JobWarden's image
