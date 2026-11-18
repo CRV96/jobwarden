@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.jobwarden</groupId>
 	<artifactId>jobwarden</artifactId>
-	<version>0.1.0</version>
+	<version>1.0.0</version>
 	<packaging>pom</packaging>
 	<name>JobWarden</name>
 	<description>Personal job application tracker with a browser extension for one-click capture</description>
@@ -82,7 +82,7 @@
 		<spring-boot.run.skip>true</spring-boot.run.skip>
 		<!-- The time every file in the jars carries, so the same commit always builds the same jars (reproducible builds).
 		     Set it to the release's date with each release. -->
-		<project.build.outputTimestamp>2026-11-14T00:00:00Z</project.build.outputTimestamp>
+		<project.build.outputTimestamp>2026-11-18T00:00:00Z</project.build.outputTimestamp>
 		<!-- The oldest Java and Maven that build the project; the Maven Enforcer fails the build on older ones. -->
 		<maven.minimum.version>3.9.0</maven.minimum.version>
 		<jacoco.version>0.8.16</jacoco.version>
