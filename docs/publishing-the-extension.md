@@ -1,5 +1,7 @@
 # Publishing the extension
 
+For the maintainer, not for people using JobWarden: what the stores ask for, and how to update the extension there.
+
 How to put the browser extension on [Firefox Add-ons](https://addons.mozilla.org/developers/) and the
 [Chrome Web Store](https://chrome.google.com/webstore/devconsole), and how to update it there. The extension is ready
 for both: Mozilla's linter (`npx web-ext lint --source-dir extension`) finds no errors, the code is plain JavaScript
@@ -21,7 +23,7 @@ address, Firefox for its text.
    browser, and the linter's warning about Android's minimum version is about that.
 3. Source code: **No**: nothing is minified or built.
 4. The listing: the name, the summary (the manifest's description), the description from
-   [Browser extension](Browser-extension), up to two categories (*Bookmarks* fits best), the support site
+   [Browser extension](https://github.com/CRV96/jobwarden/wiki/Browser-extension), up to two categories (*Bookmarks* fits best), the support site
    (`https://github.com/CRV96/jobwarden/issues`), the MIT license, and screenshots. Tick **This add-on has a privacy
    policy** and paste PRIVACY.md's text in: Firefox keeps the policy itself, not a link.
 5. **Notes to reviewer** (paste):
@@ -74,7 +76,7 @@ manifest's `strict_min_version`. The add-on's id, `jobwarden@crv96.github.io`, t
 
 Users of either store get updates on their own, a few hours after a version is approved.
 
-1. Release JobWarden as usual ([Development](Development#versions-and-releases)): the version goes into every `pom.xml`
+1. Release JobWarden as usual ([Development](https://github.com/CRV96/jobwarden/wiki/Development#versions-and-releases)): the version goes into every `pom.xml`
    and `extension/manifest.json` together, and the tag's release has the zip.
 2. Firefox: the add-on's page in the Developer Hub → **Upload New Version**, the zip, and the notes to reviewer again.
    Chrome: the item in the dashboard → **Package** → **Upload new package**, then **Submit for review**.
@@ -83,3 +85,43 @@ Users of either store get updates on their own, a few hours after a version is a
 
 Both stores can take uploads from CI with an API key (`web-ext sign --channel listed` for Firefox, the Chrome Web Store
 API for Chrome), once the first version is listed by hand.
+
+## The listing's texts
+
+As both stores have them, to keep them the same when they change.
+
+**Summary** (Firefox, 250 characters at most; Chrome takes the manifest's description)
+
+```
+Save job postings to your self-hosted JobWarden in one click, see which pages you saved already, watch companies' job boards and get your job hunt's reminders as notifications.
+```
+
+**Description** (both stores)
+
+```
+JobWarden keeps your job hunt in one place: every job you save, with its story from the first save to the offer. This extension is its companion: it saves the job posting you're looking at to your own JobWarden, in one click.
+
+• Save a posting in one click: it reads the title, company, place, salary and description for you, on most job boards and career sites (LinkedIn, Indeed, Glassdoor, Greenhouse, Lever, Workday and more).
+• Mark it Bookmarked or Applied; move it back or remove it.
+• See ★ or ✓ on the toolbar icon of the postings you saved (optional).
+• Watch a company from its Greenhouse, Lever or Ashby job board: JobWarden reads its new jobs for you.
+• Get your interviews', deadlines' and follow-ups' reminders as notifications (optional).
+• In 8 languages: English, Deutsch, Español, Français, हिन्दी, Polski, Português, Română.
+
+It needs JobWarden, a free and open-source server you run on your own computer, set up with Docker in a few minutes: https://github.com/CRV96/jobwarden/wiki/Installation
+
+Your data goes only to your own JobWarden server: nothing to the developer, nothing to anyone else.
+```
+
+**Notes to Mozilla's reviewers, and Chrome's test instructions** (the release named in step 1 is the one uploaded)
+
+```
+The extension needs a JobWarden server, which is self-hosted and free. To run one:
+
+1. Download compose.yaml from https://github.com/CRV96/jobwarden/releases/tag/v1.0.0 and run `docker compose up -d` next to it.
+2. Open http://localhost:9273, create a profile (any name), then open Settings → Your profile and copy its Profile ID.
+3. In the extension's settings (the gear in its popup), enter http://localhost:9273 and that Profile ID, and click Save.
+4. Open a job posting, for example any job on a company's Greenhouse or Lever board (boards.greenhouse.io/..., jobs.lever.co/...), and click the extension's icon: it reads the posting, and Bookmark saves it to the server. Opening JobWarden's Jobs page shows it.
+
+The extension talks only to the server entered in its settings. The code is plain JavaScript with no build step and no remote code. Source: https://github.com/CRV96/jobwarden/tree/v1.0.0/extension
+```

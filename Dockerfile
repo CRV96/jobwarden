@@ -4,7 +4,9 @@
 # It needs PostgreSQL; README.md ("Running with Docker") shows it with one.
 
 # The jar, tests left to the build that checks them (CI). Node, for the CSS, is downloaded into web/target as usual.
-FROM eclipse-temurin:25-jdk AS build
+# On the builder's own platform, whichever the image is for: a jar runs on every one, so the image is built once,
+# natively, and only the runtime stage below is made for each platform.
+FROM --platform=$BUILDPLATFORM eclipse-temurin:25-jdk AS build
 WORKDIR /src
 COPY . .
 # Maven itself first, as the wrapper names it, tried again after 10 and 30 seconds: the wrapper downloads it once, with
@@ -17,6 +19,8 @@ RUN --mount=type=cache,target=/root/.m2 ./mvnw -B -q -DskipTests -pl app -am pac
 # In layers, the libraries apart from JobWarden's own classes: an image of a new version shares them with the last one
 RUN java -Djarmode=tools -jar /jobwarden.jar extract --layers --destination /extracted
 
+# For each platform the image is published for, those Java 25's runtime image has: amd64 (Intel and AMD), arm64 (Apple
+# Silicon, ARM laptops, Raspberry Pi 4 and 5, ARM NAS), ppc64le and s390x. Not 32-bit ARM, which Java 25 isn't built for.
 FROM eclipse-temurin:25-jre
 # Never as root. The key that encrypts the mailbox passwords and GitHub tokens is made in ~/.jobwarden on the first
 # start: the volume keeps it, and with it what was encrypted, when the container is made anew.

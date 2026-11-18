@@ -77,8 +77,7 @@ Its texts are in `extension/_locales/<language>/messages.json`, in JobWarden's l
 checks that every language has every text and that every text named exists. ESLint checks its JavaScript with the
 pages', on `./mvnw verify` (in `web/`, `npm run lint`).
 
-## Privacy and the stores
+## Privacy
 
 The extension talks only to the server entered in its settings: [PRIVACY.md](https://github.com/CRV96/jobwarden/blob/main/PRIVACY.md)
-says what it sends and when. [Publishing the extension](Publishing-the-extension) has what Firefox Add-ons and the
-Chrome Web Store ask for, and how to update it there.
+says what it sends and when.

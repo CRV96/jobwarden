@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>com.jobwarden</groupId>
 		<artifactId>jobwarden</artifactId>
-		<version>1.0.0</version>
+		<version>1.0.1</version>
 	</parent>
 	<artifactId>jobwarden-updates</artifactId>
 	<name>JobWarden :: Updates</name>

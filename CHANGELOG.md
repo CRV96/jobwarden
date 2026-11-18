@@ -8,6 +8,15 @@ a release renames it to its version and date.
 
 ## Unreleased
 
+## 1.0.1 - 2026-11-18
+
+### Fixed
+
+- The Docker image runs on every platform Java 25 does: Intel and AMD (amd64); Apple Silicon Macs, ARM laptops,
+  Raspberry Pi 4 and 5 on a 64-bit system, ARM NAS and cloud servers (arm64); and IBM's ppc64le and s390x. 1.0.0's was
+  for amd64 alone, and Docker on an ARM computer refused it: "no matching manifest for linux/arm64/v8". 32-bit ARM
+  can't be one: Java 25 isn't built for it.
+
 ## 1.0.0 - 2026-11-18
 
 The first release.
@@ -46,7 +55,7 @@ The first release.
 
 - The browser extension needs Firefox 140 or later, and declares what it sends to your server (the postings you save,
   the addresses it looks up), which Firefox asks you to accept as it's installed. Ready for Firefox Add-ons and the
-  Chrome Web Store: [Publishing the extension](https://github.com/CRV96/jobwarden/wiki/Publishing-the-extension).
+  Chrome Web Store: [Publishing the extension](docs/publishing-the-extension.md).
 - The server listens on port **9273** ("WARD" on a phone's keypad) instead of 8080, which other tools often take.
   **Upgrading:** open http://localhost:9273; in the browser extension's settings, change the server's address; and
   connect your assistant again with the command Settings → AI Assistant shows (its old address has 8080). With Docker,
