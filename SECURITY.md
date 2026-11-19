@@ -6,7 +6,7 @@ JobWarden is young (0.x), so fixes go into the latest release only. The app says
 
 | Version                  | Supported          |
 | ------------------------ | ------------------ |
-| Latest release (0.1.x)   | :white_check_mark: |
+| Latest release (1.0.0)   | :white_check_mark: |
 | Older releases           | :x:                |
 | `main` between releases  | Best effort        |
 
