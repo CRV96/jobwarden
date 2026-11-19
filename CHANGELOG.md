@@ -11,7 +11,7 @@ a release renames it to its version and date.
 ### Added
 
 - [JobWarden in under 3 minutes](https://youtu.be/WS9_VcoEQZU), a video of what it does, in the README and on the
-  wiki's home page.
+  wiki's home page; the file itself is `docs/video/jobwarden-video.mp4`.
 - The wiki's [Installing Docker](https://github.com/CRV96/jobwarden/wiki/Installing-Docker): Docker on a Mac, Windows,
   Linux, a Raspberry Pi or a NAS, and what to do when it doesn't start.
 - The wiki's browser extension page says how it keeps you from the same job twice: ★ or ✓ on its icon, and the job's
