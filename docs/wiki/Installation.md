@@ -48,6 +48,22 @@ POSTGRES_PASSWORD=...         # the database's password, for a new database; aft
 The port is published on this computer only (`127.0.0.1:9273`). Every other setting is on
 [Configuration](Configuration).
 
+## Open it like an app
+
+JobWarden is a web page, but it can have a window and an icon of its own, in the Dock or on the taskbar, like any app.
+With JobWarden running, open <http://localhost:9273>, then:
+
+- **Safari** (macOS Sonoma or later): **File → Add to Dock…**, then **Add**. It opens from the Dock, Launchpad or
+  Spotlight, with JobWarden's icon. Safari's apps keep their own cookies, so pick your profile once more in it.
+- **Chrome:** the **⋮** menu → **Cast, save, and share → Install page as app…**, then **Install**. It shares your
+  browser's cookies, profile included. On a Mac it goes in **Applications → Chrome Apps**: while it's open,
+  right-click its icon in the Dock → **Options → Keep in Dock**. On Windows, right-click it on the taskbar →
+  **Pin to taskbar**.
+- **Edge:** the **…** menu → **Apps → Install this site as an app**.
+
+It's the same JobWarden as in your browser, so it opens only while JobWarden runs: with Docker, after Docker has
+started.
+
 ## From the sources
 
 You need **JDK 25** or later and **Docker** (for the database). Clone the repository, then:
