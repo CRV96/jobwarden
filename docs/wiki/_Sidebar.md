@@ -1,6 +1,7 @@
 **[🏠 Home](Home)**
 
 **Run it**
+- [Installing Docker](Installing-Docker)
 - [Installation](Installation)
 - [Getting started](Getting-started)
 - [Updating](Updating)

@@ -7,6 +7,8 @@ Manifest V3, with no build step.
 
 ## Install
 
+It's on its way to the Chrome Web Store and Firefox Add-ons. Until it's listed there:
+
 1. Get the extension: the `jobwarden-extension-<version>.zip` of the [release](https://github.com/CRV96/jobwarden/releases)
    with your server's version (**Settings → About** says which), unzipped; or the `extension/` folder of a clone.
 2. **Chrome** (and Edge, Brave...): open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and pick
@@ -35,6 +37,24 @@ On a job posting, click the extension's icon. It looks the page up in JobWarden 
 It also watches a company from its job board on Greenhouse, Lever or Ashby (the eye beside ⚙, see the
 [watchlist](Finding-jobs#watchlist)), can put ★ or ✓ on the toolbar icon of every tab showing a saved posting, and can
 bring the [reminders](Tracking-jobs#reminders) set on the calendar as your system's notifications.
+
+## Never the same job twice
+
+The same job comes back again and again: in searches, in job alerts, posted again on another board. The extension
+remembers it for you, so you don't read it twice, or apply twice.
+
+<p align="center"><img src="https://raw.githubusercontent.com/CRV96/jobwarden/main/docs/branding/extension-already-applied.png"
+  alt="The extension's popup on a posting already applied to: Applied, Backend Developer · Pinecrest Games, Nov 7, 2026, and a check mark on its toolbar icon" width="540"></p>
+
+- **On the toolbar icon, as soon as a posting opens:** a grey ★ if you bookmarked it, a ✓ if you applied, in the colour
+  of where it stands: blue applied, orange interviewing, green offer, red rejected. Turn it on in the extension's
+  settings: **Show on the toolbar icon whether a page is already in JobWarden**. The browser asks you to let the
+  extension see your tabs' addresses, and each page you open is then looked up on your own server, and nowhere else.
+- **In the popup, always:** instead of the form to save it again, the job's status and its date, with
+  **Open in JobWarden**.
+
+It knows a job by its posting's own link, without the tracking parameters job boards add, and finds that link even on a
+search page that shows the job: the same job, found twice, is the same job.
 
 It reads most job boards and career sites from the schema.org `JobPosting` they publish for Google's job search, and
 LinkedIn, Indeed, Glassdoor, Greenhouse, Workday, pracuj.pl, InfoJobs and BestJobs from what the page shows. It keeps

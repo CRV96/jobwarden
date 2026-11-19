@@ -9,13 +9,21 @@ the [browser extension](Browser-extension) saves postings to it; your [AI assist
 
 ## With Docker (recommended)
 
-You need [Docker](https://docs.docker.com/get-docker/) with Compose (Docker Desktop has both).
+You need Docker with Compose. **No Docker yet?** [Installing Docker](Installing-Docker) shows how, on a Mac, Windows,
+Linux, a Raspberry Pi or a NAS.
 The image runs on Intel and AMD computers (amd64) and on ARM ones (arm64): Apple Silicon Macs, ARM laptops, a
 Raspberry Pi 4 or 5 with a 64-bit system, ARM NAS boxes. Not on 32-bit ARM, which Java 25 isn't made for.
 
-1. Make a folder for JobWarden, e.g. `~/jobwarden`, and download the latest release's `compose.yaml` into it, from
-   [Releases](https://github.com/CRV96/jobwarden/releases/latest). It runs JobWarden's image
+1. Make a folder for JobWarden, and download the latest release's `compose.yaml` into it. It runs JobWarden's image
    (`ghcr.io/crv96/jobwarden`) with PostgreSQL.
+
+   ```bash
+   mkdir ~/jobwarden && cd ~/jobwarden
+   curl -L -o compose.yaml https://github.com/CRV96/jobwarden/releases/latest/download/compose.yaml
+   ```
+
+   `-o` is a lowercase letter o, followed by the file's name. On Windows, in PowerShell, write `curl.exe` instead of
+   `curl`. Or download `compose.yaml` from [Releases](https://github.com/CRV96/jobwarden/releases/latest) by hand.
 2. In that folder:
 
    ```bash
@@ -58,7 +66,7 @@ Run the jar (from a [release](https://github.com/CRV96/jobwarden/releases), or `
 against a PostgreSQL 18 of your own:
 
 ```bash
-java -jar jobwarden-app-0.2.0.jar \
+java -jar jobwarden-app-1.0.1.jar \
   --spring.datasource.url=jdbc:postgresql://localhost:5432/jobwarden \
   --spring.datasource.username=jobwarden --spring.datasource.password=...
 ```
