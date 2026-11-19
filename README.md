@@ -31,6 +31,11 @@
   <a href="https://discord.gg/A4U2eVNck">Discord</a>
 </p>
 
+<p align="center">
+  <a href="https://youtu.be/WS9_VcoEQZU"><img src="docs/branding/video-thumbnail.png" alt="Watch JobWarden in under 3 minutes" width="720"></a><br>
+  <sub><b>▶ JobWarden in under 3 minutes</b></sub>
+</p>
+
 ## What it does
 
 - **Every job in one place.** Save postings from Chrome or Firefox with the

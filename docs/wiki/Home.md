@@ -5,6 +5,9 @@ from the first save to the offer. Self-hosted: it runs on your own computer, wit
 8 languages. Its AI features run on the assistant you already have (Claude Code or Codex), on your own plan: JobWarden
 needs no API key and sends nothing anywhere.
 
+<p align="center"><a href="https://youtu.be/WS9_VcoEQZU"><img src="https://raw.githubusercontent.com/CRV96/jobwarden/main/docs/branding/video-thumbnail.png"
+  alt="Watch JobWarden in under 3 minutes" width="640"></a><br><sub><b>▶ JobWarden in under 3 minutes</b></sub></p>
+
 ## Start here
 
 | | |
