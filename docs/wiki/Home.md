@@ -9,6 +9,7 @@ needs no API key and sends nothing anywhere.
 
 | | |
 |---|---|
+| 🐳 **[Installing Docker](Installing-Docker)** | Docker on a Mac, Windows, Linux, a Raspberry Pi or a NAS, if you don't have it yet |
 | 🚀 **[Installation](Installation)** | Run it with Docker in two commands, or from the sources |
 | 👋 **[Getting started](Getting-started)** | Your first profile, your first saved job, and the five minutes that make the rest work |
 | ⬆️ **[Updating](Updating)** | Back up, upgrade, keep your data |

@@ -85,9 +85,9 @@ show.
 
 To release a version:
 
-1. Set it everywhere: `./mvnw versions:set -DnewVersion=0.2.0 -DgenerateBackupPoms=false`, and `"version": "0.2.0"` in
+1. Set it everywhere: `./mvnw versions:set -DnewVersion=1.0.2 -DgenerateBackupPoms=false`, and `"version": "1.0.2"` in
    the manifest.
-2. Commit, then tag the commit and push the tag: `git tag v0.2.0 && git push origin v0.2.0`.
+2. Commit, then tag the commit and push the tag: `git tag v1.0.2 && git push origin v1.0.2`.
 
 The tag's run of [CI](https://github.com/CRV96/jobwarden/blob/main/.github/workflows/ci.yml) checks that the tag, the
 Maven projects and the manifest say the same, builds and tests, publishes the tag's image, then a GitHub release with

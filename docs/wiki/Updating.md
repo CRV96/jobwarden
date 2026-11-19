@@ -28,7 +28,13 @@ and the database password once it's changed in Settings). An upgrade only replac
 
 1. Back up (above).
 2. Put the new release's `compose.yaml` in place of yours, in the **same folder**: Compose names the volumes after the
-   folder, so another folder would start with empty ones. Or keep yours and set `JOBWARDEN_VERSION=0.2.0`.
+   folder, so another folder would start with empty ones. Or keep yours and set `JOBWARDEN_VERSION=1.0.1`. In that
+   folder, this downloads the latest one over yours (`curl.exe` on Windows):
+
+   ```bash
+   curl -L -o compose.yaml https://github.com/CRV96/jobwarden/releases/latest/download/compose.yaml
+   ```
+
 3. Next to it:
 
    ```bash
@@ -41,8 +47,8 @@ down` keeps the volumes; only `docker compose down --volumes` deletes them.
 ## From the sources or the jar
 
 1. Back up (above).
-2. Get the new version: `git pull` (or `git checkout v0.2.0`) in your clone, or the release's jar.
-3. Start it as before (`./mvnw -pl app -am spring-boot:run`, or `java -jar jobwarden-app-0.2.0.jar`). Flyway upgrades
+2. Get the new version: `git pull` (or `git checkout v1.0.1`) in your clone, or the release's jar.
+3. Start it as before (`./mvnw -pl app -am spring-boot:run`, or `java -jar jobwarden-app-1.0.1.jar`). Flyway upgrades
    the schema as it starts, and the log says which migrations ran.
 
 PostgreSQL itself stays as it is: in Docker its image names its major version (18), and moving to the next major

@@ -47,16 +47,17 @@
 
 ## Quick start
 
-With [Docker](https://docs.docker.com/get-docker/): download `compose.yaml` from the
-[latest release](https://github.com/CRV96/jobwarden/releases/latest), then next to it:
+With Docker ([how to install it](https://github.com/CRV96/jobwarden/wiki/Installing-Docker), on a Mac, Windows, Linux, a
+Raspberry Pi or a NAS), in a folder for JobWarden:
 
 ```bash
+curl -L -o compose.yaml https://github.com/CRV96/jobwarden/releases/latest/download/compose.yaml
 docker compose up -d
 ```
 
-and open <http://localhost:9273>. [Installation](https://github.com/CRV96/jobwarden/wiki/Installation) has the other
-ways, from the sources included; [Getting started](https://github.com/CRV96/jobwarden/wiki/Getting-started) the five
-minutes after.
+and open <http://localhost:9273>. On Windows, in PowerShell, write `curl.exe` instead of `curl`.
+[Installation](https://github.com/CRV96/jobwarden/wiki/Installation) has the other ways, from the sources included;
+[Getting started](https://github.com/CRV96/jobwarden/wiki/Getting-started) the five minutes after.
 
 ## Documentation
 
@@ -64,11 +65,12 @@ Everything is in the **[wiki](https://github.com/CRV96/jobwarden/wiki)**:
 
 | Run it | Use it | Build it |
 |---|---|---|
-| [Installation](https://github.com/CRV96/jobwarden/wiki/Installation) | [Tracking jobs](https://github.com/CRV96/jobwarden/wiki/Tracking-jobs) | [What's what](https://github.com/CRV96/jobwarden/wiki/Architecture) |
-| [Getting started](https://github.com/CRV96/jobwarden/wiki/Getting-started) | [Finding jobs](https://github.com/CRV96/jobwarden/wiki/Finding-jobs) | [Development](https://github.com/CRV96/jobwarden/wiki/Development) |
-| [Updating](https://github.com/CRV96/jobwarden/wiki/Updating) | [Your CV and applying](https://github.com/CRV96/jobwarden/wiki/CV-and-applying) | [Contributing](CONTRIBUTING.md) |
-| [Configuration](https://github.com/CRV96/jobwarden/wiki/Configuration) | [Offers and salaries](https://github.com/CRV96/jobwarden/wiki/Offers-and-salaries) | [Security](SECURITY.md) |
-| [Operations](https://github.com/CRV96/jobwarden/wiki/Operations) | [AI assistant](https://github.com/CRV96/jobwarden/wiki/AI-assistant) | [Changelog](CHANGELOG.md) |
+| [Installing Docker](https://github.com/CRV96/jobwarden/wiki/Installing-Docker) | [Tracking jobs](https://github.com/CRV96/jobwarden/wiki/Tracking-jobs) | [What's what](https://github.com/CRV96/jobwarden/wiki/Architecture) |
+| [Installation](https://github.com/CRV96/jobwarden/wiki/Installation) | [Finding jobs](https://github.com/CRV96/jobwarden/wiki/Finding-jobs) | [Development](https://github.com/CRV96/jobwarden/wiki/Development) |
+| [Getting started](https://github.com/CRV96/jobwarden/wiki/Getting-started) | [Your CV and applying](https://github.com/CRV96/jobwarden/wiki/CV-and-applying) | [Contributing](CONTRIBUTING.md) |
+| [Updating](https://github.com/CRV96/jobwarden/wiki/Updating) | [Offers and salaries](https://github.com/CRV96/jobwarden/wiki/Offers-and-salaries) | [Security](SECURITY.md) |
+| [Configuration](https://github.com/CRV96/jobwarden/wiki/Configuration) | [AI assistant](https://github.com/CRV96/jobwarden/wiki/AI-assistant) | [Changelog](CHANGELOG.md) |
+| [Operations](https://github.com/CRV96/jobwarden/wiki/Operations) | [Browser extension](https://github.com/CRV96/jobwarden/wiki/Browser-extension) | |
 
 The wiki's pages live in [docs/wiki](docs/wiki), so they change in pull requests with the code.
 
