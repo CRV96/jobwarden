@@ -36,6 +36,8 @@
 - **Every job in one place.** Save postings from Chrome or Firefox with the
   [browser extension](https://github.com/CRV96/jobwarden/wiki/Browser-extension), and follow each one on a timeline, a pipeline and a
   calendar, with reminders, statistics and CSV import and export.
+- **Never the same job twice.** Open a posting you've seen before and the extension says so at once: ★ bookmarked,
+  ✓ applied, on its toolbar icon and in its popup.
 - **Finds jobs for you.** Your AI assistant searches for jobs that fit your CV, the watchlist reads the job boards of the
   companies you'd work for, and the Search Builder writes the queries for Google, LinkedIn, Reddit and X.
 - **Applies better.** A CV tailored to each posting, cover letters, messages to the people hiring, a fit score,
