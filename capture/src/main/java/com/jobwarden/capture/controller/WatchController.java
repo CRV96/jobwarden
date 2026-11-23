@@ -22,9 +22,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * The watchlist from the extension: on one of a company's jobs on Greenhouse, Lever or Ashby, the popup's eye shows
- * whether the profile watches the company's board, and watches it, or stops, when clicked. Like {@link CaptureController}, the extensions in Firefox and Chrome
- * may call it, and web pages may not.
+ * The watchlist from the extension: on one of a company's jobs on Greenhouse, Lever, Ashby, SmartRecruiters,
+ * Workable, Recruitee or Personio, the popup's eye shows whether the profile watches the company's board, and watches
+ * it, or stops, when clicked. Like {@link CaptureController}, the extensions in Firefox and Chrome may call it, and web
+ * pages may not.
  */
 @RestController
 @RequestMapping("${jobwarden.capture.path}/watchlist")

@@ -6,7 +6,8 @@ import org.jspecify.annotations.Nullable;
  * The job board a page is on, and whether the profile watches its company.
  *
  * @param name the company's name: as the profile watches it, else as the board's name has it
- * @param system the board's system, as people know it: Greenhouse, Lever or Ashby
+ * @param system the board's system, as people know it: Greenhouse, Lever, Ashby, SmartRecruiters, Workable,
+ * Recruitee or Personio
  * @param boardUrl where people see the board
  * @param companyId the company on the watchlist, when the profile watches it
  * @param added after watching: whether it's new on the watchlist

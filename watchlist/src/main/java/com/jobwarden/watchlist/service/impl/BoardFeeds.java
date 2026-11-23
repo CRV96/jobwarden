@@ -10,13 +10,18 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+
+import javax.xml.stream.XMLStreamException;
 
 import com.jobwarden.common.net.HttpClients;
 import com.jobwarden.watchlist.enums.Ats;
@@ -35,13 +40,17 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
- * The public feeds of the boards, which anyone can read, with no key: Greenhouse's Job Board API, Lever's Postings
- * API (and its servers for Europe) and Ashby's Job Postings API. Each answers with every job on the board at once, read
- * as it streams in, a job at a time, up to {@link #MAX_BYTES}. Greenhouse's list leaves the descriptions out: those
- * of the jobs that matched are read one by one ({@link #description}). What differs from one ATS to the next, its
- * addresses and its JSON, is its {@link BoardFeed}; this class reads them all the same way.
+ * The public feeds of the boards, which anyone can read, with no key, the ones the systems make for companies' careers
+ * sites: Greenhouse's Job Board API, Lever's Postings API (and its servers for Europe), Ashby's Job Postings API,
+ * SmartRecruiters' Posting API, Workable's widget, Recruitee's Careers Site API and Personio's XML feed. Each answers
+ * with every job on the board at once, but SmartRecruiters, a page at a time, and Personio, a language at a time; each
+ * answer is read as it streams in, a job at a time, up to {@link #MAX_BYTES}. Greenhouse's and SmartRecruiters' lists
+ * leave the descriptions out: those of the jobs that matched are read one by one ({@link #description}). What differs
+ * from one ATS to the next, its addresses and its JSON (or XML), is its {@link BoardFeed}; this class reads them all
+ * the same way.
  * <p>
- * The servers are these four, whatever the link pasted: the board's name is only ever a part of the path.
+ * The servers are these, whatever the link pasted: the board's name is only ever a part of the path, or, for
+ * Recruitee's and Personio's boards, the one label before their domain.
  */
 @Component
 @CustomLog
@@ -58,11 +67,29 @@ class BoardFeeds {
 	/** More than any board's feed: OpenAI's on Ashby, with every description, is about 14 MB. */
 	static final long MAX_BYTES = 40L * 1024 * 1024;
 
+	/**
+	 * The most pages of a board read at once: 10,000 jobs on SmartRecruiters, twice the biggest board there (Bosch's,
+	 * about 5,200). A board past them is read up to there.
+	 */
+	static final int MAX_PAGES = 100;
+
+	private static final String JSON = "application/json";
+
+	private static final String XML = "application/xml, text/xml";
+
 	private static final BoardFeed GREENHOUSE = new GreenhouseFeed();
 
 	private static final BoardFeed LEVER = new LeverFeed();
 
 	private static final BoardFeed ASHBY = new AshbyFeed();
+
+	private static final BoardFeed SMARTRECRUITERS = new SmartRecruitersFeed();
+
+	private static final BoardFeed WORKABLE = new WorkableFeed();
+
+	private static final BoardFeed RECRUITEE = new RecruiteeFeed();
+
+	private static final BoardFeed PERSONIO = new PersonioFeed();
 
 	private final HttpClient http = HttpClients.followingRedirects(CONNECT_TIMEOUT);
 
@@ -96,34 +123,46 @@ class BoardFeeds {
 	}
 
 	/**
-	 * @return every job on the board, listed or not as its feed lists them; those with no title or link left out
+	 * @return every job on the board, listed or not as its feed lists them, once each, however often its feed lists it;
+	 * those with no title or link left out
 	 * @throws BoardFailure when the board doesn't exist, or can't be read
 	 */
 	List<Posting> postings(Board board) {
 		BoardFeed feed = feed(board.ats());
-		List<Posting> postings = new ArrayList<>();
-		read(feed.jobs(server(board.ats()), encoded(board.name())), feed.jobsField(), job -> {
-			Posting posting = feed.posting(job);
-			if (posting != null) {
-				postings.add(posting);
+		URI server = server(board);
+		String name = encoded(board.name());
+		Map<String, Posting> byLink = new LinkedHashMap<>();
+		int read = 0;
+		URI page = feed.jobs(server, name);
+		for (int pages = 1; page != null; pages++) {
+			if (pages > MAX_PAGES) {
+				log.info("Read the first {} pages of {}, {} jobs: the rest are left out", MAX_PAGES, board, read);
+				break;
 			}
-		});
-		return postings;
+			AtomicInteger onPage = new AtomicInteger();
+			read(page, feed, job -> {
+				onPage.incrementAndGet();
+				Posting posting = feed.posting(job, board);
+				if (posting != null) {
+					byLink.merge(posting.link(), posting, Posting::mergedWith);
+				}
+			});
+			read += onPage.get();
+			page = feed.next(server, name, pages, read, onPage.get());
+		}
+		return List.copyOf(byLink.values());
 	}
 
 	/**
-	 * A job's description, for the boards whose list leaves it out (Greenhouse's).
+	 * A job's description, for the boards whose list leaves it out (Greenhouse's, SmartRecruiters').
 	 *
 	 * @return its text; {@code null} when the list has it, the board has none for it, or it can't be read
 	 */
 	@Nullable String description(Board board, String postingId) {
 		BoardFeed feed = feed(board.ats());
-		URI address = feed.description(server(board.ats()), encoded(board.name()), encoded(postingId));
-		if (address == null) {
-			return null;
-		}
 		try {
-			return feed.descriptionOf(send(address, this.json::readTree));
+			URI address = feed.description(server(board), encoded(board.name()), encoded(postingId));
+			return (address != null) ? feed.descriptionOf(send(address, JSON, this.json::readTree)) : null;
 		} catch (BoardFailure | JacksonException failed) {
 			log.debug("Couldn't read the description of job {} on {}: {}", postingId, board, failed.getMessage());
 			return null;
@@ -131,10 +170,19 @@ class BoardFeeds {
 	}
 
 	/**
-	 * @param field the property holding the jobs; {@code null} when the answer is the list itself
+	 * The jobs of one answer, JSON or XML as the feed says.
 	 */
-	private void read(URI address, @Nullable String field, Consumer<JsonNode> job) {
-		send(address, body -> {
+	private void read(URI address, BoardFeed feed, Consumer<JsonNode> job) {
+		String field = feed.jobsField();
+		if (feed.xml()) {
+			String element = Objects.requireNonNull(field, "An XML feed names its jobs' element");
+			send(address, XML, body -> {
+				readXml(address, body, element, job);
+				return null;
+			});
+			return;
+		}
+		send(address, JSON, body -> {
 			try (JsonParser parser = this.json.createParser(body)) {
 				readAnswer(parser, field, job);
 				return null;
@@ -177,10 +225,40 @@ class BoardFeeds {
 		}
 	}
 
-	private <T extends @Nullable Object> T send(URI address, Reader<T> reader) {
+	/**
+	 * @throws BoardFailure when the answer isn't XML, or couldn't be read
+	 */
+	private static void readXml(URI address, InputStream body, String element, Consumer<JsonNode> job) {
+		try {
+			FeedXml.readJobs(body, element, job);
+		} catch (XMLStreamException failed) {
+			IOException reading = ioCause(failed);
+			if (reading != null) {
+				throw new BoardFailure(address.getHost() + " couldn't be read: " + reading.getMessage());
+			}
+			throw new BoardFailure("The answer isn't a board's jobs: " + failed.getMessage());
+		}
+	}
+
+	/** The parser passes on the reading's own failure, the cap's or the connection's, as its cause. */
+	private static @Nullable IOException ioCause(XMLStreamException failed) {
+		@Nullable Throwable cause = failed.getNestedException();
+		if (cause == null) {
+			cause = failed.getCause();
+		}
+		while (cause != null && !(cause instanceof IOException)) {
+			cause = cause.getCause();
+		}
+		return (cause instanceof IOException reading) ? reading : null;
+	}
+
+	/**
+	 * @param accept the kind of answer, JSON or XML
+	 */
+	private <T extends @Nullable Object> T send(URI address, String accept, Reader<T> reader) {
 		HttpRequest request = HttpRequest.newBuilder(address)
 			.timeout(TIMEOUT)
-			.header("Accept", "application/json")
+			.header("Accept", accept)
 			.header("User-Agent", this.userAgent)
 			.GET()
 			.build();
@@ -247,19 +325,46 @@ class BoardFeeds {
 			case GREENHOUSE -> GREENHOUSE;
 			case LEVER, LEVER_EU -> LEVER;
 			case ASHBY -> ASHBY;
+			case SMARTRECRUITERS -> SMARTRECRUITERS;
+			case WORKABLE -> WORKABLE;
+			case RECRUITEE -> RECRUITEE;
+			case PERSONIO -> PERSONIO;
 		};
 	}
 
-	private URI server(Ats ats) {
-		return switch (ats) {
+	/**
+	 * @throws BoardFailure for a board that is a host of its own whose name couldn't be one
+	 */
+	private URI server(Board board) {
+		return switch (board.ats()) {
 			case GREENHOUSE -> this.properties.greenhouseApi();
 			case LEVER -> this.properties.leverApi();
 			case LEVER_EU -> this.properties.leverEuApi();
 			case ASHBY -> this.properties.ashbyApi();
+			case SMARTRECRUITERS -> this.properties.smartRecruitersApi();
+			case WORKABLE -> this.properties.workableApi();
+			case RECRUITEE -> ownHost(this.properties.recruiteeApi(), board);
+			case PERSONIO -> ownHost(this.properties.personioApi(), board);
 		};
 	}
 
-	private static String encoded(String part) {
+	/**
+	 * The address of a board that is a host of its own: its name is one label of a domain name, as {@link Board#of}
+	 * reads them. Any other, from a row changed by hand say, could make it another host: there's no such board.
+	 *
+	 * @param template the address, {board} where the name goes
+	 */
+	private static URI ownHost(String template, Board board) {
+		if (!Board.isHostLabel(board.name())) {
+			throw new BoardFailure("No board can be named " + board.name(), true);
+		}
+		return URI.create(template.replace(WatchlistProperties.BOARD, board.name()));
+	}
+
+	/**
+	 * @return the part, encoded for an address: a space is %20
+	 */
+	static String encoded(String part) {
 		return URLEncoder.encode(part, StandardCharsets.UTF_8).replace("+", "%20");
 	}
 

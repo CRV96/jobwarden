@@ -23,14 +23,16 @@ public interface WatchlistService {
 	/**
 	 * The board a link is on, and the company the profile watches there, if it does. Reads no board.
 	 *
-	 * @return empty when the link isn't on a Greenhouse, Lever or Ashby board
+	 * @return empty when the link isn't on a Greenhouse, Lever, Ashby, SmartRecruiters, Workable, Recruitee or Personio
+	 * board
 	 */
 	Optional<BoardLink> findBoard(long userId, String link);
 
 	/**
 	 * Watches the company whose board the link is on: a link to the board, or to one of its jobs, on Greenhouse,
-	 * Lever or Ashby. The board is read at once, to make sure it's there, and its postings that match the profile's
-	 * saved searches go to the AI Assistant page. A company already watched stays as it is.
+	 * Lever, Ashby, SmartRecruiters, Workable, Recruitee or Personio. The board is read at once, to make sure it's there,
+	 * and its postings that match the profile's saved searches go to the AI Assistant page. A company already watched
+	 * stays as it is.
 	 *
 	 * @param name what to call the company; the board's own name for it, or its name on the board, if {@code null}
 	 * @throws com.jobwarden.common.exception.BusinessRuleException if the link isn't on one of those boards, the board

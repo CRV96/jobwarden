@@ -20,7 +20,8 @@ final class RequestInstructions {
 	/** What the steps of finding jobs say about the watchlist, which JobWarden reads for the saved searches with no tokens. */
 	private static final String WATCHED = """
 			JobWarden reads watched_companies' boards itself: look elsewhere. When you find a company on Greenhouse, \
-			Lever or Ashby whose jobs fit, call watch_company with its board's link.
+			Lever, Ashby, SmartRecruiters, Workable, Recruitee or Personio whose jobs fit, call watch_company with its \
+			board's link.
 			""";
 
 	/** In a request made from a saved search, its notes start with its id: (search_id 5) From the saved search Java. */

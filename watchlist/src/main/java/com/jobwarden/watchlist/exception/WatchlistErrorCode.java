@@ -10,7 +10,10 @@ public enum WatchlistErrorCode implements ErrorCode {
 
 	WATCHED_COMPANY_NOT_FOUND("WATCHLIST-001"),
 
-	/** The link isn't on Greenhouse, Lever or Ashby, or doesn't name a board. */
+	/**
+	 * The link isn't on Greenhouse, Lever, Ashby, SmartRecruiters, Workable, Recruitee or Personio, or doesn't name a
+	 * board.
+	 */
 	NOT_A_BOARD_LINK("WATCHLIST-002"),
 
 	/** The board's system answered that it has no such board. */

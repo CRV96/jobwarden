@@ -21,8 +21,15 @@ class FeedJsonTests {
 	}
 
 	@Test
+	void readsRecruiteesMomentsAndWorkablesDays() {
+		assertThat(FeedJson.instant("2026-10-22 12:11:23 UTC")).isEqualTo(Instant.parse("2026-10-22T12:11:23Z"));
+		assertThat(FeedJson.instant("2026-05-29")).isEqualTo(Instant.parse("2026-05-29T00:00:00Z"));
+	}
+
+	@Test
 	void hasNoMomentForAnythingElse() {
 		assertThat(FeedJson.instant("yesterday")).isNull();
+		assertThat(FeedJson.instant("last week UTC")).isNull();
 		assertThat(FeedJson.instant(null)).isNull();
 	}
 

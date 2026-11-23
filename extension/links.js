@@ -1,8 +1,19 @@
 // The link JobWarden keeps for a page. The server matches captures on the exact link, so saving a posting and
 // looking a page up (the popup, and the icon in background.js) both go through canonicalLink.
 
-/** The job boards the watchlist reads: a company's jobs and careers page on Greenhouse, Lever (and its EU servers) or Ashby. */
-const JOB_BOARD_HOST = /^(boards|job-boards)\.greenhouse\.io$|^jobs\.(eu\.)?lever\.co$|^jobs\.ashbyhq\.com$/;
+/**
+ * The job boards the watchlist reads: a company's jobs and careers page on Greenhouse, Lever (and its EU servers),
+ * Ashby, SmartRecruiters, Workable, and on Recruitee and Personio, where each company's board is a host of its own.
+ */
+const JOB_BOARD_HOST = new RegExp([
+  /^(boards|job-boards)\.greenhouse\.io$/,
+  /^jobs\.(eu\.)?lever\.co$/,
+  /^jobs\.ashbyhq\.com$/,
+  /^(jobs|careers)\.smartrecruiters\.com$/,
+  /^apply\.workable\.com$/,
+  /^[a-z0-9-]+\.recruitee\.com$/,
+  /^[a-z0-9-]+\.jobs\.personio\.(de|com)$/,
+].map((host) => host.source).join('|'));
 
 /**
  * Whether the page is on a job board the watchlist reads, so the popup offers to watch the company. The server

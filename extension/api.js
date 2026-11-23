@@ -109,7 +109,8 @@ export async function dueReminders({ serverUrl, userId }) {
  * The job board the page is on, and whether the profile watches its company. Reads no board.
  *
  * @param {Settings} settings
- * @returns {Promise<WatchStatus | null>} null when the page isn't on a Greenhouse, Lever or Ashby board
+ * @returns {Promise<WatchStatus | null>} null when the page isn't on a Greenhouse, Lever, Ashby, SmartRecruiters,
+ *   Workable, Recruitee or Personio board
  * @typedef {{name: string, system: string, boardUrl: string, watched: boolean, companyId: number | null,
  *   added: boolean | null, newJobs: number | null}} WatchStatus
  */

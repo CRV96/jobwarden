@@ -3,6 +3,7 @@ package com.jobwarden;
 import java.util.List;
 
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.configuration.FluentConfiguration;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,7 +19,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * A database the 49 migrations from before the squash built: its tables are those V1 to V9 build, and its history
- * names the 49. Each test builds the schema with V1 to V9, then gives it the history it's about.
+ * names the 49. Each test builds the schema with V1 to V9, then gives it the history it's about; the migrations after
+ * the 9, V10 on, come after.
  */
 class SquashedMigrationsTests {
 
@@ -45,7 +47,7 @@ class SquashedMigrationsTests {
 		this.jdbc = JdbcClient.create(dataSource);
 		this.jdbc.sql("DROP SCHEMA public CASCADE").update();
 		this.jdbc.sql("CREATE SCHEMA public").update();
-		flyway().migrate();
+		theNine().migrate();
 		this.jdbc.sql("INSERT INTO users (name) VALUES ('Robert')").update();
 	}
 
@@ -56,12 +58,14 @@ class SquashedMigrationsTests {
 		assertThat(SquashedMigrations.convert(flyway())).isTrue();
 
 		assertThat(history()).containsExactly("9 BASELINE Migrations 1 to 49, squashed into 1 to 9");
-		// Flyway finds nothing to do, nor anything wrong; the profile is still there
-		assertThat(flyway().migrate().migrationsExecuted).isZero();
+		// Flyway runs the migrations after the 9 only, and finds nothing wrong; the profile is still there
+		assertThat(flyway().migrate().migrations)
+			.allSatisfy(migration -> assertThat(Integer.parseInt(migration.version)).isGreaterThan(9));
 		assertThat(flyway().validateWithResult().validationSuccessful).isTrue();
 		assertThat(this.jdbc.sql("SELECT name FROM users").query(String.class).list()).containsExactly("Robert");
-		// And the next start leaves it alone
+		// And the next start leaves it alone, with those after the 9 in its history
 		assertThat(SquashedMigrations.convert(flyway())).isFalse();
+		assertThat(history().getFirst()).isEqualTo("9 BASELINE Migrations 1 to 49, squashed into 1 to 9");
 	}
 
 	@Test
@@ -71,6 +75,17 @@ class SquashedMigrationsTests {
 		assertThat(SquashedMigrations.convert(flyway())).isFalse();
 
 		assertThat(history()).hasSize(9).isEqualTo(nine);
+	}
+
+	@Test
+	void leavesTheMigrationsAfterTheNineToFlyway() {
+		flyway().migrate();
+		List<String> all = history();
+
+		assertThat(SquashedMigrations.convert(flyway())).isFalse();
+
+		assertThat(all).hasSizeGreaterThan(9);
+		assertThat(history()).isEqualTo(all);
 	}
 
 	@Test
@@ -101,8 +116,18 @@ class SquashedMigrationsTests {
 		assertThat(history()).hasSize(30);
 	}
 
+	/** All of JobWarden's migrations */
 	private static Flyway flyway() {
-		return Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load();
+		return migrations().load();
+	}
+
+	/** JobWarden's migrations up to the last of the 9 */
+	private static Flyway theNine() {
+		return migrations().target(SquashedMigrations.SQUASHED_VERSION).load();
+	}
+
+	private static FluentConfiguration migrations() {
+		return Flyway.configure().dataSource(dataSource).locations("classpath:db/migration");
 	}
 
 	/** The history the old migrations wrote, up to the version given; the last one's description as it was */
