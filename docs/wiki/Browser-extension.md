@@ -54,8 +54,8 @@ On a job posting, click the extension's icon. It looks the page up in JobWarden 
 - **Applied** (✓): move it back to the bookmarks, for an application you didn't send, or remove it.
 - **Further along:** **Open in JobWarden**.
 
-It also watches a company from its job board on Greenhouse, Lever or Ashby (the eye beside ⚙, see the
-[watchlist](Finding-jobs#watchlist)), can put ★ or ✓ on the toolbar icon of every tab showing a saved posting, and can
+It also watches a company from its job board on Greenhouse, Lever, Ashby, SmartRecruiters, Workable, Recruitee or
+Personio (the eye beside ⚙, see the [watchlist](Finding-jobs#watchlist)), can put ★ or ✓ on the toolbar icon of every tab showing a saved posting, and can
 bring the [reminders](Tracking-jobs#reminders) set on the calendar as your system's notifications.
 
 ## Never the same job twice
@@ -94,7 +94,7 @@ else:
 | `POST /{id}/move-back-to-saved` | Takes back "I applied" |
 | `DELETE /{id}?userId=` | Removes an application |
 | `POST /reminders/due?userId=` | The reminders due, which it takes |
-| `GET /watchlist?userId=&link=` | Whether a page is on a Greenhouse, Lever or Ashby board, and whether the company is watched (204 when it isn't on one) |
+| `GET /watchlist?userId=&link=` | Whether a page is on a Greenhouse, Lever, Ashby, SmartRecruiters, Workable, Recruitee or Personio board, and whether the company is watched (204 when it isn't on one) |
 | `POST /watchlist`, `DELETE /watchlist/{companyId}?userId=` | Watches a company, or stops |
 | `GET /version` | The server's version and the latest release, which the popup compares with its own |
 

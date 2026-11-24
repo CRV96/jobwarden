@@ -9,7 +9,7 @@
 	</parent>
 	<artifactId>jobwarden-watchlist</artifactId>
 	<name>JobWarden :: Watchlist</name>
-	<description>Companies whose job boards on Greenhouse, Lever and Ashby JobWarden reads itself, adding the postings that match the saved searches as found jobs</description>
+	<description>Companies whose job boards on Greenhouse, Lever, Ashby, SmartRecruiters, Workable, Recruitee and Personio JobWarden reads itself, adding the postings that match the saved searches as found jobs</description>
 
 	<dependencies>
 		<dependency>

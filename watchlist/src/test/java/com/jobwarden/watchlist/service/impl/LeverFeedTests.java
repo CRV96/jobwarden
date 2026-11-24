@@ -2,6 +2,7 @@ package com.jobwarden.watchlist.service.impl;
 
 import java.time.Duration;
 
+import com.jobwarden.watchlist.enums.Ats;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
@@ -52,7 +53,7 @@ class LeverFeedTests {
 		Posting posting = this.feed.posting(JsonMapper.builder()
 			.build()
 			.readTree("{\"text\": \"Backend Developer\", \"hostedUrl\": \"https://jobs.lever.co/acme/1\", \"salaryRange\": "
-					+ range + "}"));
+					+ range + "}"), new Board(Ats.LEVER, "acme"));
 		assertThat(posting).isNotNull();
 		return posting.salary();
 	}

@@ -1,6 +1,7 @@
 package com.jobwarden.watchlist.service.impl;
 
 import com.jobwarden.search.WorkType;
+import com.jobwarden.watchlist.enums.Ats;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -42,7 +43,7 @@ class AshbyFeedTests {
 		((ObjectNode) job).put("title", "Platform Engineer")
 			.put("jobUrl", "https://jobs.ashbyhq.com/acme/a1")
 			.put("isListed", true);
-		Posting posting = this.feed.posting(job);
+		Posting posting = this.feed.posting(job, new Board(Ats.ASHBY, "acme"));
 		assertThat(posting).isNotNull();
 		return posting;
 	}

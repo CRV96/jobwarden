@@ -34,7 +34,7 @@ final class AshbyFeed implements BoardFeed {
 	}
 
 	@Override
-	public @Nullable Posting posting(JsonNode job) {
+	public @Nullable Posting posting(JsonNode job, Board board) {
 		String title = text(job, "title");
 		String link = text(job, "jobUrl");
 		if (title == null || link == null || !job.path("isListed").asBoolean(true)) {

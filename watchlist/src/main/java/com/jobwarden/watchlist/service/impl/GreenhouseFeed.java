@@ -28,7 +28,7 @@ final class GreenhouseFeed implements BoardFeed {
 	}
 
 	@Override
-	public @Nullable Posting posting(JsonNode job) {
+	public @Nullable Posting posting(JsonNode job, Board board) {
 		String title = text(job, "title");
 		String link = text(job, "absolute_url");
 		if (title == null || link == null) {

@@ -399,10 +399,11 @@ function showStatus(text, kind = 'info') {
 }
 
 /**
- * The eye beside the settings, only on a company's job board (Greenhouse, Lever, Ashby): coloured while the profile
- * watches the company, plain while it doesn't; a click watches it, or stops watching it. Watching reads the board on
- * the server, which takes a few seconds, and its jobs that match the saved searches go to the AI Assistant page. On any
- * other page, or when the server can't tell, there's no eye: there'd be nothing it could do.
+ * The eye beside the settings, only on a company's job board (Greenhouse, Lever, Ashby, SmartRecruiters, Workable,
+ * Recruitee, Personio): coloured while the profile watches the company, plain while it doesn't; a click watches it, or
+ * stops watching it. Watching reads the board on the server, which takes a few seconds, and its jobs that match the
+ * saved searches go to the AI Assistant page. On any other page, or when the server can't tell, there's no eye:
+ * there'd be nothing it could do.
  */
 async function showWatch() {
   if (!isOnJobBoard(link)) {

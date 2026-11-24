@@ -10,6 +10,10 @@ a release renames it to its version and date.
 
 ### Added
 
+- The watchlist reads companies' job boards on SmartRecruiters, Workable, Recruitee and Personio too, besides
+  Greenhouse, Lever and Ashby: paste a link to one of their jobs or their careers page, or click the eye in the browser
+  extension's popup there. JobWarden reads the public feeds these systems make for companies' careers sites, with no
+  key and no AI, like the others. A database migration (V10) lets the new systems into the watched companies' table.
 - [JobWarden in under 3 minutes](https://youtu.be/WS9_VcoEQZU), a video of what it does, in the README and on the
   wiki's home page; the file itself is `docs/video/jobwarden-video.mp4`.
 - The wiki's [Installing Docker](https://github.com/CRV96/jobwarden/wiki/Installing-Docker): Docker on a Mac, Windows,
