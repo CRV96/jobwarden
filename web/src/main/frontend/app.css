@@ -93,6 +93,9 @@
 /* The sidebar folded to its icons, by its button. On a narrow screen it's always folded: use max-md: too. */
 @custom-variant folded (&:where([data-sidebar="folded"] *));
 
+/* Inside an element while its HTMX request runs (HTMX's htmx-request), e.g. a button that says "Connecting…" */
+@custom-variant in-request (&:where(.htmx-request *));
+
 @layer base {
 	html {
 		background: var(--jw-canvas);
@@ -165,6 +168,94 @@
 	.link:hover {
 		color: var(--jw-accent-strong);
 		text-decoration: underline;
+	}
+
+	/* A release's notes (What's new): the HTML GitHub made of their Markdown, which the updates module cleaned down to
+	   text formatting. Headings smaller than the release's own name, code in a faint box, long links broken anywhere. */
+	.release-notes {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		font-size: 13px;
+		line-height: 1.55;
+		color: color-mix(in srgb, var(--jw-ink) 85%, transparent);
+		overflow-wrap: anywhere;
+	}
+
+	.release-notes :where(h1, h2, h3, h4, h5, h6) {
+		margin-top: 4px;
+		font-size: 14px;
+		font-weight: 600;
+		color: var(--jw-ink);
+	}
+
+	.release-notes :where(strong, b) {
+		font-weight: 600;
+		color: var(--jw-ink);
+	}
+
+	.release-notes :where(ul, ol) {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		padding-left: 20px;
+	}
+
+	.release-notes ul {
+		list-style: disc;
+	}
+
+	.release-notes ol {
+		list-style: decimal;
+	}
+
+	.release-notes a {
+		color: var(--jw-accent);
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
+
+	.release-notes a:hover {
+		color: var(--jw-accent-strong);
+	}
+
+	.release-notes :where(code, pre) {
+		border-radius: 5px;
+		background: color-mix(in srgb, var(--jw-ink) 7%, transparent);
+		font-family: var(--font-mono, ui-monospace, monospace);
+		font-size: 12px;
+	}
+
+	.release-notes code {
+		padding: 1px 5px;
+	}
+
+	.release-notes pre {
+		padding: 10px 12px;
+		border-radius: var(--radius-md);
+		overflow-x: auto;
+		overflow-wrap: normal;
+	}
+
+	.release-notes pre code {
+		padding: 0;
+		background: none;
+	}
+
+	.release-notes blockquote {
+		padding-left: 12px;
+		border-left: 3px solid var(--jw-line);
+		color: color-mix(in srgb, var(--jw-ink) 65%, transparent);
+	}
+
+	.release-notes table {
+		border-collapse: collapse;
+	}
+
+	.release-notes :where(th, td) {
+		padding: 4px 8px;
+		border: 1px solid var(--jw-line);
+		text-align: left;
 	}
 
 	/* — Buttons: primary is a filled accent, secondary a raised control, ghost only accent text — */

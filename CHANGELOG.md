@@ -16,12 +16,44 @@ a release renames it to its version and date.
   Linux, a Raspberry Pi or a NAS, and what to do when it doesn't start.
 - The wiki's browser extension page says how it keeps you from the same job twice: ★ or ✓ on its icon, and the job's
   status in its popup, on a posting you've saved.
+- The browser extension is on the [Chrome Web Store](https://chromewebstore.google.com/detail/bjklifdmffkhiffbicofeohgdcpmobek)
+  and [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/jobwarden/): their badges are in the README and the
+  wiki, and Settings → Browser extension has **Add to Chrome** and **Add to Firefox**.
+- A setup guide: what to set up for each part of JobWarden to work (the CV, the AI assistant, the browser extension,
+  the mailbox, the watchlist), what each turns on, and which are done. It opens on its own while a step is left, until
+  you say not to show it again; **Set up JobWarden** in the profile menu brings it back.
+- A CV the AI Assistant tailored to a job can be changed by hand: **Edit**, on its card and on the CV page, opens it in
+  the CV page's fields, beside its preview.
+- The jobs' count in the sidebar, and the Jobs page, follow what the browser extension saves from another tab, without
+  reloading the page.
+- **What's new**: every release, with what it changed (from its notes on GitHub), and which one runs; in the profile
+  menu, and where the sidebar says a newer version is out. After an update, the first page each profile opens shows
+  what changed since the version it saw before, once.
+- Connecting a mailbox, or **Check now**, says so in a message in the page's corner, reads the emails in the background
+  while the card shows it, and lists what it found when it's done, without reloading the page.
 
 ### Changed
+
+- Jobs and Pipeline are one page: **Jobs**, as a **List** or a **Board**, switched next to its title; the sidebar opens
+  the view you used last. The old `/pipeline` leads to the board.
+- The statistics are on the homepage, below the rest, in two columns of cards each as tall as it needs; the Statistics
+  page is gone, and `/statistics` leads there.
+- Settings' two columns end level: About is under the AI assistant now.
+- A job's side panel keeps **Open posting**, **Archive** and **Delete** at its foot, however far it's scrolled.
+- Who's hiring: **Where** is picked from a list (anywhere, remote, or a country) rather than typed.
 
 - Installing downloads `compose.yaml` with one command:
   `curl -L -o compose.yaml https://github.com/CRV96/jobwarden/releases/latest/download/compose.yaml` (`curl.exe` in
   Windows PowerShell).
+
+### Fixed
+
+- The inbox leaves newsletters and ads alone, such as a bank's offer: an email sent to many at once (its
+  `List-Unsubscribe`, `List-Id` or `Precedence: bulk` header, or an unsubscribe link) counts only for a job it names, in
+  so many words; "we'd like to offer you" is no longer an offer on its own; and in Romanian, the app (aplicația) is no
+  longer read as an application.
+- Connecting a mailbox no longer waits for the whole first reading before saying anything, which looked like nothing
+  happened until the page was reloaded.
 
 ## 1.0.1 - 2026-11-18
 

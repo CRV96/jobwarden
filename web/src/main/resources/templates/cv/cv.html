@@ -77,6 +77,8 @@
                             <div class="truncate text-xs text-ink/55" th:text="${job.company} ?: '—'">Acme</div>
                         </div>
                         <span class="text-xs text-ink/55" th:text="${@dates.relativeDay(tailored.updatedAt)}">Today</span>
+                        <a class="btn btn-secondary btn-icon" th:href="@{/applications/{id}/cv/edit(id=${tailored.applicationId})}"
+                           th:title="#{tailoredCv.edit}" th:aria-label="#{tailoredCv.edit}"><i class="ph ph-pencil-simple"></i></a>
                         <a class="btn btn-secondary btn-icon" th:href="@{/applications/{id}/cv/pdf(id=${tailored.applicationId})}"
                            th:title="#{cv.pdf}" th:aria-label="#{cv.pdf}"><i class="ph ph-file-pdf"></i></a>
                     </li>
@@ -99,88 +101,7 @@
                     <li th:each="error : ${fieldErrors.values()}" th:text="${error}">That isn’t an email address.</li>
                 </ul>
 
-                <fieldset class="flex flex-col gap-2">
-                    <legend class="section-title mb-2" th:text="#{cv.personal}">Personal details</legend>
-                    <div class="grid gap-2 sm:grid-cols-2">
-                        <label th:replace="~{cv/cv :: text-field('fullName', ${details.fullName}, #{cv.fullName}, 'Robert Ciapă')}"></label>
-                        <label th:replace="~{cv/cv :: text-field('headline', ${details.headline}, #{cv.headline}, #{cv.headline.placeholder})}"></label>
-                        <label th:replace="~{cv/cv :: text-field('email', ${details.email}, #{cv.email}, 'name@example.com')}"></label>
-                        <label th:replace="~{cv/cv :: text-field('phone', ${details.phone}, #{cv.phone}, '+40 7…')}"></label>
-                        <label th:replace="~{cv/cv :: text-field('location', ${details.location}, #{cv.location}, #{cv.location.placeholder})}"></label>
-                        <label th:replace="~{cv/cv :: text-field('website', ${details.website}, #{cv.website}, 'https://…')}"></label>
-                        <label th:replace="~{cv/cv :: text-field('linkedin', ${details.linkedin}, 'LinkedIn', 'https://www.linkedin.com/in/…')}"></label>
-                        <label th:replace="~{cv/cv :: text-field('github', ${details.github}, 'GitHub', 'https://github.com/…')}"></label>
-                    </div>
-                </fieldset>
-
-                <label class="flex flex-col gap-1">
-                    <span class="section-title" th:text="#{cv.summary}">Summary</span>
-                    <textarea class="input" name="summary" rows="4" maxlength="5000" th:placeholder="#{cv.summary.placeholder}"
-                              th:text="${details.summary}"></textarea>
-                </label>
-
-                <fieldset class="flex flex-col gap-2">
-                    <legend class="section-title mb-2" th:text="#{cv.experience}">Experience</legend>
-                    <div class="flex flex-col gap-2" data-rows="experience">
-                        <th:block th:each="job, iter : ${details.experience}"><div th:replace="~{cv/cv :: experience-row(${iter.index}, ${job})}"></div></th:block>
-                    </div>
-                    <template data-row-template="experience"><div th:replace="~{cv/cv :: experience-row('i', null)}"></div></template>
-                    <button class="btn btn-secondary self-start" type="button" data-add-row="experience">
-                        <i class="ph ph-plus"></i><span th:text="#{cv.experience.add}">Add a job</span>
-                    </button>
-                </fieldset>
-
-                <!--/* Projects: typed here, or written by Claude from the GitHub repositories chosen below */-->
-                <fieldset class="flex flex-col gap-2">
-                    <legend class="section-title mb-2" th:text="#{cv.projects}">Projects</legend>
-                    <div class="flex flex-col gap-2" data-rows="projects">
-                        <th:block th:each="project, iter : ${details.projects}"><div th:replace="~{cv/cv :: project-row(${iter.index}, ${project})}"></div></th:block>
-                    </div>
-                    <template data-row-template="projects"><div th:replace="~{cv/cv :: project-row('i', null)}"></div></template>
-                    <button class="btn btn-secondary self-start" type="button" data-add-row="projects">
-                        <i class="ph ph-plus"></i><span th:text="#{cv.projects.add}">Add a project</span>
-                    </button>
-                </fieldset>
-
-                <fieldset class="flex flex-col gap-2">
-                    <legend class="section-title mb-2" th:text="#{cv.education}">Education</legend>
-                    <div class="flex flex-col gap-2" data-rows="education">
-                        <th:block th:each="school, iter : ${details.education}"><div th:replace="~{cv/cv :: education-row(${iter.index}, ${school})}"></div></th:block>
-                    </div>
-                    <template data-row-template="education"><div th:replace="~{cv/cv :: education-row('i', null)}"></div></template>
-                    <button class="btn btn-secondary self-start" type="button" data-add-row="education">
-                        <i class="ph ph-plus"></i><span th:text="#{cv.education.add}">Add a degree</span>
-                    </button>
-                </fieldset>
-
-                <label class="flex flex-col gap-1">
-                    <span class="section-title" th:text="#{cv.skills}">Skills</span>
-                    <textarea class="input" name="skills" rows="3" maxlength="5000" th:placeholder="#{cv.skills.placeholder}"
-                              th:text="${#strings.listJoin(details.skills, ', ')}"></textarea>
-                    <span class="text-xs text-ink/55" th:text="#{cv.skills.hint}">Separated by commas or one per line.</span>
-                </label>
-
-                <fieldset class="flex flex-col gap-2">
-                    <legend class="section-title mb-2" th:text="#{cv.languages}">Languages</legend>
-                    <div class="flex flex-col gap-2" data-rows="languages">
-                        <th:block th:each="language, iter : ${details.languages}"><div th:replace="~{cv/cv :: language-row(${iter.index}, ${language})}"></div></th:block>
-                    </div>
-                    <template data-row-template="languages"><div th:replace="~{cv/cv :: language-row('i', null)}"></div></template>
-                    <button class="btn btn-secondary self-start" type="button" data-add-row="languages">
-                        <i class="ph ph-plus"></i><span th:text="#{cv.languages.add}">Add a language</span>
-                    </button>
-                </fieldset>
-
-                <fieldset class="flex flex-col gap-2">
-                    <legend class="section-title mb-2" th:text="#{cv.certifications}">Certifications</legend>
-                    <div class="flex flex-col gap-2" data-rows="certifications">
-                        <th:block th:each="certification, iter : ${details.certifications}"><div th:replace="~{cv/cv :: certification-row(${iter.index}, ${certification})}"></div></th:block>
-                    </div>
-                    <template data-row-template="certifications"><div th:replace="~{cv/cv :: certification-row('i', null)}"></div></template>
-                    <button class="btn btn-secondary self-start" type="button" data-add-row="certifications">
-                        <i class="ph ph-plus"></i><span th:text="#{cv.certifications.add}">Add a certification</span>
-                    </button>
-                </fieldset>
+                <th:block th:replace="~{cv/cv :: fields}"></th:block>
 
                 <div class="flex flex-wrap items-center gap-2 border-t border-line pt-4">
                     <button class="btn btn-primary" type="submit"><i class="ph ph-floppy-disk"></i><span th:text="#{cv.save}">Save</span></button>
@@ -233,6 +154,94 @@
         </aside>
     </div>
 </main>
+
+<!--/* The fields a CV is built from, as the CV page's form and a tailored CV's (applications/tailored-cv-edit.html)
+       have them: details are the fields to show, fieldErrors why any didn't save. The lists' rows are numbered by
+       app.js as they're added and removed (data-rows, data-row, data-add-row, data-remove-row). */-->
+<th:block th:fragment="fields">
+    <fieldset class="flex flex-col gap-2">
+        <legend class="section-title mb-2" th:text="#{cv.personal}">Personal details</legend>
+        <div class="grid gap-2 sm:grid-cols-2">
+            <label th:replace="~{cv/cv :: text-field('fullName', ${details.fullName}, #{cv.fullName}, 'Robert Ciapă')}"></label>
+            <label th:replace="~{cv/cv :: text-field('headline', ${details.headline}, #{cv.headline}, #{cv.headline.placeholder})}"></label>
+            <label th:replace="~{cv/cv :: text-field('email', ${details.email}, #{cv.email}, 'name@example.com')}"></label>
+            <label th:replace="~{cv/cv :: text-field('phone', ${details.phone}, #{cv.phone}, '+40 7…')}"></label>
+            <label th:replace="~{cv/cv :: text-field('location', ${details.location}, #{cv.location}, #{cv.location.placeholder})}"></label>
+            <label th:replace="~{cv/cv :: text-field('website', ${details.website}, #{cv.website}, 'https://…')}"></label>
+            <label th:replace="~{cv/cv :: text-field('linkedin', ${details.linkedin}, 'LinkedIn', 'https://www.linkedin.com/in/…')}"></label>
+            <label th:replace="~{cv/cv :: text-field('github', ${details.github}, 'GitHub', 'https://github.com/…')}"></label>
+        </div>
+    </fieldset>
+
+    <label class="flex flex-col gap-1">
+        <span class="section-title" th:text="#{cv.summary}">Summary</span>
+        <textarea class="input" name="summary" rows="4" maxlength="5000" th:placeholder="#{cv.summary.placeholder}"
+                  th:text="${details.summary}"></textarea>
+    </label>
+
+    <fieldset class="flex flex-col gap-2">
+        <legend class="section-title mb-2" th:text="#{cv.experience}">Experience</legend>
+        <div class="flex flex-col gap-2" data-rows="experience">
+            <th:block th:each="job, iter : ${details.experience}"><div th:replace="~{cv/cv :: experience-row(${iter.index}, ${job})}"></div></th:block>
+        </div>
+        <template data-row-template="experience"><div th:replace="~{cv/cv :: experience-row('i', null)}"></div></template>
+        <button class="btn btn-secondary self-start" type="button" data-add-row="experience">
+            <i class="ph ph-plus"></i><span th:text="#{cv.experience.add}">Add a job</span>
+        </button>
+    </fieldset>
+
+    <!--/* Projects: typed here, or written by Claude from the GitHub repositories chosen below */-->
+    <fieldset class="flex flex-col gap-2">
+        <legend class="section-title mb-2" th:text="#{cv.projects}">Projects</legend>
+        <div class="flex flex-col gap-2" data-rows="projects">
+            <th:block th:each="project, iter : ${details.projects}"><div th:replace="~{cv/cv :: project-row(${iter.index}, ${project})}"></div></th:block>
+        </div>
+        <template data-row-template="projects"><div th:replace="~{cv/cv :: project-row('i', null)}"></div></template>
+        <button class="btn btn-secondary self-start" type="button" data-add-row="projects">
+            <i class="ph ph-plus"></i><span th:text="#{cv.projects.add}">Add a project</span>
+        </button>
+    </fieldset>
+
+    <fieldset class="flex flex-col gap-2">
+        <legend class="section-title mb-2" th:text="#{cv.education}">Education</legend>
+        <div class="flex flex-col gap-2" data-rows="education">
+            <th:block th:each="school, iter : ${details.education}"><div th:replace="~{cv/cv :: education-row(${iter.index}, ${school})}"></div></th:block>
+        </div>
+        <template data-row-template="education"><div th:replace="~{cv/cv :: education-row('i', null)}"></div></template>
+        <button class="btn btn-secondary self-start" type="button" data-add-row="education">
+            <i class="ph ph-plus"></i><span th:text="#{cv.education.add}">Add a degree</span>
+        </button>
+    </fieldset>
+
+    <label class="flex flex-col gap-1">
+        <span class="section-title" th:text="#{cv.skills}">Skills</span>
+        <textarea class="input" name="skills" rows="3" maxlength="5000" th:placeholder="#{cv.skills.placeholder}"
+                  th:text="${#strings.listJoin(details.skills, ', ')}"></textarea>
+        <span class="text-xs text-ink/55" th:text="#{cv.skills.hint}">Separated by commas or one per line.</span>
+    </label>
+
+    <fieldset class="flex flex-col gap-2">
+        <legend class="section-title mb-2" th:text="#{cv.languages}">Languages</legend>
+        <div class="flex flex-col gap-2" data-rows="languages">
+            <th:block th:each="language, iter : ${details.languages}"><div th:replace="~{cv/cv :: language-row(${iter.index}, ${language})}"></div></th:block>
+        </div>
+        <template data-row-template="languages"><div th:replace="~{cv/cv :: language-row('i', null)}"></div></template>
+        <button class="btn btn-secondary self-start" type="button" data-add-row="languages">
+            <i class="ph ph-plus"></i><span th:text="#{cv.languages.add}">Add a language</span>
+        </button>
+    </fieldset>
+
+    <fieldset class="flex flex-col gap-2">
+        <legend class="section-title mb-2" th:text="#{cv.certifications}">Certifications</legend>
+        <div class="flex flex-col gap-2" data-rows="certifications">
+            <th:block th:each="certification, iter : ${details.certifications}"><div th:replace="~{cv/cv :: certification-row(${iter.index}, ${certification})}"></div></th:block>
+        </div>
+        <template data-row-template="certifications"><div th:replace="~{cv/cv :: certification-row('i', null)}"></div></template>
+        <button class="btn btn-secondary self-start" type="button" data-add-row="certifications">
+            <i class="ph ph-plus"></i><span th:text="#{cv.certifications.add}">Add a certification</span>
+        </button>
+    </fieldset>
+</th:block>
 
 <!--/* A one-line field of the personal details */-->
 <label th:fragment="text-field(name, value, label, placeholder)" class="flex min-w-0 flex-col gap-1">

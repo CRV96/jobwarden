@@ -1,6 +1,9 @@
 # Getting started
 
-Once JobWarden runs ([Installation](Installation)), five minutes make the rest work.
+Once JobWarden runs ([Installation](Installation)), five minutes make the rest work. The app's **setup guide** walks
+you through them: it opens on its own while a step is left (until you tick **Don't show this again**), and **Set up
+JobWarden** in the profile menu brings it back. It ticks each step as you do it, and says what each turns on: the CV,
+the AI assistant, the browser extension, the mailbox and the watchlist.
 
 ## 1. Create your profile
 
@@ -12,14 +15,16 @@ others use the same browser. More on [Profiles and settings](Profiles-and-settin
 
 Either:
 
-- **With the [browser extension](Browser-extension)** (the quickest, from then on): on a job posting, click its icon,
-  then **Bookmark** or **I applied**. It reads the title, company, place, salary and description for you.
+- **With the [browser extension](Browser-extension)** (the quickest, from then on), from the
+  [Chrome Web Store](https://chromewebstore.google.com/detail/bjklifdmffkhiffbicofeohgdcpmobek) or
+  [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/jobwarden/): on a job posting, click its icon, then
+  **Bookmark** or **I applied**. It reads the title, company, place, salary and description for you.
 - **By hand:** **Jobs → Add job**, with the posting's link and what you know.
 - **From a spreadsheet** you kept so far: **Settings → Your jobs → Import** ([how](Tracking-jobs#export-and-import)).
 
 Each job gets a **timeline**: saved, applied, each interview, the offer or the rejection. Change its status from its side
-panel, or drag its card on the **Pipeline**. Interviews, deadlines and days to follow up show on the **Calendar**, and
-can remind you.
+panel, or switch the **Jobs** page to **Board** and drag its card to another column. Interviews, deadlines and days to
+follow up show on the **Calendar**, and can remind you.
 
 ## 3. Add your CV
 

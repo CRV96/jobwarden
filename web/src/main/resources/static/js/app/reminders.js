@@ -79,7 +79,7 @@ document.addEventListener('change', (event) => {
 	}
 });
 
-// data-close-card: closes the reminder's card it's in
+// data-close-card: closes the reminder's card it's in, or a toast's
 document.addEventListener('click', (event) => {
-	event.target.closest('[data-close-card]')?.closest('[data-reminder-card]')?.remove();
+	event.target.closest('[data-close-card]')?.closest('[data-reminder-card], [data-toast-card]')?.remove();
 });

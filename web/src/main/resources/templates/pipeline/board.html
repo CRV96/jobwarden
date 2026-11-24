@@ -1,42 +1,38 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout :: page(~{::title}, ~{::main}, 'pipeline')}">
+      th:replace="~{layout :: page(~{::title}, ~{::main}, 'jobs')}">
 <head>
-    <title th:text="|#{pipeline.title} · JobWarden|">Pipeline · JobWarden</title>
+    <title th:text="|#{jobs.title} · JobWarden|">Jobs · JobWarden</title>
 </head>
 <body>
-<!--/* pipelineColumns maps each status, in their order, to the first page of its applications, newest first; a column
-       loads its next pages as it's scrolled to its end (PipelineController). pipelineSearch narrows them all, or is
-       null. */-->
+<!--/* The Jobs page as a board (the list is its other view, applications/list.html). pipelineColumns maps each status, in
+       their order, to the first page of its applications, newest first; a column loads its next pages as it's scrolled
+       to its end (PipelineController). pipelineSearch narrows them all, or is null. */-->
 <main class="page-full flex flex-col gap-4">
-    <header class="flex flex-wrap items-end gap-3">
-        <div class="min-w-[240px] flex-1">
-            <h1 class="page-title mb-1" th:text="#{pipeline.title}">Pipeline</h1>
-            <p class="text-[13px] text-ink/60" th:text="#{pipeline.subtitle}">Where each application stands</p>
-        </div>
-        <th:block th:replace="~{help/help :: how-it-works('pipeline')}"></th:block>
-        <!--/* As it's typed, HTMX swaps the board; Enter without HTMX loads the whole page, the same */-->
-        <form class="relative min-w-[200px] flex-[0_1_300px]" method="get" th:action="@{/pipeline}" role="search">
+    <header th:replace="~{applications/fragments :: page-header(#{jobs.title}, ${applicationCount != null} ? #{jobs.subtitle(${applicationCount})} : null, 'board', ${pipelineSearch})}"></header>
+
+    <!--/* As it's typed, HTMX swaps the board; Enter without HTMX loads the whole page, the same. In a row, as on the
+           list, where the search is as wide. */-->
+    <div class="flex flex-wrap items-center gap-2">
+        <form class="relative min-w-[200px] flex-[0_1_300px]" method="get" th:action="@{/applications/board}" role="search">
             <i class="ph ph-magnifying-glass pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-[15px] text-ink/50"></i>
             <label class="contents">
                 <span class="sr-only" th:text="#{jobs.search}">Search</span>
                 <input class="input pl-8" type="search" name="q" th:value="${pipelineSearch}" th:placeholder="#{jobs.search}"
                        autocomplete="off"
-                       th:hx-get="@{/pipeline}" hx-trigger="input changed delay:300ms, search" hx-include="closest form"
+                       th:hx-get="@{/applications/board}" hx-trigger="input changed delay:300ms, search" hx-include="closest form"
                        hx-target="#pipeline" hx-select="#pipeline" hx-swap="outerHTML" hx-push-url="true">
             </label>
         </form>
-        <button class="btn btn-primary" type="button" data-open-dialog="add-job">
-            <i class="ph ph-plus text-[15px]"></i><span th:text="#{jobs.add}">Add job</span>
-        </button>
-    </header>
+    </div>
 
     <!--/* When an application changes in the side panel, HTMX reloads the board; hx-disinherit keeps the cards' own
            requests from inheriting that. */-->
     <!--/* As many columns as there are statuses, as tall as the window on a wide screen, each scrolling on its own */-->
     <div id="pipeline" class="grid min-h-0 flex-1 auto-cols-[minmax(180px,1fr)] grid-flow-col gap-3 overflow-x-auto pb-3 lg:grid-rows-[minmax(0,1fr)]"
          hx-disinherit="*"
-         th:hx-get="@{/pipeline(q=${pipelineSearch})}" hx-trigger="applications-changed from:body" hx-select="#pipeline" hx-target="this" hx-swap="outerHTML">
+         th:hx-get="${pipelineSearch != null} ? @{/applications/board(q=${pipelineSearch})} : @{/applications/board}"
+         hx-trigger="applications-changed from:body" hx-select="#pipeline" hx-target="this" hx-swap="outerHTML">
         <section class="flex min-h-0 min-w-0 flex-col gap-2" th:each="column : ${pipelineColumns}"
                  th:classappend="|st-${#strings.toLowerCase(column.key.name())}|">
             <h2 class="column-rule flex items-center gap-2 px-0.5 pb-1.5 text-xs tracking-[0.06em] text-ink/65 uppercase">
@@ -83,7 +79,7 @@
         </span>
     </div>
     <button class="btn btn-ghost w-full flex-none justify-center" type="button" th:if="${pipelineCards.hasNext()}"
-            th:hx-get="@{/pipeline/column(status=${pipelineStatus}, page=${pipelineCards.number + 1}, q=${pipelineSearch})}"
+            th:hx-get="@{/applications/board/column(status=${pipelineStatus}, page=${pipelineCards.number + 1}, q=${pipelineSearch})}"
             hx-trigger="click, intersect once" hx-target="this" hx-swap="outerHTML"
             th:text="#{pipeline.more(${pipelineCards.totalElements - (pipelineCards.number + 1) * pipelineCards.size})}">Show 360 more</button>
 </th:block>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<!--/* The setup guide (SetupGuideController): what to set up for each part of JobWarden to work, and which the profile
+       has done. setupSteps are its steps, in the order to do them; setupDone how many are done. setup.js loads the
+       dialog into the page, and opens it: on its own on a profile's first page in a browser session, while a step is
+       left (data-complete says whether any is), unless the profile asked not to; from the profile menu, whenever. */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<dialog th:fragment="guide" id="setup-guide" class="dialog w-[min(600px,calc(100%-32px))]" aria-labelledby="setup-guide-title"
+        th:data-complete="${setupDone == setupSteps.size()} ? 'true' : 'false'"
+        th:with="total=${setupSteps.size()}">
+    <div class="flex flex-col gap-4">
+        <div class="flex items-start gap-3">
+            <span class="brand-mark size-10 flex-none"><i class="ph ph-rocket-launch text-xl"></i></span>
+            <div class="min-w-0 flex-1">
+                <h2 id="setup-guide-title" class="dialog-title" th:text="#{setup.title}">Set up JobWarden</h2>
+                <p class="text-[13px] text-pretty text-ink/65" th:text="#{setup.subtitle}">Each step turns on more of JobWarden…</p>
+            </div>
+            <button class="btn btn-ghost btn-icon flex-none" type="button" data-close-dialog th:title="#{action.close}"
+                    th:aria-label="#{action.close}"><i class="ph ph-x"></i></button>
+        </div>
+
+        <!--/* How far along: a bar, and the count */-->
+        <div class="flex items-center gap-3">
+            <span class="block h-2 flex-1 overflow-hidden rounded-[4px] bg-ink/8" aria-hidden="true">
+                <span class="block h-full rounded-[4px] bg-success" th:style="|width: ${setupDone * 100 / total}%|"></span>
+            </span>
+            <span class="text-xs text-ink/65 tabular-nums" th:text="#{setup.progress(${setupDone}, ${total})}">2 of 5 done</span>
+        </div>
+        <p class="flex items-center gap-2 rounded-lg bg-success/10 px-3 py-2 text-[13px] text-success" role="status"
+           th:if="${setupDone == total}">
+            <i class="ph ph-check-circle text-base"></i><span th:text="#{setup.allDone}">All set: every part of JobWarden is on.</span>
+        </p>
+
+        <ol class="flex flex-col gap-2">
+            <li class="flex flex-wrap items-center gap-3 rounded-lg p-3 shadow-[inset_0_0_0_1px_var(--jw-line)]"
+                th:each="step, iter : ${setupSteps}" th:classappend="${step.done} ? 'bg-ink/3'">
+                <span class="grid size-8 flex-none place-items-center rounded-full"
+                      th:classappend="${step.done} ? 'bg-success/15 text-success' : 'bg-accent-tint text-accent-ink'">
+                    <i class="ph text-base" th:classappend="${step.done} ? 'ph-check' : ${step.icon}"></i>
+                </span>
+                <div class="min-w-[200px] flex-1">
+                    <div class="text-[13px] font-semibold" th:text="#{|setup.${step.key}|}">Add your CV</div>
+                    <div class="text-xs text-pretty text-ink/65" th:text="#{|setup.${step.key}.unlocks|}">Turns on: …</div>
+                </div>
+                <span class="tag st-offer flex-none" th:if="${step.done}">
+                    <i class="ph ph-check"></i><span th:text="#{setup.done}">Done</span>
+                </span>
+                <!--/* The extension from its store; the others where they're set up */-->
+                <span class="flex flex-none flex-wrap gap-1.5" th:if="${!step.done and step.key == 'extension'}"
+                      th:with="chrome=${@extensionStores.chrome()}, firefox=${@extensionStores.firefox()}">
+                    <a class="btn btn-secondary px-2 py-1 text-xs" th:href="${chrome}" target="_blank" rel="noopener noreferrer">
+                        <i class="ph ph-google-chrome-logo"></i><span>Chrome</span>
+                    </a>
+                    <a class="btn btn-secondary px-2 py-1 text-xs" th:href="${firefox}" target="_blank" rel="noopener noreferrer">
+                        <i class="ph ph-browser"></i><span>Firefox</span>
+                    </a>
+                </span>
+                <a class="btn btn-secondary flex-none px-2 py-1 text-xs" th:if="${!step.done and step.key != 'extension'}"
+                   th:href="@{${step.href}}">
+                    <span th:text="#{setup.go}">Set up</span><i class="ph ph-arrow-right"></i>
+                </a>
+            </li>
+        </ol>
+
+        <div class="dialog-actions items-center">
+            <button class="btn btn-ghost mr-auto text-[13px]" type="button" data-hide-setup-guide th:unless="${setupDone == total}"
+                    th:text="#{setup.hide}">Don’t show this again</button>
+            <button class="btn btn-primary" type="button" data-close-dialog
+                    th:text="${setupDone == total} ? #{help.done} : #{setup.later}">Later</button>
+        </div>
+    </div>
+</dialog>
+
+</body>
+</html>

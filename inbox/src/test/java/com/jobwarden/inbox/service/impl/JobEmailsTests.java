@@ -96,6 +96,45 @@ class JobEmailsTests {
 	}
 
 	@Test
+	void leavesAloneABanksAdThatOffersSomething() {
+		// A Romanian bank's newsletter: "we'd like to offer you" a loan, "the app" in Romanian is aplicația
+		assertThat(read("noreply@raiffeisen.ro", "Oferta lunii pentru tine", """
+				Bună Robert,
+				Vrem să îți oferim o dobândă avantajoasă la creditul de nevoi personale. Descarcă aplicația Smart Mobile.
+				Din păcate, oferta e valabilă doar până vineri.
+				Dacă nu mai vrei să primești aceste emailuri, apasă aici pentru dezabonare.""")).isEmpty();
+		assertThat(read("offers@shop.com", "A special offer", "We would like to offer you 20% off your next order. "
+				+ "Unfortunately, it ends on Sunday. Check your application settings.")).isEmpty();
+		assertThat(read("news@bank.com", "Changes to your account", "We regret to inform you that the branch closes.")).isEmpty();
+	}
+
+	@Test
+	void readsAMailingToManyOnlyForAJobItNamesInSoManyWords() {
+		// Sent to many (List-Unsubscribe), from the company of a job: a clear rejection is still news
+		assertThat(bulk("careers@globex.de", "Your application at Globex",
+				"Thank you for applying. We regret to inform you that we decided not to proceed."))
+			.map(Found::applicationId)
+			.contains(3L);
+		// A hint is not, nor clear news of no job of the profile's
+		assertThat(bulk("careers@globex.de", "Globex news", "Unfortunately our event is full. Thanks for your application."))
+			.isEmpty();
+		assertThat(bulk("talent@contoso.com", "Your application", "We regret to inform you that the position has been filled."))
+			.isEmpty();
+	}
+
+	@Test
+	void tellsAnOfferOfAJobFromAnAdsWords() {
+		assertThat(read("hr@initech.com", "Initech", "We are delighted to offer you the Kotlin Developer position."))
+			.map(Found::status)
+			.contains(ApplicationStatus.OFFER);
+		// Only a hint without the job: news of the job it names, nothing for one it doesn't
+		assertThat(read("hr@initech.com", "Your application", "We would like to offer you a contract."))
+			.map(Found::status)
+			.contains(ApplicationStatus.OFFER);
+		assertThat(read("hr@contoso.com", "Your application", "We would like to offer you a contract.")).isEmpty();
+	}
+
+	@Test
 	void excerptsTheSentenceThatSaidIt() {
 		assertThat(JobEmails.excerpt("Hello there. We regret to inform you, sadly. Bye", 14))
 			.isEqualTo("We regret to inform you, sadly.");
@@ -113,6 +152,12 @@ class JobEmailsTests {
 	private static Optional<Found> read(@Nullable String from, String subject, String text) {
 		return JobEmails.read(new MailMessage("<" + subject.hashCode() + "@example.com>", Instant.now(), null, from, subject,
 				text), JOBS);
+	}
+
+	/** One whose headers say it went to many, as a newsletter's do. */
+	private static Optional<Found> bulk(@Nullable String from, String subject, String text) {
+		return JobEmails.read(new MailMessage("<" + subject.hashCode() + "@example.com>", Instant.now(), null, from, subject,
+				text, true), JOBS);
 	}
 
 }

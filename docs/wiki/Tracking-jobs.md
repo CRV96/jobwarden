@@ -4,17 +4,24 @@ Every job you save, from the first bookmark to the offer, with its story on a ti
 [browser extension](Browser-extension), by hand with **Add job** on the Jobs page, from the cards the
 [assistant finds](Finding-jobs), or by [importing a spreadsheet](#export-and-import).
 
-The **Jobs** page (`/applications`) lists them, with filters by status, site, tag and text, sorting, and a side panel
-that opens a job without leaving the list; ticking several acts on them at once. A job's own page has its facts, its
-timeline and the assistant's cards for it.
+The **Jobs** page shows them two ways, switched by **List** and **Board** next to its title: the list
+(`/applications`), with filters by status, site, tag and text, sorting, and ticking several to act on them at once; and
+the [board](#the-board), a column per status. Either opens a job in a side panel without leaving the page, its
+**Open posting**, **Archive** and **Delete** always at the panel's foot, however far it's scrolled. The sidebar's
+**Jobs** opens the view you used last (a cookie, `jobwarden-jobs-view`). A job's own page has its facts, its timeline
+and the assistant's cards for it.
+
+The count next to **Jobs** in the sidebar, the page's subtitle, and the list or the board follow what the browser
+extension saves without reloading the page: every page asks the server how many jobs there are and when they last
+changed (`GET /applications/changes`) every 10 seconds while it's in front, and at once when you come back to its tab.
 
 ## The homepage
 
-**Home** (`/`, first in the sidebar, and where choosing a profile leads): a low banner with the logo, whose profile it is and the day; the applications sent today, this week and this month (with the jobs saved, and the week and the month before to compare) and the share answered; the last 30 days day by day, as two charts, the applications sent and the jobs saved, each day's count in its bar's tooltip; what waits (jobs to review, email updates, requests open for the assistant, offers, follow-ups due), each a link to where it's done; the next 7 days' interviews, deadlines and follow-ups; the latest entries on the jobs' timelines; the jobs by status; and the searches saved in the Search Builder, each to run again there or to hand to the assistant with the same filters (a `FIND_JOBS` request). Worked out from the data, without AI (`HomeController`, `ActivityService` in `jobs`).
+**Home** (`/`, first in the sidebar, and where choosing a profile leads): a low banner with the logo, whose profile it is and the day; the applications sent today, this week and this month (with the jobs saved, and the week and the month before to compare) and the share answered; the last 30 days day by day, as two charts, the applications sent and the jobs saved, each day's count in its bar's tooltip; what waits (jobs to review, email updates, requests open for the assistant, offers, follow-ups due), each a link to where it's done; the next 7 days' interviews, deadlines and follow-ups; the latest entries on the jobs' timelines; the jobs by status; and the searches saved in the Search Builder, each to run again there or to hand to the assistant with the same filters (a `FIND_JOBS` request). Below them, the [statistics](#statistics). Worked out from the data, without AI (`HomeController`, `ActivityService` in `jobs`).
 
-## Pipeline
+## The board
 
-**Pipeline** (`/pipeline`): a column per status, newest first. Drag a card to another column to give the job that status, as the status buttons of its side panel do; a click still opens it. Each column shows its first 40 cards and loads the next 40 as it's scrolled to its end (`GET /pipeline/column?status=&page=`), so thousands of jobs load as quickly as ten; the count above it is all of them. The search above narrows every column to the jobs whose title or company has the words.
+**Board** (`/applications/board`, the Jobs page's other view; the old `/pipeline` leads there): a column per status, newest first. Drag a card to another column to give the job that status, as the status buttons of its side panel do; a click still opens it. Each column shows its first 40 cards and loads the next 40 as it's scrolled to its end (`GET /applications/board/column?status=&page=`), so thousands of jobs load as quickly as ten; the count above it is all of them. The search above narrows every column to the jobs whose title or company has the words, and **List** keeps it.
 
 ## Calendar
 
@@ -42,7 +49,7 @@ The cards of a job's page and side panel (fit, AI-proof CV, interview prep, remi
 
 ## Archive
 
-**Archive**: the jobs you're done with leave the list, the pipeline, the calendar and its feed, the offers, and the jobs the assistant lists, scores and checks, and stay in the statistics and the salaries. Archive one from its page or side panel, or tick several in the list; archive the old ones at once in Settings → Your jobs: those nothing changed on since a day you pick, only the ones that ended (rejected, no response, closed, withdrawn) unless you untick it. The list's **Archived** filter shows them, with their statuses, to bring any back; a posting saved again with the extension comes back on its own. Archiving changes nothing else about a job (`applications.archived_at`).
+**Archive**: the jobs you're done with leave the list, the board, the calendar and its feed, the offers, and the jobs the assistant lists, scores and checks, and stay in the statistics and the salaries. Archive one from its page or side panel, or tick several in the list; archive the old ones at once in Settings → Your jobs: those nothing changed on since a day you pick, only the ones that ended (rejected, no response, closed, withdrawn) unless you untick it. The list's **Archived** filter shows them, with their statuses, to bring any back; a posting saved again with the extension comes back on its own. Archiving changes nothing else about a job (`applications.archived_at`).
 
 ## Export and import
 
@@ -50,7 +57,7 @@ The cards of a job's page and side panel (fit, AI-proof CV, interview prep, remi
 
 ## Statistics
 
-**Statistics** (`/statistics`): how your applications went, counted from the jobs' timelines without AI (`StatisticsService` in `jobs`): how many you applied to, how often they got an answer (an interview, an offer, or a rejection that wasn't for no response) and an interview, the offers, and the median wait from applying to the first answer; from saved to offer; the answers by site and by who applied (you, the assistant, the extension); whether the jobs the assistant scored 4 or more got to an interview more often than the others (the calibration, once there are at least three of each); the requirements the fits found missing or partly met most often, and the keywords the tailored CVs couldn't claim (what to work on); and why you were turned down.
+**Statistics**, on the homepage, below the rest (`/#statistics`; the old `/statistics` leads there): how your applications went, counted from the jobs' timelines without AI (`StatisticsService` in `jobs`): how many you applied to, how often they got an answer (an interview, an offer, or a rejection that wasn't for no response) and an interview, the offers, and the median wait from applying to the first answer; from saved to offer; the answers by site and by who applied (you, the assistant, the extension); whether the jobs the assistant scored 4 or more got to an interview more often than the others (the calibration, once there are at least three of each); the requirements the fits found missing or partly met most often, and the keywords the tailored CVs couldn't claim (what to work on); and why you were turned down.
 
 ## How it works
 

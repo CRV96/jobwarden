@@ -32,6 +32,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
+import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -172,7 +173,10 @@ class InboxControllerTests {
 	}
 
 	@Test
-	void connectsAndReadsTheMailboxAtOnce() {
+	void connectsSaysSoAndReadsTheMailboxInTheBackground() {
+		given(this.inbox.findAccount(1)).willReturn(Optional.of(new MailAccount("imap.gmail.com", 993, "robert@gmail.com",
+				"INBOX", null, null, null, null, 10, InboxAutomation.ASK)));
+
 		assertThat(this.mvc.post()
 			.uri("/inbox/account")
 			.param("host", "imap.gmail.com")
@@ -181,9 +185,34 @@ class InboxControllerTests {
 			.param("password", "app password")
 			.param("folder", "INBOX")
 			.header("HX-Request", "true")).hasStatusOk()
-			.headers()
-			.hasValue("HX-Refresh", "true");
-		then(this.inbox).should().check(1);
+			.bodyText()
+			.contains("Your mailbox is connected. JobWarden is reading the emails of the last 30 days.", "data-toast",
+					"Reading your emails…", "/inbox/account?readSince=", "every 3s")
+			.doesNotContain("name=\"password\"");
+		then(this.inbox).should().checkSoon(1);
+		then(this.inbox).should(never()).check(anyLong());
+	}
+
+	@Test
+	void waitsForTheReadingThenSaysHowItWent() {
+		Instant started = Instant.now().minusSeconds(5);
+		given(this.inbox.findAccount(1)).willReturn(Optional.of(new MailAccount("imap.gmail.com", 993, "robert@gmail.com",
+				"INBOX", null, started.minusSeconds(3600), null, null, 10, InboxAutomation.ASK)));
+
+		assertThat(this.mvc.get().uri("/inbox/account?readSince=" + started).header("HX-Request", "true")).hasStatusOk()
+			.bodyText()
+			.contains("Reading your emails…", "every 3s")
+			.doesNotContain("data-toast");
+
+		given(this.inbox.findAccount(1)).willReturn(Optional.of(new MailAccount("imap.gmail.com", 993, "robert@gmail.com",
+				"INBOX", null, started.plusSeconds(2), null, null, 10, InboxAutomation.ASK)));
+		given(this.inbox.countPending(1)).willReturn(2L);
+
+		MvcTestResult read = this.mvc.get().uri("/inbox/account?readSince=" + started).header("HX-Request", "true").exchange();
+		assertThat(read).hasStatusOk().headers().hasValue("HX-Trigger", "inbox-read");
+		assertThat(read).bodyText()
+			.contains("Your mailbox is read: 2 emails about your jobs are waiting.")
+			.doesNotContain("Reading your emails…", "every 3s");
 	}
 
 	@Test

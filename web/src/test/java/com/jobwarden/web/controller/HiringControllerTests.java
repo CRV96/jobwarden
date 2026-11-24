@@ -232,6 +232,25 @@ class HiringControllerTests {
 	}
 
 	@Test
+	void offersThePlacesToPickTheLastOneAskedFirst() {
+		given(this.discovery.findRequests(1, 50)).willReturn(List.of(AiRequest.builder()
+			.id(21)
+			.kind(AiRequestKind.FIND_HIRING_POSTS)
+			.requirements(AiRequirements.builder().locations(List.of("Germany")).build())
+			.status(AiRequestStatus.DONE)
+			.summary("Added 12 posts from 9 people.")
+			.createdAt(Instant.now())
+			.build()));
+
+		assertThat(this.mvc.get().uri("/hiring")).hasStatusOk()
+			.bodyText()
+			.contains("<select class=\"input\" name=\"places\">", "<option value=\"\">Anywhere</option>",
+					"<option value=\"Remote in Europe\">Remote in Europe</option>",
+					"<option value=\"Germany\" selected=\"selected\">Germany</option>", "<option value=\"Romania\">Romania</option>")
+			.doesNotContain("name=\"places\" maxlength");
+	}
+
+	@Test
 	void reloadsThePageOnceClaudeIsDone() {
 		given(this.discovery.findRequests(1, 50)).willReturn(List.of(AiRequest.builder()
 			.id(21)

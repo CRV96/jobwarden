@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: page(~{::title}, ~{::main}, 'jobs')}">
+<head>
+    <title th:text="|#{tailoredCv.edit.title} · ${jobApplication.title} · JobWarden|">Edit the CV · Backend engineer · JobWarden</title>
+</head>
+<body>
+<!--/* A job's tailored CV, to change by hand (TailoredCvController.edit): the CV the AI Assistant wrote for the job, in the
+       same fields as the CV page's. cvDetails are the fields to show: the saved ones, or those typed when they didn't
+       save (fieldErrors says why); tailoredCv what the AI Assistant said of it; jobApplication the job. The preview
+       beside it is the CV as saved, as its PDF will be. */-->
+<main class="page-split flex flex-col gap-5" th:with="details=${cvDetails}">
+    <header class="flex flex-wrap items-end gap-3">
+        <div class="min-w-[240px] flex-1">
+            <a class="link mb-1 inline-flex items-center gap-1 text-[13px]" th:href="@{/applications/{id}(id=${jobApplication.id})}">
+                <i class="ph ph-arrow-left"></i>
+                <span th:text="${jobApplication.company != null} ? |${jobApplication.title} · ${jobApplication.company}| : ${jobApplication.title}">Backend engineer · Acme</span>
+            </a>
+            <h1 class="page-title mb-1" th:text="#{tailoredCv.edit.title}">Edit the CV for this job</h1>
+            <p class="text-[13px] text-pretty text-ink/60" th:text="#{tailoredCv.edit.subtitle}">The AI Assistant’s CV for this job…</p>
+        </div>
+        <a class="btn btn-secondary" th:href="@{/applications/{id}/cv/pdf(id=${jobApplication.id})}">
+            <i class="ph ph-file-pdf"></i><span th:text="#{cv.pdf}">Download PDF</span>
+        </a>
+    </header>
+
+    <div class="card flex items-center gap-2 p-3 text-[13px] text-success" role="status" th:if="${param.saved}">
+        <i class="ph ph-check-circle text-base"></i><span th:text="#{cv.saved}">Saved. The preview and the PDF show it.</span>
+    </div>
+
+    <div class="grid min-h-0 flex-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)]">
+        <div class="scroll-panel flex min-h-0 min-w-0 flex-col gap-5">
+            <!--/* What the AI Assistant changed, and the posting's keywords it named or couldn't: to keep in mind while editing */-->
+            <section class="card flex flex-col gap-3 p-4" aria-labelledby="tailored-notes-title"
+                     th:if="${tailoredCv.notes != null or !tailoredCv.matchedKeywords.isEmpty() or !tailoredCv.missingKeywords.isEmpty()}">
+                <h2 id="tailored-notes-title" class="flex items-center gap-1.5 font-semibold">
+                    <i class="ph ph-sparkle text-accent"></i><span th:text="#{tailoredCv.title}">AI-proof CV</span>
+                </h2>
+                <div class="flex flex-col gap-1" th:if="${tailoredCv.notes}">
+                    <span class="text-xs text-ink/60" th:text="#{tailoredCv.notes}">What the AI Assistant changed</span>
+                    <p class="text-[13px] whitespace-pre-line text-ink/80" th:text="${tailoredCv.notes}">Put Kafka first…</p>
+                </div>
+                <div class="flex flex-col gap-1.5" th:unless="${tailoredCv.matchedKeywords.isEmpty()}">
+                    <span class="text-xs text-ink/60" th:text="#{tailoredCv.matched}">The posting’s keywords it names</span>
+                    <div class="flex flex-wrap gap-1">
+                        <span class="tag st-offer" th:each="keyword : ${tailoredCv.matchedKeywords}" th:text="${keyword}">Java</span>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-1.5" th:unless="${tailoredCv.missingKeywords.isEmpty()}">
+                    <span class="text-xs text-ink/60" th:text="#{tailoredCv.missing}">Asked for, but not on your CV</span>
+                    <div class="flex flex-wrap gap-1">
+                        <span class="tag st-interviewing" th:each="keyword : ${tailoredCv.missingKeywords}" th:text="${keyword}">Kubernetes</span>
+                    </div>
+                </div>
+            </section>
+
+            <form class="card flex flex-col gap-5 p-4" method="post" th:action="@{/applications/{id}/cv/edit(id=${jobApplication.id})}"
+                  aria-labelledby="tailored-fields-title">
+                <div>
+                    <h2 id="tailored-fields-title" class="font-semibold" th:text="#{tailoredCv.edit.fields}">The CV’s fields</h2>
+                    <p class="text-xs text-pretty text-ink/60" th:text="#{tailoredCv.edit.fields.hint}">Only this job’s CV changes…</p>
+                </div>
+                <ul class="flex flex-col gap-1 text-[13px] text-danger" role="alert" th:unless="${fieldErrors.isEmpty()}">
+                    <li th:each="error : ${fieldErrors.values()}" th:text="${error}">That isn’t an email address.</li>
+                </ul>
+
+                <th:block th:replace="~{cv/cv :: fields}"></th:block>
+
+                <div class="flex flex-wrap items-center gap-2 border-t border-line pt-4">
+                    <button class="btn btn-primary" type="submit"><i class="ph ph-floppy-disk"></i><span th:text="#{cv.save}">Save</span></button>
+                    <a class="btn btn-ghost" th:href="@{/applications/{id}(id=${jobApplication.id})}" th:text="#{action.cancel}">Cancel</a>
+                    <span class="text-xs text-ink/55" th:text="#{tailoredCv.updated(${@dates.relativeDay(tailoredCv.updatedAt)})}">Tailored: Today</span>
+                </div>
+            </form>
+        </div>
+
+        <aside class="card flex min-h-0 min-w-0 flex-col gap-3 p-4" aria-labelledby="tailored-preview-title">
+            <div class="flex flex-wrap items-center gap-2">
+                <h2 id="tailored-preview-title" class="flex-1 font-semibold" th:text="#{cv.preview}">Preview</h2>
+                <a class="btn btn-secondary" th:href="@{/applications/{id}/cv(id=${jobApplication.id})}" target="_blank" rel="noopener">
+                    <i class="ph ph-arrow-square-out"></i><span th:text="#{cv.preview.open}">Open</span>
+                </a>
+            </div>
+            <iframe class="h-[78vh] w-full rounded-md border border-line bg-white xl:h-auto xl:min-h-0 xl:flex-1"
+                    th:src="@{/applications/{id}/cv(id=${jobApplication.id})}" title="CV preview" th:title="#{cv.preview}"></iframe>
+        </aside>
+    </div>
+</main>
+</body>
+</html>

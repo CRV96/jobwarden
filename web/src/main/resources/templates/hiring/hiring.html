@@ -224,9 +224,23 @@
             <span class="field-label" th:text="${forRecruiters} ? #{hiring.recruiters.ask.roles} : #{hiring.ask.roles}">Roles</span>
             <input class="input" type="text" name="roles" maxlength="500" th:placeholder="#{hiring.ask.roles.placeholder}" autocomplete="off">
         </label>
-        <label class="flex flex-col gap-1">
+        <!--/* Where, picked rather than typed: anywhere, remote, or a country, named in English for the search whatever the
+               page's language; the one asked for last first */-->
+        <label class="flex flex-col gap-1"
+               th:with="lastPlace=${request != null and !request.requirements.locations.isEmpty()} ? ${request.requirements.locations[0]} : null">
             <span class="field-label" th:text="#{hiring.ask.places}">Where</span>
-            <input class="input" type="text" name="places" maxlength="500" th:placeholder="#{hiring.ask.places.placeholder}" autocomplete="off">
+            <select class="input" name="places">
+                <option value="" th:text="#{hiring.ask.places.anywhere}">Anywhere</option>
+                <optgroup th:label="#{hiring.ask.places.remote}">
+                    <option th:each="remote : ${ {'Remote', 'Remote in Europe', 'Remote in North America', 'Remote in Asia'} }"
+                            th:value="${remote}" th:selected="${remote == lastPlace}"
+                            th:text="#{|hiring.ask.places.${#strings.replace(remote, ' ', '')}|}">Remote, anywhere</option>
+                </optgroup>
+                <optgroup th:label="#{hiring.ask.places.countries}">
+                    <option th:each="country : ${@countries.all()}" th:with="english=${@countries.english(country.code)}"
+                            th:value="${english}" th:selected="${english == lastPlace}" th:text="${country.name}">Romania</option>
+                </optgroup>
+            </select>
         </label>
         <label class="flex flex-col gap-1" th:unless="${forRecruiters}">
             <span class="field-label" th:text="#{hiring.ask.recency}">Posted in the last</span>

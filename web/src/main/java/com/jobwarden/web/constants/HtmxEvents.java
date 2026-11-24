@@ -20,4 +20,6 @@ public final class HtmxEvents {
 	 * row of the job loads again.
 	 */
 	public static final String LETTERS_CHANGED = "letters-changed";
+	/** The mailbox was read in the background, so the inbox's emails waiting load again. */
+	public static final String INBOX_READ = "inbox-read";
 }

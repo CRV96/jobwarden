@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: page(~{::title}, ~{::main}, 'updates')}">
+<head>
+    <title th:text="|#{updates.title} · JobWarden|">What’s new · JobWarden</title>
+</head>
+<body>
+<!--/* What's new (UpdatesController): each release GitHub lists (releases, Releases, the newest first), with what it
+       changed, and which one runs here (update, the UpdateStatus every page has). The notes are HTML the updates
+       module cleaned down to text formatting (ReleaseNotes), so they're shown as they are. */-->
+<main class="flex flex-col gap-4">
+    <header class="flex flex-wrap items-end gap-3">
+        <div class="min-w-[240px] flex-1">
+            <h1 class="page-title mb-1" th:text="#{updates.title}">What’s new</h1>
+            <p class="text-[13px] text-pretty text-ink/60" th:text="#{updates.subtitle}">Every JobWarden release and what it changed…</p>
+        </div>
+        <a class="btn btn-secondary" th:if="${update}" th:href="${update.releases}" target="_blank" rel="noopener noreferrer">
+            <i class="ph ph-github-logo"></i><span th:text="#{updates.github}">All releases on GitHub</span>
+        </a>
+    </header>
+
+    <!--/* The version running, and a newer one to update to */-->
+    <div class="card flex flex-wrap items-center gap-3 p-4" th:if="${update}">
+        <i class="ph text-[26px]" th:classappend="${update.updateAvailable()} ? 'ph-arrow-circle-up text-accent' : 'ph-shield-check text-ink/60'"></i>
+        <div class="flex min-w-[200px] flex-1 flex-col gap-0.5">
+            <div class="font-medium" th:text="#{settings.version(${update.version})}">JobWarden 1.0.1</div>
+            <div class="text-xs text-ink/60" th:if="${update.updateAvailable()}"
+                 th:text="#{settings.version.newer(${update.latest.version})}">JobWarden 1.1.0 is out on GitHub.</div>
+            <div class="text-xs text-ink/60" th:if="${update.latest != null and !update.updateAvailable()}"
+                 th:text="#{settings.version.upToDate}">Up to date: the latest release on GitHub.</div>
+            <div class="text-xs text-ink/60" th:if="${update.latest == null}" th:text="#{settings.version.unknown}">
+                No release on GitHub yet, or GitHub couldn’t be reached.</div>
+        </div>
+        <a class="btn" th:classappend="${update.updateAvailable()} ? 'btn-primary' : 'btn-secondary'"
+           href="https://github.com/CRV96/jobwarden/wiki/Updating" target="_blank" rel="noopener noreferrer">
+            <i class="ph ph-book-open-text"></i><span th:text="#{updates.howTo}">How to update</span>
+        </a>
+    </div>
+
+    <div class="card flex flex-col items-center gap-2 p-8 text-center" th:if="${releases.isEmpty()}">
+        <span class="brand-mark size-10"><i class="ph ph-megaphone text-xl"></i></span>
+        <p class="font-medium" th:text="#{updates.none}">No releases to show</p>
+        <p class="max-w-md text-[13px] text-pretty text-ink/60" th:text="#{updates.none.body}">GitHub couldn’t be reached yet…</p>
+    </div>
+
+    <ol class="flex flex-col gap-4" th:unless="${releases.isEmpty()}">
+        <li th:each="release : ${releases}">
+            <article class="card flex flex-col gap-3 p-4" th:aria-labelledby="|release-${release.version}|">
+                <div th:replace="~{updates/updates :: release-header(${release}, ${update?.version})}"></div>
+                <div th:replace="~{updates/updates :: notes(${release})}"></div>
+            </article>
+        </li>
+    </ol>
+</main>
+
+<!--/* A release's name, when it came out and its page on GitHub; whether it's the one running (running, the version
+       running, or null) or a later one, not installed yet */-->
+<div th:fragment="release-header(release, running)" class="flex flex-wrap items-center gap-x-3 gap-y-1">
+    <h2 th:id="|release-${release.version}|" class="text-[17px] font-bold tracking-[-0.01em]"
+        th:text="${release.name} ?: |JobWarden ${release.version}|">JobWarden 1.0.1</h2>
+    <span class="tag st-offer" th:if="${running != null and release.version == running}">
+        <i class="ph ph-check"></i><span th:text="#{updates.running}">You’re running this</span>
+    </span>
+    <span class="tag st-applied" th:if="${running != null and release.isNewerThan(running)}" th:text="#{updates.notInstalled}">Not installed yet</span>
+    <span class="flex-1"></span>
+    <span class="text-xs text-ink/55" th:if="${release.publishedAt}" th:text="${@dates.date(release.publishedAt)}">18 Nov 2026</span>
+    <a class="link text-xs" th:href="${release.url}" target="_blank" rel="noopener noreferrer" th:text="#{updates.onGitHub}">On GitHub</a>
+</div>
+
+<!--/* What a release says changed: HTML the updates module cleaned (ReleaseNotes), safe to show as it is */-->
+<div th:fragment="notes(release)" class="contents">
+    <div class="release-notes" th:if="${release.notes}" th:utext="${release.notes}"></div>
+    <p class="text-[13px] text-ink/60" th:unless="${release.notes}" th:text="#{updates.noNotes}">This release says nothing more.</p>
+</div>
+
+<!--/* The popup after an update (whats-new.js loads it, and opens it once): the releases since the version the profile
+       saw before (whatsNew, the newest first; whatsNewSince that version, or null when the browser remembers none) */-->
+<dialog th:fragment="whats-new" id="whats-new" class="dialog max-h-[min(780px,calc(100dvh-32px))] w-[min(680px,calc(100%-32px))]"
+        aria-labelledby="whats-new-title" th:with="newest=${whatsNew[0]}">
+    <div class="flex items-start gap-3">
+        <span class="brand-mark size-10 flex-none"><i class="ph ph-megaphone text-xl"></i></span>
+        <div class="min-w-0 flex-1">
+            <h2 id="whats-new-title" class="dialog-title" th:text="#{updates.popup.title(${newest.version})}">What’s new in JobWarden 1.1.0</h2>
+            <p class="text-[13px] text-pretty text-ink/65"
+               th:text="${whatsNewSince != null} ? #{updates.popup.since(${whatsNewSince})} : #{updates.popup.fresh}">You updated from 1.0.1…</p>
+        </div>
+        <button class="btn btn-ghost btn-icon flex-none" type="button" data-close-dialog th:title="#{action.close}"
+                th:aria-label="#{action.close}"><i class="ph ph-x"></i></button>
+    </div>
+
+    <!--/* The notes scroll, between the title and the buttons, which stay in sight */-->
+    <div class="-mx-4 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto border-y border-line px-4 py-4">
+        <article class="flex flex-col gap-3" th:each="release : ${whatsNew}">
+            <!--/* A release's own heading only when there are several: one alone is the popup's title */-->
+            <th:block th:if="${whatsNew.size() > 1}">
+                <div th:replace="~{updates/updates :: release-header(${release}, null)}"></div>
+            </th:block>
+            <div th:replace="~{updates/updates :: notes(${release})}"></div>
+        </article>
+    </div>
+
+    <div class="dialog-actions mt-0 items-center">
+        <a class="btn btn-secondary" th:href="@{/updates}">
+            <i class="ph ph-list-bullets"></i><span th:text="#{updates.popup.all}">See every update</span>
+        </a>
+        <button class="btn btn-primary" type="button" data-close-dialog th:text="#{updates.popup.ok}">Got it</button>
+    </div>
+</dialog>
+</body>
+</html>

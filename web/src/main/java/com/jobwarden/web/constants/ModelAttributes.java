@@ -38,6 +38,10 @@ public final class ModelAttributes {
 	public static final String MAIL_PROVIDER = "mailProvider";
 	public static final String MAIL_FORM = "mailForm";
 	public static final String MAIL_ERROR = "mailError";
+	/** While the mailbox is read in the background: since when, for the card to ask until it's read after that. */
+	public static final String MAIL_READ_SINCE = "mailReadSince";
+	/** A message the page shows in its corner for a few seconds, e.g. that the mailbox is connected. */
+	public static final String TOAST = "toast";
 	/** How often the mailbox is read, as Settings offers it; and the choices there. */
 	public static final String READING_INTERVAL = "readingInterval";
 	public static final String READING_INTERVALS = "readingIntervals";
@@ -192,9 +196,27 @@ public final class ModelAttributes {
 	public static final String OPEN_REQUESTS = "openRequests";
 	public static final String OPEN_APPLY_REQUESTS = "openApplyRequests";
 	public static final String OFFER_COUNT = "offerCount";
+	/** The setup guide's steps, and how many of them are done. */
+	public static final String SETUP_STEPS = "setupSteps";
+	public static final String SETUP_DONE = "setupDone";
+	/** The sidebar's link to the Jobs page, in the view it was left in: the list or the board. */
+	public static final String JOBS_URL = "jobsUrl";
+	/** The releases GitHub lists, the newest first, {@code Release}s: the What's new page shows them. */
+	public static final String RELEASES = "releases";
+	/** The releases new since the version a profile saw last, {@code Release}s: the popup after an update shows them. */
+	public static final String WHATS_NEW = "whatsNew";
+	/** The version a profile saw before the update, or {@code null}: the popup says what changed since. */
+	public static final String WHATS_NEW_SINCE = "whatsNewSince";
 	/**
-	 * The pipeline's columns: each status with the first page of its applications (a {@code Page}), in the order of
-	 * the statuses. A column's next cards are a page too, of the status, for the search, or {@code null}.
+	 * The release running, a {@code Release}, when GitHub lists it and a profile is selected: the page asks for the
+	 * popup when the profile hasn't seen this version yet (whats-new.js).
+	 */
+	public static final String RUNNING_RELEASE = "runningRelease";
+	/** Whether the profile was made after the release running came out: then it has no update to be told of. */
+	public static final String PROFILE_AFTER_RELEASE = "profileAfterRelease";
+	/**
+	 * The board's columns: each status with the first page of its applications (a {@code Page}), in the order of the
+	 * statuses. A column's next cards are a page too, of the status, for the search, or {@code null}.
 	 */
 	public static final String PIPELINE_COLUMNS = "pipelineColumns";
 	public static final String PIPELINE_CARDS = "pipelineCards";

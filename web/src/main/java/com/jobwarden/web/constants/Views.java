@@ -25,6 +25,8 @@ public final class Views {
 	public static final String INTERVIEW_BRIEF_FRAGMENT = "applications/interview-brief :: card";
 	/** A job's AI-proof CV, which HTMX loads after the job and swaps as it changes. */
 	public static final String TAILORED_CV_FRAGMENT = "applications/tailored-cv :: card";
+	/** A job's tailored CV, to change by hand. */
+	public static final String TAILORED_CV_EDIT = "applications/tailored-cv-edit";
 	/** A job's offer terms, on its page while it's at Offer, which HTMX loads after the job. */
 	public static final String OFFER_TERMS_FRAGMENT = "applications/offer :: terms";
 	/** What the offer terms card shows once its fields are saved, or why they aren't. */
@@ -110,13 +112,17 @@ public final class Views {
 	/** The offers page's row of market salaries, which HTMX loads after the page. */
 	public static final String OFFERS_MARKET_FRAGMENT = "offers/market :: market";
 
-	public static final String STATISTICS = "statistics/statistics";
-
 	public static final String HOME = "home/home";
+	/** The setup guide's dialog, which app.js loads into the page. */
+	public static final String SETUP_GUIDE_FRAGMENT = "setup/guide :: guide";
 	/** The salaries page's market section, which HTMX loads after the page and swaps as its choices change. */
 	public static final String SALARIES_MARKET_FRAGMENT = "salaries/market :: market";
 	public static final String SEARCH = "search/search";
 	/** The search page's queries, which HTMX swaps as the filters change. */
 	public static final String SEARCH_OUTPUT_FRAGMENT = SEARCH + " :: queries";
 	public static final String SETTINGS = "settings/settings";
+	/** What each release changed, the newest first. */
+	public static final String UPDATES = "updates/updates";
+	/** The popup after an update: what the new releases changed, which app.js loads into the page. */
+	public static final String WHATS_NEW_FRAGMENT = UPDATES + " :: whats-new";
 }

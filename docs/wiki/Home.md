@@ -23,7 +23,7 @@ needs no API key and sends nothing anywhere.
 
 | | |
 |---|---|
-| 📋 **[Tracking jobs](Tracking-jobs)** | The jobs list, the pipeline, the calendar and reminders, statistics, export and import |
+| 📋 **[Tracking jobs](Tracking-jobs)** | The jobs as a list or a board, the calendar and reminders, statistics, export and import |
 | 🔎 **[Finding jobs](Finding-jobs)** | The AI Assistant page, the Search Builder, the watchlist, Who's hiring, and how well you fit |
 | 📄 **[Your CV and applying](CV-and-applying)** | The CV, tailored CVs, cover letters, messages, interview prep, Auto-apply |
 | 💶 **[Offers and salaries](Offers-and-salaries)** | What jobs and the market pay, offers side by side, negotiating |

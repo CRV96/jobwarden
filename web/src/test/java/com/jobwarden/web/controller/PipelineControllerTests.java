@@ -17,6 +17,7 @@ import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.jobs.service.JobFitService;
 import com.jobwarden.web.user.CurrentUser;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -70,16 +71,38 @@ class PipelineControllerTests {
 
 		given(this.fits.findScores(eq(1L), any())).willReturn(Map.of(7L, new BigDecimal("4.4")));
 
-		assertThat(this.mvc.get().uri("/pipeline")).hasStatusOk()
+		assertThat(this.mvc.get().uri("/applications/board")).hasStatusOk()
 			.hasViewName("pipeline/board")
 			.bodyText()
+			// The Jobs page, as a board, with the switch to the list
+			.contains("Jobs", "href=\"/applications\"", "aria-current=\"page\"", "List", "Board")
 			.contains("Backend engineer", "Platform engineer", "/applications/7/drawer", "st-withdrawn", "Acme · Remote",
 					// The job's fit score, in its colour; none for the one not scored
 					"tag tabular-nums st-offer", "ph-gauge\"></i>4.4", "draggable=\"true\"")
 			// The columns go in the order of the statuses
 			.containsSubsequence("st-saved", "Platform engineer", "st-applied", "st-interviewing", "st-offer",
 					"Backend engineer", "st-rejected")
-			.doesNotContain("/pipeline/column");
+			.doesNotContain("/applications/board/column");
+	}
+
+	@Test
+	void remembersTheBoardForTheSidebarsLink() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+		given(this.applications.find(eq(1L), any())).willReturn(Page.empty());
+
+		assertThat(this.mvc.get().uri("/applications/board")).hasStatusOk()
+			.cookies()
+			.hasValue("jobwarden-jobs-view", "BOARD")
+			.isHttpOnly("jobwarden-jobs-view", true);
+		assertThat(this.mvc.get().uri("/applications/board").cookie(new Cookie("jobwarden-jobs-view", "BOARD")))
+			.bodyText()
+			// The sidebar's Jobs link
+			.contains("folded:px-0\" href=\"/applications/board\"");
+	}
+
+	@Test
+	void sendsThePipelinesOldAddressToTheBoard() {
+		assertThat(this.mvc.get().uri("/pipeline")).hasRedirectedUrl("/applications/board");
 	}
 
 	@Test
@@ -92,10 +115,11 @@ class PipelineControllerTests {
 		given(this.applications.find(eq(1L), argThat(query -> query != null && query.status() == ApplicationStatus.APPLIED)))
 			.willReturn(new PageImpl<>(applied, PageRequest.of(0, PipelineController.PAGE_SIZE), 4000));
 
-		assertThat(this.mvc.get().uri("/pipeline")).hasStatusOk()
+		assertThat(this.mvc.get().uri("/applications/board")).hasStatusOk()
 			.bodyText()
 			// The column's count is all of them, its cards only the first page
-			.contains(">4000<", "Job 40", "/pipeline/column?status=APPLIED&amp;page=1", "intersect once", "Show 3,960 more")
+			.contains(">4000<", "Job 40", "/applications/board/column?status=APPLIED&amp;page=1", "intersect once",
+					"Show 3,960 more")
 			.doesNotContain("Job 41");
 	}
 
@@ -105,11 +129,12 @@ class PipelineControllerTests {
 		given(this.applications.find(eq(1L), any())).willReturn(new PageImpl<>(
 				List.of(summary(81, "Kotlin engineer", ApplicationStatus.APPLIED)), PageRequest.of(2, PipelineController.PAGE_SIZE), 81));
 
-		assertThat(this.mvc.get().uri("/pipeline/column").param("status", "APPLIED").param("page", "2").param("q", " kotlin "))
+		assertThat(this.mvc.get().uri("/applications/board/column").param("status", "APPLIED").param("page", "2")
+			.param("q", " kotlin "))
 			.hasStatusOk()
 			.bodyText()
 			.contains("Kotlin engineer")
-			.doesNotContain("/pipeline/column");
+			.doesNotContain("/applications/board/column");
 		ArgumentCaptor<ApplicationQuery> query = ArgumentCaptor.forClass(ApplicationQuery.class);
 		then(this.applications).should().find(eq(1L), query.capture());
 		assertThat(query.getValue()).isEqualTo(ApplicationQuery.builder()
@@ -124,7 +149,7 @@ class PipelineControllerTests {
 
 	@Test
 	void sendsTheBrowserToTheProfilePickerWhenNoProfileIsSelected() {
-		assertThat(this.mvc.get().uri("/pipeline")).hasRedirectedUrl("/profiles");
+		assertThat(this.mvc.get().uri("/applications/board")).hasRedirectedUrl("/profiles");
 	}
 
 	private static ApplicationSummary summary(long id, String title, ApplicationStatus status) {

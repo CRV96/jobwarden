@@ -33,8 +33,13 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 
 /**
  * With the real PDF renderer, like the CV page's tests.
@@ -155,6 +160,50 @@ class TailoredCvControllerTests {
 	void answersNotFoundForAJobWithoutOne() {
 		assertThat(this.mvc.get().uri("/applications/7/cv/pdf")).hasStatus(HttpStatus.NOT_FOUND);
 		assertThat(this.mvc.get().uri("/applications/8/cv/card")).hasStatus(HttpStatus.NOT_FOUND);
+	}
+
+	@Test
+	void showsItsFieldsToChangeByHand() {
+		given(this.cvs.findTailored(1, 7)).willReturn(Optional.of(TAILORED));
+
+		assertThat(this.mvc.get().uri("/applications/7/cv/edit")).hasStatusOk()
+			.hasViewName("applications/tailored-cv-edit")
+			.bodyText()
+			.contains("Edit the CV for this job", "Backend engineer · Globex", "Put Kafka first.", "Kubernetes",
+					"value=\"Robert Ciapă\"", "value=\"Backend Engineer\"", "Spring Boot, Kafka", "Built payments",
+					"action=\"/applications/7/cv/edit\"", "src=\"/applications/7/cv\"");
+		assertThat(this.mvc.get().uri("/applications/8/cv/edit")).hasStatus(HttpStatus.NOT_FOUND);
+	}
+
+	@Test
+	void savesItsFieldsKeepingWhatTheAssistantSaidOfIt() {
+		given(this.cvs.findTailored(1, 7)).willReturn(Optional.of(TAILORED));
+
+		assertThat(this.mvc.post()
+			.uri("/applications/7/cv/edit")
+			.param("fullName", "Robert Ciapă")
+			.param("headline", "Senior Backend Engineer")
+			.param("skills", "Kafka, Spring Boot")
+			.param("experience[0].role", "Java Developer")
+			.param("experience[0].company", "Acme")
+			.param("experience[0].description", "Built payments in Kafka")).hasRedirectedUrl("/applications/7/cv/edit?saved");
+
+		then(this.cvs).should().saveTailored(eq(1L), eq(7L), argThat(details -> details != null
+				&& "Senior Backend Engineer".equals(details.headline()) && details.skills().size() == 2
+				&& "Built payments in Kafka".equals(details.experience().getFirst().description())),
+				eq(List.of("Spring Boot", "Kafka")), eq(List.of("Kubernetes")), eq("Put Kafka first."));
+	}
+
+	@Test
+	void showsTheFieldsAgainWithWhatsWrong() {
+		given(this.cvs.findTailored(1, 7)).willReturn(Optional.of(TAILORED));
+
+		assertThat(this.mvc.post().uri("/applications/7/cv/edit").param("fullName", "Robert").param("email", "not an address"))
+			.hasStatusOk()
+			.hasViewName("applications/tailored-cv-edit")
+			.bodyText()
+			.contains("value=\"not an address\"", "role=\"alert\"");
+		then(this.cvs).should(never()).saveTailored(anyLong(), anyLong(), any(), any(), any(), any());
 	}
 
 	@Test

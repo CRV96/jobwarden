@@ -20,6 +20,13 @@ public class CountryNames {
 	}
 
 	/**
+	 * @return the country's name in English, as searches ask for it whatever the user's language
+	 */
+	public String english(String code) {
+		return Locale.of("", code).getDisplayCountry(Locale.ENGLISH);
+	}
+
+	/**
 	 * @return every country, in the alphabetical order of the user's language
 	 */
 	public List<Country> all() {

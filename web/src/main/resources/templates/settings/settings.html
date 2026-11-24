@@ -15,8 +15,9 @@
     </header>
 
     <!--/* Two columns from 1280 pixels wide, each section under the one before it, so a long one leaves no gap
-           beside it, and the two about as tall: the profile, its jobs, the salaries, the browser extension and the
-           version; then how JobWarden looks and works, the inbox and the assistant. One column, in that order, below. */-->
+           beside it, and the two about as tall: the profile, its jobs, the salaries, the database and the browser
+           extension; then how JobWarden looks, the inbox, the assistant and the version. One column, in that order,
+           below. */-->
     <div class="grid items-start gap-x-12 gap-y-6 xl:grid-cols-2">
         <div class="flex min-w-0 flex-col gap-6">
             <!--/* The profile's name and photo (ProfileController), which show in the menu and on the Profiles page. The name
@@ -377,7 +378,7 @@
             </section>
 
             <!--/* What to enter in the extension's own settings. */-->
-            <section class="flex flex-col gap-2">
+            <section id="extension" class="flex scroll-mt-6 flex-col gap-2">
                 <h2 class="section-title" th:text="#{settings.extension}">Browser extension</h2>
                 <div class="card flex items-start gap-3 p-3">
                     <i class="ph ph-puzzle-piece text-[22px] text-accent"></i>
@@ -386,6 +387,15 @@
                             <div class="font-medium" th:text="#{settings.extension.name}">JobWarden for Chrome and Firefox</div>
                             <div class="text-xs text-ink/60" th:text="#{settings.extension.body}">
                                 Saves postings from job boards with one click. In its settings, enter this server’s address and your profile id.</div>
+                        </div>
+                        <!--/* Installed from its store: Chrome's serves Edge, Brave and the other Chromium browsers too */-->
+                        <div class="flex flex-wrap gap-2" th:with="chrome=${@extensionStores.chrome()}, firefox=${@extensionStores.firefox()}">
+                            <a class="btn btn-secondary" th:href="${chrome}" target="_blank" rel="noopener noreferrer">
+                                <i class="ph ph-google-chrome-logo"></i><span th:text="#{settings.extension.chrome}">Add to Chrome</span>
+                            </a>
+                            <a class="btn btn-secondary" th:href="${firefox}" target="_blank" rel="noopener noreferrer">
+                                <i class="ph ph-browser"></i><span th:text="#{settings.extension.firefox}">Add to Firefox</span>
+                            </a>
                         </div>
                         <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
                             <dt class="text-ink/55" th:text="#{settings.extension.server}">Server</dt>
@@ -400,63 +410,6 @@
                             </dd>
                         </dl>
                     </div>
-                </div>
-            </section>
-
-            <!--/* The version running, and whether a newer one is out on GitHub (the updates module); then the license, who
-                   made JobWarden and where its code is */-->
-            <section class="flex flex-col gap-2" th:with="repositoryUrl=|https://github.com/${repository}|">
-                <h2 class="section-title" th:text="#{settings.about}">About</h2>
-                <div class="card flex flex-wrap items-start gap-3 p-3" th:if="${update}">
-                    <i class="ph text-[22px]" th:classappend="${update.updateAvailable()} ? 'ph-arrow-circle-up text-accent' : 'ph-shield-check text-ink/60'"></i>
-                    <div class="flex min-w-[200px] flex-1 flex-col gap-1">
-                        <div class="font-medium" th:text="#{settings.version(${update.version})}">JobWarden 0.1.0</div>
-                        <div class="text-xs text-ink/60" th:if="${update.updateAvailable()}"
-                             th:text="#{settings.version.newer(${update.latest.version})}">JobWarden 0.2.0 is out on GitHub.</div>
-                        <div class="text-xs text-ink/60" th:if="${update.latest != null and !update.updateAvailable()}"
-                             th:text="#{settings.version.upToDate}">Up to date: the latest release on GitHub.</div>
-                        <div class="text-xs text-ink/60" th:if="${update.latest == null}" th:text="#{settings.version.unknown}">
-                            No release on GitHub yet, or GitHub couldn’t be reached.</div>
-                        <div class="text-xs text-ink/60" th:text="#{settings.version.how}">To update, get the release’s code…</div>
-                    </div>
-                    <a class="btn btn-secondary" th:href="${update.updateAvailable()} ? ${update.latest.url} : ${update.releases}"
-                       target="_blank" rel="noopener noreferrer">
-                        <i class="ph ph-github-logo"></i><span th:text="${update.updateAvailable()} ? #{update.see} : #{settings.version.releases}">Releases</span>
-                    </a>
-                </div>
-                <div class="card flex items-start gap-3 p-3">
-                    <i class="ph ph-scales text-[22px] text-ink/60"></i>
-                    <div class="flex min-w-0 flex-1 flex-col gap-2">
-                        <dl class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-xs">
-                            <dt class="text-ink/55" th:text="#{settings.about.license}">License</dt>
-                            <dd><a class="link" th:href="|${repositoryUrl}/blob/main/LICENSE.md|" target="_blank" rel="noopener noreferrer"
-                                   th:text="#{settings.about.licenseName}">MIT License</a></dd>
-                            <dt class="text-ink/55" th:text="#{settings.about.author}">Made by</dt>
-                            <dd><a class="link" th:href="${authorUrl}" target="_blank" rel="noopener noreferrer" th:text="${author}">CRV</a></dd>
-                            <dt class="text-ink/55" th:text="#{settings.about.source}">Source code</dt>
-                            <dd class="min-w-0 truncate">
-                                <a class="link inline-flex items-center gap-1" th:href="${repositoryUrl}" target="_blank" rel="noopener noreferrer">
-                                    <i class="ph ph-github-logo"></i><span th:text="|github.com/${repository}|">github.com/CRV96/jobwarden</span>
-                                </a>
-                            </dd>
-                        </dl>
-                        <p class="text-xs text-pretty text-ink/60" th:text="#{settings.about.free}">Free and open source…</p>
-                    </div>
-                </div>
-                <!--/* Ideas for JobWarden, in its GitHub discussions (view/Ideas): a new one, the feature request's
-                       questions in it, or those suggested so far, to vote for */-->
-                <div id="ideas" class="card flex flex-wrap items-start gap-3 p-3">
-                    <i class="ph ph-lightbulb text-[22px] text-accent"></i>
-                    <div class="flex min-w-[200px] flex-1 flex-col gap-1">
-                        <div class="font-medium" th:text="#{settings.ideas}">Missing something?</div>
-                        <div class="text-xs text-pretty text-ink/60" th:text="#{settings.ideas.body}">
-                            Suggest a feature in JobWarden’s discussions on GitHub…</div>
-                        <a class="link self-start text-xs" th:with="ideasUrl=${@ideas.all()}" th:href="${ideasUrl}" target="_blank" rel="noopener noreferrer"
-                           th:text="#{ideas.all}">See the ideas suggested so far</a>
-                    </div>
-                    <a class="btn btn-secondary" th:with="ideaUrl=${@ideas.suggest()}" th:href="${ideaUrl}" target="_blank" rel="noopener noreferrer">
-                        <i class="ph ph-lightbulb"></i><span th:text="#{ideas.suggest}">Suggest a feature</span>
-                    </a>
                 </div>
             </section>
         </div>
@@ -630,6 +583,63 @@
                         </button>
                     </div>
                 </form>
+            </section>
+
+            <!--/* The version running, and whether a newer one is out on GitHub (the updates module); then the license, who
+                   made JobWarden and where its code is */-->
+            <section class="flex flex-col gap-2" th:with="repositoryUrl=|https://github.com/${repository}|">
+                <h2 class="section-title" th:text="#{settings.about}">About</h2>
+                <div class="card flex flex-wrap items-start gap-3 p-3" th:if="${update}">
+                    <i class="ph text-[22px]" th:classappend="${update.updateAvailable()} ? 'ph-arrow-circle-up text-accent' : 'ph-shield-check text-ink/60'"></i>
+                    <div class="flex min-w-[200px] flex-1 flex-col gap-1">
+                        <div class="font-medium" th:text="#{settings.version(${update.version})}">JobWarden 0.1.0</div>
+                        <div class="text-xs text-ink/60" th:if="${update.updateAvailable()}"
+                             th:text="#{settings.version.newer(${update.latest.version})}">JobWarden 0.2.0 is out on GitHub.</div>
+                        <div class="text-xs text-ink/60" th:if="${update.latest != null and !update.updateAvailable()}"
+                             th:text="#{settings.version.upToDate}">Up to date: the latest release on GitHub.</div>
+                        <div class="text-xs text-ink/60" th:if="${update.latest == null}" th:text="#{settings.version.unknown}">
+                            No release on GitHub yet, or GitHub couldn’t be reached.</div>
+                        <div class="text-xs text-ink/60" th:text="#{settings.version.how}">To update, get the release’s code…</div>
+                    </div>
+                    <!--/* What's new: what each release changed, and how to update */-->
+                    <a class="btn" th:classappend="${update.updateAvailable()} ? 'btn-primary' : 'btn-secondary'" th:href="@{/updates}">
+                        <i class="ph ph-megaphone"></i><span th:text="${update.updateAvailable()} ? #{update.see} : #{updates.title}">What’s new</span>
+                    </a>
+                </div>
+                <div class="card flex items-start gap-3 p-3">
+                    <i class="ph ph-scales text-[22px] text-ink/60"></i>
+                    <div class="flex min-w-0 flex-1 flex-col gap-2">
+                        <dl class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-xs">
+                            <dt class="text-ink/55" th:text="#{settings.about.license}">License</dt>
+                            <dd><a class="link" th:href="|${repositoryUrl}/blob/main/LICENSE.md|" target="_blank" rel="noopener noreferrer"
+                                   th:text="#{settings.about.licenseName}">MIT License</a></dd>
+                            <dt class="text-ink/55" th:text="#{settings.about.author}">Made by</dt>
+                            <dd><a class="link" th:href="${authorUrl}" target="_blank" rel="noopener noreferrer" th:text="${author}">CRV</a></dd>
+                            <dt class="text-ink/55" th:text="#{settings.about.source}">Source code</dt>
+                            <dd class="min-w-0 truncate">
+                                <a class="link inline-flex items-center gap-1" th:href="${repositoryUrl}" target="_blank" rel="noopener noreferrer">
+                                    <i class="ph ph-github-logo"></i><span th:text="|github.com/${repository}|">github.com/CRV96/jobwarden</span>
+                                </a>
+                            </dd>
+                        </dl>
+                        <p class="text-xs text-pretty text-ink/60" th:text="#{settings.about.free}">Free and open source…</p>
+                    </div>
+                </div>
+                <!--/* Ideas for JobWarden, in its GitHub discussions (view/Ideas): a new one, the feature request's
+                       questions in it, or those suggested so far, to vote for */-->
+                <div id="ideas" class="card flex flex-wrap items-start gap-3 p-3">
+                    <i class="ph ph-lightbulb text-[22px] text-accent"></i>
+                    <div class="flex min-w-[200px] flex-1 flex-col gap-1">
+                        <div class="font-medium" th:text="#{settings.ideas}">Missing something?</div>
+                        <div class="text-xs text-pretty text-ink/60" th:text="#{settings.ideas.body}">
+                            Suggest a feature in JobWarden’s discussions on GitHub…</div>
+                        <a class="link self-start text-xs" th:with="ideasUrl=${@ideas.all()}" th:href="${ideasUrl}" target="_blank" rel="noopener noreferrer"
+                           th:text="#{ideas.all}">See the ideas suggested so far</a>
+                    </div>
+                    <a class="btn btn-secondary" th:with="ideaUrl=${@ideas.suggest()}" th:href="${ideaUrl}" target="_blank" rel="noopener noreferrer">
+                        <i class="ph ph-lightbulb"></i><span th:text="#{ideas.suggest}">Suggest a feature</span>
+                    </a>
+                </div>
             </section>
         </div>
     </div>

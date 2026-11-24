@@ -20,7 +20,8 @@ import org.jspecify.annotations.Nullable;
  * What an email says about the job hunt, and which of the profile's jobs it's about. What it says comes from its words,
  * in the app's languages: a rejection, an offer, an invitation to an interview, a confirmation that the application
  * arrived. The job comes from the company's name (in the email, or as the sender's domain) and the job's title. It
- * leans to saying nothing: job alerts, and emails it isn't sure of, are left alone rather than shown as news.
+ * leans to saying nothing: job alerts, newsletters and ads, and emails it isn't sure of, are left alone rather than
+ * shown as news.
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 final class JobEmails {
@@ -32,8 +33,21 @@ final class JobEmails {
 
 	/** What makes a hint count: the email is about an application. */
 	private static final Pattern ABOUT_AN_APPLICATION = Pattern.compile("\\b(?:application|applying|candidacy|candidature"
-			+ "|bewerbung|candidatura|solicitud|postulaci[oó]n|aplicar(?:e|ea)|aplica[tț]i[ae]|aplikacj|zg[lł]oszeni"
-			+ "|kandydatur)");
+			+ "|bewerbung|candidatura|solicitud|postulaci[oó]n|aplikacj|zg[lł]oszeni|kandydatur"
+			// Romanian's aplicația is a phone's app as well: only one sent, or for a job
+			+ "|aplica(?:rea?|[tț]ia|[tț]ie) (?:ta|dumneavoastr[aă]|dvs|pentru|la|trimis))");
+
+	/** What a job is called: news of none, in an email that names neither it nor an application, isn't news of one. */
+	private static final Pattern ABOUT_A_JOB = Pattern.compile("\\b(?:position|role|job|vacanc|opening|stelle|poste\\b"
+			+ "|puesto|vaga\\b|pozi[tț]i|postul|rolul|stanowisk)");
+
+	/**
+	 * A newsletter's or an ad's own words, in the app's languages: how to stop getting it, or to read it in a browser.
+	 * Sent to many like that, an email is news only of a job it names, and only in so many words.
+	 */
+	private static final Pattern MARKETING = Pattern.compile("unsubscribe|dezabon|abmelden|desabonner|desinscri"
+			+ "|darse de baja|cancelar (?:a )?(?:subscri|inscri)|descadastr|wypisz|rezygnacj[ae] z (?:subskrypcji|newslettera)"
+			+ "|newsletter|view (?:this email |it )?in (?:your|a) browser|preferin[tț]e(?:le)? de (?:comunicare|abonare)");
 
 	/** The words an interview is called, which count with a word about when. */
 	private static final Pattern INTERVIEW = Pattern.compile("\\b(?:interview|gespr[aä]ch|entretien|entrevista"
@@ -64,13 +78,20 @@ final class JobEmails {
 					"nie b[eę]dziemy kontynuowa[cć]"),
 			new Rule(ApplicationStatus.REJECTED, HINT, "unfortunately", "\\bleider\\b", "malheureusement", "lamentablemente",
 					"desafortunadamente", "infelizmente", "din p[aă]cate", "niestety"),
-			new Rule(ApplicationStatus.OFFER, CLEAR, "pleased to offer you", "offer letter", "offer of employment",
-					"extend (?:you )?an offer", "would like to offer you", "formal offer", "(?:arbeits)?vertragsangebot",
-					"(?:ihnen|dir) (?:gerne )?(?:die stelle|ein angebot|einen vertrag) an(?:zu)?bieten", "promesse d'embauche",
-					"proposition d'embauche", "le plaisir de vous proposer le poste", "carta (?:de )?oferta",
-					"nos complace ofrecerte", "propuesta de contrataci[oó]n", "temos o prazer de (?:lhe )?oferecer",
-					"proposta de contrata[cç][aã]o", "ofert[aă] de angajare", "pl[aă]cerea (?:de )?a v[aă] oferi", "s[aă] (?:[iî][tț]i|v[aă]) oferim",
-					"propozycj[aęi] zatrudnienia", "z przyjemno[sś]ci[aą] (?:przedstawiamy|sk[lł]adamy) ofert"),
+			// An offer of a job, in so many words. "We'd like to offer you" alone is what every ad says: only a hint.
+			new Rule(ApplicationStatus.OFFER, CLEAR, "offer letter", "offer of employment", "(?:job|employment) offer",
+					"extend (?:you )?an offer", "formal (?:job |employment )?offer",
+					"(?:pleased|happy|delighted|excited|like) to offer you (?:the |a |this )?(?:\\w+ ){0,3}(?:position|role|job)",
+					"(?:arbeits)?vertragsangebot", "(?:ihnen|dir) (?:gerne )?(?:die stelle|einen (?:arbeits)?vertrag) an(?:zu)?bieten",
+					"promesse d'embauche", "proposition d'embauche", "le plaisir de vous proposer le poste", "carta (?:de )?oferta",
+					"nos complace ofrecerte (?:\\w+ ){0,2}(?:el puesto|la posici[oó]n|el cargo)", "propuesta de contrataci[oó]n",
+					"temos o prazer de (?:lhe )?oferecer (?:\\w+ ){0,2}(?:a vaga|o cargo|a posi[cç][aã]o)",
+					"proposta de contrata[cç][aã]o", "ofert[aă] de angajare", "ofert[aă] de munc[aă] (?:pentru|la)",
+					"(?:pl[aă]cerea (?:de )?a v[aă] oferi|s[aă] (?:[iî][tț]i|v[aă]) oferim) (?:\\w+ ){0,2}(?:pozi[tț]ia|postul|rolul)",
+					"propozycj[aęi] zatrudnienia", "ofert[aęy] (?:pracy|zatrudnienia) dla (?:ciebie|pana|pani)"),
+			new Rule(ApplicationStatus.OFFER, HINT, "pleased to offer you", "would like to offer you", "nos complace ofrecerte",
+					"temos o prazer de (?:lhe )?oferecer", "pl[aă]cerea (?:de )?a v[aă] oferi", "s[aă] (?:[iî][tț]i|v[aă]) oferim",
+					"z przyjemno[sś]ci[aą] (?:przedstawiamy|sk[lł]adamy) ofert"),
 			new Rule(ApplicationStatus.INTERVIEWING, CLEAR,
 					"invite you (?:to|for) (?:an?|the|a short) (?:\\w+ )?(?:interview|call|chat|conversation|meeting)",
 					"(?:schedule|book|arrange|set up) (?:an?|the|your) (?:\\w+ )?(?:interview|call|chat)",
@@ -100,7 +121,8 @@ final class JobEmails {
 	/** Job alerts and digests: postings, not news about an application. */
 	private static final Pattern ALERT = Pattern.compile("job ?alert|jobs? (?:for you|you may|you might|similar)"
 			+ "|new jobs|recommended jobs|empfohlene jobs|neue jobs|offres? d'emploi pour vous|nouvelles offres"
-			+ "|nuevas ofertas|ofertas de empleo para|vagas para voc[eê]|joburi noi|oferte noi|nowe oferty|oferty pracy dla");
+			+ "|nuevas ofertas|ofertas de empleo para|vagas para voc[eê]|joburi noi|joburi recomandate|oferte noi"
+			+ "|locuri de munc[aă] pentru tine|nowe oferty|oferty pracy dla");
 
 	private static final Pattern ALERT_SENDER = Pattern.compile("jobalert|job-alert|alerts?@|digest|newsletter");
 
@@ -169,14 +191,18 @@ final class JobEmails {
 			return Optional.empty();
 		}
 		ApplicationStatus status = said.get().status();
+		String folded = fold(original);
+		// A newsletter, an ad, a bank's offer: sent to many, it's news only of a job it names, in so many words
+		boolean massMailing = message.bulk() || MARKETING.matcher(folded).find();
 		Optional<Prepared> job = match(message, jobs);
 		if (job.isPresent()) {
-			return makesSense(status, job.get().job().status())
+			return (makesSense(status, job.get().job().status()) && (!massMailing || said.get().clear()))
 					? Optional.of(new Found(status, job.get().job().id(), said.get().excerpt())) : Optional.empty();
 		}
-		// With no job, only clear news, for the profile to pick the job: a confirmation of an application to a job it
-		// doesn't track isn't news to it
-		return (said.get().clear() && status != ApplicationStatus.APPLIED)
+		// With no job, only clear news of an application or a job, written to the person, for the profile to pick the
+		// job: a confirmation of an application to a job it doesn't track isn't news to it
+		boolean aboutAJob = ABOUT_AN_APPLICATION.matcher(folded).find() || ABOUT_A_JOB.matcher(folded).find();
+		return (said.get().clear() && status != ApplicationStatus.APPLIED && aboutAJob && !massMailing)
 				? Optional.of(new Found(status, null, said.get().excerpt())) : Optional.empty();
 	}
 

@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <!--/* The layout of every page but the profile picker (layout-bare.html): the sidebar, and the page next to it.
-       section is the sidebar entry to show as the current one: 'search', 'hiring', 'discover', 'watchlist', 'apply', 'jobs', 'inbox', 'pipeline', 'calendar',
-       'salaries', 'statistics', 'cv', 'settings' (in the profile menu) or null. */-->
+       section is the sidebar entry to show as the current one: 'home' (with the statistics), 'search', 'hiring', 'discover',
+       'watchlist', 'apply', 'jobs' (the list and the board), 'inbox', 'calendar', 'salaries', 'cv', 'settings' (in the
+       profile menu) or null. */-->
 <html lang="en" th:lang="${#locale.language}" xmlns:th="http://www.thymeleaf.org" th:fragment="page(title, content, section)">
 <head th:fragment="head(title)">
     <meta charset="UTF-8">
@@ -30,8 +31,16 @@
     <script type="module" th:src="@{/js/app.js}"></script>
 </head>
 
-<!--/* data-reminders: where app.js asks for the reminders that are due, while a profile is selected */-->
-<body th:data-reminders="${currentProfile != null} ? @{/reminders/due}" th:data-fold="#{card.fold}" th:data-unfold="#{card.unfold}">
+<!--/* While a profile is selected: data-reminders, where app.js asks for the reminders that are due; data-job-changes,
+       how many jobs there are and when they last changed (counts.js); data-setup-guide, the setup guide, which opens
+       on its own until the profile, data-profile-key, says not to (setup.js); data-whats-new, the popup of what changed,
+       once the profile sees a release it hasn't (data-app-version), unless it was made after that release came out
+       (data-profile-after-release) (whats-new.js) */-->
+<body th:data-reminders="${currentProfile != null} ? @{/reminders/due}" th:data-job-changes="${currentProfile != null} ? @{/applications/changes}"
+      th:data-setup-guide="${currentProfile != null} ? @{/setup}" th:data-profile-key="${currentProfile?.publicId}"
+      th:data-whats-new="${runningRelease != null} ? @{/updates/whats-new}" th:data-app-version="${runningRelease?.version}"
+      th:data-profile-after-release="${profileAfterRelease} ? 'true'"
+      th:data-fold="#{card.fold}" th:data-unfold="#{card.unfold}">
 <!--/* The first stop of the keyboard: past the sidebar's links, straight to the page. Hidden until it has the focus. */-->
 <a class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2 focus:shadow-lg"
    href="#content" th:text="#{nav.skip}">Skip to the page</a>
@@ -62,8 +71,8 @@
             </div>
             <div class="flex flex-col gap-0.5" role="group" aria-labelledby="nav-group-track">
                 <th:block th:replace="~{layout :: nav-heading('track', false)}"></th:block>
-                <th:block th:replace="~{layout :: nav-link(@{/applications}, #{nav.jobs}, 'ph-briefcase', ${section == 'jobs'}, ${applicationCount}, 'count')}"></th:block>
-                <th:block th:replace="~{layout :: nav-link(@{/pipeline}, #{nav.pipeline}, 'ph-kanban', ${section == 'pipeline'}, null, null)}"></th:block>
+                <!--/* The Jobs page, as a list or a board, as it was left (jobsUrl, from LayoutAdvice) */-->
+                <th:block th:replace="~{layout :: nav-link(@{${jobsUrl ?: '/applications'}}, #{nav.jobs}, 'ph-briefcase', ${section == 'jobs'}, ${applicationCount}, 'count')}"></th:block>
                 <th:block th:replace="~{layout :: nav-link(@{/calendar}, #{nav.calendar}, 'ph-calendar-dots', ${section == 'calendar'}, null, null)}"></th:block>
                 <th:block th:replace="~{layout :: nav-link(@{/inbox}, #{nav.inbox}, 'ph-envelope-simple', ${section == 'inbox'}, ${inboxCount}, 'pill')}"></th:block>
             </div>
@@ -84,28 +93,28 @@
                 <th:block th:replace="~{layout :: nav-heading('decide', true)}"></th:block>
                 <th:block th:replace="~{layout :: nav-link(@{/offers}, #{nav.offers}, 'ph-handshake', ${section == 'offers'}, null, null)}"></th:block>
                 <th:block th:replace="~{layout :: nav-link(@{/salaries}, #{nav.salaries}, 'ph-coins', ${section == 'salaries'}, null, null)}"></th:block>
-                <th:block th:replace="~{layout :: nav-link(@{/statistics}, #{nav.statistics}, 'ph-chart-bar', ${section == 'statistics'}, null, null)}"></th:block>
             </div>
         </nav>
 
         <!--/* The selected profile, with a menu to switch to another. Pages that know it put it in the model as
                currentProfile, and the profiles to switch to as sidebarProfiles (see BaseController). */-->
         <div class="mt-auto">
-            <!--/* A newer JobWarden is out (BaseController puts the UpdateStatus in the model): until it runs, or the
-                   user hides the notice for that version (app.js: data-dismissible) */-->
+            <!--/* A newer JobWarden is out (LayoutAdvice puts the UpdateStatus in the model): until it runs, or the
+                   user hides the notice for that version (app.js: data-dismissible). It opens What's new, which says
+                   what changed and how to update. */-->
             <div class="mb-2" th:if="${update != null and update.updateAvailable()}"
                  th:data-dismissible="|update-${update.latest.version}|">
                 <div class="flex items-start gap-2 rounded-lg bg-accent/10 p-2 text-xs max-md:hidden folded:hidden">
                     <i class="ph ph-arrow-circle-up text-base text-accent"></i>
-                    <a class="min-w-0 flex-1 hover:underline" th:href="${update.latest.url}" target="_blank" rel="noopener noreferrer">
+                    <a class="min-w-0 flex-1 hover:underline" th:href="@{/updates}">
                         <span class="block font-medium" th:text="#{update.available(${update.latest.version})}">JobWarden 0.2.0 is out</span>
                         <span class="text-ink/60" th:text="#{update.see}">See what’s new</span>
                     </a>
                     <button class="btn btn-ghost size-5 flex-none p-0 text-ink/50" type="button" data-dismiss
                             th:title="#{update.hide}" th:aria-label="#{update.hide}"><i class="ph ph-x text-xs"></i></button>
                 </div>
-                <a class="nav-item hidden justify-center px-0 max-md:flex folded:flex" th:href="${update.latest.url}" target="_blank"
-                   rel="noopener noreferrer" th:title="#{update.available(${update.latest.version})}">
+                <a class="nav-item hidden justify-center px-0 max-md:flex folded:flex" th:href="@{/updates}"
+                   th:title="#{update.available(${update.latest.version})}">
                     <i class="ph ph-arrow-circle-up text-accent"></i>
                 </a>
             </div>
@@ -145,6 +154,13 @@
                         <i class="ph ph-plus-circle text-[15px]"></i><span th:text="#{nav.addProfile}">Add another profile</span>
                     </a>
                     <div class="menu-separator"></div>
+                    <!--/* The setup guide, in a dialog (setup.js) */-->
+                    <button class="menu-item" type="button" role="menuitem" data-open-setup-guide>
+                        <i class="ph ph-rocket-launch text-[15px]"></i><span th:text="#{setup.title}">Set up JobWarden</span>
+                    </button>
+                    <a class="menu-item" role="menuitem" th:href="@{/updates}" th:aria-current="${section == 'updates'} ? 'page'">
+                        <i class="ph ph-megaphone text-[15px]"></i><span th:text="#{updates.title}">What’s new</span>
+                    </a>
                     <a class="menu-item" role="menuitem" th:href="@{/settings}" th:aria-current="${section == 'settings'} ? 'page'">
                         <i class="ph ph-gear-six text-[15px]"></i><span th:text="#{nav.settings}">Settings</span>
                     </a>
@@ -188,6 +204,21 @@
     </div>
 </div>
 
+<!--/* Where setup.js loads the setup guide's dialog, and whats-new.js the popup of what changed */-->
+<div id="setup-guide-holder"></div>
+<div id="whats-new-holder"></div>
+
+<!--/* What a page or a part HTMX swapped in has to say in passing (layout :: toast, a [data-toast]): app.js shows it as a
+       card in the corner, from this template, for a few seconds */-->
+<template id="toast-card">
+    <div class="card flex items-start gap-3 p-3 shadow-lg" role="status" data-toast-card>
+        <i class="ph ph-check-circle mt-0.5 text-lg text-success" data-toast-icon></i>
+        <div class="min-w-0 flex-1 text-[13px] text-pretty" data-body></div>
+        <button class="btn btn-ghost size-6 flex-none p-0 text-ink/50" type="button" data-close-card
+                th:title="#{action.close}" th:aria-label="#{action.close}"><i class="ph ph-x text-xs"></i></button>
+    </div>
+</template>
+
 <!--/* The reminders that came while the page was in front, or that the browser won't show as notifications: app.js adds
        a card per reminder, from the template, until it's closed */-->
 <div id="reminder-cards" class="fixed right-4 bottom-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2" aria-live="polite"></div>
@@ -207,6 +238,10 @@
 
 <!--/* The sidebar's parts, only ever taken from here as fragments: as part of the page, the block shows nothing */-->
 <th:block th:if="${false}">
+
+<!--/* A message to show in the page's corner for a few seconds (toast, in the model), in a part of a page HTMX swaps in
+       or in a page: app.js moves it to a card (#toast-card). Nothing without one. */-->
+<p th:fragment="toast" hidden data-toast th:if="${toast}" th:text="${toast}">Your mailbox is connected.</p>
 
 <!--/* JobWarden's logo: a white shield guarding a briefcase, on a gradient from the accent's blue to indigo. id names its
        gradient, unique on the page; cssClass sizes it. The same drawing as static/favicon.svg, the PNG icons beside it
@@ -244,8 +279,9 @@
    th:aria-current="${current} ? 'page'" th:title="${label}">
     <i class="ph" th:classappend="${icon}"></i>
     <span class="flex-1 whitespace-nowrap max-md:hidden folded:hidden" th:text="${label}">Jobs</span>
+    <!--/* Only the Jobs link has a count: counts.js says it anew as the extension saves jobs (data-job-count) */-->
     <span class="text-[11px] text-ink/55 max-md:hidden folded:hidden" th:if="${badge != null and badgeStyle == 'count'}"
-          th:text="${badge}">57</span>
+          th:text="${badge}" data-job-count>57</span>
     <span class="rounded-full bg-accent px-1.5 text-[11px] font-medium text-white max-md:hidden folded:hidden"
           th:if="${badge != null and badgeStyle == 'pill' and badge > 0}" th:text="${badge}">4</span>
 </a>

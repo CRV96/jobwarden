@@ -92,5 +92,7 @@ The schema is JobWarden's own: it creates and upgrades it as it starts. It keeps
 ## Next
 
 1. [Getting started](Getting-started): your profile, your first saved job.
-2. [The browser extension](Browser-extension), to save postings in one click.
+2. [The browser extension](Browser-extension), to save postings in one click: from the
+   [Chrome Web Store](https://chromewebstore.google.com/detail/bjklifdmffkhiffbicofeohgdcpmobek) or
+   [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/jobwarden/).
 3. [Your AI assistant](AI-assistant), for the AI features.

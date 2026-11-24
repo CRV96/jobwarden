@@ -74,6 +74,9 @@
             <a class="btn btn-primary" th:href="@{/applications/{id}/cv/pdf(id=${cvJobId})}">
                 <i class="ph ph-file-pdf"></i><span th:text="#{cv.pdf}">Download PDF</span>
             </a>
+            <a class="btn btn-secondary" th:href="@{/applications/{id}/cv/edit(id=${cvJobId})}">
+                <i class="ph ph-pencil-simple"></i><span th:text="#{tailoredCv.edit}">Edit</span>
+            </a>
             <a class="btn btn-secondary" th:href="@{/applications/{id}/cv(id=${cvJobId})}" target="_blank" rel="noopener">
                 <i class="ph ph-arrow-square-out"></i><span th:text="#{cv.preview}">Preview</span>
             </a>

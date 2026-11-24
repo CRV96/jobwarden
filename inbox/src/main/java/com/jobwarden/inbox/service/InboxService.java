@@ -50,6 +50,14 @@ public interface InboxService {
 	CheckResult check(long userId);
 
 	/**
+	 * Reads the emails that came since the last time, in the background: the page that asked answers at once, and
+	 * learns how it went from the mailbox, whose {@link MailAccount#lastCheckedAt} moves on once it's read, and which
+	 * keeps why when it can't be. Nothing happens while the mailbox is being read already, or for a profile without
+	 * one.
+	 */
+	void checkSoon(long userId);
+
+	/**
 	 * Reads the mailboxes whose time has come, as the schedule does: each as often as its profile said. One that can't
 	 * be read keeps why, and the others go on.
 	 */

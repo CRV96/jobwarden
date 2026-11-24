@@ -479,7 +479,7 @@
     </div>
 </dialog>
 
-<!--/* Adds a job by hand, from the list or the pipeline. It posts like the full form (new.html), which shows any
+<!--/* Adds a job by hand, from the list or the board. It posts like the full form (new.html), which shows any
        errors, and has more fields. */-->
 <dialog th:fragment="add-job-dialog" id="add-job" class="dialog w-[min(480px,calc(100%-32px))]" aria-labelledby="add-job-title">
     <form class="flex flex-col gap-3" method="post" th:action="@{/applications}">
@@ -531,7 +531,7 @@
     </form>
 </dialog>
 
-<!--/* The side panel the list and the pipeline open an application in; HTMX loads drawer.html into it. */-->
+<!--/* The side panel the list and the board open an application in; HTMX loads drawer.html into it. */-->
 <dialog th:fragment="drawer-dialog" id="drawer" class="drawer" th:aria-label="#{application.panel}">
     <div id="drawer-content" class="min-h-full"></div>
 </dialog>
@@ -545,13 +545,25 @@
        th:classappend="${!listParams.isSortedBy(key)} ? 'ph-caret-up-down' : (${listParams.dir.isAscending()} ? 'ph-caret-up' : 'ph-caret-down')"></i>
 </a>
 
-<!--/* The page header of the list and the pipeline. */-->
-<header th:fragment="page-header(heading, subheading)" class="flex flex-wrap items-end gap-3">
+<!--/* The Jobs page's header, the same in both its views: the list and the board (view: 'list' or 'board'), with the
+       switch between them, which keeps the search (q, or null). The subheading says how many jobs there are; app.js
+       says it anew as the extension saves one (data-jobs-subtitle, see counts.js). */-->
+<header th:fragment="page-header(heading, subheading, view, q)" class="flex flex-wrap items-end gap-3">
     <div class="min-w-[240px] flex-1">
         <h1 class="page-title mb-1" th:text="${heading}">Jobs</h1>
-        <p class="text-[13px] text-ink/60" th:if="${subheading}" th:text="${subheading}">Where each application stands</p>
+        <p class="text-[13px] text-ink/60" th:if="${subheading}" th:text="${subheading}" data-jobs-subtitle>57 postings saved</p>
     </div>
     <th:block th:replace="~{help/help :: how-it-works('jobs')}"></th:block>
+    <nav class="seg" th:aria-label="#{jobs.view}">
+        <a class="seg-opt" th:href="${q != null} ? @{/applications(q=${q})} : @{/applications}" th:aria-current="${view == 'list'} ? 'page'"
+           th:title="#{jobs.view.list.hint}">
+            <i class="ph ph-list-bullets"></i><span th:text="#{jobs.view.list}">List</span>
+        </a>
+        <a class="seg-opt" th:href="${q != null} ? @{/applications/board(q=${q})} : @{/applications/board}"
+           th:aria-current="${view == 'board'} ? 'page'" th:title="#{jobs.view.board.hint}">
+            <i class="ph ph-kanban"></i><span th:text="#{jobs.view.board}">Board</span>
+        </a>
+    </nav>
     <button class="btn btn-primary" type="button" data-open-dialog="add-job">
         <i class="ph ph-plus text-[15px]"></i><span th:text="#{jobs.add}">Add job</span>
     </button>
