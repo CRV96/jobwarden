@@ -1,9 +1,9 @@
 package com.jobwarden.updates.service.impl;
 
-import org.jspecify.annotations.Nullable;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.safety.Safelist;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A release's notes as GitHub makes them of their Markdown (its {@code body_html}), cleaned to show in a page as they
