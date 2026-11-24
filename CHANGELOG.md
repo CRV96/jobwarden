@@ -6,7 +6,7 @@ what to do when upgrading. The release notes on GitHub list the pull requests as
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Add to *Unreleased* with each change;
 a release renames it to its version and date.
 
-## Unreleased
+## 1.1.0 - 2026-11-24
 
 ### Added
 
