@@ -93,7 +93,7 @@ class TailoredCvControllerTests {
 			.capturedAt(Instant.now())
 			.timeline(List.of())
 			.build()));
-		given(this.cvs.find(1)).willReturn(new Cv(null, TAILORED.details()));
+		given(this.cvs.find(1)).willReturn(new Cv(null, TAILORED.details().toBuilder().email("robert@example.com").build()));
 	}
 
 	@Test
@@ -103,6 +103,49 @@ class TailoredCvControllerTests {
 			.contains("AI-proof CV", "The assistant rewrites your CV for this job", "hx-post=\"/applications/7/cv/request\"",
 					"Ask the AI Assistant to tailor it")
 			.doesNotContain("every 5s");
+	}
+
+	/** A CV starts with whose it is: without a name and an email on the CV page, they're asked for first. */
+	@Test
+	void asksForTheNameAndEmailFirstWhenTheCvPageHasNone() {
+		given(this.cvs.find(1)).willReturn(new Cv(null, TAILORED.details()));
+
+		assertThat(this.mvc.get().uri("/applications/7/cv/card")).hasStatusOk()
+			.bodyText()
+			.contains("Add your name and contact details first", "hx-post=\"/applications/7/cv/contacts\"",
+					"name=\"ask\" value=\"true\"", "value=\"Robert Ciapă\"", "name=\"email\"", "name=\"github\"",
+					"Save and ask the AI Assistant", "Ask without them", "hx-post=\"/applications/7/cv/request\"")
+			.doesNotContain("Ask the AI Assistant to tailor it");
+	}
+
+	@Test
+	void savesTheNameAndContactDetailsThenAsksTheAssistant() {
+		given(this.cvs.find(1)).willReturn(new Cv(null, TAILORED.details()));
+
+		assertThat(this.mvc.post()
+			.uri("/applications/7/cv/contacts")
+			.param("fullName", "Robert Ciapă")
+			.param("email", "robert@example.com")
+			.param("phone", "+40 700 000 000")
+			.param("linkedin", "https://www.linkedin.com/in/robert")
+			.param("ask", "true")).hasStatusOk();
+
+		then(this.cvs).should().saveContacts(eq(1L), argThat(contacts -> contacts != null
+				&& "robert@example.com".equals(contacts.email()) && "+40 700 000 000".equals(contacts.phone())
+				&& "https://www.linkedin.com/in/robert".equals(contacts.linkedin())));
+		then(this.discovery).should().createRequest(1, AiRequestKind.TAILOR_CV, 7L);
+	}
+
+	@Test
+	void showsTheContactDetailsAgainWithWhatsMissing() {
+		given(this.cvs.find(1)).willReturn(new Cv(null, TAILORED.details()));
+
+		assertThat(this.mvc.post().uri("/applications/7/cv/contacts").param("fullName", "Robert Ciapă").param("ask", "true"))
+			.hasStatusOk()
+			.bodyText()
+			.contains("An email address is needed", "role=\"alert\"", "value=\"Robert Ciapă\"");
+		then(this.cvs).should(never()).saveContacts(anyLong(), any());
+		then(this.discovery).should(never()).createRequest(anyLong(), any(), any());
 	}
 
 	@Test
@@ -170,8 +213,11 @@ class TailoredCvControllerTests {
 			.hasViewName("applications/tailored-cv-edit")
 			.bodyText()
 			.contains("Edit the CV for this job", "Backend engineer · Globex", "Put Kafka first.", "Kubernetes",
-					"value=\"Robert Ciapă\"", "value=\"Backend Engineer\"", "Spring Boot, Kafka", "Built payments",
-					"action=\"/applications/7/cv/edit\"", "src=\"/applications/7/cv\"");
+					"value=\"Backend Engineer\"", "Spring Boot, Kafka", "Built payments",
+					"action=\"/applications/7/cv/edit\"", "src=\"/applications/7/cv\"",
+					"Your name and contact details come from your CV page", "href=\"/cv#contacts\"")
+			.as("the CV page's name and contacts are the CV's")
+			.doesNotContain("name=\"fullName\"", "name=\"email\"");
 		assertThat(this.mvc.get().uri("/applications/8/cv/edit")).hasStatus(HttpStatus.NOT_FOUND);
 	}
 
@@ -181,7 +227,6 @@ class TailoredCvControllerTests {
 
 		assertThat(this.mvc.post()
 			.uri("/applications/7/cv/edit")
-			.param("fullName", "Robert Ciapă")
 			.param("headline", "Senior Backend Engineer")
 			.param("skills", "Kafka, Spring Boot")
 			.param("experience[0].role", "Java Developer")
@@ -189,7 +234,8 @@ class TailoredCvControllerTests {
 			.param("experience[0].description", "Built payments in Kafka")).hasRedirectedUrl("/applications/7/cv/edit?saved");
 
 		then(this.cvs).should().saveTailored(eq(1L), eq(7L), argThat(details -> details != null
-				&& "Senior Backend Engineer".equals(details.headline()) && details.skills().size() == 2
+				&& "Robert Ciapă".equals(details.fullName()) && "Senior Backend Engineer".equals(details.headline())
+				&& details.skills().size() == 2
 				&& "Built payments in Kafka".equals(details.experience().getFirst().description())),
 				eq(List.of("Spring Boot", "Kafka")), eq(List.of("Kubernetes")), eq("Put Kafka first."));
 	}
@@ -198,11 +244,12 @@ class TailoredCvControllerTests {
 	void showsTheFieldsAgainWithWhatsWrong() {
 		given(this.cvs.findTailored(1, 7)).willReturn(Optional.of(TAILORED));
 
-		assertThat(this.mvc.post().uri("/applications/7/cv/edit").param("fullName", "Robert").param("email", "not an address"))
+		String tooLong = "Senior ".repeat(30);
+		assertThat(this.mvc.post().uri("/applications/7/cv/edit").param("headline", tooLong))
 			.hasStatusOk()
 			.hasViewName("applications/tailored-cv-edit")
 			.bodyText()
-			.contains("value=\"not an address\"", "role=\"alert\"");
+			.contains("value=\"" + tooLong + "\"", "role=\"alert\"", "at most 200 characters");
 		then(this.cvs).should(never()).saveTailored(anyLong(), anyLong(), any(), any(), any(), any());
 	}
 

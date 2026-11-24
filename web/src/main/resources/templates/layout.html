@@ -33,11 +33,11 @@
 
 <!--/* While a profile is selected: data-reminders, where app.js asks for the reminders that are due; data-job-changes,
        how many jobs there are and when they last changed (counts.js); data-setup-guide, the setup guide, which opens
-       on its own until the profile, data-profile-key, says not to (setup.js); data-whats-new, the popup of what changed,
+       on its own until the profile, data-profile-key, says not to, while a step is left (setup.js); data-whats-new, the popup of what changed,
        once the profile sees a release it hasn't (data-app-version), unless it was made after that release came out
        (data-profile-after-release) (whats-new.js) */-->
 <body th:data-reminders="${currentProfile != null} ? @{/reminders/due}" th:data-job-changes="${currentProfile != null} ? @{/applications/changes}"
-      th:data-setup-guide="${currentProfile != null} ? @{/setup}" th:data-profile-key="${currentProfile?.publicId}"
+      th:data-setup-guide="${currentProfile != null and setupComplete != true} ? @{/setup}" th:data-profile-key="${currentProfile?.publicId}"
       th:data-whats-new="${runningRelease != null} ? @{/updates/whats-new}" th:data-app-version="${runningRelease?.version}"
       th:data-profile-after-release="${profileAfterRelease} ? 'true'"
       th:data-fold="#{card.fold}" th:data-unfold="#{card.unfold}">
@@ -154,8 +154,8 @@
                         <i class="ph ph-plus-circle text-[15px]"></i><span th:text="#{nav.addProfile}">Add another profile</span>
                     </a>
                     <div class="menu-separator"></div>
-                    <!--/* The setup guide, in a dialog (setup.js) */-->
-                    <button class="menu-item" type="button" role="menuitem" data-open-setup-guide>
+                    <!--/* The setup guide, in a dialog (setup.js), while a step of it is left */-->
+                    <button class="menu-item" type="button" role="menuitem" data-open-setup-guide th:unless="${setupComplete}">
                         <i class="ph ph-rocket-launch text-[15px]"></i><span th:text="#{setup.title}">Set up JobWarden</span>
                     </button>
                     <a class="menu-item" role="menuitem" th:href="@{/updates}" th:aria-current="${section == 'updates'} ? 'page'">

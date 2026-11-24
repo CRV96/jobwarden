@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<!--/* The CV page's name and contact details, asked on their own (ContactsForm): in the setup guide, and on a job before
+       its CV is tailored, since every tailored CV shows them. Only fragments are taken from this file. */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!--/* The fields, filled in with details (a CvDetails); fieldErrors says why they didn't save, when they didn't */-->
+<th:block th:fragment="fields(details)">
+    <ul class="flex flex-col gap-1 text-[13px] text-danger" role="alert" th:if="${fieldErrors != null and !fieldErrors.isEmpty()}">
+        <li th:each="error : ${fieldErrors.values()}" th:text="${error}">Your name is needed.</li>
+    </ul>
+    <div class="grid gap-2 sm:grid-cols-2">
+        <label th:replace="~{cv/cv :: text-field('fullName', ${details.fullName}, #{cv.fullName}, 'Robert Ciapă')}"></label>
+        <label th:replace="~{cv/cv :: text-field('email', ${details.email}, #{cv.email}, 'name@example.com')}"></label>
+        <label th:replace="~{cv/cv :: text-field('phone', ${details.phone}, #{cv.phone}, '+40 7…')}"></label>
+        <label th:replace="~{cv/cv :: text-field('location', ${details.location}, #{cv.location}, #{cv.location.placeholder})}"></label>
+        <label th:replace="~{cv/cv :: text-field('linkedin', ${details.linkedin}, 'LinkedIn', 'https://www.linkedin.com/in/…')}"></label>
+        <label th:replace="~{cv/cv :: text-field('github', ${details.github}, 'GitHub', 'https://github.com/…')}"></label>
+        <div class="sm:col-span-2">
+            <label th:replace="~{cv/cv :: text-field('website', ${details.website}, #{cv.website}, 'https://…')}"></label>
+        </div>
+    </div>
+</th:block>
+
+</body>
+</html>

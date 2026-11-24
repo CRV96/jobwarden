@@ -23,9 +23,10 @@ a release renames it to its version and date.
 - The browser extension is on the [Chrome Web Store](https://chromewebstore.google.com/detail/bjklifdmffkhiffbicofeohgdcpmobek)
   and [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/jobwarden/): their badges are in the README and the
   wiki, and Settings → Browser extension has **Add to Chrome** and **Add to Firefox**.
-- A setup guide: what to set up for each part of JobWarden to work (the CV, the AI assistant, the browser extension,
-  the mailbox, the watchlist), what each turns on, and which are done. It opens on its own while a step is left, until
-  you say not to show it again; **Set up JobWarden** in the profile menu brings it back.
+- A setup guide: what to set up for each part of JobWarden to work (the CV, your name and contact details, the AI
+  assistant, the browser extension, the mailbox, the watchlist), what each turns on, and which are done; the name and
+  contact details are filled in right in it. It opens on its own while a step is left, until you say not to show it
+  again; **Set up JobWarden** in the profile menu brings it back while a step is left.
 - A CV the AI Assistant tailored to a job can be changed by hand: **Edit**, on its card and on the CV page, opens it in
   the CV page's fields, beside its preview.
 - The jobs' count in the sidebar, and the Jobs page, follow what the browser extension saves from another tab, without
@@ -33,6 +34,8 @@ a release renames it to its version and date.
 - **What's new**: every release, with what it changed (from its notes on GitHub), and which one runs; in the profile
   menu, and where the sidebar says a newer version is out. After an update, the first page each profile opens shows
   what changed since the version it saw before, once.
+- The inbox's emails can be ticked, all at once too, and applied or dismissed together: each goes to the job and with
+  the status its card shows; one with no job picked stays, and the page says so.
 - Connecting a mailbox, or **Check now**, says so in a message in the page's corner, reads the emails in the background
   while the card shows it, and lists what it found when it's done, without reloading the page.
 
@@ -43,6 +46,8 @@ a release renames it to its version and date.
 - The statistics are on the homepage, below the rest, in two columns of cards each as tall as it needs; the Statistics
   page is gone, and `/statistics` leads there.
 - Settings' two columns end level: About is under the AI assistant now.
+- The Search Builder lists the remote job boards right after LinkedIn, and shows each platform as its name and its
+  Copy and Open search buttons; **Show the queries** shows their text too, as your browser remembers.
 - A job's side panel keeps **Open posting**, **Archive** and **Delete** at its foot, however far it's scrolled.
 - Who's hiring: **Where** is picked from a list (anywhere, remote, or a country) rather than typed.
 
@@ -52,6 +57,9 @@ a release renames it to its version and date.
 
 ### Fixed
 
+- A CV tailored to a job shows your name and contact details from the CV page, those tailored before too: without a
+  name on the CV page, it started with the job's title. When the CV page has no name or email, the job's CV card asks
+  for them first.
 - The inbox leaves newsletters and ads alone, such as a bank's offer: an email sent to many at once (its
   `List-Unsubscribe`, `List-Id` or `Precedence: bulk` header, or an unsubscribe link) counts only for a job it names, in
   so many words; "we'd like to offer you" is no longer an offer on its own; and in Romanian, the app (aplicația) is no

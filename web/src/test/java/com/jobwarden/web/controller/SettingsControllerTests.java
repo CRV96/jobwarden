@@ -91,6 +91,9 @@ class SettingsControllerTests {
 	@MockitoBean
 	private DatabasePasswordService database;
 
+	@MockitoBean
+	private SetupSteps setupSteps;
+
 	@BeforeEach
 	void noAdzunaKey() {
 		given(this.adzunaKeys.find()).willReturn(AdzunaKey.NONE);
@@ -204,6 +207,18 @@ class SettingsControllerTests {
 			.as("the sidebar and the version open What's new, which says how to update")
 			.contains("href=\"/updates\"")
 			.doesNotContain("href=\"https://github.com/CRV96/jobwarden/releases/tag/v0.2.0\"");
+	}
+
+	/** The profile menu offers the setup guide, and the page opens it, only while a step of it is left. */
+	@Test
+	void offersTheSetupGuideOnlyWhileAStepIsLeft() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+		given(this.users.findAll()).willReturn(List.of(ROBERT));
+
+		assertThat(this.mvc.get().uri("/settings")).bodyText().contains("data-open-setup-guide", "data-setup-guide=\"/setup\"");
+
+		given(this.setupSteps.complete(1000)).willReturn(true);
+		assertThat(this.mvc.get().uri("/settings")).bodyText().doesNotContain("data-open-setup-guide", "data-setup-guide");
 	}
 
 	@Test

@@ -28,12 +28,16 @@
 </main>
 
 <!--/* The emails waiting, the newest first: each with the job it matched (or none, to pick), and what it says; Claude's
-       sorting of them; and what JobWarden and Claude applied or dismissed on their own lately. */-->
+       sorting of them; and what JobWarden and Claude applied or dismissed on their own lately. Each can be ticked, all at
+       once too, to apply or dismiss those ticked together (selection.js shows the bar); its job and status are named for
+       it (job-{id}, status-{id}), so the ones ticked go each with what its card shows. */-->
 <!--/* Once the mailbox is read in the background (the event inbox-read, InboxController.account), they load again */-->
 <section id="email-updates" th:fragment="updates" class="flex flex-col gap-3" aria-labelledby="updates-title"
          th:hx-get="@{/inbox/updates}" hx-trigger="inbox-read from:body" hx-target="this" hx-swap="outerHTML" hx-disinherit="*">
     <h2 id="updates-title" class="section-title" th:text="#{inbox.updates}">What your emails say</h2>
+    <p th:replace="~{layout :: toast}"></p>
     <p class="text-[13px] text-danger" role="alert" th:if="${mailError != null and mailAccount != null}" th:text="${mailError}">Pick a job.</p>
+    <p class="text-[13px] text-danger" role="alert" th:if="${updatesError}" th:text="${updatesError}">1 email names none of your jobs…</p>
     <th:block th:replace="~{inbox/inbox :: sorting}"></th:block>
     <div class="card flex flex-col items-center gap-2 p-8 text-center" th:if="${emailUpdates.isEmpty()}">
         <span class="brand-mark size-10"><i class="ph ph-envelope-simple-open text-xl"></i></span>
@@ -41,9 +45,34 @@
         <p class="max-w-md text-[13px] text-pretty text-ink/60"
            th:text="${mailAccount != null} ? #{inbox.empty.connected} : #{inbox.empty.notConnected}">JobWarden reads your mailbox every ten minutes…</p>
     </div>
+    <th:block th:unless="${emailUpdates.isEmpty()}">
+        <div class="flex min-h-9 flex-wrap items-center gap-3">
+            <label class="flex cursor-pointer items-center gap-2 pl-4 text-[13px] text-ink/70">
+                <input class="check" type="checkbox" data-select-all>
+                <span th:text="#{jobs.selectAll}">Select all</span>
+            </label>
+            <!--/* Shown by app.js while some are ticked. Its text carries {0} for the number, filled in by app.js. */-->
+            <div id="selection-bar" hidden th:data-label="#{jobs.selected}"
+                 class="flex flex-1 flex-wrap items-center gap-2 rounded-lg bg-accent/10 py-1.5 pr-1.5 pl-3 shadow-[inset_0_0_0_0.5px_color-mix(in_srgb,var(--jw-accent)_35%,transparent)]">
+                <span class="text-[13px] font-medium tabular-nums" data-selection-count>1 selected</span>
+                <button class="btn btn-ghost px-2 py-1" type="button" data-clear-selection th:text="#{jobs.clearSelection}">Clear selection</button>
+                <span class="flex-1"></span>
+                <button class="btn btn-ghost" type="button" th:hx-post="@{/inbox/updates/dismiss}" hx-include="[data-select-row]:checked"
+                        hx-target="#email-updates" hx-swap="outerHTML">
+                    <i class="ph ph-x"></i><span th:text="#{inbox.dismissSelected}">Dismiss selected</span>
+                </button>
+                <button class="btn btn-primary" type="button" th:hx-post="@{/inbox/updates/apply}"
+                        hx-include="[data-select-row]:checked, #email-updates select" hx-target="#email-updates" hx-swap="outerHTML">
+                    <i class="ph ph-check"></i><span th:text="#{inbox.applySelected}">Apply selected</span>
+                </button>
+            </div>
+        </div>
+    </th:block>
     <article class="card flex flex-col gap-2.5 p-4" th:each="update : ${emailUpdates}"
              th:classappend="|st-${#strings.toLowerCase(update.status.name())}|">
         <div class="flex items-start gap-2">
+            <input class="check mt-1" type="checkbox" name="ids" th:value="${update.id}" data-select-row
+                   th:with="subject=${update.subject} ?: #{inbox.noSubject}" th:aria-label="#{inbox.select(${subject})}">
             <span class="tag flex-none" th:text="#{${'status.' + update.status}}">Rejected</span>
             <div class="min-w-0 flex-1">
                 <div class="truncate text-[13px] font-semibold" th:text="${update.subject} ?: #{inbox.noSubject}">Your application to Acme</div>
@@ -54,12 +83,13 @@
         <blockquote class="border-l-2 border-[var(--st)] pl-3 text-[13px] text-pretty text-ink/80" th:if="${update.excerpt}"
                     th:text="${update.excerpt}">After careful consideration, we have decided to move forward with other candidates.</blockquote>
         <p class="text-xs text-ink/60" th:if="${update.applicationId == null}" th:text="#{inbox.noJob}">It names none of your jobs: pick the one it’s about.</p>
-        <form class="flex flex-wrap items-center gap-2" th:hx-post="@{/inbox/updates/{id}/apply(id=${update.id})}"
+        <form class="flex flex-wrap items-center gap-2" th:hx-post="@{/inbox/updates/apply}"
               hx-target="#email-updates" hx-swap="outerHTML">
+            <input type="hidden" name="ids" th:value="${update.id}">
             <!--/* The labels are for screen readers only (contents: the select stays the form's flex item) */-->
             <label class="contents">
                 <span class="sr-only" th:text="#{inbox.job}">Job</span>
-                <select class="input w-auto min-w-0 flex-[1_1_220px]" name="job" required>
+                <select class="input w-auto min-w-0 flex-[1_1_220px]" th:name="|job-${update.id}|" required>
                     <option value="" th:selected="${update.applicationId == null}" disabled th:text="#{inbox.pickJob}">Which job?</option>
                     <option th:each="job : ${inboxJobs}" th:value="${job.id}" th:selected="${job.id == update.applicationId}"
                             th:text="${job.company != null} ? #{calendar.entryTitle(${job.title}, ${job.company})} : ${job.title}">Backend engineer at Acme</option>
@@ -67,7 +97,7 @@
             </label>
             <label class="contents">
                 <span class="sr-only" th:text="#{inbox.status}">Status</span>
-                <select class="input w-auto" name="status">
+                <select class="input w-auto" th:name="|status-${update.id}|">
                     <option th:each="status : ${emailStatuses}" th:value="${status}" th:selected="${status == update.status}"
                             th:text="#{${'status.' + status}}">Rejected</option>
                 </select>

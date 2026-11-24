@@ -8,11 +8,11 @@ public enum Platform {
 	/** Google, limited to the job boards companies host their openings on (applicant tracking systems). */
 	GOOGLE,
 	LINKEDIN,
+	/** Google, limited to the remote job boards. */
+	REMOTE_BOARDS,
 	/** Google, limited to the subreddits where jobs are posted. */
 	REDDIT,
 	/** X's search of recent posts, for "we're hiring" posts. */
-	X,
-	/** Google, limited to the remote job boards. */
-	REMOTE_BOARDS
+	X
 
 }

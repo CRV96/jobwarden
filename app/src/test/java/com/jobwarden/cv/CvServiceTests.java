@@ -172,6 +172,47 @@ class CvServiceTests {
 		assertThat(this.cvs.findAllTailored(this.userId)).hasSize(2);
 	}
 
+	/** The name and how to reach the person are the CV page's, as they are now: a CV tailored before shows them too. */
+	@Test
+	void showsTheCvPagesNameAndContactsOnEveryTailoredCv() {
+		long job = insertJob(this.userId, "Backend engineer");
+		this.cvs.saveTailored(this.userId, job, CvDetails.builder()
+			.fullName("Backend Engineer")
+			.headline("Backend Engineer")
+			.phone("+40 711 111 111")
+			.build(), List.of(), List.of(), null);
+		assertThat(this.cvs.findTailored(this.userId, job).orElseThrow().details().fullName())
+			.as("none on the CV page: the CV keeps what it has").isEqualTo("Backend Engineer");
+
+		this.cvs.saveDetails(this.userId, CvDetails.builder()
+			.fullName("Robert Ciapă")
+			.headline("Java Developer")
+			.summary("Ten years of Java.")
+			.build());
+		CvDetails contacts = this.cvs.saveContacts(this.userId, CvDetails.builder()
+			.fullName(" Robert Ciapă ")
+			.email("robert@example.com")
+			.github("https://github.com/CRV96")
+			.phone(" ")
+			.summary("Not a contact detail")
+			.build());
+
+		assertThat(contacts.email()).isEqualTo("robert@example.com");
+		assertThat(contacts.fullName()).isEqualTo("Robert Ciapă");
+		assertThat(contacts.phone()).as("blank is none").isNull();
+		assertThat(contacts.summary()).as("the rest of the CV is kept").isEqualTo("Ten years of Java.");
+		assertThat(contacts.headline()).isEqualTo("Java Developer");
+		CvDetails tailored = this.cvs.findTailored(this.userId, job).orElseThrow().details();
+		assertThat(tailored.fullName()).isEqualTo("Robert Ciapă");
+		assertThat(tailored.email()).isEqualTo("robert@example.com");
+		assertThat(tailored.github()).isEqualTo("https://github.com/CRV96");
+		assertThat(tailored.phone()).as("none on the CV page: the CV's own").isEqualTo("+40 711 111 111");
+		assertThat(tailored.headline()).as("the job's, not the CV page's").isEqualTo("Backend Engineer");
+		assertThat(this.cvs.findAllTailored(this.userId)).singleElement()
+			.extracting(cv -> cv.details().fullName())
+			.isEqualTo("Robert Ciapă");
+	}
+
 	@Test
 	void keepsATailoredCvToItsProfileAndDeletesIt() {
 		long job = insertJob(this.userId, "Backend engineer");

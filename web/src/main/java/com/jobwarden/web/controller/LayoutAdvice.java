@@ -29,10 +29,11 @@ import org.springframework.web.bind.annotation.RequestHeader;
  * <p>
  * The sidebar also lists the profiles to switch to, counts the profile's applications, the found jobs waiting on the
  * AI Assistant page and the emails waiting in the inbox, opens the Jobs page as the list or the board, as it was left,
- * and says when a newer JobWarden is out; with a profile, the release running, for the popup that tells what changed
+ * and says when a newer JobWarden is out; with a profile, whether it has set up everything (the menu offers the setup
+ * guide until it has), and the release running, for the popup that tells what changed
  * once after an update (whats-new.js). HTMX requests skip
  * those: they only swap a part of the page, without the sidebar. Without the updates or the inbox (a test of one
- * controller), the sidebar says nothing of them.
+ * controller), the sidebar says nothing of them; without the setup's steps, the menu offers the guide.
  */
 @ControllerAdvice(annotations = PageController.class)
 @RequiredArgsConstructor
@@ -49,6 +50,8 @@ class LayoutAdvice {
 	private final ObjectProvider<UpdateService> updates;
 
 	private final ObjectProvider<InboxService> inbox;
+
+	private final ObjectProvider<SetupSteps> setupSteps;
 
 	@ModelAttribute
 	void layout(Model model, @RequestHeader(name = HtmxHeaders.REQUEST, required = false) @Nullable String htmx,
@@ -68,6 +71,8 @@ class LayoutAdvice {
 			model.addAttribute(ModelAttributes.DISCOVER_COUNT, this.discovery.countToReview(profile.id(), null));
 			this.inbox.ifAvailable(
 					inboxService -> model.addAttribute(ModelAttributes.INBOX_COUNT, inboxService.countPending(profile.id())));
+			this.setupSteps.ifAvailable(
+					steps -> model.addAttribute(ModelAttributes.SETUP_COMPLETE, steps.complete(profile.id())));
 			this.updates.ifAvailable(updateService -> updateService.running().ifPresent(release -> {
 				model.addAttribute(ModelAttributes.RUNNING_RELEASE, release);
 				model.addAttribute(ModelAttributes.PROFILE_AFTER_RELEASE, madeAfter(profile, release));

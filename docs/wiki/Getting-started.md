@@ -2,8 +2,9 @@
 
 Once JobWarden runs ([Installation](Installation)), five minutes make the rest work. The app's **setup guide** walks
 you through them: it opens on its own while a step is left (until you tick **Don't show this again**), and **Set up
-JobWarden** in the profile menu brings it back. It ticks each step as you do it, and says what each turns on: the CV,
-the AI assistant, the browser extension, the mailbox and the watchlist.
+JobWarden** in the profile menu brings it back until every step is done. It ticks each step as you do it, and says what
+each turns on: the CV, your name and contact details (filled in right in the guide), the AI assistant, the browser
+extension, the mailbox and the watchlist.
 
 ## 1. Create your profile
 

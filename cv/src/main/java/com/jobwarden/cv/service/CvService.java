@@ -29,6 +29,14 @@ public interface CvService {
 	CvDetails saveDetails(long userId, CvDetails details);
 
 	/**
+	 * Replaces the name and the contact details (email, phone, location, website, LinkedIn, GitHub) with those given,
+	 * keeping the rest of the CV. Blank text is no value.
+	 *
+	 * @param contacts a CV whose name and contact details are taken; its other fields are left out
+	 */
+	CvDetails saveContacts(long userId, CvDetails contacts);
+
+	/**
 	 * Keeps the file, replacing the one there was, and reads its text out for Claude.
 	 *
 	 * @param contentType as the browser sent it; the file's extension decides when it's missing or generic

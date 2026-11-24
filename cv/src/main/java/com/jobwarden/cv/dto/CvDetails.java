@@ -46,6 +46,51 @@ public record CvDetails(@Nullable String fullName, @Nullable String headline, @N
 	}
 
 	/**
+	 * @return whether it says whose CV it is and how to write to them, the least a CV sent out needs: a name and an
+	 * email address
+	 */
+	public boolean hasContactDetails() {
+		return this.fullName != null && this.email != null;
+	}
+
+	/**
+	 * The same CV with the name and the contact details of another where that one has them: a tailored CV shows the CV
+	 * page's, as they are now, since they're the person's and not the assistant's to write.
+	 *
+	 * @param mine the CV whose name, email, phone, location, website, LinkedIn and GitHub win
+	 */
+	public CvDetails withContactsOf(CvDetails mine) {
+		return toBuilder().fullName(firstOf(mine.fullName, this.fullName))
+			.email(firstOf(mine.email, this.email))
+			.phone(firstOf(mine.phone, this.phone))
+			.location(firstOf(mine.location, this.location))
+			.website(firstOf(mine.website, this.website))
+			.linkedin(firstOf(mine.linkedin, this.linkedin))
+			.github(firstOf(mine.github, this.github))
+			.build();
+	}
+
+	/**
+	 * The same CV with the name and the contact details of another, all of them, those it hasn't left empty.
+	 *
+	 * @param contacts the CV whose name, email, phone, location, website, LinkedIn and GitHub are taken
+	 */
+	public CvDetails withContacts(CvDetails contacts) {
+		return toBuilder().fullName(contacts.fullName)
+			.email(contacts.email)
+			.phone(contacts.phone)
+			.location(contacts.location)
+			.website(contacts.website)
+			.linkedin(contacts.linkedin)
+			.github(contacts.github)
+			.build();
+	}
+
+	private static @Nullable String firstOf(@Nullable String first, @Nullable String second) {
+		return (first != null) ? first : second;
+	}
+
+	/**
 	 * @return whether there's enough to build a CV from: at least a name, a job or a degree
 	 */
 	public boolean isFilledIn() {

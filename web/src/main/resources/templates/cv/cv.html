@@ -101,7 +101,7 @@
                     <li th:each="error : ${fieldErrors.values()}" th:text="${error}">That isn’t an email address.</li>
                 </ul>
 
-                <th:block th:replace="~{cv/cv :: fields}"></th:block>
+                <th:block th:replace="~{cv/cv :: fields(true)}"></th:block>
 
                 <div class="flex flex-wrap items-center gap-2 border-t border-line pt-4">
                     <button class="btn btn-primary" type="submit"><i class="ph ph-floppy-disk"></i><span th:text="#{cv.save}">Save</span></button>
@@ -156,10 +156,21 @@
 </main>
 
 <!--/* The fields a CV is built from, as the CV page's form and a tailored CV's (applications/tailored-cv-edit.html)
-       have them: details are the fields to show, fieldErrors why any didn't save. The lists' rows are numbered by
-       app.js as they're added and removed (data-rows, data-row, data-add-row, data-remove-row). */-->
-<th:block th:fragment="fields">
-    <fieldset class="flex flex-col gap-2">
+       have them: details are the fields to show, fieldErrors why any didn't save. contacts says whether the name and
+       contact details are among them: a tailored CV takes the CV page's, so its form has the headline alone, and says
+       where they're changed. The lists' rows are numbered by app.js as they're added and removed (data-rows, data-row,
+       data-add-row, data-remove-row). */-->
+<th:block th:fragment="fields(contacts)">
+    <fieldset id="contacts" class="flex scroll-mt-6 flex-col gap-2" th:unless="${contacts}">
+        <legend class="section-title mb-2" th:text="#{cv.personal}">Personal details</legend>
+        <label th:replace="~{cv/cv :: text-field('headline', ${details.headline}, #{cv.headline}, #{cv.headline.placeholder})}"></label>
+        <p class="flex items-start gap-2 rounded-lg bg-ink/4 p-2.5 text-xs text-pretty text-ink/65">
+            <i class="ph ph-address-book mt-px text-sm"></i>
+            <span><th:block th:text="#{tailoredCv.edit.contacts}">Your name and contact details come from your CV page.</th:block>
+                <a class="link" th:href="@{/cv#contacts}" th:text="#{tailoredCv.edit.contacts.change}">Change them there</a></span>
+        </p>
+    </fieldset>
+    <fieldset id="contacts" class="flex scroll-mt-6 flex-col gap-2" th:if="${contacts}">
         <legend class="section-title mb-2" th:text="#{cv.personal}">Personal details</legend>
         <div class="grid gap-2 sm:grid-cols-2">
             <label th:replace="~{cv/cv :: text-field('fullName', ${details.fullName}, #{cv.fullName}, 'Robert Ciapă')}"></label>

@@ -42,6 +42,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 
 @WebMvcTest(InboxController.class)
 class InboxControllerTests {
@@ -58,6 +59,16 @@ class InboxControllerTests {
 		.jobTitle("Backend engineer")
 		.company("Acme")
 		.status(ApplicationStatus.REJECTED)
+		.decision(UpdateDecision.PENDING)
+		.build();
+
+	/** One that names none of the jobs: a job has to be picked for it. */
+	private static final EmailUpdate INTERVIEW = EmailUpdate.builder()
+		.id(6)
+		.receivedAt(Instant.parse("2026-10-31T09:00:00Z"))
+		.sender("Mihai <mihai@globex.com>")
+		.subject("Let's talk")
+		.status(ApplicationStatus.INTERVIEWING)
 		.decision(UpdateDecision.PENDING)
 		.build();
 
@@ -147,7 +158,9 @@ class InboxControllerTests {
 			.bodyText()
 			.contains("robert@gmail.com", "Check now", "Your application to Acme", "Ana Pop &lt;ana@acme.com&gt;",
 					"We have decided to move forward with other candidates.", "<option value=\"7\" selected=\"selected\">",
-					"Platform engineer", "/inbox/updates/5/apply", "/inbox/updates/5/dismiss")
+					"Platform engineer", "hx-post=\"/inbox/updates/apply\"", "name=\"ids\" value=\"5\"", "name=\"job-5\"",
+					"name=\"status-5\"", "/inbox/updates/5/dismiss", "data-select-all", "data-select-row", "Apply selected",
+					"Dismiss selected", "hx-post=\"/inbox/updates/dismiss\"")
 			// Only the jobs still in play
 			.doesNotContain("Old one", "name=\"password\"");
 	}
@@ -220,9 +233,10 @@ class InboxControllerTests {
 		given(this.inbox.findPending(1)).willReturn(List.of(REJECTION));
 
 		assertThat(this.mvc.post()
-			.uri("/inbox/updates/5/apply")
-			.param("job", "8")
-			.param("status", "REJECTED")
+			.uri("/inbox/updates/apply")
+			.param("ids", "5")
+			.param("job-5", "8")
+			.param("status-5", "REJECTED")
 			.header("HX-Request", "true")).hasStatusOk()
 			.headers()
 			.hasValue("HX-Trigger", "applications-changed");
@@ -232,11 +246,61 @@ class InboxControllerTests {
 
 	@Test
 	void appliesNothingWithoutAJob() {
-		given(this.inbox.findPending(1)).willReturn(List.of(REJECTION));
+		given(this.inbox.findPending(1)).willReturn(List.of(INTERVIEW));
 
-		assertThat(this.mvc.post().uri("/inbox/updates/5/apply").param("status", "REJECTED").header("HX-Request", "true"))
-			.hasStatusOk();
+		assertThat(this.mvc.post().uri("/inbox/updates/apply").param("ids", "6").param("status-6", "INTERVIEWING")
+			.header("HX-Request", "true"))
+			.hasStatusOk()
+			.bodyText()
+			.contains("1 email names none of your jobs: pick the one it’s about, then apply it.");
 		then(this.inbox).should(never()).apply(anyLong(), anyLong(), anyLong(), any(), any(), any());
+	}
+
+	/**
+	 * Those ticked go together, each to the job and with the status its card shows, else those it matched; one with no
+	 * job stays, and the answer says so. A status an email can't say is the one it matched.
+	 */
+	@Test
+	void appliesTheUpdatesTickedEachAsItsCardShows() {
+		EmailUpdate offer = REJECTION.toBuilder().id(7).subject("An offer").status(ApplicationStatus.OFFER).build();
+		given(this.inbox.findPending(1)).willReturn(List.of(REJECTION, INTERVIEW, offer));
+
+		assertThat(this.mvc.post()
+			.uri("/inbox/updates/apply")
+			.param("ids", "5", "6", "7", "99")
+			.param("job-5", "8")
+			.param("status-5", "INTERVIEWING")
+			.param("status-6", "INTERVIEWING")
+			.param("status-7", "SAVED")
+			.header("HX-Request", "true")).hasStatusOk()
+			.headers()
+			.hasValue("HX-Trigger", "applications-changed");
+		assertThat(this.mvc.post()
+			.uri("/inbox/updates/apply")
+			.param("ids", "5", "6", "7")
+			.header("HX-Request", "true")).bodyText()
+			.contains("2 emails applied to their jobs.", "1 email names none of your jobs");
+
+		then(this.inbox).should().apply(eq(1L), eq(5L), eq(8L), eq(ApplicationStatus.INTERVIEWING), any(), eq(UpdateDecider.YOU));
+		then(this.inbox).should(times(2)).apply(eq(1L), eq(7L), eq(7L), eq(ApplicationStatus.OFFER),
+				eq("From the email “An offer”, sent by Ana Pop <ana@acme.com>"), eq(UpdateDecider.YOU));
+		then(this.inbox).should(never()).apply(anyLong(), eq(6L), anyLong(), any(), any(), any());
+	}
+
+	@Test
+	void dismissesTheUpdatesTicked() {
+		given(this.inbox.findPending(1)).willReturn(List.of(REJECTION, INTERVIEW));
+
+		assertThat(this.mvc.post()
+			.uri("/inbox/updates/dismiss")
+			.param("ids", "5", "6", "6", "99")
+			.header("HX-Request", "true")).hasStatusOk()
+			.bodyText()
+			.contains("2 emails dismissed.");
+
+		then(this.inbox).should().dismiss(1, 5, UpdateDecider.YOU);
+		then(this.inbox).should().dismiss(1, 6, UpdateDecider.YOU);
+		then(this.inbox).should(never()).dismiss(1, 99, UpdateDecider.YOU);
 	}
 
 	@Test

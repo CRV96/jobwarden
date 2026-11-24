@@ -6,10 +6,14 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.discover.dto.AiRequest;
@@ -19,7 +23,6 @@ import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.inbox.dto.EmailUpdate;
 import com.jobwarden.inbox.dto.MailAccount;
 import com.jobwarden.inbox.enums.UpdateDecider;
-import com.jobwarden.inbox.exception.EmailUpdateNotFoundException;
 import com.jobwarden.inbox.service.InboxService;
 import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.enums.ApplicationStatus;
@@ -30,7 +33,6 @@ import com.jobwarden.web.constants.HtmxEvents;
 import com.jobwarden.web.constants.HtmxHeaders;
 import com.jobwarden.web.constants.ModelAttributes;
 import com.jobwarden.web.constants.Views;
-import com.jobwarden.web.dto.EmailUpdateForm;
 import com.jobwarden.web.dto.MailAccountForm;
 import com.jobwarden.web.enums.MailProvider;
 import com.jobwarden.web.enums.ReadingInterval;
@@ -43,6 +45,7 @@ import org.jspecify.annotations.Nullable;
 
 import org.springframework.context.MessageSource;
 import org.springframework.ui.Model;
+import org.springframework.util.MultiValueMap;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -182,29 +185,90 @@ class InboxController {
 	}
 
 	/**
-	 * Called by HTMX: adds the update to the job's timeline, noting which email it was, and answers with the updates
-	 * left. The pages behind reload, as the job changed.
+	 * Called by HTMX: adds the updates ticked, or the one whose Apply was pressed (ids), to their jobs' timelines,
+	 * noting which email each was, and answers with the updates left. Each goes to the job and with the status its
+	 * card shows (job-{id}, status-{id}), else those it matched; one with no job stays, and the answer says how many
+	 * need one picked. The pages behind reload, as the jobs changed.
 	 */
-	@PostMapping("/updates/{id}/apply")
-	String apply(@PathVariable long id, @Valid EmailUpdateForm form, BindingResult result, Model model, Locale locale,
-			HttpServletResponse response) {
+	@PostMapping("/updates/apply")
+	String apply(@RequestParam(name = "ids", required = false) @Nullable List<Long> ids,
+			@RequestParam MultiValueMap<String, String> form, Model model, Locale locale, HttpServletResponse response) {
 		long userId = requireProfile(model).id();
-		if (result.hasErrors()) {
-			model.addAttribute(ModelAttributes.MAIL_ERROR, this.formTexts.errorMessage(result));
-		} else {
-			EmailUpdate update = this.inbox.findPending(userId)
-				.stream()
-				.filter(pending -> pending.id() == id)
-				.findFirst()
-				.orElseThrow(() -> new EmailUpdateNotFoundException(id));
-			String note = this.messages.getMessage("inbox.note", new Object[] {
-					(update.subject() != null) ? update.subject() : "", (update.sender() != null) ? update.sender() : "" },
-					locale);
-			this.inbox.apply(userId, id, form.requiredJob(), form.requiredStatus(), note, UpdateDecider.YOU);
+		Map<Long, EmailUpdate> pending = this.inbox.findPending(userId)
+			.stream()
+			.collect(Collectors.toMap(EmailUpdate::id, Function.identity()));
+		Set<Long> chosen = (ids != null) ? new LinkedHashSet<>(ids) : Set.of();
+		int applied = 0;
+		int withoutJob = 0;
+		for (long id : chosen) {
+			EmailUpdate update = pending.get(id);
+			if (update == null) {
+				// Applied or dismissed already, e.g. in another tab
+				continue;
+			}
+			Long job = number(form.getFirst("job-" + id)).orElse(update.applicationId());
+			if (job == null) {
+				withoutJob++;
+				continue;
+			}
+			ApplicationStatus status = emailStatus(form.getFirst("status-" + id)).orElse(update.status());
+			this.inbox.apply(userId, id, job, status, note(update, locale), UpdateDecider.YOU);
+			applied++;
+		}
+		log.debug("Applied {} of the {} email updates chosen by profile {}; {} without a job", applied, chosen.size(),
+				userId, withoutJob);
+		if (applied > 0) {
 			response.setHeader(HtmxHeaders.TRIGGER, HtmxEvents.APPLICATIONS_CHANGED);
+		}
+		if (withoutJob > 0) {
+			model.addAttribute(ModelAttributes.UPDATES_ERROR,
+					this.messages.getMessage("inbox.pickJobsFirst", new Object[] { withoutJob }, locale));
+		}
+		if (chosen.size() > 1 && applied > 0) {
+			model.addAttribute(ModelAttributes.TOAST,
+					this.messages.getMessage("inbox.appliedMany", new Object[] { applied }, locale));
 		}
 		addUpdates(model, userId);
 		return Views.EMAIL_UPDATES_FRAGMENT;
+	}
+
+	/**
+	 * Called by HTMX: dismisses the updates ticked, and answers with the updates left.
+	 */
+	@PostMapping("/updates/dismiss")
+	String dismissSelected(@RequestParam(name = "ids", required = false) @Nullable List<Long> ids, Model model,
+			Locale locale) {
+		long userId = requireProfile(model).id();
+		Set<Long> pending = this.inbox.findPending(userId).stream().map(EmailUpdate::id).collect(Collectors.toSet());
+		List<Long> chosen = (ids != null) ? ids.stream().distinct().filter(pending::contains).toList() : List.of();
+		chosen.forEach(id -> this.inbox.dismiss(userId, id, UpdateDecider.YOU));
+		log.debug("Dismissed {} email updates of profile {}", chosen.size(), userId);
+		if (!chosen.isEmpty()) {
+			model.addAttribute(ModelAttributes.TOAST,
+					this.messages.getMessage("inbox.dismissedMany", new Object[] { chosen.size() }, locale));
+		}
+		addUpdates(model, userId);
+		return Views.EMAIL_UPDATES_FRAGMENT;
+	}
+
+	/** The note on the job's timeline: which email it was. */
+	private String note(EmailUpdate update, Locale locale) {
+		return this.messages.getMessage("inbox.note", new Object[] { (update.subject() != null) ? update.subject() : "",
+				(update.sender() != null) ? update.sender() : "" }, locale);
+	}
+
+	/** A job's id as a form sends it: empty when it sent none, or text that isn't one. */
+	private static Optional<Long> number(@Nullable String text) {
+		try {
+			return (text == null || text.isBlank()) ? Optional.empty() : Optional.of(Long.valueOf(text.strip()));
+		} catch (NumberFormatException notANumber) {
+			return Optional.empty();
+		}
+	}
+
+	/** A status an email can say, as a form sends it: empty when it sent none, or another. */
+	private static Optional<ApplicationStatus> emailStatus(@Nullable String text) {
+		return EMAIL_STATUSES.stream().filter(status -> status.name().equals(text)).findFirst();
 	}
 
 	@PostMapping("/updates/{id}/dismiss")

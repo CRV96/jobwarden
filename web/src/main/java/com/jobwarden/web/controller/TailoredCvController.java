@@ -18,12 +18,14 @@ import com.jobwarden.web.assistant.PromptCards;
 import com.jobwarden.web.constants.ControllerConstants;
 import com.jobwarden.web.constants.ModelAttributes;
 import com.jobwarden.web.constants.Views;
+import com.jobwarden.web.dto.ContactsForm;
 import com.jobwarden.web.dto.CvForm;
 import com.jobwarden.web.view.CvPdf;
 import com.jobwarden.web.view.FormTexts;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +35,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import static com.jobwarden.web.controller.Pages.attachment;
 import static com.jobwarden.web.controller.Pages.redirectTo;
@@ -79,6 +82,28 @@ class TailoredCvController {
 		return showCard(model, userId, id);
 	}
 
+	/**
+	 * Saves the name and the contact details to the CV page, which every tailored CV shows, then asks the AI Assistant
+	 * to tailor the CV when ask says so; with a field wrong, the card shows them again, as typed, with why.
+	 */
+	@PostMapping("/contacts")
+	String saveContacts(@PathVariable long id, @Valid ContactsForm form, BindingResult result,
+			@RequestParam(defaultValue = "false") boolean ask, Model model) {
+		long userId = requireProfile(model).id();
+		requireApplication(userId, id);
+		if (result.hasErrors()) {
+			Map<String, String> errors = this.formTexts.fieldErrors(result);
+			log.debug("Contact details of profile {} not saved, fields with errors: {}", userId, errors.keySet());
+			model.addAttribute(ModelAttributes.FIELD_ERRORS, errors);
+			return showCard(model, userId, id, form.toCvDetails());
+		}
+		this.cvs.saveContacts(userId, form.toCvDetails());
+		if (ask) {
+			this.discovery.createRequest(userId, AiRequestKind.TAILOR_CV, id);
+		}
+		return showCard(model, userId, id);
+	}
+
 	@PostMapping("/cancel")
 	String cancel(@PathVariable long id, Model model) {
 		long userId = requireProfile(model).id();
@@ -120,8 +145,9 @@ class TailoredCvController {
 					errors.keySet());
 			return showEdit(model, application, tailored, form.toCvDetails(), errors);
 		}
-		this.cvs.saveTailored(userId, id, form.toCvDetails(), tailored.matchedKeywords(), tailored.missingKeywords(),
-				tailored.notes());
+		// Its form has no name or contact details: the CV page's are the CV's
+		this.cvs.saveTailored(userId, id, form.toCvDetails().withContacts(tailored.details()), tailored.matchedKeywords(),
+				tailored.missingKeywords(), tailored.notes());
 		return redirectTo(ControllerConstants.APPLICATIONS + "/" + id + "/cv/edit?saved");
 	}
 
@@ -156,10 +182,20 @@ class TailoredCvController {
 	}
 
 	private String showCard(Model model, long userId, long applicationId) {
+		return showCard(model, userId, applicationId, null);
+	}
+
+	/**
+	 * @param contacts the name and contact details its form shows, as typed when they didn't save; the CV page's when
+	 * {@code null}
+	 */
+	private String showCard(Model model, long userId, long applicationId, @Nullable CvDetails contacts) {
 		Cv cv = this.cvs.find(userId);
 		Optional<AiRequest> request = latestRequest(userId, applicationId);
 		model.addAttribute(ModelAttributes.CV_JOB_ID, applicationId);
 		model.addAttribute(ModelAttributes.HAS_CV, cv.file() != null || cv.details().isFilledIn());
+		model.addAttribute(ModelAttributes.HAS_CONTACTS, cv.details().hasContactDetails());
+		model.addAttribute(ModelAttributes.CV_DETAILS, (contacts != null) ? contacts : cv.details());
 		model.addAttribute(ModelAttributes.TAILORED_CV, this.cvs.findTailored(userId, applicationId).orElse(null));
 		model.addAttribute(ModelAttributes.CV_REQUEST, request.orElse(null));
 		model.addAttribute(ModelAttributes.CV_PROMPT,

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <!--/* The setup guide (SetupGuideController): what to set up for each part of JobWarden to work, and which the profile
-       has done. setupSteps are its steps, in the order to do them; setupDone how many are done. setup.js loads the
+       has done. setupSteps are its steps, in the order to do them; setupDone how many are done; cvDetails the CV page's,
+       whose name and contact details its form fills in, with fieldErrors when they didn't save. setup.js loads the
        dialog into the page, and opens it: on its own on a profile's first page in a browser session, while a step is
        left (data-complete says whether any is), unless the profile asked not to; from the profile menu, whenever. */-->
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
@@ -9,7 +10,8 @@
 <dialog th:fragment="guide" id="setup-guide" class="dialog w-[min(600px,calc(100%-32px))]" aria-labelledby="setup-guide-title"
         th:data-complete="${setupDone == setupSteps.size()} ? 'true' : 'false'"
         th:with="total=${setupSteps.size()}">
-    <div class="flex flex-col gap-4">
+    <!--/* What the contact details' form swaps when it's sent: the dialog stays open */-->
+    <div id="setup-guide-body" class="flex flex-col gap-4">
         <div class="flex items-start gap-3">
             <span class="brand-mark size-10 flex-none"><i class="ph ph-rocket-launch text-xl"></i></span>
             <div class="min-w-0 flex-1">
@@ -56,10 +58,18 @@
                         <i class="ph ph-browser"></i><span>Firefox</span>
                     </a>
                 </span>
-                <a class="btn btn-secondary flex-none px-2 py-1 text-xs" th:if="${!step.done and step.key != 'extension'}"
+                <a class="btn btn-secondary flex-none px-2 py-1 text-xs" th:if="${!step.done and step.key != 'extension' and step.key != 'contacts'}"
                    th:href="@{${step.href}}">
                     <span th:text="#{setup.go}">Set up</span><i class="ph ph-arrow-right"></i>
                 </a>
+                <!--/* The name and contact details, filled in right here (SetupGuideController), into the CV page */-->
+                <form class="flex basis-full flex-col gap-2" th:if="${!step.done and step.key == 'contacts'}"
+                      th:hx-post="@{/setup/contacts}" hx-target="#setup-guide-body" hx-select="#setup-guide-body" hx-swap="outerHTML">
+                    <th:block th:replace="~{cv/contacts :: fields(${cvDetails})}"></th:block>
+                    <button class="btn btn-primary self-start" type="submit">
+                        <i class="ph ph-floppy-disk"></i><span th:text="#{setup.contacts.save}">Save to my CV</span>
+                    </button>
+                </form>
             </li>
         </ol>
 

@@ -199,6 +199,15 @@ public final class ModelAttributes {
 	/** The setup guide's steps, and how many of them are done. */
 	public static final String SETUP_STEPS = "setupSteps";
 	public static final String SETUP_DONE = "setupDone";
+	/**
+	 * Whether the profile has done every step of the setup guide: then the profile menu no longer offers it, nor does
+	 * the page open it.
+	 */
+	public static final String SETUP_COMPLETE = "setupComplete";
+	/** Whether the CV page has a name and an email: a job's tailored CV asks for them first when it hasn't. */
+	public static final String HAS_CONTACTS = "hasContacts";
+	/** Why some of the email updates chosen weren't applied: the inbox's list says so above them. */
+	public static final String UPDATES_ERROR = "updatesError";
 	/** The sidebar's link to the Jobs page, in the view it was left in: the list or the board. */
 	public static final String JOBS_URL = "jobsUrl";
 	/** The releases GitHub lists, the newest first, {@code Release}s: the What's new page shows them. */
