@@ -82,7 +82,7 @@ Run the jar (from a [release](https://github.com/CRV96/jobwarden/releases), or `
 against a PostgreSQL 18 of your own:
 
 ```bash
-java -jar jobwarden-app-1.0.1.jar \
+java -jar jobwarden-app-1.1.0.jar \
   --spring.datasource.url=jdbc:postgresql://localhost:5432/jobwarden \
   --spring.datasource.username=jobwarden --spring.datasource.password=...
 ```
