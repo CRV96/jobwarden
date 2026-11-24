@@ -45,7 +45,7 @@
 </head>
 <body>
 <th:block th:if="${cv.isFilledIn()}">
-    <h1 th:text="${cv.fullName}">Robert Ciapă</h1>
+    <h1 th:text="${cv.fullName}">John Doe</h1>
     <div class="headline" th:if="${cv.headline}" th:text="${cv.headline}">Senior Java Developer</div>
     <!--/* The contact line: a dot between the parts. Only http(s) addresses become links. */-->
     <div class="contact" th:unless="${cv.contacts().isEmpty()}">

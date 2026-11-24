@@ -173,7 +173,7 @@
     <fieldset id="contacts" class="flex scroll-mt-6 flex-col gap-2" th:if="${contacts}">
         <legend class="section-title mb-2" th:text="#{cv.personal}">Personal details</legend>
         <div class="grid gap-2 sm:grid-cols-2">
-            <label th:replace="~{cv/cv :: text-field('fullName', ${details.fullName}, #{cv.fullName}, 'Robert Ciapă')}"></label>
+            <label th:replace="~{cv/cv :: text-field('fullName', ${details.fullName}, #{cv.fullName}, 'John Doe')}"></label>
             <label th:replace="~{cv/cv :: text-field('headline', ${details.headline}, #{cv.headline}, #{cv.headline.placeholder})}"></label>
             <label th:replace="~{cv/cv :: text-field('email', ${details.email}, #{cv.email}, 'name@example.com')}"></label>
             <label th:replace="~{cv/cv :: text-field('phone', ${details.phone}, #{cv.phone}, '+40 7…')}"></label>

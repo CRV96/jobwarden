@@ -10,7 +10,7 @@
         <li th:each="error : ${fieldErrors.values()}" th:text="${error}">Your name is needed.</li>
     </ul>
     <div class="grid gap-2 sm:grid-cols-2">
-        <label th:replace="~{cv/cv :: text-field('fullName', ${details.fullName}, #{cv.fullName}, 'Robert Ciapă')}"></label>
+        <label th:replace="~{cv/cv :: text-field('fullName', ${details.fullName}, #{cv.fullName}, 'John Doe')}"></label>
         <label th:replace="~{cv/cv :: text-field('email', ${details.email}, #{cv.email}, 'name@example.com')}"></label>
         <label th:replace="~{cv/cv :: text-field('phone', ${details.phone}, #{cv.phone}, '+40 7…')}"></label>
         <label th:replace="~{cv/cv :: text-field('location', ${details.location}, #{cv.location}, #{cv.location.placeholder})}"></label>
