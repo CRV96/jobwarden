@@ -1,6 +1,8 @@
 package com.jobwarden.watchlist.service.impl;
 
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 import com.jobwarden.search.EmploymentType;
@@ -26,8 +28,35 @@ record Posting(String id, String title, @Nullable String location, Set<String> c
 		@Nullable WorkType workType, boolean employmentStated, @Nullable EmploymentType employmentType, String link,
 		@Nullable Instant publishedAt, @Nullable String salary, @Nullable String description, @Nullable String company) {
 
+	/** Between a posting's places: "Remote, Canada; Remote, United States". */
+	static final String PLACES = "; ";
+
 	Posting {
 		countries = (countries == null) ? Set.of() : Set.copyOf(countries);
+	}
+
+	/**
+	 * The same job, as its feed listed it again: in the other's places too, and with the other's description and pay
+	 * when it has none. A feed may list a job once for each of its places (Workable's), twice as its pages move on
+	 * (SmartRecruiters'), or once in each language, with a description only in those it was written in (Personio's).
+	 */
+	Posting mergedWith(Posting other) {
+		Set<String> places = new LinkedHashSet<>();
+		addPlaces(places, this.location);
+		addPlaces(places, other.location);
+		Set<String> both = new LinkedHashSet<>(this.countries);
+		both.addAll(other.countries);
+		return toBuilder().location(places.isEmpty() ? null : String.join(PLACES, places))
+			.countries(both)
+			.description((this.description != null) ? this.description : other.description)
+			.salary((this.salary != null) ? this.salary : other.salary)
+			.build();
+	}
+
+	private static void addPlaces(Set<String> places, @Nullable String location) {
+		if (location != null) {
+			places.addAll(Arrays.asList(location.split(PLACES)));
+		}
 	}
 
 }

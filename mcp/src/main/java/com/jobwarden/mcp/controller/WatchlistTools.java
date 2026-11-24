@@ -14,9 +14,9 @@ import static com.jobwarden.mcp.controller.Schemas.object;
 import static com.jobwarden.mcp.controller.Schemas.string;
 
 /**
- * The watchlist: companies whose job boards on Greenhouse, Lever and Ashby JobWarden reads itself every few hours,
- * with no tokens, adding the postings that match the saved searches to the AI Assistant page. Claude adds the boards
- * it comes across, so it needn't search them again.
+ * The watchlist: companies whose job boards on Greenhouse, Lever, Ashby, SmartRecruiters, Workable, Recruitee and
+ * Personio JobWarden reads itself every few hours, with no tokens, adding the postings that match the saved searches
+ * to the AI Assistant page. Claude adds the boards it comes across, so it needn't search them again.
  */
 @Component
 @RequiredArgsConstructor
@@ -33,9 +33,10 @@ class WatchlistTools implements McpToolSet {
 
 	private McpTool watchCompany() {
 		return new McpTool("watch_company", "Watch a company's job board",
-				"Watches a company's job board on Greenhouse, Lever or Ashby: JobWarden then reads it every few hours with "
-						+ "no tokens and adds the postings that match the saved searches to the AI Assistant page. Call it "
-						+ "when you find such a company whose jobs fit.",
+				"Watches a company's job board on Greenhouse, Lever, Ashby, SmartRecruiters, Workable, Recruitee or "
+						+ "Personio: JobWarden then reads it every few hours with no tokens and adds the postings that match "
+						+ "the saved searches to the AI Assistant page. Call it when you find such a company whose jobs "
+						+ "fit.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
 						"link", string("Its board, or one of its jobs, e.g. https://jobs.lever.co/acme"),
 						"name", string("Default the board's")),

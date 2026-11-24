@@ -1,6 +1,7 @@
 package com.jobwarden.watchlist.service.impl;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -18,6 +19,9 @@ import tools.jackson.databind.JsonNode;
 final class FeedJson {
 
 	static final String LOCATION = "location";
+
+	/** How Recruitee ends its moments: 2026-10-12 13:48:36 UTC. */
+	private static final String UTC = " UTC";
 
 	/** How much of a description the matching reads: enough for the requirements, which come after the intro. */
 	static final int DESCRIPTION_MAX_LENGTH = 15_000;
@@ -52,22 +56,32 @@ final class FeedJson {
 	}
 
 	/**
-	 * @return the moment, e.g. 2026-10-12T13:48:36.560+00:00 or 2026-10-12T13:48:36Z; one without an offset as UTC;
-	 * {@code null} for anything else
+	 * @return the moment, e.g. 2026-10-12T13:48:36.560+00:00 or 2026-10-12T13:48:36Z; one without an offset as UTC,
+	 * e.g. 2026-10-12T13:48:36, or Recruitee's 2026-10-12 13:48:36 UTC; a day alone, Workable's 2026-10-12, as its start
+	 * in UTC; {@code null} for anything else
 	 */
 	static @Nullable Instant instant(@Nullable String text) {
 		if (text == null) {
 			return null;
 		}
+		String moment = text.strip();
+		if (moment.endsWith(UTC)) {
+			moment = moment.substring(0, moment.length() - UTC.length()).strip().replace(' ', 'T');
+		}
 		try {
-			return OffsetDateTime.parse(text).toInstant();
+			return OffsetDateTime.parse(moment).toInstant();
 		} catch (DateTimeParseException _) {
 			// Without its offset: as UTC
-			try {
-				return LocalDateTime.parse(text).toInstant(ZoneOffset.UTC);
-			} catch (DateTimeParseException _) {
-				return null;
-			}
+		}
+		try {
+			return LocalDateTime.parse(moment).toInstant(ZoneOffset.UTC);
+		} catch (DateTimeParseException _) {
+			// Without its time either: the day's start
+		}
+		try {
+			return LocalDate.parse(moment).atStartOfDay(ZoneOffset.UTC).toInstant();
+		} catch (DateTimeParseException _) {
+			return null;
 		}
 	}
 

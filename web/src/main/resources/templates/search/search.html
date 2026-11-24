@@ -133,7 +133,14 @@
             </div>
         </form>
 
-        <div class="flex min-h-0 flex-col gap-3">
+        <!--/* data-queries says whether the queries' text shows (queries.js, as the switch above them says): hidden, each
+               card is its name and its buttons, which copy and open the query the same. The cards are swapped as the
+               filters change; this and the switch aren't, so the choice holds. */-->
+        <div class="group/queries flex min-h-0 flex-col gap-3" data-queries="hidden">
+            <label class="flex cursor-pointer items-center gap-2 self-end text-xs text-ink/65">
+                <input class="check" type="checkbox" data-show-queries>
+                <span th:text="#{search.showQueries}">Show the queries</span>
+            </label>
             <!--/* Every platform's query at once, each with its own buttons: open them one after another. Without a job
                    title or a keyword the queries would find any job at all, so the page asks for one instead. */-->
             <div id="search-output" th:fragment="queries" class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto"
@@ -163,11 +170,11 @@
                         </a>
                     </div>
                     <!--/* The query, its parts coloured by what they do (QuerySyntax) */-->
-                    <pre class="query-box min-h-0" th:unless="${query.query.isEmpty()}"><span th:each="token : ${@querySyntax.tokens(query.query)}"
+                    <pre class="query-box min-h-0 group-data-[queries=hidden]/queries:hidden" th:unless="${query.query.isEmpty()}"><span th:each="token : ${@querySyntax.tokens(query.query)}"
                          th:class="|q-${#strings.toLowerCase(token.kind.name())}|" th:text="${token.text}">site:jobs.lever.co</span></pre>
                     <p class="text-xs text-ink/55" th:if="${query.query.isEmpty()}" th:text="#{search.output.none}">Nothing to search here with these filters.</p>
                     <p class="-mt-1 text-xs" th:if="${google and !query.query.isEmpty()}"
-                       th:classappend="${queries.googleTruncated} ? 'text-[var(--jw-orange)]' : 'text-ink/55'"
+                       th:classappend="${queries.googleTruncated} ? 'text-[var(--jw-orange)]' : 'text-ink/55 group-data-[queries=hidden]/queries:hidden'"
                        th:text="${queries.googleTruncated} ? #{search.truncated(${googleWordLimit})} : #{search.words(${queries.googleWords}, ${googleWordLimit})}">5 / 32 words</p>
                 </article>
             </div>

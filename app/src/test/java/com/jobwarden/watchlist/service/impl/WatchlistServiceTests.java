@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.jobwarden.TestcontainersConfiguration;
@@ -18,6 +19,7 @@ import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.search.SearchCriteria;
 import com.jobwarden.watchlist.dto.WatchResult;
+import com.jobwarden.watchlist.dto.WatchedCompany;
 import com.jobwarden.watchlist.dto.WatchlistCheck;
 import com.jobwarden.watchlist.enums.Ats;
 import com.jobwarden.watchlist.exception.WatchedCompanyNotFoundException;
@@ -190,6 +192,27 @@ class WatchlistServiceTests {
 			.containsExactlyInAnyOrder("https://jobs.lever.co/acme/1", "https://jobs.lever.co/acme/6");
 		assertThat(this.watchlist.findCompanies(this.userId)).singleElement()
 			.satisfies(company -> assertThat(company.newThisWeek()).isEqualTo(2));
+	}
+
+	@Test
+	void watchesBoardsOnSmartRecruitersWorkableRecruiteeAndPersonioToo() {
+		Map<String, Board> boards = Map.of(
+				"https://jobs.smartrecruiters.com/Initech/7440001", new Board(Ats.SMARTRECRUITERS, "initech"),
+				"https://apply.workable.com/initech/j/AB12/", new Board(Ats.WORKABLE, "initech"),
+				"https://initech.recruitee.com/o/java-developer", new Board(Ats.RECRUITEE, "initech"),
+				"https://initech.jobs.personio.com/job/1", new Board(Ats.PERSONIO, "initech"));
+		boards.values().forEach(board -> given(this.feeds.postings(board)).willReturn(List.of()));
+
+		boards.forEach((link, board) -> {
+			WatchResult watched = this.watchlist.watch(this.userId, link, null);
+			assertThat(watched.added()).isTrue();
+			assertThat(watched.company().ats()).isEqualTo(board.ats());
+			assertThat(watched.company().boardUrl()).isEqualTo(board.url());
+		});
+
+		// The table's check lets each system in
+		assertThat(this.watchlist.findCompanies(this.userId)).extracting(WatchedCompany::ats)
+			.containsExactlyInAnyOrder(Ats.SMARTRECRUITERS, Ats.WORKABLE, Ats.RECRUITEE, Ats.PERSONIO);
 	}
 
 	@Test

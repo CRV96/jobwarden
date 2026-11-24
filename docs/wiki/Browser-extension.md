@@ -7,22 +7,42 @@ Manifest V3, with no build step.
 
 ## Install
 
-It's on its way to the Chrome Web Store and Firefox Add-ons. Until it's listed there:
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/bjklifdmffkhiffbicofeohgdcpmobek"><img src="https://developer.chrome.com/static/docs/webstore/branding/image/HRs9MPufa1J1h5glNhut.png" alt="Available in the Chrome Web Store" height="60"></a>
+  &nbsp;&nbsp;
+  <a href="https://addons.mozilla.org/firefox/addon/jobwarden/"><img src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg" alt="Get the add-on for Firefox" height="60"></a>
+</p>
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/bjklifdmffkhiffbicofeohgdcpmobek"><img alt="Chrome Web Store version" src="https://img.shields.io/chrome-web-store/v/bjklifdmffkhiffbicofeohgdcpmobek?style=flat-square&logo=googlechrome&logoColor=white&label=Chrome&color=4285F4"></a>
+  <a href="https://addons.mozilla.org/firefox/addon/jobwarden/"><img alt="Firefox Add-ons version" src="https://img.shields.io/amo/v/jobwarden?style=flat-square&logo=firefoxbrowser&logoColor=white&label=Firefox&color=FF7139"></a>
+</p>
+
+1. Add it from its store: the [Chrome Web Store](https://chromewebstore.google.com/detail/bjklifdmffkhiffbicofeohgdcpmobek)
+   for Chrome, Edge, Brave, Opera and the other Chromium browsers, or
+   [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/jobwarden/) for Firefox (140 or later). JobWarden's
+   **Settings → Browser extension** has both buttons too, as does the setup guide in the profile menu.
+2. In the extension's settings (⚙ in its popup, or **Options** in its menu), enter your server's address (e.g.
+   `http://localhost:9273`; the browser asks you to allow any other) and your **profile ID**, which JobWarden's
+   **Settings → Your profile** shows with a button to copy it.
+
+The stores update the extension on their own. The popup says when your server runs a newer version than the extension.
+
+<p align="center"><img src="https://raw.githubusercontent.com/CRV96/jobwarden/main/docs/branding/store/1-save-a-posting.png"
+  alt="The extension's popup on a job posting: the title, company, place and salary it read, with I applied and Bookmark" width="640"></p>
+
+### From the sources
+
+For a version that isn't in the stores yet, or one you changed:
 
 1. Get the extension: the `jobwarden-extension-<version>.zip` of the [release](https://github.com/CRV96/jobwarden/releases)
    with your server's version (**Settings → About** says which), unzipped; or the `extension/` folder of a clone.
 2. **Chrome** (and Edge, Brave...): open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and pick
-   that folder. **Firefox** (140 or later): open `about:debugging#/runtime/this-firefox`, click
-   **Load Temporary Add-on…** and pick its `manifest.json`. Firefox keeps it until it restarts; to keep it for good,
-   sign it as an unlisted add-on on [addons.mozilla.org](https://addons.mozilla.org/developers/), e.g. with
-   `npx web-ext sign --source-dir extension --channel unlisted`.
-3. In the extension's settings (⚙ in its popup, or **Options** in its menu), enter your server's address (e.g.
-   `http://localhost:9273`; the browser asks you to allow any other) and your **profile ID**, which JobWarden's
-   **Settings → Your profile** shows with a button to copy it.
+   that folder. **Firefox**: open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on…** and pick its
+   `manifest.json`. Firefox keeps it until it restarts.
 
-**Updating:** replace the folder with the new release's (or `git pull`), then click the extension's reload button in
-`chrome://extensions` (in Firefox, `about:debugging`). The browser reads `manifest.json` only then, so an option that
-needs a new permission can't be turned on before; the settings page says so.
+**Updating** one from the sources: replace the folder with the new release's (or `git pull`), then click the extension's
+reload button in `chrome://extensions` (in Firefox, `about:debugging`). The browser reads `manifest.json` only then, so
+an option that needs a new permission can't be turned on before; the settings page says so.
 
 ## What it does
 
@@ -34,8 +54,8 @@ On a job posting, click the extension's icon. It looks the page up in JobWarden 
 - **Applied** (✓): move it back to the bookmarks, for an application you didn't send, or remove it.
 - **Further along:** **Open in JobWarden**.
 
-It also watches a company from its job board on Greenhouse, Lever or Ashby (the eye beside ⚙, see the
-[watchlist](Finding-jobs#watchlist)), can put ★ or ✓ on the toolbar icon of every tab showing a saved posting, and can
+It also watches a company from its job board on Greenhouse, Lever, Ashby, SmartRecruiters, Workable, Recruitee or
+Personio (the eye beside ⚙, see the [watchlist](Finding-jobs#watchlist)), can put ★ or ✓ on the toolbar icon of every tab showing a saved posting, and can
 bring the [reminders](Tracking-jobs#reminders) set on the calendar as your system's notifications.
 
 ## Never the same job twice
@@ -74,7 +94,7 @@ else:
 | `POST /{id}/move-back-to-saved` | Takes back "I applied" |
 | `DELETE /{id}?userId=` | Removes an application |
 | `POST /reminders/due?userId=` | The reminders due, which it takes |
-| `GET /watchlist?userId=&link=` | Whether a page is on a Greenhouse, Lever or Ashby board, and whether the company is watched (204 when it isn't on one) |
+| `GET /watchlist?userId=&link=` | Whether a page is on a Greenhouse, Lever, Ashby, SmartRecruiters, Workable, Recruitee or Personio board, and whether the company is watched (204 when it isn't on one) |
 | `POST /watchlist`, `DELETE /watchlist/{companyId}?userId=` | Watches a company, or stops |
 | `GET /version` | The server's version and the latest release, which the popup compares with its own |
 

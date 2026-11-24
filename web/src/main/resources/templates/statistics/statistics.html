@@ -1,18 +1,18 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layout :: page(~{::title}, ~{::main}, 'statistics')}">
-<head>
-    <title th:text="|#{nav.statistics} · JobWarden|">Statistics · JobWarden</title>
-</head>
+<!--/* The statistics, a section of the Home page (HomeController): how the profile's applications went. statistics is a
+       JobStatistics, worked out from the timelines without AI; calibration whether the strong fits led to interviews
+       more often (WORKS, FLAT, BACKWARDS, or FEW to tell); missingKeywords what the tailored CVs couldn't claim, with how
+       often. Each chart is one series in the accent colour, its numbers written beside it, and the exact counts in its
+       row's title. Only fragments are taken from this file. */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 <body>
-<!--/* How the profile's applications went (StatisticsController): statistics is a JobStatistics, worked out from the
-       timelines without AI; calibration whether the strong fits led to interviews more often (WORKS, FLAT, BACKWARDS,
-       or FEW to tell); missingKeywords what the tailored CVs couldn't claim, with how often. Each chart is one series in
-       the accent colour, its numbers written beside it, and the exact counts in its row's title. */-->
-<main class="flex flex-col gap-5" th:with="stats=${statistics}">
-    <header class="flex flex-wrap items-end gap-3">
+<section id="statistics" th:fragment="statistics" class="flex scroll-mt-6 flex-col gap-4" th:with="stats=${statistics}"
+         aria-labelledby="statistics-title">
+    <header class="flex flex-wrap items-end gap-3 border-t border-line pt-5">
         <div class="min-w-[240px] flex-1">
-            <h1 class="page-title mb-1" th:text="#{nav.statistics}">Statistics</h1>
+            <h2 id="statistics-title" class="mb-1 flex items-center gap-2 text-[19px] font-bold tracking-[-0.01em]">
+                <i class="ph ph-chart-bar text-accent"></i><span th:text="#{nav.statistics}">Statistics</span>
+            </h2>
             <p class="text-[13px] text-pretty text-ink/60" th:text="#{stats.subtitle}">How your applications went…</p>
         </div>
         <th:block th:replace="~{help/help :: how-it-works('statistics')}"></th:block>
@@ -30,8 +30,8 @@
             <i class="ph ph-info"></i><span th:text="#{stats.few(${stats.sent})}">Only 6 applications so far: read these as hints.</span>
         </p>
 
-        <!--/* The headline figures */-->
-        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <!--/* The headline figures: as many to a row as fit, and a row with fewer stretched across, so none is left empty */-->
+        <div class="flex flex-wrap gap-3 *:min-w-0 *:flex-[1_1_11rem]">
             <div class="card flex flex-col gap-1 p-4">
                 <span class="text-xs text-ink/60" th:text="#{stats.applied}">Applied</span>
                 <span class="text-[26px] leading-none font-bold tabular-nums" th:text="${stats.sent}">42</span>
@@ -59,103 +59,110 @@
             </div>
         </div>
 
+        <!--/* Two columns from xl up, each a stack of cards, like Home's above: a card is as tall as what it shows, and the
+               next starts right under it. The cards that grow with the data (the sites, the skills) are one in each, so the
+               columns end close. */-->
         <div class="grid items-start gap-4 xl:grid-cols-2">
-            <!--/* From the jobs saved to the offers: each bar against the jobs saved */-->
-            <section class="card flex flex-col gap-3 p-4" aria-labelledby="funnel-title">
-                <h2 id="funnel-title" class="section-title" th:text="#{stats.funnel}">From saved to offer</h2>
-                <dl class="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_3rem] items-center gap-x-3 gap-y-2 text-[13px]"
-                    th:with="whole=${stats.jobs}">
-                    <th:block th:each="step : ${ {'jobs', 'sent', 'replied', 'interviewed', 'offered'} }"
-                              th:with="count=${step == 'jobs'} ? ${stats.jobs} : (${step == 'sent'} ? ${stats.sent} : (${step == 'replied'} ? ${stats.replied} : (${step == 'interviewed'} ? ${stats.interviewed} : ${stats.offered})))">
-                        <dt class="truncate text-ink/70" th:text="#{|stats.funnel.${step}|}">Applied</dt>
-                        <dd><span th:replace="~{statistics/statistics :: bar(${whole > 0} ? ${count * 100 / whole} : 0)}"></span></dd>
-                        <dd class="text-right tabular-nums" th:text="${count}">42</dd>
-                    </th:block>
-                </dl>
-            </section>
+            <div class="flex min-w-0 flex-col gap-4">
+                <!--/* From the jobs saved to the offers: each bar against the jobs saved */-->
+                <section class="card flex flex-col gap-3 p-4" aria-labelledby="funnel-title">
+                    <h3 id="funnel-title" class="section-title" th:text="#{stats.funnel}">From saved to offer</h3>
+                    <dl class="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_3rem] items-center gap-x-3 gap-y-2 text-[13px]"
+                        th:with="whole=${stats.jobs}">
+                        <th:block th:each="step : ${ {'jobs', 'sent', 'replied', 'interviewed', 'offered'} }"
+                                  th:with="count=${step == 'jobs'} ? ${stats.jobs} : (${step == 'sent'} ? ${stats.sent} : (${step == 'replied'} ? ${stats.replied} : (${step == 'interviewed'} ? ${stats.interviewed} : ${stats.offered})))">
+                            <dt class="truncate text-ink/70" th:text="#{|stats.funnel.${step}|}">Applied</dt>
+                            <dd><span th:replace="~{statistics/statistics :: bar(${whole > 0} ? ${count * 100 / whole} : 0)}"></span></dd>
+                            <dd class="text-right tabular-nums" th:text="${count}">42</dd>
+                        </th:block>
+                    </dl>
+                </section>
 
-            <!--/* By site: where answers come from */-->
-            <section class="card flex flex-col gap-3 p-4" aria-labelledby="sites-title">
-                <div>
-                    <h2 id="sites-title" class="section-title" th:text="#{stats.bySite}">Answers by site</h2>
-                    <p class="text-xs text-pretty text-ink/55" th:text="#{stats.bySite.hint}">Where the jobs you applied to came from.</p>
-                </div>
-                <th:block th:replace="~{statistics/statistics :: rates(${stats.bySite}, 'site')}"></th:block>
-            </section>
-
-            <!--/* By who applied: the profile, the assistant, the browser extension */-->
-            <section class="card flex flex-col gap-3 p-4" aria-labelledby="methods-title">
-                <div>
-                    <h2 id="methods-title" class="section-title" th:text="#{stats.byMethod}">Answers by how you applied</h2>
-                    <p class="text-xs text-pretty text-ink/55" th:text="#{stats.byMethod.hint}">You, the AI Assistant from Auto-apply, or the extension.</p>
-                </div>
-                <th:block th:replace="~{statistics/statistics :: rates(${stats.byMethod}, 'method')}"></th:block>
-            </section>
-
-            <!--/* The calibration: do the jobs Claude scored high get interviews more often? */-->
-            <section class="card flex flex-col gap-3 p-4" aria-labelledby="calibration-title">
-                <div>
-                    <h2 id="calibration-title" class="section-title" th:text="#{stats.byFit}">Do high scores lead to interviews?</h2>
-                    <p class="text-xs text-pretty text-ink/55" th:text="#{stats.byFit.hint}">The jobs you applied to, by the fit the AI Assistant scored.</p>
-                </div>
-                <th:block th:replace="~{statistics/statistics :: rates(${stats.byFit}, 'fit')}"></th:block>
-                <p class="flex items-start gap-2 rounded-lg bg-ink/4 p-2.5 text-[13px] text-pretty"
-                   th:with="good=${calibration == 'WORKS'}, bad=${calibration == 'BACKWARDS'}">
-                    <i class="ph mt-0.5" th:classappend="${good} ? 'ph-check-circle text-success' : (${bad} ? 'ph-warning text-[var(--jw-orange)]' : 'ph-info text-ink/55')"></i>
-                    <span th:text="#{|stats.calibration.${calibration}|}">Jobs scored 4 or more led to an interview more often.</span>
-                </p>
-            </section>
-
-            <!--/* Upskill: what the fits found missing, and what the tailored CVs couldn't claim */-->
-            <section class="card flex flex-col gap-3 p-4" aria-labelledby="gaps-title">
-                <div>
-                    <h2 id="gaps-title" class="section-title" th:text="#{stats.gaps}">Skills to work on</h2>
-                    <p class="text-xs text-pretty text-ink/55" th:text="#{stats.gaps.hint}">What the postings the AI Assistant scored asked for…</p>
-                </div>
-                <p class="text-[13px] text-pretty text-ink/60" th:if="${stats.skillGaps.isEmpty()}">
-                    <span th:text="#{stats.gaps.none}">No job scored yet.</span>
-                    <a class="link" th:href="@{/discover}" th:text="#{ai.kind.SCORE_JOBS}">Score my jobs</a>
-                </p>
-                <ul class="flex flex-col gap-2" th:unless="${stats.skillGaps.isEmpty()}"
-                    th:with="most=${stats.skillGaps[0].missing + stats.skillGaps[0].partly}">
-                    <li class="grid grid-cols-[minmax(0,1fr)_minmax(4rem,30%)] items-center gap-x-3 gap-y-0.5 text-[13px]"
-                        th:each="gap : ${stats.skillGaps}"
-                        th:title="#{stats.gaps.counts(${gap.missing}, ${gap.partly})}">
-                        <span class="min-w-0">
-                            <span th:text="${gap.requirement}">Kubernetes</span>
-                            <span class="ml-1 text-[11px] text-ink/50 uppercase" th:if="${gap.mustHave}" th:text="#{fit.must}">must</span>
-                        </span>
-                        <span th:replace="~{statistics/statistics :: bar(${most > 0} ? ${(gap.missing + gap.partly) * 100 / most} : 0)}"></span>
-                        <span class="text-xs text-ink/55" th:text="#{stats.gaps.counts(${gap.missing}, ${gap.partly})}">Missing in 4, partly in 1</span>
-                    </li>
-                </ul>
-                <th:block th:unless="${missingKeywords.isEmpty()}">
-                    <h3 class="mt-1 text-xs text-ink/60" th:text="#{stats.keywords}">Missing from your tailored CVs</h3>
-                    <div class="flex flex-wrap gap-1.5">
-                        <span class="tag" th:each="keyword : ${missingKeywords}"
-                              th:title="#{stats.keywords.count(${keyword.value})}">
-                            <span th:text="${keyword.key}">Kubernetes</span>
-                            <span class="tabular-nums text-ink/55" th:text="|×${keyword.value}|">×3</span>
-                        </span>
+                <!--/* By who applied: the profile, the assistant, the browser extension */-->
+                <section class="card flex flex-col gap-3 p-4" aria-labelledby="methods-title">
+                    <div>
+                        <h3 id="methods-title" class="section-title" th:text="#{stats.byMethod}">Answers by how you applied</h3>
+                        <p class="text-xs text-pretty text-ink/55" th:text="#{stats.byMethod.hint}">You, the AI Assistant from Auto-apply, or the extension.</p>
                     </div>
-                </th:block>
-            </section>
+                    <th:block th:replace="~{statistics/statistics :: rates(${stats.byMethod}, 'method')}"></th:block>
+                </section>
 
-            <!--/* Why the profile was turned down, a job's last reason each */-->
-            <section class="card flex flex-col gap-3 p-4" aria-labelledby="reasons-title" th:unless="${stats.rejectionReasons.isEmpty()}">
-                <h2 id="reasons-title" class="section-title" th:text="#{stats.reasons}">Why you were turned down</h2>
-                <dl class="grid grid-cols-[minmax(0,11rem)_minmax(0,1fr)_3rem] items-center gap-x-3 gap-y-2 text-[13px]"
-                    th:with="most=${stats.rejectionReasons[0].count}">
-                    <th:block th:each="reason : ${stats.rejectionReasons}">
-                        <dt class="truncate text-ink/70" th:text="#{|rejectionReason.${reason.reason}|}">Position filled</dt>
-                        <dd><span th:replace="~{statistics/statistics :: bar(${reason.count * 100 / most})}"></span></dd>
-                        <dd class="text-right tabular-nums" th:text="${reason.count}">4</dd>
+                <!--/* Upskill: what the fits found missing, and what the tailored CVs couldn't claim */-->
+                <section class="card flex flex-col gap-3 p-4" aria-labelledby="gaps-title">
+                    <div>
+                        <h3 id="gaps-title" class="section-title" th:text="#{stats.gaps}">Skills to work on</h3>
+                        <p class="text-xs text-pretty text-ink/55" th:text="#{stats.gaps.hint}">What the postings the AI Assistant scored asked for…</p>
+                    </div>
+                    <p class="text-[13px] text-pretty text-ink/60" th:if="${stats.skillGaps.isEmpty()}">
+                        <span th:text="#{stats.gaps.none}">No job scored yet.</span>
+                        <a class="link" th:href="@{/discover}" th:text="#{ai.kind.SCORE_JOBS}">Score my jobs</a>
+                    </p>
+                    <ul class="flex flex-col gap-2" th:unless="${stats.skillGaps.isEmpty()}"
+                        th:with="most=${stats.skillGaps[0].missing + stats.skillGaps[0].partly}">
+                        <li class="grid grid-cols-[minmax(0,1fr)_minmax(4rem,30%)] items-center gap-x-3 gap-y-0.5 text-[13px]"
+                            th:each="gap : ${stats.skillGaps}"
+                            th:title="#{stats.gaps.counts(${gap.missing}, ${gap.partly})}">
+                            <span class="min-w-0">
+                                <span th:text="${gap.requirement}">Kubernetes</span>
+                                <span class="ml-1 text-[11px] text-ink/50 uppercase" th:if="${gap.mustHave}" th:text="#{fit.must}">must</span>
+                            </span>
+                            <span th:replace="~{statistics/statistics :: bar(${most > 0} ? ${(gap.missing + gap.partly) * 100 / most} : 0)}"></span>
+                            <span class="text-xs text-ink/55" th:text="#{stats.gaps.counts(${gap.missing}, ${gap.partly})}">Missing in 4, partly in 1</span>
+                        </li>
+                    </ul>
+                    <th:block th:unless="${missingKeywords.isEmpty()}">
+                        <h4 class="mt-1 text-xs text-ink/60" th:text="#{stats.keywords}">Missing from your tailored CVs</h4>
+                        <div class="flex flex-wrap gap-1.5">
+                            <span class="tag" th:each="keyword : ${missingKeywords}"
+                                  th:title="#{stats.keywords.count(${keyword.value})}">
+                                <span th:text="${keyword.key}">Kubernetes</span>
+                                <span class="tabular-nums text-ink/55" th:text="|×${keyword.value}|">×3</span>
+                            </span>
+                        </div>
                     </th:block>
-                </dl>
-            </section>
+                </section>
+            </div>
+
+            <div class="flex min-w-0 flex-col gap-4">
+                <!--/* By site: where answers come from */-->
+                <section class="card flex flex-col gap-3 p-4" aria-labelledby="sites-title">
+                    <div>
+                        <h3 id="sites-title" class="section-title" th:text="#{stats.bySite}">Answers by site</h3>
+                        <p class="text-xs text-pretty text-ink/55" th:text="#{stats.bySite.hint}">Where the jobs you applied to came from.</p>
+                    </div>
+                    <th:block th:replace="~{statistics/statistics :: rates(${stats.bySite}, 'site')}"></th:block>
+                </section>
+
+                <!--/* The calibration: do the jobs Claude scored high get interviews more often? */-->
+                <section class="card flex flex-col gap-3 p-4" aria-labelledby="calibration-title">
+                    <div>
+                        <h3 id="calibration-title" class="section-title" th:text="#{stats.byFit}">Do high scores lead to interviews?</h3>
+                        <p class="text-xs text-pretty text-ink/55" th:text="#{stats.byFit.hint}">The jobs you applied to, by the fit the AI Assistant scored.</p>
+                    </div>
+                    <th:block th:replace="~{statistics/statistics :: rates(${stats.byFit}, 'fit')}"></th:block>
+                    <p class="flex items-start gap-2 rounded-lg bg-ink/4 p-2.5 text-[13px] text-pretty"
+                       th:with="good=${calibration == 'WORKS'}, bad=${calibration == 'BACKWARDS'}">
+                        <i class="ph mt-0.5" th:classappend="${good} ? 'ph-check-circle text-success' : (${bad} ? 'ph-warning text-[var(--jw-orange)]' : 'ph-info text-ink/55')"></i>
+                        <span th:text="#{|stats.calibration.${calibration}|}">Jobs scored 4 or more led to an interview more often.</span>
+                    </p>
+                </section>
+
+                <!--/* Why the profile was turned down, a job's last reason each */-->
+                <section class="card flex flex-col gap-3 p-4" aria-labelledby="reasons-title" th:unless="${stats.rejectionReasons.isEmpty()}">
+                    <h3 id="reasons-title" class="section-title" th:text="#{stats.reasons}">Why you were turned down</h3>
+                    <dl class="grid grid-cols-[minmax(0,11rem)_minmax(0,1fr)_3rem] items-center gap-x-3 gap-y-2 text-[13px]"
+                        th:with="most=${stats.rejectionReasons[0].count}">
+                        <th:block th:each="reason : ${stats.rejectionReasons}">
+                            <dt class="truncate text-ink/70" th:text="#{|rejectionReason.${reason.reason}|}">Position filled</dt>
+                            <dd><span th:replace="~{statistics/statistics :: bar(${reason.count * 100 / most})}"></span></dd>
+                            <dd class="text-right tabular-nums" th:text="${reason.count}">4</dd>
+                        </th:block>
+                    </dl>
+                </section>
+            </div>
         </div>
     </th:block>
-</main>
+</section>
 
 <!--/* A bar for a share, from 0 to 100: the accent on a faint track, its end rounded */-->
 <span th:fragment="bar(percent)" class="block h-2 w-full overflow-hidden rounded-[4px] bg-ink/8" aria-hidden="true">
@@ -168,9 +175,10 @@
     <thead>
     <tr class="text-xs text-ink/55">
         <th class="pb-1 text-left font-normal" scope="col" th:text="#{|stats.column.${kind}|}">Site</th>
-        <th class="pb-1 text-right font-normal" scope="col" th:text="#{stats.column.applied}">Applied</th>
+        <!--/* The counts as narrow as they are (w-px), so what's left goes to the names, not to space around the numbers */-->
+        <th class="w-px pb-1 text-right font-normal whitespace-nowrap" scope="col" th:text="#{stats.column.applied}">Applied</th>
         <th class="pb-1 pl-4 text-left font-normal" scope="col" th:text="#{stats.column.answered}">Answered</th>
-        <th class="pb-1 pl-3 text-right font-normal" scope="col" th:text="#{stats.column.interviews}">Interview</th>
+        <th class="w-px pb-1 pl-3 text-right font-normal whitespace-nowrap" scope="col" th:text="#{stats.column.interviews}">Interview</th>
     </tr>
     </thead>
     <tbody>

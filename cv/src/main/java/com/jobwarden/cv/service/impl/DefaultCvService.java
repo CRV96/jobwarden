@@ -57,7 +57,7 @@ class DefaultCvService implements CvService {
 	@Transactional(readOnly = true)
 	public Cv find(long userId) {
 		CvFile file = this.files.findSummary(userId).map(DefaultCvService::toCvFile).orElse(null);
-		CvDetails found = this.details.findById(userId).map(DefaultCvService::toCvDetails).orElse(CvDetails.NONE);
+		CvDetails found = mine(userId);
 		log.debug("Read the CV of profile {}", userId);
 		return new Cv(file, found);
 	}
@@ -70,8 +70,16 @@ class DefaultCvService implements CvService {
 
 	@Override
 	@Transactional
+	public CvDetails saveContacts(long userId, CvDetails contacts) {
+		CvDetails changed = save(userId, mine(userId).withContacts(contacts));
+		log.info("Saved the name and contact details on the CV of profile {}", userId);
+		return changed;
+	}
+
+	@Override
+	@Transactional
 	public CvDetails saveProjects(long userId, List<CvProject> projects) {
-		CvDetails current = this.details.findById(userId).map(DefaultCvService::toCvDetails).orElse(CvDetails.NONE);
+		CvDetails current = mine(userId);
 		CvDetails changed = save(userId, current.toBuilder().projects(projects).build());
 		log.info("Saved {} projects on the CV of profile {}", changed.projects().size(), userId);
 		return changed;
@@ -187,7 +195,7 @@ class DefaultCvService implements CvService {
 		TailoredCvEntity entity = this.tailored.findByUserIdAndApplicationId(userId, applicationId)
 			.orElseGet(() -> new TailoredCvEntity(userId, applicationId));
 		entity.replace(CvJson.write(tidied(details)), keywords(matchedKeywords), keywords(missingKeywords), text(notes));
-		TailoredCv saved = toTailoredCv(this.tailored.saveAndFlush(entity));
+		TailoredCv saved = toTailoredCv(this.tailored.saveAndFlush(entity), mine(userId));
 		log.info("Saved a CV tailored to application {} for profile {}", applicationId, userId);
 		return saved;
 	}
@@ -195,13 +203,18 @@ class DefaultCvService implements CvService {
 	@Override
 	@Transactional(readOnly = true)
 	public Optional<TailoredCv> findTailored(long userId, long applicationId) {
-		return this.tailored.findByUserIdAndApplicationId(userId, applicationId).map(DefaultCvService::toTailoredCv);
+		return this.tailored.findByUserIdAndApplicationId(userId, applicationId)
+			.map(entity -> toTailoredCv(entity, mine(userId)));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	public List<TailoredCv> findAllTailored(long userId) {
-		return this.tailored.findByUserIdOrderByUpdatedAtDescIdDesc(userId).stream().map(DefaultCvService::toTailoredCv).toList();
+		CvDetails mine = mine(userId);
+		return this.tailored.findByUserIdOrderByUpdatedAtDescIdDesc(userId)
+			.stream()
+			.map(entity -> toTailoredCv(entity, mine))
+			.toList();
 	}
 
 	@Override
@@ -250,10 +263,19 @@ class DefaultCvService implements CvService {
 		return keywords.stream().map(DefaultCvService::text).filter(keyword -> keyword != null).distinct().toList();
 	}
 
-	private static TailoredCv toTailoredCv(TailoredCvEntity entity) {
+	/** The profile's own CV details: none filled in when it has none. */
+	private CvDetails mine(long userId) {
+		return this.details.findById(userId).map(DefaultCvService::toCvDetails).orElse(CvDetails.NONE);
+	}
+
+	/**
+	 * @param mine the profile's own CV details: their name and contact details are the tailored CV's, as they are now,
+	 * where they're filled in
+	 */
+	private static TailoredCv toTailoredCv(TailoredCvEntity entity, CvDetails mine) {
 		return TailoredCv.builder()
 			.applicationId(entity.getApplicationId())
-			.details(CvJson.details(entity.getDetails()))
+			.details(CvJson.details(entity.getDetails()).withContactsOf(mine))
 			.matchedKeywords(entity.getMatchedKeywords())
 			.missingKeywords(entity.getMissingKeywords())
 			.notes(entity.getNotes())

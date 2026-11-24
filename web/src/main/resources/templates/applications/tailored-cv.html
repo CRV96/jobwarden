@@ -13,7 +13,9 @@
 </section>
 
 <!--/* tailoredCv is the CV for the job, or null; cvRequest the latest request to tailor it, or null; hasCv whether there's
-       a CV to tailor; cvPrompt what to paste into Claude Code while the request waits. While it's open, the card asks
+       a CV to tailor; hasContacts whether the CV page has a name and an email, which every tailored CV shows, and
+       cvDetails its contact details for the form that asks for them first; cvPrompt what to paste into Claude Code while
+       the request waits. While it's open, the card asks
        again every few seconds, and shows the CV once Claude saves it. */-->
 <section id="tailored-cv" th:fragment="card" class="flex flex-col gap-3" data-collapse="cv"
          th:with="status=${cvRequest != null} ? ${cvRequest.status.name()}, open=${cvRequest != null and cvRequest.status.isOpen()},
@@ -74,6 +76,9 @@
             <a class="btn btn-primary" th:href="@{/applications/{id}/cv/pdf(id=${cvJobId})}">
                 <i class="ph ph-file-pdf"></i><span th:text="#{cv.pdf}">Download PDF</span>
             </a>
+            <a class="btn btn-secondary" th:href="@{/applications/{id}/cv/edit(id=${cvJobId})}">
+                <i class="ph ph-pencil-simple"></i><span th:text="#{tailoredCv.edit}">Edit</span>
+            </a>
             <a class="btn btn-secondary" th:href="@{/applications/{id}/cv(id=${cvJobId})}" target="_blank" rel="noopener">
                 <i class="ph ph-arrow-square-out"></i><span th:text="#{cv.preview}">Preview</span>
             </a>
@@ -84,7 +89,34 @@
         </div>
     </th:block>
 
-    <button class="btn btn-secondary self-start" type="button" th:if="${hasCv and !open}"
+    <!--/* No name or email on the CV page: a tailored CV would start without them. Asked first, saved to the CV page;
+           then, before a first CV, asked for at once. */-->
+    <div class="flex flex-col gap-2.5 rounded-lg bg-accent/6 p-3 shadow-[inset_0_0_0_1px_var(--jw-line)]"
+         th:if="${hasCv and !open and !hasContacts}">
+        <div class="flex items-start gap-2">
+            <i class="ph ph-address-book mt-0.5 text-base text-accent"></i>
+            <div class="flex min-w-0 flex-col gap-0.5">
+                <span class="text-[13px] font-semibold" th:text="#{tailoredCv.contacts.title}">Add your name and contact details first</span>
+                <span class="text-xs text-pretty text-ink/65" th:text="#{tailoredCv.contacts.body}">A tailored CV starts with them…</span>
+            </div>
+        </div>
+        <form class="flex flex-col gap-2" th:hx-post="@{/applications/{id}/cv/contacts(id=${cvJobId})}" hx-target="#tailored-cv"
+              hx-swap="outerHTML">
+            <input type="hidden" name="ask" th:value="${tailoredCv == null}">
+            <th:block th:replace="~{cv/contacts :: fields(${cvDetails})}"></th:block>
+            <div class="flex flex-wrap items-center gap-1.5">
+                <button class="btn btn-primary" type="submit">
+                    <i class="ph" th:classappend="${tailoredCv == null} ? 'ph-sparkle' : 'ph-floppy-disk'"></i>
+                    <span th:text="${tailoredCv == null} ? #{tailoredCv.contacts.saveAndAsk} : #{setup.contacts.save}">Save and ask the AI Assistant</span>
+                </button>
+                <button class="btn btn-ghost" type="button" th:if="${tailoredCv == null}"
+                        th:hx-post="@{/applications/{id}/cv/request(id=${cvJobId})}" hx-target="#tailored-cv" hx-swap="outerHTML"
+                        th:text="#{tailoredCv.contacts.skip}">Ask without them</button>
+            </div>
+        </form>
+    </div>
+
+    <button class="btn btn-secondary self-start" type="button" th:if="${hasCv and !open and (hasContacts or tailoredCv != null)}"
             th:hx-post="@{/applications/{id}/cv/request(id=${cvJobId})}" hx-target="#tailored-cv" hx-swap="outerHTML">
         <i class="ph ph-sparkle"></i><span th:text="${tailoredCv} ? #{tailoredCv.again} : #{tailoredCv.ask}">Ask the AI Assistant to tailor it</span>
     </button>

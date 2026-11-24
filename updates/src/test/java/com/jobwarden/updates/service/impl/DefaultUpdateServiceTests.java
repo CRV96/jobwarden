@@ -24,9 +24,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DefaultUpdateServiceTests {
 
 	private static final String RELEASE = """
-			{"tag_name": "v0.2.0", "name": "JobWarden 0.2.0",
+			[{"tag_name": "v0.2.0", "name": "JobWarden 0.2.0",
 			 "html_url": "https://github.com/CRV96/jobwarden/releases/tag/v0.2.0",
-			 "published_at": "2026-10-27T10:00:00Z", "draft": false, "prerelease": false}""";
+			 "published_at": "2026-10-27T10:00:00Z", "draft": false, "prerelease": false}]""";
 
 	private HttpServer server;
 
@@ -52,7 +52,7 @@ class DefaultUpdateServiceTests {
 				URI.create("https://github.com/CRV96/jobwarden/releases/tag/v0.2.0"), Instant.parse("2026-10-27T10:00:00Z")));
 		assertThat(status.updateAvailable()).isTrue();
 		assertThat(status.releases()).isEqualTo(URI.create("https://github.com/CRV96/jobwarden/releases"));
-		assertThat(this.asked).containsExactly("/repos/CRV96/jobwarden/releases/latest JobWarden/0.1.0");
+		assertThat(this.asked).containsExactly("/repos/CRV96/jobwarden/releases?per_page=30 JobWarden/0.1.0");
 		assertThat(new DefaultUpdateService(github, "0.2.0", checking(true), Clock.systemUTC())).satisfies(running -> {
 			running.check();
 			assertThat(running.status().updateAvailable()).isFalse();
@@ -129,6 +129,93 @@ class DefaultUpdateServiceTests {
 		off.checkAtStart();
 
 		assertThat(this.asked).isEmpty();
+	}
+
+	/** As GitHub lists them, as they were made: a draft, a pre-release, a fix to an older line, one with no notes. */
+	private static final String RELEASES = """
+			[{"tag_name": "v1.0.0", "name": "JobWarden 1.0.0", "html_url": "https://github.com/CRV96/jobwarden/releases/tag/v1.0.0",
+			  "published_at": "2026-11-18T17:40:33Z", "draft": false, "prerelease": false, "body_html": "<p>The first one.</p>"},
+			 {"tag_name": "v1.1.0-rc1", "html_url": "https://github.com/CRV96/jobwarden/releases/tag/v1.1.0-rc1",
+			  "draft": false, "prerelease": true, "body_html": "<p>A try.</p>"},
+			 {"tag_name": "v1.2.0", "html_url": "https://github.com/CRV96/jobwarden/releases/tag/v1.2.0",
+			  "draft": true, "prerelease": false, "body_html": "<p>Not out.</p>"},
+			 {"tag_name": "v1.0.1", "name": "", "html_url": "https://github.com/CRV96/jobwarden/releases/tag/v1.0.1",
+			  "published_at": "2026-11-18T18:06:21Z", "draft": false, "prerelease": false,
+			  "body_html": "<h2 dir=\\"auto\\">Fixed</h2><p onclick=\\"steal()\\">Runs on <strong>ARM</strong><img src=\\"https://example.com/a.png\\"><script>steal()</script></p><p><a class=\\"issue-link\\" data-id=\\"6\\" href=\\"/CRV96/jobwarden/pull/62\\">#62</a> <a href=\\"javascript:steal()\\">here</a></p>"},
+			 {"tag_name": "v0.9.0", "html_url": "https://github.com/CRV96/jobwarden/releases/tag/v0.9.0",
+			  "draft": false, "prerelease": false, "body_html": "  "}]""";
+
+	@Test
+	void listsTheReleasesNewestFirstWithoutDraftsOrPreReleases() throws IOException {
+		DefaultUpdateService updates = new DefaultUpdateService(new GitHubReleases(githubAt(serve(200, RELEASES))), "1.0.0",
+				checking(true), Clock.systemUTC());
+
+		updates.check();
+
+		assertThat(updates.releases()).extracting(Release::version).containsExactly("1.0.1", "1.0.0", "0.9.0");
+		assertThat(updates.releases().get(0).name()).as("a blank name is none").isNull();
+		assertThat(updates.releases().get(2).notes()).as("blank notes are none").isNull();
+		assertThat(updates.status().latest()).isEqualTo(updates.releases().getFirst());
+		assertThat(updates.status().updateAvailable()).isTrue();
+		assertThat(this.asked).containsExactly("/repos/CRV96/jobwarden/releases?per_page=30 JobWarden/1.0.0");
+	}
+
+	/** The page shows the notes as they are: only text formatting is left, and links open apart, to the web. */
+	@Test
+	void cleansTheNotesDownToTextFormatting() throws IOException {
+		DefaultUpdateService updates = new DefaultUpdateService(new GitHubReleases(githubAt(serve(200, RELEASES))), "1.0.1",
+				checking(true), Clock.systemUTC());
+		updates.check();
+
+		String notes = updates.releases().getFirst().notes();
+
+		assertThat(notes).contains("<h2>Fixed</h2>", "Runs on <strong>ARM</strong>",
+				"href=\"https://github.com/CRV96/jobwarden/pull/62\"", "target=\"_blank\"", "rel=\"noopener noreferrer\"",
+				">here</a>")
+			.doesNotContain("<script", "steal()", "onclick", "<img", "class=", "data-id", "dir=", "javascript:");
+		assertThat(updates.releases().get(1).notes()).isEqualTo("<p>The first one.</p>");
+	}
+
+	@Test
+	void tellsWhatsNewSinceTheVersionSeenUpToTheOneRunning() throws IOException {
+		URI api = serve(200, RELEASES);
+		DefaultUpdateService updates = new DefaultUpdateService(new GitHubReleases(githubAt(api)), "1.0.1", checking(true),
+				Clock.systemUTC());
+		updates.check();
+
+		assertThat(updates.running()).map(Release::version).hasValue("1.0.1");
+		assertThat(updates.whatsNew("0.9.0")).extracting(Release::version).containsExactly("1.0.1", "1.0.0");
+		assertThat(updates.whatsNew("1.0.0")).extracting(Release::version).containsExactly("1.0.1");
+		assertThat(updates.whatsNew(null)).as("none seen: the one running alone").extracting(Release::version)
+			.containsExactly("1.0.1");
+		assertThat(updates.whatsNew("not a version")).extracting(Release::version).containsExactly("1.0.1");
+		assertThat(updates.whatsNew("1.0.1")).as("seen already").isEmpty();
+		assertThat(updates.whatsNew("2.0.0")).as("went back to an older one").isEmpty();
+
+		DefaultUpdateService older = new DefaultUpdateService(new GitHubReleases(githubAt(api)), "1.0.0", checking(true),
+				Clock.systemUTC());
+		older.check();
+		assertThat(older.whatsNew("0.1.0")).as("not past the one running").extracting(Release::version)
+			.containsExactly("1.0.0", "0.9.0");
+	}
+
+	@Test
+	void hasNothingNewForABuildGitHubDoesntList() throws IOException {
+		URI api = serve(200, RELEASES);
+		DefaultUpdateService dev = new DefaultUpdateService(new GitHubReleases(githubAt(api)), "dev", checking(true),
+				Clock.systemUTC());
+		dev.check();
+		DefaultUpdateService own = new DefaultUpdateService(new GitHubReleases(githubAt(api)), "1.0.2-SNAPSHOT",
+				checking(true), Clock.systemUTC());
+		own.check();
+		DefaultUpdateService notAsked = new DefaultUpdateService(new GitHubReleases(githubAt(api)), "1.0.1",
+				checking(true), Clock.systemUTC());
+
+		assertThat(dev.running()).isEmpty();
+		assertThat(dev.whatsNew(null)).isEmpty();
+		assertThat(own.whatsNew("1.0.0")).isEmpty();
+		assertThat(notAsked.releases()).isEmpty();
+		assertThat(notAsked.whatsNew("1.0.0")).isEmpty();
 	}
 
 	@Test

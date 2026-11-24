@@ -5,12 +5,15 @@ import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.jobwarden.common.logging.LogContext;
 import com.jobwarden.updates.dto.Release;
 import com.jobwarden.updates.dto.UpdateStatus;
+import com.jobwarden.updates.dto.Version;
 import com.jobwarden.updates.service.UpdateService;
 import lombok.CustomLog;
 import org.jspecify.annotations.Nullable;
@@ -22,8 +25,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 /**
- * Asks GitHub for the latest release as the app starts, then on a schedule: once a day ({@code jobwarden.updates.every})
- * whether or not anyone opens a page, looking every hour ({@code jobwarden.updates.tick}) whether that's due. Pages
+ * Asks GitHub for the releases, with what each changed, as the app starts, then on a schedule: once a day
+ * ({@code jobwarden.updates.every}) whether or not anyone opens a page, looking every hour
+ * ({@code jobwarden.updates.tick}) whether that's due. Pages
  * read what it last heard and never wait for GitHub; the sidebar, Settings and the extension show a newer release from
  * the next page on. When GitHub can't be reached, it keeps what it had and asks again an hour later.
  */
@@ -64,9 +68,37 @@ class DefaultUpdateService implements UpdateService {
 
 	@Override
 	public UpdateStatus status() {
-		Checked last = this.checked.get();
-		return new UpdateStatus(this.version, (last != null) ? last.latest() : null,
+		List<Release> releases = releases();
+		return new UpdateStatus(this.version, releases.isEmpty() ? null : releases.getFirst(),
 				URI.create("https://github.com/" + this.repository + "/releases"));
+	}
+
+	@Override
+	public List<Release> releases() {
+		Checked last = this.checked.get();
+		return (last != null) ? last.releases() : List.of();
+	}
+
+	@Override
+	public Optional<Release> running() {
+		Optional<Version> running = Version.parse(this.version);
+		return running.flatMap(version -> releases().stream()
+			.filter(release -> versionOf(release).compareTo(version) == 0)
+			.findFirst());
+	}
+
+	@Override
+	public List<Release> whatsNew(@Nullable String seen) {
+		Optional<Version> running = running().map(DefaultUpdateService::versionOf);
+		if (running.isEmpty()) {
+			return List.of();
+		}
+		Optional<Version> before = Version.parse(seen);
+		return releases().stream().filter(release -> {
+			Version version = versionOf(release);
+			return version.compareTo(running.get()) <= 0
+					&& before.map(older -> version.compareTo(older) > 0).orElse(version.compareTo(running.get()) == 0);
+		}).limit(WHATS_NEW_MOST).toList();
 	}
 
 	/** As the app starts, in the background: the start doesn't wait for GitHub. */
@@ -95,14 +127,14 @@ class DefaultUpdateService implements UpdateService {
 	 */
 	void check() {
 		try {
-			Release latest = this.github.latest(this.repository, "JobWarden/" + this.version).orElse(null);
-			this.checked.set(new Checked(latest, this.clock.instant().plus(this.every)));
-			log.info("Latest JobWarden release: {}; this is {}", (latest != null) ? latest.version() : "none yet",
-					this.version);
+			List<Release> releases = this.github.releases(this.repository, "JobWarden/" + this.version);
+			this.checked.set(new Checked(releases, this.clock.instant().plus(this.every)));
+			log.info("Latest JobWarden release: {}; this is {}",
+					releases.isEmpty() ? "none yet" : releases.getFirst().version(), this.version);
 		} catch (IOException | RuntimeException failed) {
 			log.warn("Couldn't ask GitHub for JobWarden's latest release: {}", failed.toString());
 			Checked last = this.checked.get();
-			this.checked.set(new Checked((last != null) ? last.latest() : null, this.clock.instant().plus(RETRY_AFTER)));
+			this.checked.set(new Checked((last != null) ? last.releases() : List.of(), this.clock.instant().plus(RETRY_AFTER)));
 		} catch (InterruptedException interrupted) {
 			Thread.currentThread().interrupt();
 		} finally {
@@ -110,10 +142,15 @@ class DefaultUpdateService implements UpdateService {
 		}
 	}
 
+	/** The release's version: GitHubReleases lists only those whose tag is one. */
+	private static Version versionOf(Release release) {
+		return Version.parse(release.version()).orElseThrow();
+	}
+
 	/**
-	 * @param latest the latest release, or {@code null} when there's none, or GitHub was never reached
+	 * @param releases the releases, the newest first; empty when there's none, or GitHub was never reached
 	 */
-	private record Checked(@Nullable Release latest, Instant checkAgainAt) {
+	private record Checked(List<Release> releases, Instant checkAgainAt) {
 	}
 
 }

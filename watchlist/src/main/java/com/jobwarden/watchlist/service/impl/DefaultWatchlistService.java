@@ -136,7 +136,8 @@ class DefaultWatchlistService implements WatchlistService {
 	public WatchResult watch(long userId, String link, @Nullable String name) {
 		Board board = Board.of(link)
 			.orElseThrow(() -> new BusinessRuleException(WatchlistErrorCode.NOT_A_BOARD_LINK,
-					"Not a link to a Greenhouse, Lever or Ashby board: " + link));
+					"Not a link to a Greenhouse, Lever, Ashby, SmartRecruiters, Workable, Recruitee or Personio board: "
+							+ link));
 		Optional<WatchedCompanyEntity> existing = this.companies.findByUserIdAndAtsAndBoard(userId, board.ats(),
 				board.name());
 		if (existing.isPresent()) {

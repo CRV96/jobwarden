@@ -31,10 +31,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import static com.jobwarden.web.controller.Pages.requireProfile;
 
 /**
- * The watchlist: the companies whose job boards on Greenhouse, Lever and Ashby JobWarden reads itself every few hours,
- * with no Claude tokens, adding the postings that match the saved searches to the AI Assistant page. Watching some by
- * their links, several at once, or those the profile's jobs suggest; Check now; and removing one. Each change answers
- * with the page's watchlist part again, for HTMX to swap.
+ * The watchlist: the companies whose job boards on Greenhouse, Lever, Ashby, SmartRecruiters, Workable, Recruitee
+ * and Personio JobWarden reads itself every few hours, with no Claude tokens, adding the postings that match the saved
+ * searches to the AI Assistant page. Watching some by their links, several at once, or those the profile's jobs
+ * suggest; Check now; and removing one. Each change answers with the page's watchlist part again, for HTMX to swap.
  */
 @PageController
 @RequestMapping(ControllerConstants.WATCHLIST)

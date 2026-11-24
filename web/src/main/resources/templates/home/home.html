@@ -9,8 +9,9 @@
        today, this week and this month, the latest timeline entries, the follow-ups due), statistics a JobStatistics (the
        answers), jobsByStatus the jobs by status with mostInAStatus, comingUp the next days' calendar entries,
        openRequests how many requests wait for the assistant and openApplyRequests how many Auto-apply runs (done on
-       their own page), offerCount the jobs at Offer; discoverCount and inboxCount come with every page. Each
-       chart is one series in the accent colour, titled, its exact counts in each bar's tooltip. */-->
+       their own page), offerCount the jobs at Offer; discoverCount and inboxCount come with every page. Below, the
+       statistics (statistics/statistics.html), with calibration and missingKeywords. Each chart is one series in the
+       accent colour, titled, its exact counts in each bar's tooltip. */-->
 <main class="flex flex-col gap-5"
       th:with="stats=${statistics}">
     <h1 class="sr-only" th:text="#{nav.home}">Home</h1>
@@ -50,9 +51,12 @@
             <a class="btn btn-primary" th:href="@{/applications}">
                 <i class="ph ph-plus"></i><span th:text="#{home.welcome.jobs}">Add a job</span>
             </a>
-            <a class="btn btn-secondary" th:href="@{/settings}">
+            <a class="btn btn-secondary" th:href="@{/settings#extension}">
                 <i class="ph ph-puzzle-piece"></i><span th:text="#{home.welcome.extension}">Get the browser extension</span>
             </a>
+            <button class="btn btn-secondary" type="button" data-open-setup-guide>
+                <i class="ph ph-rocket-launch"></i><span th:text="#{setup.title}">Set up JobWarden</span>
+            </button>
         </div>
     </div>
 
@@ -63,7 +67,7 @@
             <div th:replace="~{home/home :: tally(#{home.sent.week}, ${activity.week}, ${lastWeek})}"></div>
             <div th:replace="~{home/home :: tally(#{home.sent.month}, ${activity.month}, ${lastMonth})}"></div>
         </th:block>
-        <a class="card flex flex-col gap-1 p-4 transition-colors hover:bg-ink/3" th:href="@{/statistics}">
+        <a class="card flex flex-col gap-1 p-4 transition-colors hover:bg-ink/3" href="#statistics">
             <span class="flex items-center gap-1.5 text-xs text-ink/60">
                 <span th:text="#{home.answers}">Got an answer</span><i class="ph ph-caret-right text-[10px] text-ink/40"></i>
             </span>
@@ -171,7 +175,7 @@
                     <h2 id="home-jobs-title" class="section-title flex flex-1 items-center gap-1.5">
                         <i class="ph ph-kanban text-accent"></i><span th:text="#{home.jobs}">Your jobs</span>
                     </h2>
-                    <a class="link text-xs" th:href="@{/pipeline}" th:text="#{home.jobs.pipeline}">Open the pipeline</a>
+                    <a class="link text-xs" th:href="@{/applications/board}" th:text="#{home.jobs.board}">See them on the board</a>
                 </div>
                 <dl class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2">
                     <th:block th:each="status : ${jobsByStatus}">
@@ -215,6 +219,9 @@
             </section>
         </div>
     </div>
+
+    <!--/* How the applications went: what was the Statistics page */-->
+    <section th:replace="~{statistics/statistics :: statistics}"></section>
 </main>
 
 <!--/* A count of the applications sent in a stretch of days (tally, a JobActivity.Tally), and the jobs saved in it; with

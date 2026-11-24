@@ -1,8 +1,9 @@
 /*
  * What the pages do in the browser beyond HTMX, one module per feature (app/): the theme and the folding sidebar,
  * dialogs and the side panel, the list's selection, forms, fields of chips, the Discover page's cards, the calendar,
- * reminders, the pipeline's drag and drop, cards that fold. Elements ask for it with data- attributes, and listeners on
- * the document handle them, so it works the same for the parts HTMX swaps in.
+ * reminders, the board's drag and drop, cards that fold, toasts, the jobs' count as the extension saves more, the
+ * setup guide, what changed after an update, and the Search Builder's queries shown or hidden. Elements ask for it with
+ * data- attributes, and listeners on the document handle them, so it works the same for the parts HTMX swaps in.
  *
  * A module listens for the events only it handles. A click, a change or an input that several features might claim
  * goes through one chain here instead (Chain of Responsibility): each handler says whether it was its own, and the
@@ -22,6 +23,11 @@ import { decideByClick } from './app/swipe.js';
 import './app/calendar.js';
 import './app/reminders.js';
 import './app/pipeline.js';
+import './app/toasts.js';
+import './app/counts.js';
+import './app/setup.js';
+import './app/whats-new.js';
+import './app/queries.js';
 
 const CLICKS = [openDialog, closeDialog, clearPrevious, closeOnBackdrop, foldSidebar, clearSelection, toggleHidden,
 	expand, removeChip, addFromButton, focusField, decideByClick, share, unclamp, dismiss, copy, addRow, removeRow,

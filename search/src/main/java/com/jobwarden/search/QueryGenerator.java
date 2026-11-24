@@ -27,10 +27,11 @@ public class QueryGenerator {
 
 	public GeneratedQueries generate(SearchCriteria criteria) {
 		LimitedQuery google = google(criteria);
+		// The job boards first, then the posts that say who's hiring
 		List<GeneratedQuery> queries = List.of(onGoogle(Platform.GOOGLE, google.query(), criteria.recency()),
 				onLinkedIn(linkedIn(criteria), criteria.recency()),
-				onGoogle(Platform.REDDIT, reddit(criteria), criteria.recency()), onX(x(criteria)),
-				onGoogle(Platform.REMOTE_BOARDS, remoteBoards(criteria), criteria.recency()));
+				onGoogle(Platform.REMOTE_BOARDS, remoteBoards(criteria), criteria.recency()),
+				onGoogle(Platform.REDDIT, reddit(criteria), criteria.recency()), onX(x(criteria)));
 		return new GeneratedQueries(queries, google.words(), google.truncated());
 	}
 

@@ -5,10 +5,11 @@
     <title th:text="|#{jobs.title} · JobWarden|">Jobs · JobWarden</title>
 </head>
 <body>
-<!--/* listParams is what the list shows (ApplicationListParams): its links keep the search, the status, the order and
-       the page size. Enum values are shown through their messages: status.SAVED, status.APPLIED... */-->
+<!--/* The Jobs page as a list (the board is its other view, pipeline/board.html). listParams is what the list shows
+       (ApplicationListParams): its links keep the search, the status, the order and the page size. Enum values are
+       shown through their messages: status.SAVED, status.APPLIED... */-->
 <main class="page-full flex flex-col gap-4">
-    <header th:replace="~{applications/fragments :: page-header(#{jobs.title}, ${applicationCount != null} ? #{jobs.subtitle(${applicationCount})} : null)}"></header>
+    <header th:replace="~{applications/fragments :: page-header(#{jobs.title}, ${applicationCount != null} ? #{jobs.subtitle(${applicationCount})} : null, 'list', ${listParams.q})}"></header>
 
     <div class="flex min-h-0 flex-1 flex-col gap-3">
         <div class="flex flex-wrap items-center gap-2">

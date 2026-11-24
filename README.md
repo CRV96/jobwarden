@@ -1,5 +1,6 @@
 <p align="center">
-  <img src="docs/branding/social-preview.png" alt="JobWarden: the keeper of your job hunt" width="720">
+  <a href="https://youtu.be/WS9_VcoEQZU"><img src="docs/branding/video-thumbnail.png" alt="Watch JobWarden in under 3 minutes" width="720"></a><br>
+  <sub><b>▶ JobWarden in under 3 minutes</b></sub>
 </p>
 
 <p align="center">
@@ -22,6 +23,18 @@
   <a href="https://revolut.me/robertcrv"><img alt="Support me on Revolut" src="https://img.shields.io/badge/Support_me_on_Revolut-191C1F?style=for-the-badge&logo=revolut&logoColor=white"></a>
 </p>
 
+<h3 align="center">Get the browser extension</h3>
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/bjklifdmffkhiffbicofeohgdcpmobek"><img src="https://developer.chrome.com/static/docs/webstore/branding/image/HRs9MPufa1J1h5glNhut.png" alt="Available in the Chrome Web Store" height="60"></a>
+  &nbsp;&nbsp;
+  <a href="https://addons.mozilla.org/firefox/addon/jobwarden/"><img src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg" alt="Get the add-on for Firefox" height="60"></a>
+</p>
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/bjklifdmffkhiffbicofeohgdcpmobek"><img alt="Chrome Web Store version" src="https://img.shields.io/chrome-web-store/v/bjklifdmffkhiffbicofeohgdcpmobek?style=flat-square&logo=googlechrome&logoColor=white&label=Chrome&color=4285F4"></a>
+  <a href="https://addons.mozilla.org/firefox/addon/jobwarden/"><img alt="Firefox Add-ons version" src="https://img.shields.io/amo/v/jobwarden?style=flat-square&logo=firefoxbrowser&logoColor=white&label=Firefox&color=FF7139"></a>
+</p>
+<p align="center"><sub>Chrome's works in Edge, Brave, Opera and the other Chromium browsers too.</sub></p>
+
 <h4 align="center">Guides</h4>
 <p align="center">
   <a href="https://github.com/CRV96/jobwarden/wiki/Installation">Install</a> ·
@@ -31,16 +44,11 @@
   <a href="https://discord.gg/A4U2eVNck">Discord</a>
 </p>
 
-<p align="center">
-  <a href="https://youtu.be/WS9_VcoEQZU"><img src="docs/branding/video-thumbnail.png" alt="Watch JobWarden in under 3 minutes" width="720"></a><br>
-  <sub><b>▶ JobWarden in under 3 minutes</b></sub>
-</p>
-
 ## What it does
 
 - **Every job in one place.** Save postings from Chrome or Firefox with the
-  [browser extension](https://github.com/CRV96/jobwarden/wiki/Browser-extension), and follow each one on a timeline, a pipeline and a
-  calendar, with reminders, statistics and CSV import and export.
+  [browser extension](https://github.com/CRV96/jobwarden/wiki/Browser-extension), and follow each one on a timeline, as a
+  list or a board, and on a calendar, with reminders, statistics and CSV import and export.
 - **Never the same job twice.** Open a posting you've seen before and the extension says so at once: ★ bookmarked,
   ✓ applied, on its toolbar icon and in its popup.
 - **Finds jobs for you.** Your AI assistant searches for jobs that fit your CV, the watchlist reads the job boards of the
@@ -62,7 +70,9 @@ curl -L -o compose.yaml https://github.com/CRV96/jobwarden/releases/latest/downl
 docker compose up -d
 ```
 
-and open <http://localhost:9273>. On Windows, in PowerShell, write `curl.exe` instead of `curl`.
+and open <http://localhost:9273>. On Windows, in PowerShell, write `curl.exe` instead of `curl`. Then add the extension
+from the [Chrome Web Store](https://chromewebstore.google.com/detail/bjklifdmffkhiffbicofeohgdcpmobek) or
+[Firefox Add-ons](https://addons.mozilla.org/firefox/addon/jobwarden/); the app's setup guide walks you through the rest.
 [Installation](https://github.com/CRV96/jobwarden/wiki/Installation) has the other ways, from the sources included;
 [Getting started](https://github.com/CRV96/jobwarden/wiki/Getting-started) the five minutes after.
 

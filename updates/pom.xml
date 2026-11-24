@@ -26,6 +26,11 @@
 			<groupId>tools.jackson.core</groupId>
 			<artifactId>jackson-databind</artifactId>
 		</dependency>
+		<!-- Cleans the release notes' HTML, as GitHub makes it of their Markdown, down to text formatting -->
+		<dependency>
+			<groupId>org.jsoup</groupId>
+			<artifactId>jsoup</artifactId>
+		</dependency>
 		<!-- @NamedInterface: marks the dto and service packages as the module's public API -->
 		<dependency>
 			<groupId>org.springframework.modulith</groupId>

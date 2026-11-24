@@ -1,8 +1,14 @@
 # Updating
 
-A running JobWarden asks GitHub for the latest release as it starts and then every day. When there's a newer one, the
+A running JobWarden asks GitHub for its releases as it starts and then every day. When there's a newer one, the
 sidebar says so (until you hide the notice for that version), and so do **Settings → About** and the browser
 extension's popup. Updating keeps all your data; going back to an older version needs the backup you took first.
+
+**What's new** (in the profile menu, and where the sidebar says there's a newer version) lists every release with what
+it changed, marks the one you run, and links here. After an update, the first page each profile opens shows what
+changed since the version it saw before, once; this browser remembers which one that was. A profile made after the
+release came out isn't told of it. Without GitHub (or with `jobwarden.updates.check=false`), the page lists nothing,
+and no popup opens.
 
 ## Back up first
 
@@ -61,6 +67,9 @@ backup taken before it, then start the older version.
 
 ## The browser extension
 
-Take the extension's zip from the [release](https://github.com/CRV96/jobwarden/releases) with the same version as the
-server (or `git pull`, from the sources), put its folder in place of the old one, and click the extension's reload
-button in `chrome://extensions` (in Firefox, `about:debugging`). The popup says when the server runs a newer version than the extension.
+Installed from the [Chrome Web Store](https://chromewebstore.google.com/detail/bjklifdmffkhiffbicofeohgdcpmobek) or
+[Firefox Add-ons](https://addons.mozilla.org/firefox/addon/jobwarden/), the browser updates it on its own. One loaded
+from the sources: take the extension's zip from the [release](https://github.com/CRV96/jobwarden/releases) with the same
+version as the server (or `git pull`), put its folder in place of the old one, and click the extension's reload button
+in `chrome://extensions` (in Firefox, `about:debugging`). The popup says when the server runs a newer version than the
+extension.

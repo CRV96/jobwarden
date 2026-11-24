@@ -48,7 +48,8 @@
     <section th:replace="~{calendar/reminders :: loader(${jobApplication.id})}"></section>
     <div th:replace="~{applications/fragments :: notes}"></div>
 
-    <div class="mt-auto flex items-center gap-1.5">
+    <!--/* Always in sight, at the panel's foot however far it's scrolled (sticky): what's done with the job as a whole */-->
+    <div class="sticky bottom-0 z-10 -mx-4 -mb-4 mt-auto flex items-center gap-1.5 border-t border-line bg-surface px-4 py-3">
         <!--/* Only http(s) links: the link comes from the captured page, and a javascript: link would run on click. */-->
         <a class="btn btn-primary" th:if="${jobApplication.link != null and #strings.startsWith(jobApplication.link, 'http')}"
            th:href="${jobApplication.link}" target="_blank" rel="noopener noreferrer">

@@ -19,7 +19,8 @@ import org.springframework.context.annotation.Configuration;
  * Before the first release, the schema's 49 migrations became 9, one per module (V1 to V9), which build the very same
  * schema. A database the 49 built has them in its history, which Flyway would refuse. As the server starts, such a
  * database gets its history replaced by a baseline at V9, in one transaction: no table and no row of JobWarden's is
- * touched, as its schema is already the one V1 to V9 build. A new database, or one converted already, is left as it is.
+ * touched, as its schema is already the one V1 to V9 build. A new database, or one converted already, is left as it is,
+ * and so is one the 9 built: either goes on with the migrations after them, V10 on.
  * <p>
  * Delete this class once every database the 49 built has started once with it.
  */
@@ -37,6 +38,9 @@ class SquashedMigrations {
 	static final String SQUASHED_VERSION = "9";
 
 	static final String BASELINE_DESCRIPTION = "Migrations 1 to 49, squashed into 1 to 9";
+
+	/** The last of the 9, by its description: the 49's own V9 had another */
+	static final String SQUASHED_DESCRIPTION = "watchlist create watched companies";
 
 	/** Flyway's history table, as JobWarden leaves it: spring.flyway.table isn't set */
 	static final String HISTORY = "flyway_schema_history";
@@ -64,7 +68,8 @@ class SquashedMigrations {
 			List<String> versions = appliedVersions(connection);
 			boolean allOld = versions.contains(LAST_OLD_VERSION) && lastOldApplied(connection);
 			if (!allOld) {
-				if (versions.stream().anyMatch(version -> Integer.parseInt(version) > Integer.parseInt(SQUASHED_VERSION))) {
+				if (!squashedApplied(connection) && versions.stream()
+					.anyMatch(version -> Integer.parseInt(version) > Integer.parseInt(SQUASHED_VERSION))) {
 					throw new IllegalStateException("The database was migrated by JobWarden's migrations from before they "
 							+ "were squashed, but not up to V" + LAST_OLD_VERSION + ": start the version before them once, "
 							+ "then this one");
@@ -100,6 +105,22 @@ class SquashedMigrations {
 			}
 		}
 		return versions;
+	}
+
+	/**
+	 * @return whether the 9 built the database, or a baseline stands for them: the versions after V9 are then the
+	 * migrations after the squash, not the 49's
+	 */
+	private static boolean squashedApplied(Connection connection) throws SQLException {
+		try (PreparedStatement statement = connection.prepareStatement(
+				"SELECT count(*) FROM flyway_schema_history WHERE version = ? AND description IN (?, ?) AND success")) {
+			statement.setString(1, SQUASHED_VERSION);
+			statement.setString(2, SQUASHED_DESCRIPTION);
+			statement.setString(3, BASELINE_DESCRIPTION);
+			try (ResultSet result = statement.executeQuery()) {
+				return result.next() && result.getLong(1) > 0;
+			}
+		}
 	}
 
 	private static boolean lastOldApplied(Connection connection) throws SQLException {

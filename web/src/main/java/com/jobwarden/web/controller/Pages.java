@@ -1,10 +1,16 @@
 package com.jobwarden.web.controller;
 
+import java.time.Duration;
+
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.web.constants.ModelAttributes;
+import com.jobwarden.web.enums.JobsView;
 import com.jobwarden.web.user.ProfileNotSelectedException;
+import jakarta.servlet.http.HttpServletResponse;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.ui.Model;
 
@@ -30,6 +36,19 @@ final class Pages {
 
 	static String redirectTo(String path) {
 		return "redirect:" + path;
+	}
+
+	/**
+	 * Keeps the Jobs page's view, the list or the board, for the sidebar's link to open next time.
+	 */
+	static void rememberJobsView(HttpServletResponse response, JobsView view) {
+		response.addHeader(HttpHeaders.SET_COOKIE, ResponseCookie.from(JobsView.COOKIE, view.name())
+			.path("/")
+			.maxAge(Duration.ofDays(365))
+			.httpOnly(true)
+			.sameSite("Lax")
+			.build()
+			.toString());
 	}
 
 	/**

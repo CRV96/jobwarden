@@ -24,6 +24,8 @@ final class HtmlText {
 
 	private static final Pattern BLANK_LINES = Pattern.compile("\\n{3,}");
 
+	private static final String BULLET = "\n• ";
+
 	/**
 	 * @return the text; {@code null} when there's none
 	 */
@@ -42,8 +44,9 @@ final class HtmlText {
 					if (element.nameIs("br")) {
 						text.append('\n');
 					} else if (element.nameIs("li")) {
-						text.append("\n• ");
-					} else if (element.isBlock()) {
+						text.append(BULLET);
+					} else if (element.isBlock() && !endsWithBullet(text)) {
+						// A paragraph that starts an item (<li><p>, as Recruitee and Personio write them) stays on its line
 						text.append("\n\n");
 					}
 				}
@@ -53,6 +56,10 @@ final class HtmlText {
 		String tidy = BLANK_LINES.matcher(SPACES_AFTER_BREAK.matcher(SPACES_BEFORE_BREAK.matcher(text).replaceAll("\n"))
 			.replaceAll("\n")).replaceAll("\n\n").strip();
 		return tidy.isEmpty() ? null : tidy;
+	}
+
+	private static boolean endsWithBullet(StringBuilder text) {
+		return text.length() >= BULLET.length() && text.substring(text.length() - BULLET.length()).equals(BULLET);
 	}
 
 }

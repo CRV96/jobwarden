@@ -8,7 +8,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * Watching the company whose job board the page is on.
  *
- * @param link the page: one of the company's jobs, or its board, on Greenhouse, Lever or Ashby
+ * @param link the page: one of the company's jobs, or its board, on Greenhouse, Lever, Ashby, SmartRecruiters,
+ * Workable, Recruitee or Personio
  * @param name the company's name, as the page says it; the board's own if left out
  */
 public record WatchRequest(@NotNull Long userId, @NotBlank @Size(max = WatchRequest.LINK_MAX_LENGTH) String link,

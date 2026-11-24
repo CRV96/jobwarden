@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.discover.dto.AiRequirements;
@@ -94,6 +95,9 @@ class DefaultInboxService implements InboxService {
 	private final TransactionTemplate transactions;
 
 	private final Clock clock;
+
+	/** The profiles whose mailbox is being read in the background or by the schedule: never both at once. */
+	private final Set<Long> reading = ConcurrentHashMap.newKeySet();
 
 	DefaultInboxService(MailAccountRepository accounts, EmailUpdateRepository updates, ApplicationService applications,
 			MailReader reader, SecretBox secrets, DiscoveryService discovery, PlatformTransactionManager transactionManager,
@@ -212,16 +216,37 @@ class DefaultInboxService implements InboxService {
 	}
 
 	@Override
+	public void checkSoon(long userId) {
+		if (!this.accounts.existsById(userId) || !this.reading.add(userId)) {
+			return;
+		}
+		Thread.ofVirtual().name("inbox-read-" + userId).start(() -> {
+			try {
+				check(userId);
+			} catch (BusinessRuleException failed) {
+				// Kept as the mailbox's last error, which the page shows
+			} catch (RuntimeException failed) {
+				log.error(InboxErrorCode.MAILBOX_NOT_REACHED, "Couldn't read the mailbox of profile {}", userId, failed);
+			} finally {
+				this.reading.remove(userId);
+			}
+		});
+	}
+
+	@Override
 	public void checkDue() {
 		Instant now = this.clock.instant();
 		for (MailAccountEntity account : this.accounts.findAll()) {
-			if (!account.isDue(now)) {
+			long userId = account.getUserId();
+			if (!account.isDue(now) || !this.reading.add(userId)) {
 				continue;
 			}
 			try {
-				check(account.getUserId());
+				check(userId);
 			} catch (BusinessRuleException failed) {
 				// Kept as the mailbox's last error, which the page shows
+			} finally {
+				this.reading.remove(userId);
 			}
 		}
 	}

@@ -106,9 +106,12 @@ class SearchControllerTests {
 			.contains("value=\"Cluj-Napoca, Romania\"", "<span class=\"q-phrase\">&quot;Cluj-Napoca, Romania&quot;</span>",
 					"<span class=\"q-operator\">NOT</span>", "<span class=\"q-phrase\">&quot;team lead&quot;</span>",
 					"f_TPR=r604800", "name=\"platform\" value=\"LINKEDIN\"")
-			// Every platform's query at once
-			.contains("id=\"query-GOOGLE\"", "id=\"query-LINKEDIN\"", "id=\"query-REDDIT\"", "id=\"query-X\"",
-					"id=\"query-REMOTE_BOARDS\"")
+			// Every platform's query at once: the job boards, then the posts that say who's hiring
+			.containsSubsequence("id=\"query-GOOGLE\"", "id=\"query-LINKEDIN\"", "id=\"query-REMOTE_BOARDS\"",
+					"id=\"query-REDDIT\"", "id=\"query-X\"")
+			// Their text hidden until the switch shows it: the buttons copy and open them all the same
+			.contains("data-queries=\"hidden\"", "data-show-queries", "Show the queries",
+					"group-data-[queries=hidden]/queries:hidden")
 			.doesNotContain("Your Warden Queries show here");
 	}
 
@@ -116,7 +119,8 @@ class SearchControllerTests {
 	void keepsNoSitesOnceTheyAreRemoved() {
 		// The page always sends the platform: without sites, the Google query has none
 		assertThat(this.mvc.get().uri("/search?titles=QA Engineer&platform=GOOGLE")).bodyText()
-			.contains("<pre class=\"query-box min-h-0\"><span class=\"q-phrase\">&quot;QA Engineer&quot;</span></pre>")
+			.contains("<pre class=\"query-box min-h-0 group-data-[queries=hidden]/queries:hidden\"><span class=\"q-phrase\">"
+					+ "&quot;QA Engineer&quot;</span></pre>")
 			.doesNotContain("site:jobs.lever.co");
 	}
 

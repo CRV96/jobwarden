@@ -43,6 +43,7 @@ import com.jobwarden.web.dto.NewEventForm;
 import com.jobwarden.web.dto.NotesForm;
 import com.jobwarden.web.dto.SalaryForm;
 import com.jobwarden.web.enums.ApplicationView;
+import com.jobwarden.web.enums.JobsView;
 import com.jobwarden.web.view.FormTexts;
 import com.jobwarden.web.view.JobImages;
 import jakarta.servlet.http.HttpServletResponse;
@@ -63,6 +64,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
@@ -70,6 +72,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import static com.jobwarden.web.controller.Pages.attachment;
 import static com.jobwarden.web.controller.Pages.redirectTo;
+import static com.jobwarden.web.controller.Pages.rememberJobsView;
 import static com.jobwarden.web.controller.Pages.requireProfile;
 
 /**
@@ -102,12 +105,17 @@ class ApplicationController {
 	private final JobImages jobImages;
 
 	/**
-	 * The list, searched, filtered, sorted and paged as its address says. An address past the last page (e.g. after
-	 * deleting the last rows of a page) goes to the last page.
+	 * The Jobs page as a list, searched, filtered, sorted and paged as its address says (the board is the other view,
+	 * {@link PipelineController#board}). An address past the last page (e.g. after deleting the last rows of a page)
+	 * goes to the last page.
 	 */
 	@GetMapping
-	String list(@ModelAttribute(ModelAttributes.LIST_PARAMS) ApplicationListParams listParams, Model model) {
+	String list(@ModelAttribute(ModelAttributes.LIST_PARAMS) ApplicationListParams listParams, Model model,
+			@RequestHeader(name = HtmxHeaders.REQUEST, required = false) @Nullable String htmx, HttpServletResponse response) {
 		long userId = requireProfile(model).id();
+		if (htmx == null) {
+			rememberJobsView(response, JobsView.LIST);
+		}
 		Page<ApplicationSummary> page = this.applications.find(userId, listParams.toQuery());
 		if (page.getTotalPages() > 0 && page.getNumber() >= page.getTotalPages()) {
 			return redirectTo(listParams.withPage(page.getTotalPages()).url());

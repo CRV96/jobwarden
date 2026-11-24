@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
 
 import javax.net.ssl.SSLException;
@@ -107,6 +108,10 @@ class ImapMailReader implements MailReader {
 				FetchProfile profile = new FetchProfile();
 				profile.add(FetchProfile.Item.ENVELOPE);
 				profile.add(UIDFolder.FetchProfileItem.UID);
+				// The headers that tell a newsletter, in the same round trip
+				profile.add("List-Unsubscribe");
+				profile.add("List-Id");
+				profile.add("Precedence");
 				folder.fetch(found, profile);
 				// A range from past the last UID still gives the last email: only the newer ones count
 				List<Message> fresh = Arrays.stream(found)
@@ -173,7 +178,21 @@ class ImapMailReader implements MailReader {
 		return new MailMessage(messageId, (received != null) ? received : this.clock.instant(),
 				(from != null) ? from.getPersonal() : null, (from != null) ? from.getAddress() : null,
 				(message.getSubject() != null) ? message.getSubject() : "",
-				(text.length() > TEXT_MAX_LENGTH) ? text.substring(0, TEXT_MAX_LENGTH) : text);
+				(text.length() > TEXT_MAX_LENGTH) ? text.substring(0, TEXT_MAX_LENGTH) : text, isBulk(message));
+	}
+
+	/**
+	 * Whether it was sent to many at once: newsletters and mailing lists say so in their headers, which RFC 2369 and
+	 * RFC 2919 define and Gmail and Yahoo ask every bulk sender for.
+	 */
+	static boolean isBulk(Part message) throws MessagingException {
+		if (message.getHeader("List-Unsubscribe") != null || message.getHeader("List-Id") != null) {
+			return true;
+		}
+		String[] precedence = message.getHeader("Precedence");
+		return precedence != null && Arrays.stream(precedence)
+			.map(value -> value.strip().toLowerCase(Locale.ROOT))
+			.anyMatch(value -> value.equals("bulk") || value.equals("list") || value.equals("junk"));
 	}
 
 	/** jakarta.mail's dates are java.util.Date: an Instant at once. */

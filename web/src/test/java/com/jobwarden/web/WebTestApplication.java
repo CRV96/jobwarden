@@ -5,6 +5,7 @@ import java.time.Clock;
 import com.jobwarden.web.assistant.PromptCards;
 import com.jobwarden.web.view.CountryNames;
 import com.jobwarden.web.view.Dates;
+import com.jobwarden.web.view.ExtensionStores;
 import com.jobwarden.web.view.FormTexts;
 import com.jobwarden.web.view.Ideas;
 import com.jobwarden.web.view.JobImages;
@@ -27,7 +28,7 @@ import org.springframework.context.annotation.Import;
  */
 @SpringBootApplication
 @Import({ CountryNames.class, Dates.class, Links.class, Money.class, Names.class, QuerySyntax.class, Sharing.class,
-		FormTexts.class, Ideas.class, JobImages.class, PromptCards.class })
+		FormTexts.class, Ideas.class, JobImages.class, PromptCards.class, ExtensionStores.class })
 class WebTestApplication {
 
 	/** "Now", as the app's own JobWardenApplication gives it to every module. */

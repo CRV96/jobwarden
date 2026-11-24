@@ -2,13 +2,18 @@ package com.jobwarden.web.controller;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.jobwarden.common.exception.BusinessRuleException;
 import com.jobwarden.discover.dto.AiRequest;
@@ -18,7 +23,6 @@ import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.inbox.dto.EmailUpdate;
 import com.jobwarden.inbox.dto.MailAccount;
 import com.jobwarden.inbox.enums.UpdateDecider;
-import com.jobwarden.inbox.exception.EmailUpdateNotFoundException;
 import com.jobwarden.inbox.service.InboxService;
 import com.jobwarden.jobs.dto.ApplicationSummary;
 import com.jobwarden.jobs.enums.ApplicationStatus;
@@ -29,7 +33,6 @@ import com.jobwarden.web.constants.HtmxEvents;
 import com.jobwarden.web.constants.HtmxHeaders;
 import com.jobwarden.web.constants.ModelAttributes;
 import com.jobwarden.web.constants.Views;
-import com.jobwarden.web.dto.EmailUpdateForm;
 import com.jobwarden.web.dto.MailAccountForm;
 import com.jobwarden.web.enums.MailProvider;
 import com.jobwarden.web.enums.ReadingInterval;
@@ -38,14 +41,17 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 
 import org.springframework.context.MessageSource;
 import org.springframework.ui.Model;
+import org.springframework.util.MultiValueMap;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import static com.jobwarden.web.controller.Pages.requireProfile;
 
@@ -75,6 +81,9 @@ class InboxController {
 	/** How far back the page shows what JobWarden and Claude did on their own. */
 	static final Duration DECIDED_FOR_YOU = Duration.ofDays(14);
 
+	/** How long the card waits for a reading in the background: a slow server gives up well before. */
+	static final Duration READING_PATIENCE = Duration.ofMinutes(5);
+
 	private final InboxService inbox;
 
 	private final ApplicationService applications;
@@ -98,11 +107,11 @@ class InboxController {
 	}
 
 	/**
-	 * Called by HTMX. Connected, the mailbox is read at once, and the page reloads with what it found; not, the card
-	 * says why, with the form as it was typed, but its password.
+	 * Called by HTMX. Connected, the card says so at once, and the mailbox is read in the background, which the card
+	 * then waits for (see {@link #account}); not, the card says why, with the form as it was typed, but its password.
 	 */
 	@PostMapping("/account")
-	String connect(@Valid MailAccountForm form, BindingResult result, Model model, HttpServletResponse response) {
+	String connect(@Valid MailAccountForm form, BindingResult result, Model model, Locale locale) {
 		long userId = requireProfile(model).id();
 		String error = null;
 		if (result.hasErrors()) {
@@ -118,8 +127,37 @@ class InboxController {
 			model.addAttribute(ModelAttributes.MAIL_FORM, form);
 			model.addAttribute(ModelAttributes.MAIL_ERROR, error);
 		} else {
-			readNow(userId);
-			response.setHeader(HtmxHeaders.REFRESH, "true");
+			readInBackground(model, userId);
+			model.addAttribute(ModelAttributes.TOAST, this.messages.getMessage("inbox.connected", null, locale));
+		}
+		addMailbox(model, userId);
+		return Views.MAILBOX_FRAGMENT;
+	}
+
+	/**
+	 * Called by HTMX every few seconds while the mailbox is read in the background: the card as it is now. Once it's
+	 * read (after {@code readSince}), the card says how it went, and the emails waiting load again.
+	 *
+	 * @param readSince when the reading started; none for the card as it is
+	 */
+	@GetMapping("/account")
+	String account(@RequestParam(required = false) @Nullable Instant readSince, Model model, Locale locale,
+			HttpServletResponse response) {
+		long userId = requireProfile(model).id();
+		Optional<MailAccount> account = this.inbox.findAccount(userId);
+		Instant now = this.clock.instant();
+		if (readSince != null && account.isPresent()) {
+			Instant read = account.get().lastCheckedAt();
+			boolean done = read != null && !read.isBefore(readSince);
+			if (!done && now.isBefore(readSince.plus(READING_PATIENCE))) {
+				model.addAttribute(ModelAttributes.MAIL_READ_SINCE, readSince);
+			} else if (done) {
+				response.setHeader(HtmxHeaders.TRIGGER, HtmxEvents.INBOX_READ);
+				if (account.get().lastError() == null) {
+					model.addAttribute(ModelAttributes.TOAST, this.messages.getMessage("inbox.read",
+							new Object[] { this.inbox.countPending(userId) }, locale));
+				}
+			}
 		}
 		addMailbox(model, userId);
 		return Views.MAILBOX_FRAGMENT;
@@ -135,41 +173,102 @@ class InboxController {
 	}
 
 	/**
-	 * Called by HTMX: reads the mailbox now, rather than in the next few minutes, and reloads the page.
+	 * Called by HTMX: reads the mailbox now, rather than in the next few minutes, in the background, which the card
+	 * then waits for (see {@link #account}).
 	 */
 	@PostMapping("/check")
-	String check(Model model, HttpServletResponse response) {
+	String check(Model model) {
 		long userId = requireProfile(model).id();
-		readNow(userId);
-		response.setHeader(HtmxHeaders.REFRESH, "true");
+		readInBackground(model, userId);
 		addMailbox(model, userId);
 		return Views.MAILBOX_FRAGMENT;
 	}
 
 	/**
-	 * Called by HTMX: adds the update to the job's timeline, noting which email it was, and answers with the updates
-	 * left. The pages behind reload, as the job changed.
+	 * Called by HTMX: adds the updates ticked, or the one whose Apply was pressed (ids), to their jobs' timelines,
+	 * noting which email each was, and answers with the updates left. Each goes to the job and with the status its
+	 * card shows (job-{id}, status-{id}), else those it matched; one with no job stays, and the answer says how many
+	 * need one picked. The pages behind reload, as the jobs changed.
 	 */
-	@PostMapping("/updates/{id}/apply")
-	String apply(@PathVariable long id, @Valid EmailUpdateForm form, BindingResult result, Model model, Locale locale,
-			HttpServletResponse response) {
+	@PostMapping("/updates/apply")
+	String apply(@RequestParam(name = "ids", required = false) @Nullable List<Long> ids,
+			@RequestParam MultiValueMap<String, String> form, Model model, Locale locale, HttpServletResponse response) {
 		long userId = requireProfile(model).id();
-		if (result.hasErrors()) {
-			model.addAttribute(ModelAttributes.MAIL_ERROR, this.formTexts.errorMessage(result));
-		} else {
-			EmailUpdate update = this.inbox.findPending(userId)
-				.stream()
-				.filter(pending -> pending.id() == id)
-				.findFirst()
-				.orElseThrow(() -> new EmailUpdateNotFoundException(id));
-			String note = this.messages.getMessage("inbox.note", new Object[] {
-					(update.subject() != null) ? update.subject() : "", (update.sender() != null) ? update.sender() : "" },
-					locale);
-			this.inbox.apply(userId, id, form.requiredJob(), form.requiredStatus(), note, UpdateDecider.YOU);
+		Map<Long, EmailUpdate> pending = this.inbox.findPending(userId)
+			.stream()
+			.collect(Collectors.toMap(EmailUpdate::id, Function.identity()));
+		Set<Long> chosen = (ids != null) ? new LinkedHashSet<>(ids) : Set.of();
+		int applied = 0;
+		int withoutJob = 0;
+		for (long id : chosen) {
+			EmailUpdate update = pending.get(id);
+			if (update == null) {
+				// Applied or dismissed already, e.g. in another tab
+				continue;
+			}
+			Long job = number(form.getFirst("job-" + id)).orElse(update.applicationId());
+			if (job == null) {
+				withoutJob++;
+				continue;
+			}
+			ApplicationStatus status = emailStatus(form.getFirst("status-" + id)).orElse(update.status());
+			this.inbox.apply(userId, id, job, status, note(update, locale), UpdateDecider.YOU);
+			applied++;
+		}
+		log.debug("Applied {} of the {} email updates chosen by profile {}; {} without a job", applied, chosen.size(),
+				userId, withoutJob);
+		if (applied > 0) {
 			response.setHeader(HtmxHeaders.TRIGGER, HtmxEvents.APPLICATIONS_CHANGED);
+		}
+		if (withoutJob > 0) {
+			model.addAttribute(ModelAttributes.UPDATES_ERROR,
+					this.messages.getMessage("inbox.pickJobsFirst", new Object[] { withoutJob }, locale));
+		}
+		if (chosen.size() > 1 && applied > 0) {
+			model.addAttribute(ModelAttributes.TOAST,
+					this.messages.getMessage("inbox.appliedMany", new Object[] { applied }, locale));
 		}
 		addUpdates(model, userId);
 		return Views.EMAIL_UPDATES_FRAGMENT;
+	}
+
+	/**
+	 * Called by HTMX: dismisses the updates ticked, and answers with the updates left.
+	 */
+	@PostMapping("/updates/dismiss")
+	String dismissSelected(@RequestParam(name = "ids", required = false) @Nullable List<Long> ids, Model model,
+			Locale locale) {
+		long userId = requireProfile(model).id();
+		Set<Long> pending = this.inbox.findPending(userId).stream().map(EmailUpdate::id).collect(Collectors.toSet());
+		List<Long> chosen = (ids != null) ? ids.stream().distinct().filter(pending::contains).toList() : List.of();
+		chosen.forEach(id -> this.inbox.dismiss(userId, id, UpdateDecider.YOU));
+		log.debug("Dismissed {} email updates of profile {}", chosen.size(), userId);
+		if (!chosen.isEmpty()) {
+			model.addAttribute(ModelAttributes.TOAST,
+					this.messages.getMessage("inbox.dismissedMany", new Object[] { chosen.size() }, locale));
+		}
+		addUpdates(model, userId);
+		return Views.EMAIL_UPDATES_FRAGMENT;
+	}
+
+	/** The note on the job's timeline: which email it was. */
+	private String note(EmailUpdate update, Locale locale) {
+		return this.messages.getMessage("inbox.note", new Object[] { (update.subject() != null) ? update.subject() : "",
+				(update.sender() != null) ? update.sender() : "" }, locale);
+	}
+
+	/** A job's id as a form sends it: empty when it sent none, or text that isn't one. */
+	private static Optional<Long> number(@Nullable String text) {
+		try {
+			return (text == null || text.isBlank()) ? Optional.empty() : Optional.of(Long.valueOf(text.strip()));
+		} catch (NumberFormatException notANumber) {
+			return Optional.empty();
+		}
+	}
+
+	/** A status an email can say, as a form sends it: empty when it sent none, or another. */
+	private static Optional<ApplicationStatus> emailStatus(@Nullable String text) {
+		return EMAIL_STATUSES.stream().filter(status -> status.name().equals(text)).findFirst();
 	}
 
 	@PostMapping("/updates/{id}/dismiss")
@@ -236,13 +335,11 @@ class InboxController {
 		return Views.EMAIL_UPDATES_FRAGMENT;
 	}
 
-	/** A mailbox that can't be read keeps why, which the page then shows. */
-	private void readNow(long userId) {
-		try {
-			this.inbox.check(userId);
-		} catch (BusinessRuleException failed) {
-			log.debug("Mailbox of profile {} not read: {}", userId, failed.getMessage());
-		}
+	/** A mailbox that can't be read keeps why, which the card shows once the reading is over. */
+	private void readInBackground(Model model, long userId) {
+		model.addAttribute(ModelAttributes.MAIL_READ_SINCE, this.clock.instant());
+		this.inbox.checkSoon(userId);
+		log.debug("Reading the mailbox of profile {} in the background", userId);
 	}
 
 	/**

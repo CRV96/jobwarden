@@ -15,7 +15,7 @@ the server's, for every profile:
 | **Your jobs** | Export every job as a CSV file, import one ([how](Tracking-jobs#export-and-import)), archive the old ones at once | The profile's |
 | **Salaries** | The [Adzuna](https://developer.adzuna.com) key, for the salaries in current job ads ([Offers and salaries](Offers-and-salaries)) | The server's |
 | **Database** | The password JobWarden connects to PostgreSQL with: shows when it's still the default, and changes it ([how](Configuration#the-database-password)) | The server's |
-| **Browser extension** | What to enter in the extension's settings: the server's address and your profile ID | The browser's |
+| **Browser extension** | **Add to Chrome** and **Add to Firefox**, from their stores, and what to enter in the extension's settings: the server's address and your profile ID | The browser's |
 | **About** | The version running and whether a newer one is out, the license, and **Suggest a feature** | The server's |
 | **Appearance and language** | Dark or light, and the pages' language | The browser's |
 | **Inbox** | How often your mailbox is read, and what becomes of the updates found ([Inbox](Inbox)) | The profile's |

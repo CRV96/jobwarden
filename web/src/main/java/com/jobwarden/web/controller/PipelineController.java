@@ -11,9 +11,12 @@ import com.jobwarden.jobs.enums.RejectionReason;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.jobs.service.JobFitService;
 import com.jobwarden.web.constants.ControllerConstants;
+import com.jobwarden.web.constants.HtmxHeaders;
 import com.jobwarden.web.constants.ModelAttributes;
 import com.jobwarden.web.constants.Views;
+import com.jobwarden.web.enums.JobsView;
 import com.jobwarden.web.view.JobImages;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
@@ -21,18 +24,20 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import static com.jobwarden.web.controller.Pages.redirectTo;
+import static com.jobwarden.web.controller.Pages.rememberJobsView;
 import static com.jobwarden.web.controller.Pages.requireProfile;
 
 /**
- * Every application as a card, in a column per status, newest first. A column shows its first cards, and loads the
- * next ones as it's scrolled to its end: a profile with thousands of applications gets a page as quick as one with
- * ten. The search above narrows every column to the jobs whose title or company has the words.
+ * The Jobs page as a board: every application as a card, in a column per status, newest first (the list is the other
+ * view, {@link ApplicationController#list}). A column shows its first cards, and loads the next ones as it's scrolled
+ * to its end: a profile with thousands of applications gets a page as quick as one with ten. The search above narrows
+ * every column to the jobs whose title or company has the words.
  */
 @PageController
-@RequestMapping(ControllerConstants.PIPELINE)
 @RequiredArgsConstructor
 class PipelineController {
 
@@ -48,9 +53,13 @@ class PipelineController {
 	/**
 	 * @param q only the jobs whose title or company has these words; all of them when blank
 	 */
-	@GetMapping
-	String board(@RequestParam(required = false) @Nullable String q, Model model) {
+	@GetMapping(ControllerConstants.JOB_BOARD)
+	String board(@RequestParam(required = false) @Nullable String q, Model model,
+			@RequestHeader(name = HtmxHeaders.REQUEST, required = false) @Nullable String htmx, HttpServletResponse response) {
 		long userId = requireProfile(model).id();
+		if (htmx == null) {
+			rememberJobsView(response, JobsView.BOARD);
+		}
 		String search = searchOf(q);
 		Map<ApplicationStatus, Page<ApplicationSummary>> columns = new EnumMap<>(ApplicationStatus.class);
 		for (ApplicationStatus status : ApplicationStatus.values()) {
@@ -75,7 +84,7 @@ class PipelineController {
 	 *
 	 * @param page from 0, the first one the board shows
 	 */
-	@GetMapping("/column")
+	@GetMapping(ControllerConstants.JOB_BOARD + "/column")
 	String column(@RequestParam ApplicationStatus status, @RequestParam int page,
 			@RequestParam(required = false) @Nullable String q, Model model) {
 		long userId = requireProfile(model).id();
@@ -88,6 +97,14 @@ class PipelineController {
 		model.addAttribute(ModelAttributes.PIPELINE_SEARCH, search);
 		this.jobImages.addImages(model, userId);
 		return Views.PIPELINE_CARDS_FRAGMENT;
+	}
+
+	/**
+	 * The pipeline's old address, from before it was a view of the Jobs page: a bookmark of it opens the board.
+	 */
+	@GetMapping(ControllerConstants.PIPELINE)
+	String pipeline() {
+		return redirectTo(ControllerConstants.JOB_BOARD);
 	}
 
 	private static @Nullable String searchOf(@Nullable String q) {
