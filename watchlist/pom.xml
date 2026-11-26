@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>com.jobwarden</groupId>
 		<artifactId>jobwarden</artifactId>
-		<version>1.1.1</version>
+		<version>1.1.2</version>
 	</parent>
 	<artifactId>jobwarden-watchlist</artifactId>
 	<name>JobWarden :: Watchlist</name>

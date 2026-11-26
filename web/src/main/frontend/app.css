@@ -170,16 +170,95 @@
 		text-decoration: underline;
 	}
 
+	/* A job's description (RichText): its paragraphs and lists, with bold and italics, the posting's text as the
+	   profile formatted it on the job's page; the editor (rich-editor) shows it the same way as it's typed */
+	.rich-text {
+		font-size: 13px;
+		line-height: 1.6;
+		color: color-mix(in srgb, var(--jw-ink) 85%, transparent);
+		text-wrap: pretty;
+		overflow-wrap: anywhere;
+	}
+
+	.rich-text :where(strong, b) {
+		font-weight: 600;
+		color: var(--jw-ink);
+	}
+
+	/* Margins, not a flex gap: the editor is one too, and the caret goes astray in a flex box */
+	.rich-text > * + * {
+		margin-top: 8px;
+	}
+
+	.rich-text :where(ul, ol) {
+		padding-left: 20px;
+	}
+
+	.rich-text li + li {
+		margin-top: 2px;
+	}
+
+	.rich-text ul {
+		list-style: disc;
+	}
+
+	.rich-text ol {
+		list-style: decimal;
+	}
+
+	/* A long one starts folded to about twelve lines, fading out; Show more takes the class away (data-clamp) */
+	.rich-text-folded {
+		max-height: 19.2em;
+		overflow: hidden;
+		mask-image: linear-gradient(to bottom, black 75%, transparent);
+	}
+
+	/* While the editor is open, the text it edits and its buttons make way for it */
+	[data-collapse]:has(> [data-description-form]:not([hidden])) [data-description-view] {
+		display: none;
+	}
+
+	.rich-toolbar {
+		display: flex;
+		gap: 2px;
+		margin-bottom: -4px;
+	}
+
+	/* Over .input's own size and padding, which comes later */
+	.input.rich-editor {
+		display: block;
+		height: auto;
+		min-height: 160px;
+		max-height: 60vh;
+		overflow-y: auto;
+		padding: 10px 12px;
+		cursor: text;
+	}
+
+	.rich-editor:empty::before {
+		content: attr(data-placeholder);
+		color: color-mix(in srgb, var(--jw-ink) 45%, transparent);
+	}
+
 	/* A release's notes (What's new): the HTML GitHub made of their Markdown, which the updates module cleaned down to
 	   text formatting. Headings smaller than the release's own name, code in a faint box, long links broken anywhere. */
 	.release-notes {
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
+		min-width: 0;
+		max-width: 100%;
 		font-size: 13px;
 		line-height: 1.55;
 		color: color-mix(in srgb, var(--jw-ink) 85%, transparent);
 		overflow-wrap: anywhere;
+	}
+
+	/* Nothing in the notes is wider than they are: each part shrinks to their width, and wraps, rather than make the
+	   popup or the page scroll sideways */
+	.release-notes > * {
+		min-width: 0;
+		max-width: 100%;
 	}
 
 	.release-notes :where(h1, h2, h3, h4, h5, h6) {
@@ -230,11 +309,12 @@
 		padding: 1px 5px;
 	}
 
+	/* A command wraps too, to read it whole without scrolling: copied, it's the same text */
 	.release-notes pre {
 		padding: 10px 12px;
 		border-radius: var(--radius-md);
-		overflow-x: auto;
-		overflow-wrap: normal;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
 	}
 
 	.release-notes pre code {
@@ -248,7 +328,11 @@
 		color: color-mix(in srgb, var(--jw-ink) 65%, transparent);
 	}
 
+	/* A wide table scrolls on its own, not the notes */
 	.release-notes table {
+		display: block;
+		max-width: 100%;
+		overflow-x: auto;
 		border-collapse: collapse;
 	}
 
@@ -612,6 +696,29 @@
 		width: 100%;
 		height: 100%;
 		object-fit: contain;
+	}
+
+	/* The logo on a job's page and in its side panel opens its menu (applications/logo.html): it lifts a little under
+	   the pointer, and shows a ring when the keyboard is on it */
+	.logo-button {
+		display: flex;
+		flex: none;
+		padding: 0;
+		border: 0;
+		border-radius: 9px;
+		background: none;
+		cursor: pointer;
+		transition: transform 0.12s ease, box-shadow 0.12s ease;
+	}
+
+	.logo-button:hover {
+		transform: translateY(-1px);
+		box-shadow: var(--jw-shadow-lg);
+	}
+
+	.logo-button:focus-visible {
+		outline: 2px solid var(--jw-accent);
+		outline-offset: 2px;
 	}
 
 	.brand-mark {

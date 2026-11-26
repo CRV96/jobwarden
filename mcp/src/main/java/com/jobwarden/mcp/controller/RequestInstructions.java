@@ -115,6 +115,8 @@ final class RequestInstructions {
 			case WRITE_OUTREACH -> writeOutreach(request.applicationId());
 			case NEGOTIATE_OFFER -> negotiateOffer(request.applicationId());
 			case WRITE_STORIES -> WRITE_STORIES_STEPS;
+			case RESEARCH_COMPANY -> researchCompany(request.applicationId());
+			case FIND_LOGO -> findLogo(request.applicationId());
 		};
 		return "Request " + id + " from JobWarden: " + describe(request.kind()) + ".\n" + steps + finish;
 	}
@@ -139,6 +141,8 @@ final class RequestInstructions {
 			case WRITE_OUTREACH -> "write a LinkedIn note and an email about one job to the people who hire for it";
 			case NEGOTIATE_OFFER -> "write a brief to negotiate one job's offer, with the market salaries JobWarden has";
 			case WRITE_STORIES -> "draft stories for the profile's story bank, the STAR way, from its CV";
+			case RESEARCH_COMPANY -> "find out about one job's company: reviews, salaries, benefits, news and interviews";
+			case FIND_LOGO -> "find one job's company logo";
 		};
 	}
 
@@ -350,6 +354,52 @@ final class RequestInstructions {
 				Save it with save_tailored_cv and job_id %1$d, with matched_keywords (the posting's keywords the CV now \
 				names), missing_keywords (those the person can't honestly claim) and notes: what you changed and what to \
 				check before sending it.
+				""".formatted(jobId);
+	}
+
+	/**
+	 * The company's own logo, from its own site first, in a format Java reads; JobWarden downloads it from the address.
+	 */
+	private static String findLogo(@Nullable Long jobId) {
+		return """
+				job is the posting, with its company, link and notes.
+				Find the company's own website: the posting or the notes may name it, else one web search for the company's \
+				name. When the posting is an agency's or a job board's, the company it hires for.
+				Find its logo there: its apple-touch-icon (often /apple-touch-icon.png, or a link rel="apple-touch-icon" in \
+				the page's head) is usually the best, a square of 180 pixels; else the logo image in its header, or its \
+				og:image when that's the logo. A PNG, JPEG or GIF, at least 64 pixels a side: not SVG, WebP or ICO, which \
+				JobWarden can't read.
+				Call save_company_logo with job_id %1$d and the image's full address. When JobWarden can't use it, it says \
+				why: try another, three at most.
+				In the summary: where the logo came from, or why you found none.
+				""".formatted(jobId);
+	}
+
+	/**
+	 * What someone deciding whether to apply, or about to talk to them, wants to know of a company: from its own site,
+	 * review and salary sites and the news, a few pages read with a question each. Never a rating or a figure made up.
+	 */
+	private static String researchCompany(@Nullable Long jobId) {
+		return """
+				job is the posting, with its company, location, salary, notes and timeline.
+				Search the web for the company: its own site, its reviews (Glassdoor, Kununu, Indeed, Comparably, Blind, \
+				Reddit), what it pays (Glassdoor, Levels.fyi, Paylab, PayScale, the country's own salary sites), and the \
+				news. When the posting is an agency's or a job board's, research the company it hires for, which the \
+				posting or the notes may name. Read the five to eight most useful results with a short question each, not \
+				whole.
+				Save it with save_company_research and job_id %1$d, short and to the point, only what the pages say:
+				- company: what they make and for whom, how many people, where, who owns them, how they're doing;
+				- ratings: each site's score and how many reviews, e.g. Glassdoor 3.9/5 (210 reviews);
+				- pros and cons: what the people who work there say most, three to six each;
+				- salaries: what they pay this role or ones near it, in the job's country first: the role, the amount, per \
+				what, before or after tax, and the source;
+				- benefits: the work model, the hours, the holidays, the perks;
+				- news: what's new in the last two years, with dates: growth, funding, layoffs, acquisitions, products;
+				- interviews: how their hiring goes, as candidates tell it: the rounds, how long, what's asked;
+				- watch_out: what to look into before saying yes, e.g. layoffs, many recent bad reviews, late pay; left out \
+				when there's nothing;
+				- sources: the addresses you read.
+				Never make up a rating, a figure or a fact: leave out what you didn't find, and say so in the summary.
 				""".formatted(jobId);
 	}
 

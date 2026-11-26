@@ -1,19 +1,12 @@
 package com.jobwarden.capture.controller;
 
-import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.InetAddress;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.function.Predicate;
 
-import com.jobwarden.common.image.Images;
-import com.jobwarden.common.net.HttpClients;
+import com.jobwarden.common.image.ImageDownloader;
 import com.jobwarden.common.net.PublicAddresses;
 import com.jobwarden.jobs.dto.PngImage;
 import lombok.CustomLog;
@@ -25,9 +18,8 @@ import org.springframework.stereotype.Component;
  * Downloads the company logo a posting points to, and makes it a small PNG. The extension can't do it itself: most
  * sites don't let other pages read their images.
  * <p>
- * The address comes from the posting, which anyone could have written, so it only goes to the public internet: never
- * to this machine or the local network ({@link PublicAddresses}), also after a redirect. Whatever goes wrong, there's no
- * logo, and the posting is saved without one.
+ * The address comes from the posting, which anyone could have written, so it only goes to the public internet
+ * ({@link ImageDownloader}). Whatever goes wrong, there's no logo, and the posting is saved without one.
  */
 @Component
 @CustomLog
@@ -39,15 +31,7 @@ class LogoDownloader {
 	/** For connecting and for the answer: saving a posting waits for the logo. */
 	private static final Duration TIMEOUT = Duration.ofSeconds(3);
 
-	/** More than any logo takes; anything bigger isn't one. */
-	private static final int MAX_BYTES = 1024 * 1024;
-
-	private static final int MAX_REDIRECTS = 3;
-
-	// Followed by hand, so each address is checked
-	private final HttpClient http = HttpClients.notFollowingRedirects(TIMEOUT);
-
-	private final Predicate<InetAddress> allowed;
+	private final ImageDownloader images;
 
 	LogoDownloader() {
 		this(PublicAddresses::isPublic);
@@ -57,7 +41,7 @@ class LogoDownloader {
 	 * @param allowed which addresses it may download from: the tests' own server is on this machine
 	 */
 	LogoDownloader(Predicate<InetAddress> allowed) {
-		this.allowed = allowed;
+		this.images = new ImageDownloader(TIMEOUT, allowed);
 	}
 
 	/**
@@ -69,54 +53,13 @@ class LogoDownloader {
 			return Optional.empty();
 		}
 		try {
-			return Optional.of(new PngImage(Images.fittedPng(fetch(URI.create(address)), SIZE)));
+			return Optional.of(new PngImage(this.images.fittedPng(address, SIZE)));
 		} catch (IOException | IllegalArgumentException exception) {
 			log.debug("No company logo from {}: {}", address, exception.getMessage());
 		} catch (InterruptedException exception) {
 			Thread.currentThread().interrupt();
 		}
 		return Optional.empty();
-	}
-
-	private BufferedImage fetch(URI address) throws IOException, InterruptedException {
-		URI current = address;
-		for (int redirects = 0;; redirects++) {
-			requireAllowed(current);
-			HttpRequest request = HttpRequest.newBuilder(current)
-				.timeout(TIMEOUT)
-				// Formats Java reads: some image servers would rather send WebP
-				.header("Accept", "image/png,image/jpeg,image/gif;q=0.9")
-				.GET()
-				.build();
-			HttpResponse<InputStream> response = this.http.send(request, HttpResponse.BodyHandlers.ofInputStream());
-			try (InputStream body = response.body()) {
-				int status = response.statusCode();
-				Optional<String> location = response.headers().firstValue("Location");
-				if (status / 100 == 3 && location.isPresent() && redirects < MAX_REDIRECTS) {
-					current = current.resolve(location.get());
-					continue;
-				}
-				if (status != 200) {
-					throw new IOException("It answered " + status);
-				}
-				byte[] bytes = body.readNBytes(MAX_BYTES + 1);
-				if (bytes.length > MAX_BYTES) {
-					throw new IOException("It's over " + MAX_BYTES + " bytes");
-				}
-				return Images.read(bytes);
-			}
-		}
-	}
-
-	private void requireAllowed(URI address) throws IOException {
-		if ((!"https".equals(address.getScheme()) && !"http".equals(address.getScheme())) || address.getHost() == null) {
-			throw new IOException("Not a web address");
-		}
-		for (InetAddress resolved : InetAddress.getAllByName(address.getHost())) {
-			if (!this.allowed.test(resolved)) {
-				throw new IOException("Not on the public internet: " + resolved.getHostAddress());
-			}
-		}
 	}
 
 }

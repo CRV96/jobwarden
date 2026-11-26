@@ -217,7 +217,7 @@ jobs:
 
   # A tag like v0.2.0 publishes that version: a GitHub release with build's jar, the extension's zip and a compose.yaml
   # that runs the version's image (publish) with PostgreSQL, each attested as built here from that tag, and notes that
-  # say how to run it and how to upgrade, keeping the data. Running JobWarden servers see it within a day (the updates
+  # say what changed (CHANGELOG.md's section for the version), how to run it and how to upgrade, keeping the data. Running JobWarden servers see it within a day (the updates
   # module asks GitHub for the latest release), and say so in the sidebar, the settings and the extension's popup.
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -251,10 +251,18 @@ jobs:
             app/target/jobwarden-app-*.jar
             jobwarden-extension-*.zip
             compose.yaml
-      # Above the notes GitHub makes from the pull requests
+      # What changed first, as CHANGELOG.md says it for this version, in points: what JobWarden's What's new popup
+      # shows after the update. Then how to run it, and the notes GitHub makes from the pull requests.
       - name: Write the release notes
         run: |
-          cat > notes.md <<'NOTES'
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '$0 ~ "^## " v "( |$)" { on = 1; next } on && /^## / { exit } on' CHANGELOG.md > changes.md
+          if ! grep -q '[^[:space:]]' changes.md; then
+            echo "CHANGELOG.md has no section for ${version}: add one, under ## ${version}" >&2
+            exit 1
+          fi
+          { echo "## What's new"; cat changes.md; echo; echo '---'; echo; } > notes.md
+          cat >> notes.md <<'NOTES'
           ## Running it with Docker
 
           The image is `@IMAGE@:@VERSION@` (also `@MINOR@` and `latest`), attested as built from this tag: `gh attestation verify oci://@IMAGE@:@VERSION@ --repo @REPO@`.
@@ -270,7 +278,6 @@ jobs:
           The database and the key are in Docker volumes, never in the containers: the new JobWarden container takes them over, and upgrades the schema as it starts. Then reload the browser extension, from its zip below.
 
           NOTES
-          version="${GITHUB_REF_NAME#v}"
           sed -i "s|@IMAGE@|ghcr.io/${GITHUB_REPOSITORY,,}|g; s|@VERSION@|${version}|g; s|@MINOR@|${version%.*}|g; s|@REPO@|${GITHUB_REPOSITORY}|g" notes.md
       - name: Publish the release
         env:

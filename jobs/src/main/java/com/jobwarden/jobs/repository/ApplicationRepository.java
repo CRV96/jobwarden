@@ -188,6 +188,9 @@ public interface ApplicationRepository extends JpaRepository<ApplicationEntity, 
 	@EntityGraph(attributePaths = "events")
 	Optional<ApplicationEntity> findByIdAndUserId(long id, long userId);
 
+	/** Whether the profile has the job, without loading it. */
+	boolean existsByIdAndUserId(long id, long userId);
+
 	/**
 	 * With the timeline, like {@link #findByIdAndUserId}: capturing may add an event to it, and looking a link up
 	 * shows when its status changed last.

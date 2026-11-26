@@ -137,6 +137,41 @@ class ApplicationCsvServiceTests {
 		assertThat(copy.appliedBy()).isEqualTo(AppliedBy.CLAUDE);
 	}
 
+	/** What 1.1.2 lets the page change: the posting's facts, and the description with its formatting, as Markdown. */
+	@Test
+	void keepsTheEditedFactsAndTheFormattedDescriptionThroughExportAndImport() throws IOException {
+		long id = this.applications.create(NewApplication.builder()
+			.userId(this.userId)
+			.title("Java Engineer")
+			.company("Tech Talent")
+			.link("https://www.techtalent.ro/careers/7")
+			.initialStatus(ApplicationStatus.SAVED)
+			.initialStatusDate(LocalDate.of(2026, 11, 26))
+			.build());
+		String description = """
+				**Requirements**
+				- 4–6+ years of *Java*, "Core Java" and Spring, OOP
+				- SAP Commerce; Hibernate, MySQL
+
+				=HYPERLINK("https://evil.example") stays text
+				More at https://www.tires-easy.com/careers""";
+		this.applications.updatePosting(this.userId, id, "Senior Java & SAP Commerce Engineer", "Tires Easy",
+				"https://www.tires-easy.com/careers/java", "B2B, Full-time");
+		this.applications.updateDescription(this.userId, id, description);
+
+		CsvImport imported = this.csv.importCsv(this.otherUserId, new StringReader(export(this.userId)));
+
+		assertThat(imported).isEqualTo(new CsvImport(1, 0, List.of()));
+		ApplicationDetails copy = this.applications.findById(this.otherUserId,
+				this.applications.findAll(this.otherUserId, null).getFirst().id()).orElseThrow();
+		assertThat(copy.title()).isEqualTo("Senior Java & SAP Commerce Engineer");
+		assertThat(copy.company()).isEqualTo("Tires Easy");
+		assertThat(copy.link()).isEqualTo("https://www.tires-easy.com/careers/java");
+		assertThat(copy.source()).isEqualTo("tires-easy.com");
+		assertThat(copy.employmentType()).isEqualTo("B2B, Full-time");
+		assertThat(copy.description()).isEqualTo(description);
+	}
+
 	@Test
 	void readsASpreadsheetsColumnsSemicolonsAndUsualStatusNames() throws IOException {
 		String sheet = """

@@ -136,9 +136,19 @@ public interface ApplicationService {
 	Optional<PngImage> findCompanyLogo(long userId, long applicationId);
 
 	/**
-	 * The profile's applications that have a company logo, so a page knows which logos to show without loading them.
+	 * The profile's applications that have a company logo, with each one's version, when it last changed in epoch
+	 * seconds: a page knows which logos to show without loading them, and puts the version in their address, so a
+	 * browser that kept the old logo for a day asks for a new one.
 	 */
-	Set<Long> findApplicationsWithLogo(long userId);
+	Map<Long, Long> findLogoVersions(long userId);
+
+	/**
+	 * Gives one of the profile's applications a company logo, e.g. the one the AI Assistant found, in place of the one
+	 * it had, or removes it.
+	 *
+	 * @param logo the logo, or {@code null} to remove it: the company's initials show instead
+	 */
+	void changeCompanyLogo(long userId, long applicationId, @Nullable PngImage logo);
 
 	/**
 	 * Adds an event to the timeline. The application's status follows its latest event.
@@ -178,6 +188,22 @@ public interface ApplicationService {
 	 * @param location where the job is, e.g. "Bucharest, hybrid"; {@code null} to clear it
 	 */
 	void updateLocation(long userId, long applicationId, @Nullable String location);
+
+	/**
+	 * Corrects what the posting says of itself, e.g. the company of a job the browser extension saved. The site it came
+	 * from follows the link.
+	 *
+	 * @param link the posting's address; {@code null} for a job without one
+	 * @param employmentType e.g. Full-time or B2B; {@code null} when the posting doesn't say
+	 */
+	void updatePosting(long userId, long applicationId, String title, @Nullable String company, @Nullable String link,
+			@Nullable String employmentType);
+
+	/**
+	 * @param description the posting's text, its bold, italics and lists as Markdown (**bold**, *italics*, - a point);
+	 * {@code null} to clear it
+	 */
+	void updateDescription(long userId, long applicationId, @Nullable String description);
 
 	/**
 	 * @param followUp who to follow up with and when, replacing what was known; {@link FollowUp#NONE} to clear it

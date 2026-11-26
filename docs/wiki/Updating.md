@@ -7,7 +7,10 @@ extension's popup. Updating keeps all your data; going back to an older version 
 **What's new** (in the profile menu, and where the sidebar says there's a newer version) lists every release with what
 it changed, marks the one you run, and links here. After an update, the first page each profile opens shows what
 changed since the version it saw before, once; this browser remembers which one that was. A profile made after the
-release came out isn't told of it. Without GitHub (or with `jobwarden.updates.check=false`), the page lists nothing,
+release came out isn't told of it. Each release's notes start with what changed, in points, as
+[CHANGELOG.md](https://github.com/CRV96/jobwarden/blob/main/CHANGELOG.md) says it for that version (the release workflow
+copies its section, and fails without one), then how to run and upgrade it; they wrap in the popup, commands too,
+rather than scroll sideways. Without GitHub (or with `jobwarden.updates.check=false`), the page lists nothing,
 and no popup opens.
 
 ## Back up first
@@ -34,7 +37,7 @@ and the database password once it's changed in Settings). An upgrade only replac
 
 1. Back up (above).
 2. Put the new release's `compose.yaml` in place of yours, in the **same folder**: Compose names the volumes after the
-   folder, so another folder would start with empty ones. Or keep yours and set `JOBWARDEN_VERSION=1.1.1`. In that
+   folder, so another folder would start with empty ones. Or keep yours and set `JOBWARDEN_VERSION=1.1.2`. In that
    folder, this downloads the latest one over yours (`curl.exe` on Windows):
 
    ```bash
@@ -53,8 +56,8 @@ down` keeps the volumes; only `docker compose down --volumes` deletes them.
 ## From the sources or the jar
 
 1. Back up (above).
-2. Get the new version: `git pull` (or `git checkout v1.1.1`) in your clone, or the release's jar.
-3. Start it as before (`./mvnw -pl app -am spring-boot:run`, or `java -jar jobwarden-app-1.1.1.jar`). Flyway upgrades
+2. Get the new version: `git pull` (or `git checkout v1.1.2`) in your clone, or the release's jar.
+3. Start it as before (`./mvnw -pl app -am spring-boot:run`, or `java -jar jobwarden-app-1.1.2.jar`). Flyway upgrades
    the schema as it starts, and the log says which migrations ran.
 
 PostgreSQL itself stays as it is: in Docker its image names its major version (18), and moving to the next major

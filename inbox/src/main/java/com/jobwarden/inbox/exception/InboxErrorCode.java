@@ -14,7 +14,13 @@ public enum InboxErrorCode implements ErrorCode {
 	NO_MAILBOX("INBOX-003"),
 
 	/** Nothing answers on this computer at the port: Proton Mail Bridge, say, isn't open. */
-	LOCAL_SERVER_DOWN("INBOX-004");
+	LOCAL_SERVER_DOWN("INBOX-004"),
+
+	/**
+	 * In a container, nothing answers at the port on 127.0.0.1, which is the container itself, nor on the computer, at
+	 * host.docker.internal.
+	 */
+	LOCAL_SERVER_DOWN_IN_CONTAINER("INBOX-005");
 
 	private final String code;
 

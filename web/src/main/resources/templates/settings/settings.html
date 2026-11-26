@@ -110,13 +110,32 @@
                         <button class="btn btn-secondary" type="submit">
                             <i class="ph ph-key"></i><span th:text="${profileHasPassword} ? #{settings.password.change} : #{settings.password.set}">Set password</span>
                         </button>
-                        <!--/* Removing it needs only the current one: the new ones are left out of the form's checks */-->
-                        <button class="btn btn-ghost" type="submit" th:if="${profileHasPassword}" formnovalidate
-                                th:formaction="@{/profiles/password/remove}">
-                            <i class="ph ph-lock-simple-open"></i><span th:text="#{settings.password.remove}">Remove password</span>
-                        </button>
                     </form>
                     <p class="field-error" role="alert" th:if="${profilePasswordError}" th:text="${profilePasswordError}">That isn’t the password.</p>
+                    <!--/* Removing it is a form of its own, with the current password alone: in the form above, Enter would
+                           change it instead, and the new ones would be asked for */-->
+                    <div class="flex flex-wrap items-center gap-2 border-t border-line pt-2" th:if="${profileHasPassword}">
+                        <p class="min-w-[200px] flex-1 text-xs text-pretty text-ink/60" th:text="#{settings.password.remove.hint}">
+                            Don’t need it any more? Remove it, and the profile opens without one.</p>
+                        <button class="btn btn-ghost" type="button" data-toggle-hidden="remove-password"
+                                data-focus="[name=current]" aria-controls="remove-password">
+                            <i class="ph ph-lock-simple-open"></i><span th:text="#{settings.password.remove}">Remove password</span>
+                        </button>
+                    </div>
+                    <form id="remove-password" class="flex flex-wrap items-end gap-2" method="post"
+                          th:hidden="${profilePasswordRemoveError == null}"
+                          th:action="@{/profiles/password/remove}" th:if="${profileHasPassword}">
+                        <label class="flex min-w-[140px] flex-1 flex-col gap-1">
+                            <span class="field-label" th:text="#{settings.password.current}">Current password</span>
+                            <input class="input" type="password" name="current" required autocomplete="current-password">
+                        </label>
+                        <button class="btn btn-danger" type="submit">
+                            <i class="ph ph-lock-simple-open"></i><span th:text="#{settings.password.remove.confirm}">Remove the password</span>
+                        </button>
+                        <button class="btn btn-ghost" type="reset" data-toggle-hidden="remove-password" th:text="#{action.cancel}">Cancel</button>
+                        <p class="field-error w-full" role="alert" th:if="${profilePasswordRemoveError}"
+                           th:text="${profilePasswordRemoveError}">That isn’t the password.</p>
+                    </form>
                 </div>
                 <!--/* Deleting the profile and everything of it, for good (ProfileController): its name typed to confirm, in
                        a dialog that says what goes; typed otherwise, nothing goes, and the page says why */-->
@@ -564,6 +583,35 @@
                     </dl>
                     <div class="text-xs text-pretty text-ink/60" th:text="#{settings.assistant.body}">Lets your assistant do what you ask on the pages…</div>
                     <div class="text-xs text-pretty text-ink/60" th:text="#{settings.assistant.chatgpt}">The ChatGPT app can’t connect…</div>
+                </div>
+                <!--/* In Docker: Run starts the assistant in JobWarden's container, which has none of its own. How anyone running
+                       it there puts Claude Code in it, from Anthropic, once (it stays on JobWarden's volume across updates),
+                       and signs it in; whether it's there already. Without it, the pages keep their prompts to paste. */-->
+                <div class="card flex items-start gap-3 p-3" id="run-in-docker" th:if="${inContainer}" th:with="runLabel=#{ai.run}">
+                    <i class="ph ph-shipping-container text-[22px] text-accent"></i>
+                    <div class="flex min-w-0 flex-1 flex-col gap-2">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="font-medium" th:text="#{settings.docker.run.title}">Run it here, with JobWarden in Docker</span>
+                            <span class="tag st-offer" th:if="${claudeRunsHere}">
+                                <i class="ph ph-check"></i><span th:text="#{settings.docker.run.installed}">Claude Code is in the container</span>
+                            </span>
+                            <span class="tag st-rejected" th:unless="${claudeRunsHere}">
+                                <i class="ph ph-plugs"></i><span th:text="#{settings.docker.run.missing}">Not installed yet</span>
+                            </span>
+                        </div>
+                        <div class="text-xs text-pretty text-ink/60" th:text="#{settings.docker.run.hint(${runLabel})}">Run starts Claude Code inside JobWarden’s container…</div>
+                        <div class="text-xs text-ink/60" th:text="#{settings.docker.run.install}">1. Install Claude Code in the container, once:</div>
+                        <div class="flex items-start gap-2">
+                            <code class="query-box min-h-0 flex-1 py-2 text-[12px] whitespace-pre-wrap" th:text="${dockerInstall}">docker compose exec jobwarden bash -c "…"</code>
+                            <button th:replace="~{settings/settings :: copy(${dockerInstall})}"></button>
+                        </div>
+                        <div class="text-xs text-ink/60" th:text="#{settings.docker.run.signIn}">2. Sign it in with your Claude plan, once:</div>
+                        <div class="flex items-start gap-2">
+                            <code class="query-box min-h-0 flex-1 py-2 text-[12px] whitespace-pre-wrap" th:text="${dockerSignIn}">docker compose exec -it jobwarden claude auth login</code>
+                            <button th:replace="~{settings/settings :: copy(${dockerSignIn})}"></button>
+                        </div>
+                        <div class="text-xs text-pretty text-ink/60" th:text="#{settings.docker.run.then(${runLabel})}">3. Reload the page: Run shows next to each request…</div>
+                    </div>
                 </div>
                 <!--/* The main one: Run it here, the terminal commands and the loop use it */-->
                 <form class="card flex flex-col gap-3 p-3" method="post" th:action="@{/settings/assistant}" th:if="${currentProfile}">

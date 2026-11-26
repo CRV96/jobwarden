@@ -47,6 +47,7 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willReturn;
@@ -88,6 +89,9 @@ class InboxServiceTests {
 	@MockitoBean
 	private DiscoveryService discovery;
 
+	@MockitoBean
+	private ThisComputer thisComputer;
+
 	private long userId;
 
 	private long otherUserId;
@@ -97,6 +101,7 @@ class InboxServiceTests {
 	@BeforeEach
 	void createProfiles() {
 		given(this.reader.test(any())).willReturn(new Tested(false, null));
+		given(this.thisComputer.host()).willReturn("127.0.0.1");
 		this.jdbc.sql("TRUNCATE users CASCADE").update();
 		this.userId = insertProfile("Robert");
 		this.otherUserId = insertProfile("Someone else");
@@ -169,6 +174,75 @@ class InboxServiceTests {
 				assertThat(refused.getArguments()).containsExactly("127.0.0.1", "1143");
 			});
 		assertThat(this.inbox.findAccount(this.userId)).isEmpty();
+	}
+
+	@Test
+	void connectsProtonMailBridgeOnTheComputerWhenJobWardenRunsInAContainer() {
+		inAContainer();
+		willThrow(new MailFailure("Connection refused", MailProblem.LOCAL_SERVER_DOWN, new RuntimeException()))
+			.given(this.reader)
+			.test(argThat(server -> server.host().equals("127.0.0.1")));
+		willReturn(new Tested(true, CERTIFICATE)).given(this.reader)
+			.test(argThat(server -> server.host().equals("host.docker.internal")));
+
+		// 127.0.0.1 is the container itself: Bridge answers on the computer, which is the server kept
+		assertThat(this.inbox.connect(this.userId, PROTON_BRIDGE)).satisfies(account -> {
+			assertThat(account.host()).isEqualTo("host.docker.internal");
+			assertThat(account.port()).isEqualTo(1143);
+			assertThat(account.certificate()).isEqualTo(CERTIFICATE);
+		});
+	}
+
+	/** Docker's host network, on Linux: the container's 127.0.0.1 is the computer's, which has no other name. */
+	@Test
+	void connectsTheComputersOwnAddressWhenTheContainerSharesItsNetwork() {
+		inAContainer();
+		willThrow(new MailFailure("Unknown host", MailProblem.LOCAL_SERVER_DOWN, new RuntimeException()))
+			.given(this.reader)
+			.test(argThat(server -> server.host().equals("host.docker.internal")));
+		willReturn(new Tested(true, CERTIFICATE)).given(this.reader)
+			.test(argThat(server -> server.host().equals("127.0.0.1")));
+
+		assertThat(this.inbox.connect(this.userId, new NewMailAccount("host.docker.internal", 1143, "robert@proton.me",
+				"bridge password", "INBOX")).host()).isEqualTo("127.0.0.1");
+	}
+
+	@Test
+	void saysWhereItLookedWhenNothingAnswersInAContainer() {
+		inAContainer();
+		willThrow(new MailFailure("Connection refused", MailProblem.LOCAL_SERVER_DOWN, new RuntimeException()))
+			.given(this.reader)
+			.test(any());
+
+		assertThatExceptionOfType(BusinessRuleException.class)
+			.isThrownBy(() -> this.inbox.connect(this.userId, PROTON_BRIDGE))
+			.satisfies(refused -> {
+				assertThat(refused.getErrorCode()).isEqualTo(InboxErrorCode.LOCAL_SERVER_DOWN_IN_CONTAINER);
+				assertThat(refused.getArguments()).containsExactly("127.0.0.1", "1143", "host.docker.internal");
+			});
+		assertThat(this.inbox.findAccount(this.userId)).isEmpty();
+	}
+
+	@Test
+	void saysWhyTheComputersServerRefusedInAContainer() {
+		inAContainer();
+		willThrow(new MailFailure("Connection refused", MailProblem.LOCAL_SERVER_DOWN, new RuntimeException()))
+			.given(this.reader)
+			.test(argThat(server -> server.host().equals("127.0.0.1")));
+		willThrow(new MailFailure("Invalid credentials", new RuntimeException())).given(this.reader)
+			.test(argThat(server -> server.host().equals("host.docker.internal")));
+
+		assertThatExceptionOfType(BusinessRuleException.class)
+			.isThrownBy(() -> this.inbox.connect(this.userId, PROTON_BRIDGE))
+			.satisfies(refused -> {
+				assertThat(refused.getErrorCode()).isEqualTo(InboxErrorCode.MAILBOX_NOT_REACHED);
+				assertThat(refused.getArguments()).containsExactly("Invalid credentials");
+			});
+	}
+
+	private void inAContainer() {
+		given(this.thisComputer.inContainer()).willReturn(true);
+		given(this.thisComputer.host()).willReturn("host.docker.internal");
 	}
 
 	@Test

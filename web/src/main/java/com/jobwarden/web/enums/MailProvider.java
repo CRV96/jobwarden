@@ -1,5 +1,8 @@
 package com.jobwarden.web.enums;
 
+import java.util.Locale;
+
+import com.jobwarden.inbox.service.InboxService;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -9,7 +12,9 @@ import org.jspecify.annotations.Nullable;
  * doesn't have.
  * <p>
  * Each has its IMAP server ({@code null} for another provider, whose server the profile types) and its port: IMAP over
- * TLS, or, for Bridge, the port it shows (STARTTLS, which connecting finds out).
+ * TLS, or, for Bridge, the port it shows (STARTTLS, which connecting finds out). Bridge's server is this computer's own
+ * address, which, when JobWarden runs in a container, the page fills in as the container names the computer
+ * (InboxService.localServerHost).
  */
 public enum MailProvider {
 
@@ -37,11 +42,16 @@ public enum MailProvider {
 	}
 
 	/**
-	 * @return the provider with that IMAP server, e.g. as typed in a form that came back; Other for one of none
+	 * @return the provider with that IMAP server, e.g. as typed in a form that came back: Proton Mail (Bridge) for one
+	 * on this computer, whichever of its names; Other for one of none
 	 */
 	public static MailProvider of(@Nullable String host) {
+		String typed = (host != null) ? host.strip() : null;
+		if (typed != null && InboxService.THIS_COMPUTER.contains(typed.toLowerCase(Locale.ROOT))) {
+			return PROTON_BRIDGE;
+		}
 		for (MailProvider provider : values()) {
-			if (provider.host != null && provider.host.equalsIgnoreCase((host != null) ? host.strip() : null)) {
+			if (provider.host != null && provider.host.equalsIgnoreCase(typed)) {
 				return provider;
 			}
 		}

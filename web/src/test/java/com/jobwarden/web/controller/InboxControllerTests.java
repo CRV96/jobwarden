@@ -93,6 +93,7 @@ class InboxControllerTests {
 	@BeforeEach
 	void selectRobert() {
 		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+		given(this.inbox.localServerHost()).willReturn("127.0.0.1");
 		given(this.applications.findAll(1, null)).willReturn(List.of(
 				job(7, "Backend engineer", ApplicationStatus.APPLIED), job(8, "Platform engineer", ApplicationStatus.SAVED),
 				job(9, "Old one", ApplicationStatus.REJECTED)));
@@ -113,6 +114,15 @@ class InboxControllerTests {
 			.bodyText()
 			.contains("Proton Mail (Bridge)", "data-host=\"127.0.0.1\" data-port=\"1143\" data-local=\"true\"",
 					"Bridge password", "Proton Mail Bridge has to be open on this computer");
+	}
+
+	@Test
+	void offersProtonMailBridgeOnTheComputerWhenJobWardenRunsInAContainer() {
+		given(this.inbox.localServerHost()).willReturn("host.docker.internal");
+
+		assertThat(this.mvc.get().uri("/inbox")).hasStatusOk()
+			.bodyText()
+			.contains("data-host=\"host.docker.internal\" data-port=\"1143\" data-local=\"true\"");
 	}
 
 	@Test

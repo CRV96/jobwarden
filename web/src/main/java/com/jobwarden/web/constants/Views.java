@@ -23,6 +23,10 @@ public final class Views {
 	public static final String JOB_FIT_FRAGMENT = "applications/job-fit :: card";
 	/** A job's interview brief, which HTMX loads after the job and swaps as it changes. */
 	public static final String INTERVIEW_BRIEF_FRAGMENT = "applications/interview-brief :: card";
+	/** What the AI Assistant found out about a job's company, which HTMX loads after the job and swaps as it changes. */
+	public static final String COMPANY_RESEARCH_FRAGMENT = "applications/company-research :: card";
+	/** Under a job's header, while the AI Assistant looks for its company's logo. */
+	public static final String LOGO_FINDER_FRAGMENT = "applications/logo :: finder";
 	/** A job's AI-proof CV, which HTMX loads after the job and swaps as it changes. */
 	public static final String TAILORED_CV_FRAGMENT = "applications/tailored-cv :: card";
 	/** A job's tailored CV, to change by hand. */

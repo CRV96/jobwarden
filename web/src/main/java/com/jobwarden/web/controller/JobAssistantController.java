@@ -14,6 +14,7 @@ import com.jobwarden.jobs.dto.JobFit;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.exception.ApplicationNotFoundException;
 import com.jobwarden.jobs.service.ApplicationService;
+import com.jobwarden.jobs.service.CompanyResearchService;
 import com.jobwarden.jobs.service.InterviewBriefService;
 import com.jobwarden.jobs.service.JobFitService;
 import com.jobwarden.jobs.service.OfferService;
@@ -33,8 +34,9 @@ import static com.jobwarden.web.controller.Pages.requireProfile;
 
 /**
  * What the AI Assistant has for a job, at a glance, under its facts: the fit, its score and why, and each card (the
- * AI-proof CV, the cover letter, the messages, the interview prep, and at Offer the negotiation), made, in progress or
- * not yet, each a link to its card. HTMX loads it after the job, and again while the assistant is on one.
+ * company research, the AI-proof CV, the cover letter, the messages, the interview prep, and at Offer the
+ * negotiation), made, in progress or not yet, each a link to its card. HTMX loads it after the job, and again while the
+ * assistant is on one.
  */
 @PageController
 @RequestMapping(ControllerConstants.APPLICATIONS + "/{id}/assistant")
@@ -53,6 +55,8 @@ class JobAssistantController {
 
 	private final InterviewBriefService briefs;
 
+	private final CompanyResearchService research;
+
 	private final OfferService offers;
 
 	@GetMapping
@@ -62,6 +66,8 @@ class JobAssistantController {
 		Optional<JobFit> fit = this.fits.find(userId, id);
 		List<AssistantCard> cards = new ArrayList<>();
 		cards.add(card(userId, id, "fit.title", "job-fit", AiRequestKind.SCORE_JOB, fit.isPresent()));
+		cards.add(card(userId, id, "research.title", "company-research", AiRequestKind.RESEARCH_COMPANY,
+				this.research.find(userId, id).isPresent()));
 		cards.add(card(userId, id, "tailoredCv.title", "tailored-cv", AiRequestKind.TAILOR_CV,
 				this.cvs.findTailored(userId, id).isPresent()));
 		cards.add(card(userId, id, "letter.title", "cover-letter", AiRequestKind.WRITE_COVER_LETTER,

@@ -61,6 +61,7 @@ import com.jobwarden.jobs.enums.OfferExtraKind;
 import com.jobwarden.jobs.enums.PayFrequency;
 import com.jobwarden.jobs.enums.SalaryPeriod;
 import com.jobwarden.jobs.service.ApplicationService;
+import com.jobwarden.jobs.service.CompanyResearchService;
 import com.jobwarden.jobs.service.InterviewBriefService;
 import com.jobwarden.jobs.service.JobFitService;
 import com.jobwarden.jobs.service.OfferService;
@@ -104,14 +105,21 @@ import static org.mockito.BDDMockito.given;
  */
 @WebMvcTest(McpController.class)
 @Import({ JobTools.class, DiscoverTools.class, CvTools.class, RequestTools.class, HiringTools.class, ApplyTools.class,
-		PrepTools.class, FitTools.class, InboxTools.class, ProjectTools.class, WatchlistTools.class, OfferTools.class,
+		PrepTools.class, ResearchTools.class, FitTools.class, InboxTools.class, ProjectTools.class, WatchlistTools.class, OfferTools.class,
 		LetterTools.class, StoryTools.class, Profiles.class })
 class McpBudgetTests {
 
 	private static final long JOB = 7;
 
-	/** What the model reads of tools/list, in every session of every assistant: names, descriptions, schemas. */
-	private static final int TOOLS_BUDGET = 26_000;
+	/**
+	 * What the model reads of tools/list, in every session of every assistant: names, descriptions, schemas. 26,000
+	 * until 1.1.2 added save_company_research and save_company_logo, whose fields go undescribed: their requests' steps
+	 * say what goes in each.
+	 */
+	private static final int TOOLS_BUDGET = 26_500;
+
+	/** The calls before the work begins, over every kind of request: each kind takes one, get_request, at least. */
+	private static final int CALLS_BUDGET = 26;
 
 	/**
 	 * The most a request may hand out: Codex cuts a tool's result to 10,000 tokens, some 35,000 characters of JSON, and
@@ -145,6 +153,12 @@ class McpBudgetTests {
 
 	@MockitoBean
 	private InterviewBriefService briefs;
+
+	@MockitoBean
+	private CompanyResearchService research;
+
+	@MockitoBean
+	private CompanyLogos logos;
 
 	@MockitoBean
 	private JobFitService fits;
@@ -353,7 +367,7 @@ class McpBudgetTests {
 
 		assertThat(modelFacing).hasSizeLessThan(TOOLS_BUDGET);
 		assertThat(requests).allSatisfy((kind, length) -> assertThat(length).as(kind.name()).isLessThan(REQUEST_BUDGET));
-		assertThat(calls).isLessThanOrEqualTo(25);
+		assertThat(calls).isLessThanOrEqualTo(CALLS_BUDGET);
 	}
 
 	/** What a client hands the model of each tool: its name, description and input schema. */

@@ -2,6 +2,7 @@ package com.jobwarden.inbox.service.impl;
 
 import java.io.IOException;
 import java.net.ConnectException;
+import java.net.UnknownHostException;
 import java.security.cert.CertificateException;
 import java.time.Clock;
 import java.time.Instant;
@@ -157,6 +158,9 @@ class ImapMailReader implements MailReader {
 				// certificate it refuses isn't tried again the usual way.
 				properties.put(own + "ssl.socketFactory", trust.socketFactory());
 				properties.put(own + "socketFactory.fallback", "false");
+				// The certificate itself is what's checked: Bridge's names 127.0.0.1 alone, which a container reaches
+				// as host.docker.internal
+				properties.put(own + "ssl.checkserveridentity", "false");
 			} else {
 				properties.put(own + "ssl.checkserveridentity", "true");
 			}
@@ -264,7 +268,10 @@ class ImapMailReader implements MailReader {
 		MailProblem problem = null;
 		if (causedBy(failed, LocalServerTrust.CertificateChanged.class)) {
 			problem = MailProblem.CERTIFICATE_CHANGED;
-		} else if (server.isLocal() && causedBy(failed, ConnectException.class)) {
+		} else if (server.isLocal()
+				&& (causedBy(failed, ConnectException.class) || causedBy(failed, UnknownHostException.class))) {
+			// Unknown, a name for this computer that JobWarden's container doesn't have, e.g. host.docker.internal on
+			// Linux: nothing answers there either
 			problem = MailProblem.LOCAL_SERVER_DOWN;
 		}
 		return new MailFailure(reason(failed), problem, failed);

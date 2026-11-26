@@ -1,7 +1,7 @@
 package com.jobwarden.jobs.repository;
 
+import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 import com.jobwarden.jobs.entity.CompanyLogoEntity;
 
@@ -20,11 +20,12 @@ public interface CompanyLogoRepository extends JpaRepository<CompanyLogoEntity, 
 	Optional<CompanyLogoEntity> findOwned(long userId, long applicationId);
 
 	/**
-	 * The profile's applications that have a logo, so a page knows which to show without loading the images.
+	 * The profile's applications that have a logo, with when each last changed, so a page knows which logos to show,
+	 * and their versions, without loading the images.
 	 */
 	@Query("""
-			select l.applicationId from CompanyLogoEntity l
+			select new com.jobwarden.jobs.repository.LogoVersion(l.applicationId, l.updatedAt) from CompanyLogoEntity l
 			where exists (select a from ApplicationEntity a where a.id = l.applicationId and a.userId = :userId)""")
-	Set<Long> findApplicationIds(long userId);
+	List<LogoVersion> findVersions(long userId);
 
 }

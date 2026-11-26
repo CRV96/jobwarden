@@ -1,6 +1,6 @@
 /*
  * What forms do beyond HTML: fields shown for some statuses only, rows added and removed, characters counted, files
- * checked for size, examples offered, and fields filled in from a pick (a mail provider), or emptied (a time).
+ * checked for size, examples offered, and fields filled in from a pick (a mail provider, a chip), or emptied (a time).
  */
 
 /**
@@ -58,6 +58,24 @@ export function clearPrevious(target) {
 	if (field instanceof HTMLInputElement) {
 		field.value = '';
 		field.dispatchEvent(new Event('input', { bubbles: true }));
+	}
+	return true;
+}
+
+/**
+ * data-fill="<selector>" with data-value: puts the value in that field of the form, e.g. a job's employment type picked
+ * from its chips, and the cursor after it.
+ */
+export function fill(target) {
+	const chip = target.closest('[data-fill]');
+	if (!chip) {
+		return false;
+	}
+	const field = chip.closest('form')?.querySelector(chip.dataset.fill);
+	if (field instanceof HTMLInputElement) {
+		field.value = chip.dataset.value ?? '';
+		field.dispatchEvent(new Event('input', { bubbles: true }));
+		field.focus();
 	}
 	return true;
 }

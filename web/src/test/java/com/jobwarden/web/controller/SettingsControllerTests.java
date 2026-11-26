@@ -135,6 +135,39 @@ class SettingsControllerTests {
 	}
 
 	@Test
+	void saysHowToRunTheAssistantInDockerOnlyThere() {
+		// The tests don't run in a container: Settings keeps the card for Docker to itself
+		assertThat(this.mvc.get().uri("/settings")).bodyText().doesNotContain("id=\"run-in-docker\"");
+	}
+
+	@Test
+	void removesThePasswordInAFormOfItsOwn() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+		given(this.users.hasPassword(ROBERT.id())).willReturn(true);
+
+		assertThat(this.mvc.get().uri("/settings")).bodyText()
+			.contains("Change password", "Remove password", "data-toggle-hidden=\"remove-password\"", "Remove the password")
+			.containsPattern("<form id=\"remove-password\"(?=[^>]*\\shidden=\"hidden\")[^>]*action=\"/profiles/password/remove\"")
+			// Not a second button of the form that changes it, which Enter would never reach
+			.doesNotContain("formaction=\"/profiles/password/remove\"");
+		// A wrong one: the form comes back open, saying why
+		assertThat(this.mvc.get().uri("/settings").flashAttr("profilePasswordRemoveError", "That isn’t the password."))
+			.bodyText()
+			.contains("That isn’t the password.")
+			.containsPattern("<form id=\"remove-password\"[^>]*action=\"/profiles/password/remove\"")
+			.doesNotContainPattern("<form id=\"remove-password\"[^>]*\\shidden=");
+	}
+
+	@Test
+	void offersNoRemovalWithoutAPassword() {
+		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
+
+		assertThat(this.mvc.get().uri("/settings")).bodyText()
+			.contains("Set password")
+			.doesNotContain("id=\"remove-password\"", "Remove password");
+	}
+
+	@Test
 	void offersToRenameTheProfileBesideItsPhoto() {
 		given(this.currentUser.get()).willReturn(Optional.of(ROBERT));
 

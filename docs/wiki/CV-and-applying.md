@@ -36,9 +36,13 @@ never more; you review and send.
 
 **Interview prep**: on a job's page (and its side panel), the assistant prepares you for its interview (a `PREPARE_INTERVIEW` request): it reads the posting and your CV, finds out about the company from a few pages (its own, the news, interview reviews), and saves a brief with `save_interview_brief` to read the evening before: who they are and what's new with them, what the role is about and what they'll look for, the questions likely asked, your own stories that answer them (from your story bank first, else from your CV, never what neither supports), questions to ask them, what to look into before saying yes, and where it read it all (`interview_briefs`, in `jobs`).
 
+## Company research
+
+**Company research**: on a job's page (and its side panel), right under its fit, the assistant finds out about the job's company on the web (a `RESEARCH_COMPANY` request): from its own site, review sites (Glassdoor, Kununu, Indeed, Blind, Reddit), salary sites (Glassdoor, Levels.fyi, Paylab, the country's own) and the news, a few pages read with a question each, and for a posting from an agency or a job board, the company it hires for, which the posting or the job's notes name. It saves with `save_company_research` who they are, the employer's ratings with their sites and how many reviews, what the people who work there praise and complain about, what the company pays this role or ones near it (with the source), its benefits and way of working, its news of the last two years, how its interviews go, what to look into before saying yes, and where it read it all; never a rating or a figure it didn't find (`company_research`, in `jobs`).
+
 ## At a glance
 
-**At a glance**: under a job's facts, **From the AI Assistant** shows its fit (the score, the verdict, and, unfolded, why) and each card the assistant makes for it, the AI-proof CV, the cover letter, the messages, the interview prep and at Offer the negotiation, as generated, in progress or not yet: a click goes to the card, and unfolds it (`JobAssistantController`).
+**At a glance**: under a job's facts, **From the AI Assistant** shows its fit (the score, the verdict, and, unfolded, why) and each card the assistant makes for it, the company research, the AI-proof CV, the cover letter, the messages, the interview prep and at Offer the negotiation, as generated, in progress or not yet: a click goes to the card, and unfolds it (`JobAssistantController`).
 
 ## Auto-apply
 

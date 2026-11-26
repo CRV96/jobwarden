@@ -717,6 +717,46 @@ class ApplicationServiceTests {
 	}
 
 	@Test
+	void correctsWhatThePostingSaysOfItself() {
+		long id = create(this.userId, "Backend engineer", ApplicationStatus.APPLIED);
+
+		this.applications.updatePosting(this.userId, id, "Senior Java & SAP Commerce Engineer", "Tires Easy",
+				"https://www.techtalent.ro/careers/senior-java-sap-commerce-engineer/", "B2B");
+		assertThat(this.applications.findById(this.userId, id).orElseThrow()).satisfies(job -> {
+			assertThat(job.title()).isEqualTo("Senior Java & SAP Commerce Engineer");
+			assertThat(job.company()).isEqualTo("Tires Easy");
+			assertThat(job.link()).isEqualTo("https://www.techtalent.ro/careers/senior-java-sap-commerce-engineer/");
+			// The site follows the link
+			assertThat(job.source()).isEqualTo("techtalent.ro");
+			assertThat(job.employmentType()).isEqualTo("B2B");
+		});
+
+		this.applications.updatePosting(this.userId, id, "Senior Java Engineer", null, null, null);
+		assertThat(this.applications.findById(this.userId, id).orElseThrow()).satisfies(job -> {
+			assertThat(job.company()).isNull();
+			assertThat(job.link()).isNull();
+			assertThat(job.source()).isNull();
+			assertThat(job.employmentType()).isNull();
+		});
+		assertThatExceptionOfType(ApplicationNotFoundException.class)
+			.isThrownBy(() -> this.applications.updatePosting(this.otherUserId, id, "Not yours", null, null, null));
+	}
+
+	@Test
+	void changesTheDescription() {
+		long id = create(this.userId, "Backend engineer", ApplicationStatus.APPLIED);
+
+		this.applications.updateDescription(this.userId, id, "**Requirements**\n- Java");
+		assertThat(this.applications.findById(this.userId, id).orElseThrow().description())
+			.isEqualTo("**Requirements**\n- Java");
+
+		this.applications.updateDescription(this.userId, id, null);
+		assertThat(this.applications.findById(this.userId, id).orElseThrow().description()).isNull();
+		assertThatExceptionOfType(ApplicationNotFoundException.class)
+			.isThrownBy(() -> this.applications.updateDescription(this.otherUserId, id, "Not yours"));
+	}
+
+	@Test
 	void keepsWhoToFollowUpWithAndWhen() {
 		long id = create(this.userId, "Backend engineer", ApplicationStatus.APPLIED);
 		assertThat(this.applications.findById(this.userId, id).orElseThrow().followUp()).isEqualTo(FollowUp.NONE);
@@ -862,8 +902,31 @@ class ApplicationServiceTests {
 		assertThat(this.applications.findCompanyLogo(this.userId, withLogo)).contains(icon(1));
 		assertThat(this.applications.findCompanyLogo(this.userId, without)).isEmpty();
 		assertThat(this.applications.findCompanyLogo(this.otherUserId, withLogo)).isEmpty();
-		assertThat(this.applications.findApplicationsWithLogo(this.userId)).containsExactly(withLogo);
-		assertThat(this.applications.findApplicationsWithLogo(this.otherUserId)).isEmpty();
+		assertThat(this.applications.findLogoVersions(this.userId)).containsOnlyKeys(withLogo);
+		assertThat(this.applications.findLogoVersions(this.otherUserId)).isEmpty();
+	}
+
+	@Test
+	void changesOrRemovesALogoAndItsVersionFollows() {
+		long id = this.applications.create(withLogo(newApplication(this.userId, "Acme", ApplicationStatus.SAVED), icon(1)));
+		// Saved a minute ago: versions are in seconds, so the change shows in the same test
+		this.jdbc.sql("UPDATE company_logos SET updated_at = updated_at - interval '1 minute' WHERE application_id = :id")
+			.param("id", id)
+			.update();
+		long before = this.applications.findLogoVersions(this.userId).get(id);
+
+		this.applications.changeCompanyLogo(this.userId, id, icon(2));
+		assertThat(this.applications.findCompanyLogo(this.userId, id)).contains(icon(2));
+		assertThat(this.applications.findLogoVersions(this.userId).get(id)).isGreaterThan(before);
+
+		this.applications.changeCompanyLogo(this.userId, id, null);
+		assertThat(this.applications.findCompanyLogo(this.userId, id)).isEmpty();
+		assertThat(this.applications.findLogoVersions(this.userId)).isEmpty();
+		// A job without one gets one; another profile's can't be reached
+		this.applications.changeCompanyLogo(this.userId, id, icon(3));
+		assertThat(this.applications.findCompanyLogo(this.userId, id)).contains(icon(3));
+		assertThatExceptionOfType(ApplicationNotFoundException.class)
+			.isThrownBy(() -> this.applications.changeCompanyLogo(this.otherUserId, id, null));
 	}
 
 	@Test

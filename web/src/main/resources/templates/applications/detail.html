@@ -19,11 +19,12 @@
             </a>
             <header class="flex flex-wrap items-end gap-3">
                 <span class="flex self-center">
-                    <span th:replace="~{applications/fragments :: company-logo(${jobApplication.id}, ${jobApplication.company}, 40)}"></span>
+                    <th:block th:replace="~{applications/logo :: menu}"></th:block>
                 </span>
                 <div class="flex min-w-[260px] flex-1 flex-col gap-1.5">
                     <div class="flex items-center gap-2">
                         <span class="text-sm text-ink/65" th:text="${jobApplication.company} ?: #{application.unknownCompany}">Acme</span>
+                        <button th:replace="~{applications/fragments :: details-button(|details-${jobApplication.id}|, 'company', #{details.company.change})}"></button>
                         <th:block th:replace="~{applications/fragments :: status-badge(${jobApplication.status})}">Applied</th:block>
                         <span th:replace="~{applications/fragments :: applied-by(${jobApplication.appliedBy})}"></span>
                     </div>
@@ -43,6 +44,7 @@
                     </a>
                 </div>
             </header>
+            <div th:replace="~{applications/logo :: loader}"></div>
             <div th:replace="~{applications/fragments :: archived-note}"></div>
         </div>
 
@@ -51,7 +53,7 @@
                apart. */-->
         <div class="grid min-h-0 flex-1 items-start gap-4 lg:grid-cols-[minmax(0,45fr)_minmax(0,55fr)] xl:grid-rows-[minmax(0,1fr)] xl:items-stretch">
             <div class="scroll-panel flex min-h-0 min-w-0 flex-col gap-4">
-                <div class="card p-4" th:if="${jobApplication.description}">
+                <div class="card p-4">
                     <section th:replace="~{applications/fragments :: description}"></section>
                 </div>
                 <div class="card p-4">
@@ -74,6 +76,9 @@
                 </th:block>
                 <div class="card p-4">
                     <section th:replace="~{applications/job-fit :: loader(${jobApplication.id})}"></section>
+                </div>
+                <div class="card p-4">
+                    <section th:replace="~{applications/company-research :: loader(${jobApplication.id})}"></section>
                 </div>
                 <div class="card p-4">
                     <section th:replace="~{applications/tailored-cv :: loader(${jobApplication.id})}"></section>
