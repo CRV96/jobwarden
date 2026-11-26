@@ -3,7 +3,8 @@
  * (data-rich-editor) is a box to type in, whose buttons (data-rich-command) and Ctrl/⌘+B or I format the text. As it's
  * typed, it's written to the form's hidden field (data-rich-markdown) as Markdown, which the server keeps and shows
  * (RichText): **bold**, *italics*, a line starting with "- " or "1. " for a point of a list, a blank line between
- * paragraphs. What's pasted keeps that much of its formatting, and no more. Cancel puts back what it started with.
+ * paragraphs. What's pasted or dropped keeps that much of its formatting, and no more (tidy). Cancel puts back what it
+ * started with.
  */
 
 /** Elements that are a block of their own, as a paragraph: a line apart from what's before and after. */
@@ -25,9 +26,13 @@ function oneLine(text) {
 	return text.replace(/\s*\n\s*/g, ' ').trim();
 }
 
+/** Bold by its tag or its style; not a b that says it's normal, as Google Docs wraps everything it copies in */
 function isBold(element) {
-	return element.tagName === 'B' || element.tagName === 'STRONG' || Number(element.style?.fontWeight) >= 600
-		|| element.style?.fontWeight === 'bold';
+	const weight = element.style?.fontWeight ?? '';
+	if (weight === 'normal' || (Number(weight) > 0 && Number(weight) < 600)) {
+		return false;
+	}
+	return element.tagName === 'B' || element.tagName === 'STRONG' || Number(weight) >= 600 || weight === 'bold';
 }
 
 function isItalic(element) {
@@ -86,66 +91,82 @@ function toMarkdown(editor) {
 		.trim();
 }
 
-function escaped(text) {
-	const span = document.createElement('span');
-	span.textContent = text;
-	return span.innerHTML;
+/** Where the caret is, as how many characters of the editor's text come before it; null outside the editor */
+function caretOffset(editor) {
+	const selection = document.getSelection();
+	if (!selection?.rangeCount || !editor.contains(selection.focusNode)) {
+		return null;
+	}
+	const before = document.createRange();
+	before.selectNodeContents(editor);
+	before.setEnd(selection.focusNode, selection.focusOffset);
+	return before.toString().length;
 }
 
-/** Pasted plain text: its paragraphs, its lines in them. The server makes lists of its "- " and "•" lines. */
-function plainHtml(text) {
-	return text.replace(/\r\n?/g, '\n')
-		.split(/\n\s*\n/)
-		.filter((paragraph) => paragraph.trim())
-		.map((paragraph) => `<p>${paragraph.split('\n').map(escaped).join('<br>')}</p>`)
-		.join('');
+/** Puts the caret back that many characters into the editor's text, or at its end */
+function placeCaret(editor, offset) {
+	const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+	let left = offset;
+	for (let text = walker.nextNode(); text; text = walker.nextNode()) {
+		if (left <= text.length) {
+			document.getSelection().collapse(text, left);
+			return;
+		}
+		left -= text.length;
+	}
+	document.getSelection().collapse(editor, editor.childNodes.length);
+}
+
+/** The element in place of another, with its children: the same text nodes, moved */
+function replaced(node, tag) {
+	const element = document.createElement(tag);
+	element.append(...node.childNodes);
+	node.replaceWith(element);
+	return element;
 }
 
 /**
- * Pasted HTML, e.g. from a posting's page: its paragraphs, lists, bold and italics, as elements of its own with no
- * attribute. The page it came from is parsed apart (DOMParser), where nothing of it runs, and nothing else is kept.
+ * What a paste or a drop brought, the editor's own few tags alone, with no attribute: paragraphs, line breaks, lists,
+ * bold and italics. A block becomes a paragraph, a bold or italic span the tag that says so, anything else gives way
+ * to its text, and what's never text (images, scripts, forms) goes. The browser pasted it itself, as HTML it parsed:
+ * nothing here reads HTML from the clipboard.
  */
-function cleanHtml(html) {
-	const source = new DOMParser().parseFromString(html, 'text/html').body;
-	const target = document.createElement('div');
-	const copy = (from, into) => {
-		for (const node of from.childNodes) {
-			if (node.nodeType === Node.TEXT_NODE) {
-				into.append(node.textContent);
-				continue;
-			}
-			if (node.nodeType !== Node.ELEMENT_NODE || DROPPED.has(node.tagName)) {
-				continue;
-			}
-			const tag = node.tagName;
-			let element = null;
-			if (tag === 'BR') {
-				into.append(document.createElement('br'));
-				continue;
-			} else if (tag === 'UL' || tag === 'OL' || tag === 'LI') {
-				element = document.createElement(tag);
-			} else if (BLOCKS.has(tag)) {
-				element = document.createElement('p');
-			}
-			let inner = element ?? into;
-			if (isBold(node)) {
-				const bold = document.createElement('strong');
-				(element ?? into).append(bold);
-				inner = bold;
-			}
-			if (isItalic(node)) {
-				const italic = document.createElement('em');
-				inner.append(italic);
-				inner = italic;
-			}
-			copy(node, inner);
-			if (element) {
-				into.append(element);
-			}
+function tidy(parent) {
+	for (const node of [...parent.childNodes]) {
+		if (node.nodeType === Node.TEXT_NODE) {
+			continue;
 		}
-	};
-	copy(source, target);
-	return target.innerHTML;
+		if (node.nodeType !== Node.ELEMENT_NODE || DROPPED.has(node.tagName)) {
+			node.remove();
+			continue;
+		}
+		tidy(node);
+		const tag = node.tagName;
+		const bold = isBold(node);
+		const italic = isItalic(node);
+		let kept;
+		if (['BR', 'P', 'UL', 'OL', 'LI'].includes(tag)) {
+			kept = node;
+		} else if (BLOCKS.has(tag)) {
+			kept = replaced(node, 'p');
+		} else if (bold || italic) {
+			// b, strong, i, em, or a span whose style says so
+			const wanted = bold ? 'STRONG' : 'EM';
+			kept = (tag === wanted) ? node : replaced(node, wanted.toLowerCase());
+			if (bold && italic) {
+				const both = document.createElement('em');
+				both.append(...kept.childNodes);
+				kept.append(both);
+			}
+		} else {
+			// A plain span, a link, a font: its text alone
+			node.replaceWith(...node.childNodes);
+			continue;
+		}
+		for (const name of kept.getAttributeNames()) {
+			kept.removeAttribute(name);
+		}
+	}
 }
 
 function sync(editor) {
@@ -157,9 +178,18 @@ function sync(editor) {
 
 document.addEventListener('input', (event) => {
 	const editor = event.target instanceof Element ? event.target.closest('[data-rich-editor]') : null;
-	if (editor) {
-		sync(editor);
+	if (!editor) {
+		return;
 	}
+	// What a paste or a drop brought keeps the editor's formatting alone, the caret where it was
+	if (event.inputType === 'insertFromPaste' || event.inputType === 'insertFromDrop') {
+		const caret = caretOffset(editor);
+		tidy(editor);
+		if (caret !== null) {
+			placeCaret(editor, caret);
+		}
+	}
+	sync(editor);
 });
 
 // Before HTMX reads the form, in case the browser formatted without an input event
@@ -198,23 +228,12 @@ document.addEventListener('click', (event) => {
 	sync(editor);
 });
 
-document.addEventListener('paste', (event) => {
-	const editor = event.target instanceof Element ? event.target.closest('[data-rich-editor]') : null;
-	if (!editor || !event.clipboardData) {
-		return;
-	}
-	event.preventDefault();
-	const html = event.clipboardData.getData('text/html');
-	document.execCommand('insertHTML', false, html ? cleanHtml(html) : plainHtml(event.clipboardData.getData('text/plain')));
-	sync(editor);
-});
-
 // Cancel: the text the editor started with, which the form's reset puts back in the hidden field too
 document.addEventListener('reset', (event) => {
 	const form = event.target;
 	const editor = form instanceof HTMLFormElement ? form.querySelector('[data-rich-editor]') : null;
 	const original = form?.querySelector?.('[data-rich-original]');
 	if (editor && original) {
-		editor.innerHTML = original.innerHTML;
+		editor.replaceChildren(original.content.cloneNode(true));
 	}
 });
