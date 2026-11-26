@@ -1,6 +1,7 @@
 package com.jobwarden.jobs.service.impl;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.util.Optional;
 
 import com.jobwarden.jobs.dto.CompanyResearch;
@@ -42,9 +43,15 @@ class DefaultCompanyResearchService implements CompanyResearchService {
 		if (!this.applications.existsByIdAndUserId(applicationId, userId)) {
 			throw new ApplicationNotFoundException(applicationId);
 		}
-		CompanyResearchEntity entity = this.research.findByUserIdAndApplicationId(userId, applicationId)
-			.orElseGet(() -> new CompanyResearchEntity(userId, applicationId));
-		entity.replace(found, this.clock.instant());
+		Instant now = this.clock.instant();
+		Optional<CompanyResearchEntity> earlier = this.research.findByUserIdAndApplicationId(userId, applicationId);
+		CompanyResearchEntity entity;
+		if (earlier.isPresent()) {
+			entity = earlier.get();
+			entity.replace(found, now);
+		} else {
+			entity = new CompanyResearchEntity(userId, applicationId, found, now);
+		}
 		CompanyResearchEntity saved = this.research.save(entity);
 		log.info("Saved the company research of application {} of profile {}", applicationId, userId);
 		return toResearch(saved);

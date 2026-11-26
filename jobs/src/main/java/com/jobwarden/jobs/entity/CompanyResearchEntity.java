@@ -65,9 +65,23 @@ public class CompanyResearchEntity {
 
 	private Instant updatedAt;
 
-	public CompanyResearchEntity(long userId, long applicationId) {
+	/**
+	 * A job's first research, whole from the start; {@link #replace} writes it again.
+	 */
+	public CompanyResearchEntity(long userId, long applicationId, CompanyResearch research, Instant now) {
 		this.userId = userId;
 		this.applicationId = applicationId;
+		this.company = research.company();
+		this.ratings = new ArrayList<>(research.ratings());
+		this.pros = new ArrayList<>(research.pros());
+		this.cons = new ArrayList<>(research.cons());
+		this.salaries = new ArrayList<>(research.salaries());
+		this.benefits = new ArrayList<>(research.benefits());
+		this.news = new ArrayList<>(research.news());
+		this.interviews = research.interviews();
+		this.watchOut = research.watchOut();
+		this.sources = new ArrayList<>(research.sources());
+		this.updatedAt = now;
 	}
 
 	/**
