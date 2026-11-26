@@ -37,7 +37,7 @@ class CompanyLogos {
 			log.debug("No company logo from {}: {}", address, failed.getMessage());
 			throw new ToolException("JobWarden couldn't use that image: " + failed.getMessage()
 					+ ". Try another address: a PNG, JPEG or GIF, not SVG or WebP");
-		} catch (InterruptedException interrupted) {
+		} catch (InterruptedException _) {
 			Thread.currentThread().interrupt();
 			throw new ToolException("Interrupted while downloading the image: try again");
 		}

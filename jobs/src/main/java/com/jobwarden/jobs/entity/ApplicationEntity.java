@@ -48,17 +48,17 @@ public class ApplicationEntity {
 
 	private String title;
 
-	private String company;
+	private @Nullable String company;
 
-	private String description;
+	private @Nullable String description;
 
-	private String link;
+	private @Nullable String link;
 
 	private @Nullable String location;
 
 	private @Nullable String salary;
 
-	private String employmentType;
+	private @Nullable String employmentType;
 
 	private @Nullable String source;
 

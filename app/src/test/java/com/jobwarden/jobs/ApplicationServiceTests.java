@@ -907,11 +907,13 @@ class ApplicationServiceTests {
 	}
 
 	@Test
-	void changesOrRemovesALogoAndItsVersionFollows() throws InterruptedException {
+	void changesOrRemovesALogoAndItsVersionFollows() {
 		long id = this.applications.create(withLogo(newApplication(this.userId, "Acme", ApplicationStatus.SAVED), icon(1)));
+		// Saved a minute ago: versions are in seconds, so the change shows in the same test
+		this.jdbc.sql("UPDATE company_logos SET updated_at = updated_at - interval '1 minute' WHERE application_id = :id")
+			.param("id", id)
+			.update();
 		long before = this.applications.findLogoVersions(this.userId).get(id);
-		// Versions are in seconds
-		Thread.sleep(1100);
 
 		this.applications.changeCompanyLogo(this.userId, id, icon(2));
 		assertThat(this.applications.findCompanyLogo(this.userId, id)).contains(icon(2));

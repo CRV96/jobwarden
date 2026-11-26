@@ -29,7 +29,8 @@ public class CompanyResearchEntity {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+	// null until it's saved
+	private @Nullable Long id;
 
 	private long userId;
 

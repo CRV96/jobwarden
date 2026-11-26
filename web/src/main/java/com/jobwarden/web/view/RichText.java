@@ -28,10 +28,13 @@ import org.springframework.web.util.HtmlUtils;
 @RequiredArgsConstructor
 public class RichText {
 
-	/** A point of a list: a dash, a star or a bullet, and a space. Not {@code *italics*} at the line's start. */
-	private static final Pattern BULLET = Pattern.compile("^\\s*[-*•]\\s+(.*)$");
+	/**
+	 * A point of a list: a dash, a star or a bullet, and a space. Not {@code *italics*} at the line's start. Possessive
+	 * (*+, ++): the spaces go to the marker and never back to the point, so a long line is read once.
+	 */
+	private static final Pattern BULLET = Pattern.compile("^\\s*+[-*•]\\s++(.*)$");
 
-	private static final Pattern NUMBERED = Pattern.compile("^\\s*\\d{1,3}[.)]\\s+(.*)$");
+	private static final Pattern NUMBERED = Pattern.compile("^\\s*+\\d{1,3}+[.)]\\s++(.*)$");
 
 	private static final Pattern BOLD = Pattern.compile("\\*\\*(?=\\S)(.+?)(?<=\\S)\\*\\*");
 

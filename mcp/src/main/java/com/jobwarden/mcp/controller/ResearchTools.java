@@ -32,6 +32,17 @@ class ResearchTools implements McpToolSet {
 
 	private static final int ITEMS_MAX = 15;
 
+	/** The tools' argument and result names, each said more than once */
+	private static final String JOB_ID = "job_id";
+
+	private static final String COMPANY = "company";
+
+	private static final String RATINGS = "ratings";
+
+	private static final String SALARIES = "salaries";
+
+	private static final String SOURCES = "sources";
+
 	private final Profiles profiles;
 
 	private final CompanyResearchService research;
@@ -52,14 +63,14 @@ class ResearchTools implements McpToolSet {
 	private McpTool saveCompanyLogo() {
 		return new McpTool("save_company_logo", "Save a company's logo",
 				"Downloads the image at url as the job's logo.",
-				object(properties(Profiles.ARGUMENT, Profiles.schema(), "job_id", integer(), "url", string()),
-						"job_id", "url"),
+				object(properties(Profiles.ARGUMENT, Profiles.schema(), JOB_ID, integer(), "url", string()),
+						JOB_ID, "url"),
 				false, false, call -> {
 					long userId = this.profiles.of(call);
-					long jobId = call.requiredNumber("job_id");
+					long jobId = call.requiredNumber(JOB_ID);
 					PngImage logo = this.logos.download(call.requiredString("url"));
 					this.applications.changeCompanyLogo(userId, jobId, logo);
-					return Map.of("job_id", jobId, "saved", true, "page", "/applications/" + jobId);
+					return Map.of(JOB_ID, jobId, "saved", true, "page", "/applications/" + jobId);
 				});
 	}
 
@@ -69,35 +80,35 @@ class ResearchTools implements McpToolSet {
 		return new McpTool("save_company_research", "Save research on a company",
 				"Saves a job's company research, replacing the last.",
 				object(properties(Profiles.ARGUMENT, Profiles.schema(),
-						"job_id", integer(),
-						"company", string(),
-						"ratings", strings(),
+						JOB_ID, integer(),
+						COMPANY, string(),
+						RATINGS, strings(),
 						"pros", strings(),
 						"cons", strings(),
-						"salaries", strings(),
+						SALARIES, strings(),
 						"benefits", strings(),
 						"news", strings(),
 						"interviews", string(),
 						"watch_out", string(),
-						"sources", strings()),
-						"job_id", "company"),
+						SOURCES, strings()),
+						JOB_ID, COMPANY),
 				false, false, call -> {
 					long userId = this.profiles.of(call);
-					long jobId = call.requiredNumber("job_id");
+					long jobId = call.requiredNumber(JOB_ID);
 					CompanyResearch saved = this.research.save(userId, jobId, CompanyResearch.builder()
-						.company(shortened(call.requiredString("company")))
-						.ratings(items(call.strings("ratings")))
+						.company(shortened(call.requiredString(COMPANY)))
+						.ratings(items(call.strings(RATINGS)))
 						.pros(items(call.strings("pros")))
 						.cons(items(call.strings("cons")))
-						.salaries(items(call.strings("salaries")))
+						.salaries(items(call.strings(SALARIES)))
 						.benefits(items(call.strings("benefits")))
 						.news(items(call.strings("news")))
 						.interviews(shortened(call.string("interviews")))
 						.watchOut(shortened(call.string("watch_out")))
-						.sources(items(call.strings("sources")))
+						.sources(items(call.strings(SOURCES)))
 						.build());
-					return Map.of("job_id", jobId, "ratings", saved.ratings().size(), "salaries", saved.salaries().size(),
-							"sources", saved.sources().size(), "page", "/applications/" + jobId);
+					return Map.of(JOB_ID, jobId, RATINGS, saved.ratings().size(), SALARIES, saved.salaries().size(),
+							SOURCES, saved.sources().size(), "page", "/applications/" + jobId);
 				});
 	}
 
