@@ -95,13 +95,13 @@ class CompanyResearchServiceTests {
 
 	@Test
 	void keepsResearchForTheProfilesOwnJobsAlone() {
-		CompanyResearch research = CompanyResearch.builder().company("Tires Easy.").build();
+		CompanyResearch found = CompanyResearch.builder().company("Tires Easy.").build();
 
 		assertThatExceptionOfType(ApplicationNotFoundException.class)
-			.isThrownBy(() -> this.research.save(this.otherUserId, this.job, research));
+			.isThrownBy(() -> this.research.save(this.otherUserId, this.job, found));
 		assertThat(this.research.find(this.otherUserId, this.job)).isEmpty();
 
-		this.research.save(this.userId, this.job, research);
+		this.research.save(this.userId, this.job, found);
 		this.research.delete(this.otherUserId, this.job);
 		assertThat(this.research.find(this.userId, this.job)).isPresent();
 		this.research.delete(this.userId, this.job);
