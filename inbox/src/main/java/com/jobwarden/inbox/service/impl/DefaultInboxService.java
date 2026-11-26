@@ -96,12 +96,14 @@ class DefaultInboxService implements InboxService {
 
 	private final Clock clock;
 
+	private final ThisComputer thisComputer;
+
 	/** The profiles whose mailbox is being read in the background or by the schedule: never both at once. */
 	private final Set<Long> reading = ConcurrentHashMap.newKeySet();
 
 	DefaultInboxService(MailAccountRepository accounts, EmailUpdateRepository updates, ApplicationService applications,
 			MailReader reader, SecretBox secrets, DiscoveryService discovery, PlatformTransactionManager transactionManager,
-			Clock clock) {
+			Clock clock, ThisComputer thisComputer) {
 		this.clock = clock;
 		this.accounts = accounts;
 		this.updates = updates;
@@ -110,6 +112,12 @@ class DefaultInboxService implements InboxService {
 		this.secrets = secrets;
 		this.discovery = discovery;
 		this.transactions = new TransactionTemplate(transactionManager);
+		this.thisComputer = thisComputer;
+	}
+
+	@Override
+	public String localServerHost() {
+		return this.thisComputer.host();
 	}
 
 	@Override
@@ -125,21 +133,11 @@ class DefaultInboxService implements InboxService {
 	 */
 	@Override
 	public MailAccount connect(long userId, NewMailAccount account) {
-		MailServer server = new MailServer(account.host().strip(), account.port(), account.username().strip(),
+		MailServer typed = new MailServer(account.host().strip(), account.port(), account.username().strip(),
 				account.password(), account.folder().strip());
-		Tested tested;
-		try {
-			tested = this.reader.test(server);
-		} catch (MailFailure failed) {
-			log.debug("Mailbox of profile {} not connected: {}", userId, failed.getMessage());
-			if (failed.problem() == MailProblem.LOCAL_SERVER_DOWN) {
-				// The port as typed, not as a number: 1143, not 1,143
-				throw new BusinessRuleException(InboxErrorCode.LOCAL_SERVER_DOWN, "Nothing answers at " + server,
-						server.host(), Integer.toString(server.port()));
-			}
-			throw new BusinessRuleException(InboxErrorCode.MAILBOX_NOT_REACHED, "Couldn't read " + server,
-					shortened(failed.getMessage(), ERROR_MAX_LENGTH));
-		}
+		Connected connected = test(userId, typed);
+		MailServer server = connected.server();
+		Tested tested = connected.tested();
 		MailAccountEntity saved = this.transactions.execute(status -> {
 			MailAccountEntity entity = this.accounts.findById(userId).orElseGet(() -> new MailAccountEntity(userId));
 			entity.connect(server.host(), server.port(), server.username(), this.secrets.encrypt(server.password()),
@@ -148,6 +146,61 @@ class DefaultInboxService implements InboxService {
 		});
 		log.info("Connected the mailbox of profile {}{}", userId, tested.starttls() ? ", with STARTTLS" : "");
 		return toAccount(saved);
+	}
+
+	/** The server that could be read, and how. */
+	private record Connected(MailServer server, Tested tested) {
+	}
+
+	/**
+	 * Reads the server as typed. In a container, 127.0.0.1 is usually the container itself, and the computer is
+	 * {@link ThisComputer#host()}; unless the container shares the computer's network (Docker's host network, on
+	 * Linux), where 127.0.0.1 is the computer and that name is unknown. So a server on this computer that doesn't
+	 * answer at one is tried at the other, which then is the one kept.
+	 *
+	 * @throws BusinessRuleException if the mailbox can't be read
+	 */
+	private Connected test(long userId, MailServer server) {
+		try {
+			return new Connected(server, this.reader.test(server));
+		} catch (MailFailure failed) {
+			log.debug("Mailbox of profile {} not connected: {}", userId, failed.getMessage());
+			if (failed.problem() == MailProblem.LOCAL_SERVER_DOWN && this.thisComputer.inContainer()) {
+				return testTheOtherWay(userId, server);
+			}
+			throw refused(server, failed);
+		}
+	}
+
+	private Connected testTheOtherWay(long userId, MailServer typed) {
+		MailServer server = typed.withHost(typed.isLoopback() ? this.thisComputer.host() : ThisComputer.LOOPBACK);
+		try {
+			Connected connected = new Connected(server, this.reader.test(server));
+			log.info("Nothing answers at {} from JobWarden's container: connected profile {}'s mailbox at {} instead",
+					typed.host(), userId, server.host());
+			return connected;
+		} catch (MailFailure failed) {
+			log.debug("Mailbox of profile {} not connected at {} either: {}", userId, server.host(), failed.getMessage());
+			if (failed.problem() == MailProblem.LOCAL_SERVER_DOWN) {
+				// The container's own address first, then the computer's name, whichever was typed
+				MailServer loopback = typed.isLoopback() ? typed : server;
+				MailServer computer = typed.isLoopback() ? server : typed;
+				throw new BusinessRuleException(InboxErrorCode.LOCAL_SERVER_DOWN_IN_CONTAINER,
+						"Nothing answers at " + typed + " nor at " + server, loopback.host(), Integer.toString(server.port()),
+						computer.host());
+			}
+			throw refused(server, failed);
+		}
+	}
+
+	private static BusinessRuleException refused(MailServer server, MailFailure failed) {
+		if (failed.problem() == MailProblem.LOCAL_SERVER_DOWN) {
+			// The port as typed, not as a number: 1143, not 1,143
+			return new BusinessRuleException(InboxErrorCode.LOCAL_SERVER_DOWN, "Nothing answers at " + server,
+					server.host(), Integer.toString(server.port()));
+		}
+		return new BusinessRuleException(InboxErrorCode.MAILBOX_NOT_REACHED, "Couldn't read " + server,
+				shortened(failed.getMessage(), ERROR_MAX_LENGTH));
 	}
 
 	@Override

@@ -3,6 +3,7 @@ package com.jobwarden.inbox.service.impl;
 import java.util.Locale;
 import java.util.Set;
 
+import com.jobwarden.inbox.service.InboxService;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -16,21 +17,35 @@ import org.jspecify.annotations.Nullable;
 record MailServer(String host, int port, String username, String password, String folder, boolean starttls,
 		@Nullable String certificate) {
 
-	private static final Set<String> THIS_COMPUTER = Set.of("127.0.0.1", "::1", "[::1]", "localhost");
+	/** The computer's own address, which, in a container, is the container's */
+	private static final Set<String> LOOPBACK = Set.of("127.0.0.1", "::1", "[::1]", "localhost");
 
 	MailServer(String host, int port, String username, String password, String folder) {
 		this(host, port, username, password, folder, false, null);
 	}
 
 	/**
-	 * Whether the server runs on this computer, like Proton Mail Bridge: nothing on the way to it to trust.
+	 * Whether the server runs on this computer, like Proton Mail Bridge: nothing on the way to it to trust. From a
+	 * container, the computer's name for it too, e.g. host.docker.internal.
 	 */
 	boolean isLocal() {
-		return THIS_COMPUTER.contains(this.host.toLowerCase(Locale.ROOT));
+		return InboxService.THIS_COMPUTER.contains(this.host.toLowerCase(Locale.ROOT));
+	}
+
+	/**
+	 * Whether it's the computer's own address, 127.0.0.1 or localhost: in a container, the container itself.
+	 */
+	boolean isLoopback() {
+		return LOOPBACK.contains(this.host.toLowerCase(Locale.ROOT));
 	}
 
 	MailServer withStarttls(boolean starttls) {
 		return new MailServer(this.host, this.port, this.username, this.password, this.folder, starttls,
+				this.certificate);
+	}
+
+	MailServer withHost(String host) {
+		return new MailServer(host, this.port, this.username, this.password, this.folder, this.starttls,
 				this.certificate);
 	}
 

@@ -5,7 +5,7 @@
 import { preferences } from './preferences.js';
 
 // A job's AI card asked for something, took it back or deleted it: the overview under the job's facts asks again
-const ASSISTANT_CARD = /\/applications\/\d+\/(fit|cv|letter|outreach|prep|negotiation)(\/|$)/;
+const ASSISTANT_CARD = /\/applications\/\d+\/(fit|research|cv|letter|outreach|prep|negotiation)(\/|$)/;
 document.addEventListener('htmx:afterRequest', (event) => {
 	const config = event.detail.requestConfig;
 	if (event.detail.successful && config && config.verb !== 'get' && ASSISTANT_CARD.test(config.path ?? '')) {

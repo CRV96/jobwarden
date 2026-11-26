@@ -7,7 +7,10 @@ extension's popup. Updating keeps all your data; going back to an older version 
 **What's new** (in the profile menu, and where the sidebar says there's a newer version) lists every release with what
 it changed, marks the one you run, and links here. After an update, the first page each profile opens shows what
 changed since the version it saw before, once; this browser remembers which one that was. A profile made after the
-release came out isn't told of it. Without GitHub (or with `jobwarden.updates.check=false`), the page lists nothing,
+release came out isn't told of it. Each release's notes start with what changed, in points, as
+[CHANGELOG.md](https://github.com/CRV96/jobwarden/blob/main/CHANGELOG.md) says it for that version (the release workflow
+copies its section, and fails without one), then how to run and upgrade it; they wrap in the popup, commands too,
+rather than scroll sideways. Without GitHub (or with `jobwarden.updates.check=false`), the page lists nothing,
 and no popup opens.
 
 ## Back up first

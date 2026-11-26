@@ -20,6 +20,7 @@ import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.JobFit;
 import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.service.ApplicationService;
+import com.jobwarden.jobs.service.CompanyResearchService;
 import com.jobwarden.jobs.service.InterviewBriefService;
 import com.jobwarden.jobs.service.JobFitService;
 import com.jobwarden.jobs.service.OfferService;
@@ -70,6 +71,9 @@ class JobAssistantControllerTests {
 	private InterviewBriefService briefs;
 
 	@MockitoBean
+	private CompanyResearchService research;
+
+	@MockitoBean
 	private OfferService offers;
 
 	@BeforeEach
@@ -98,7 +102,7 @@ class JobAssistantControllerTests {
 			.bodyText()
 			.contains("From the AI Assistant", "4.4", "out of 5", "Strong fit", "Strong on Java and Kafka; no Kubernetes.",
 					"href=\"#tailored-cv\"", "data-jump=\"tailored-cv\"", "AI-proof CV", "Generated", "Cover letter",
-					"In progress", "Reach out", "Not generated", "Interview prep",
+					"In progress", "Reach out", "Not generated", "Interview prep", "href=\"#company-research\"",
 					// While the assistant writes the letter, it asks again
 					"hx-trigger=\"every 5s, assistant-cards-changed from:body\"")
 			// The negotiation's card is there at Offer only

@@ -19,7 +19,8 @@ public class JobImages {
 
 	public void addImages(Model model, long userId) {
 		model.addAttribute(ModelAttributes.ICON_SOURCES, this.applications.findSourcesWithIcon(userId));
-		model.addAttribute(ModelAttributes.LOGO_APPLICATIONS, this.applications.findApplicationsWithLogo(userId));
+		// By job, the logo's version, which its address carries
+		model.addAttribute(ModelAttributes.LOGO_APPLICATIONS, this.applications.findLogoVersions(userId));
 	}
 
 }

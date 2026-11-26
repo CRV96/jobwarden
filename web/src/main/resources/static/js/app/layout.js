@@ -53,8 +53,9 @@ export function dismiss(target) {
 	return true;
 }
 
-// A menu with data-anchor="<button id>" opens under its button, lined up with its right edge. Before it shows, so it
-// never flashes elsewhere; its width comes from the stylesheet.
+// A menu with data-anchor="<button id>" opens under its button, lined up with its right edge, or with its left one
+// for data-align="start" (a button at the left, like a job's logo). Before it shows, so it never flashes elsewhere;
+// its width comes from the stylesheet. It stays in the window either way.
 document.addEventListener('beforetoggle', (event) => {
 	const menu = event.target;
 	if (!(menu instanceof HTMLElement) || !menu.dataset.anchor || event.newState !== 'open') {
@@ -62,8 +63,9 @@ document.addEventListener('beforetoggle', (event) => {
 	}
 	const anchor = document.getElementById(menu.dataset.anchor).getBoundingClientRect();
 	const width = Number.parseFloat(getComputedStyle(menu).width);
+	const left = (menu.dataset.align === 'start') ? anchor.left : anchor.right - width;
 	menu.style.top = `${anchor.bottom + 6}px`;
-	menu.style.left = `${Math.max(8, anchor.right - width)}px`;
+	menu.style.left = `${Math.max(8, Math.min(left, window.innerWidth - width - 8))}px`;
 }, true);
 
 // HTMX ignores error responses, so a failed click would otherwise do nothing, e.g. when the application was deleted in

@@ -2,9 +2,9 @@ package com.jobwarden.discover.enums;
 
 /**
  * What the profile can ask Claude to do: the AI Assistant page's presets; a CV, a cover letter, messages to the people
- * hiring, a brief for the interview and one to negotiate the offer, from a job's page; hiring posts and recruiters
- * from the Who's hiring page, applying to jobs from the Auto-apply page, sorting the emails on the Inbox page, and the
- * CV's projects from GitHub and the story bank's stories on the CV page.
+ * hiring, research on the company and its logo, a brief for the interview and one to negotiate the offer, from a job's
+ * page; hiring posts and recruiters from the Who's hiring page, applying to jobs from the Auto-apply page, sorting the
+ * emails on the Inbox page, and the CV's projects from GitHub and the story bank's stories on the CV page.
  */
 public enum AiRequestKind {
 
@@ -75,7 +75,19 @@ public enum AiRequestKind {
 	NEGOTIATE_OFFER,
 
 	/** Draft stories for the story bank, the STAR way, from what the CV says the person did. */
-	WRITE_STORIES;
+	WRITE_STORIES,
+
+	/**
+	 * Find out about one job's company on the web: who they are, what the people who work there say of it, what it
+	 * pays, its benefits, its news, how its interviews go, and what to watch out for. The request names the job.
+	 */
+	RESEARCH_COMPANY,
+
+	/**
+	 * Find one job's company logo on the web, for a job saved without one, or with the wrong one: the assistant gives
+	 * JobWarden the image's address, which JobWarden downloads. The request names the job.
+	 */
+	FIND_LOGO;
 
 	/**
 	 * @return whether it says what to look for: titles, locations, skills...
@@ -89,7 +101,7 @@ public enum AiRequestKind {
 	 */
 	public boolean isAboutAJob() {
 		return this == TAILOR_CV || this == PREPARE_INTERVIEW || this == SCORE_JOB || this == WRITE_COVER_LETTER
-				|| this == WRITE_OUTREACH || this == NEGOTIATE_OFFER;
+				|| this == WRITE_OUTREACH || this == NEGOTIATE_OFFER || this == RESEARCH_COMPANY || this == FIND_LOGO;
 	}
 
 	/**

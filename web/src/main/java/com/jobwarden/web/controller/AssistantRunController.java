@@ -16,6 +16,7 @@ import com.jobwarden.web.constants.ControllerConstants;
 import com.jobwarden.web.constants.HtmxHeaders;
 import com.jobwarden.web.constants.ModelAttributes;
 import com.jobwarden.web.constants.Views;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
@@ -61,7 +62,7 @@ class AssistantRunController {
 	 * of the button, that it started, or why not.
 	 */
 	@PostMapping
-	String run(@RequestParam List<Long> requests, Model model,
+	String run(@RequestParam List<Long> requests, Model model, HttpServletRequest servletRequest,
 			@RequestHeader(name = HtmxHeaders.REQUEST, required = false) @Nullable String htmx,
 			@RequestHeader(name = HttpHeaders.ORIGIN, required = false) @Nullable String origin) {
 		String server = ServletUriComponentsBuilder.fromCurrentContextPath().toUriString();
@@ -84,7 +85,10 @@ class AssistantRunController {
 		model.addAttribute(ModelAttributes.RUN_ASSISTANT, profile.assistant().product());
 		model.addAttribute(ModelAttributes.RUN_SIGN_IN, AssistantRunner.signInCommand(profile.assistant()));
 		try {
-			this.runner.run(profile.assistant(), profile.id(), ids, server + this.mcpPath);
+			// The run is on this machine, or in this container: it reaches the server at its own port, whichever the browser
+			// came through, e.g. Docker publishing it on another
+			String local = "http://localhost:" + servletRequest.getLocalPort() + servletRequest.getContextPath();
+			this.runner.run(profile.assistant(), profile.id(), ids, local + this.mcpPath);
 			model.addAttribute(ModelAttributes.RUN_STARTED, true);
 		} catch (RunRefusedException refused) {
 			log.warn("Couldn't run {} for profile {}: {}", profile.assistant().product(), profile.id(), refused.getMessage());

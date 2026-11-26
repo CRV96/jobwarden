@@ -274,7 +274,7 @@ class ProfileControllerTests {
 		assertThat(this.mvc.post().uri("/profiles/password/remove").param("current", "wrong"))
 			.hasRedirectedUrl("/settings#password")
 			.flash()
-			.containsEntry("profilePasswordError", "That isn’t the password.");
+			.containsEntry("profilePasswordRemoveError", "That isn’t the password.");
 		assertThat(this.mvc.post().uri("/profiles/password/remove").param("current", "secret1")).flash()
 			.containsEntry("profilePasswordRemoved", true);
 		then(this.users).should().changePassword(1, "secret1", null);

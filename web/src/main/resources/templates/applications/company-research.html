@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<!--/* What the AI Assistant found out on the web about a job's company (CompanyResearchController): its ratings, what its
+       people say, what it pays, its benefits, its news, how its interviews go. On the job's page and in the side panel,
+       the loader asks for the card after the rest. Inside the job's own HTMX element, so every request here names its
+       own target. */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <!--/* Only fragments are taken from this file: the title is never shown */-->
+    <title>Company research · JobWarden</title>
+</head>
+<body>
+
+<section th:fragment="loader(jobId)" class="flex flex-col gap-2" data-collapse="research"
+         th:hx-get="@{/applications/{id}/research(id=${jobId})}" hx-trigger="load" hx-target="this" hx-swap="outerHTML">
+    <h2 class="section-title flex items-center gap-1.5">
+        <i class="ph ph-buildings text-accent"></i><span th:text="#{research.title}">The company</span>
+    </h2>
+</section>
+
+<!--/* companyResearch is what was found, or null; researchRequest the latest request for it, or null; researchPrompt
+       what to paste into Claude Code while it waits. While it's open, the card asks again every few seconds, and shows
+       what was found once the assistant saves it. */-->
+<section id="company-research" th:fragment="card" class="flex flex-col gap-3" data-collapse="research"
+         th:with="status=${researchRequest != null} ? ${researchRequest.status.name()},
+                  open=${researchRequest != null and researchRequest.status.isOpen()},
+                  cardUrl=@{/applications/{id}/research(id=${researchJobId})}, found=${companyResearch}"
+         th:hx-get="${open} ? ${cardUrl}" th:hx-trigger="${open} ? 'every 5s'" hx-target="this" hx-swap="outerHTML">
+    <div class="flex items-center gap-2">
+        <h2 class="section-title flex flex-1 items-center gap-1.5">
+            <i class="ph ph-buildings text-accent"></i><span th:text="#{research.title}">The company</span>
+        </h2>
+        <span class="text-xs text-ink/55" th:if="${found != null and found.updatedAt != null}"
+              th:text="#{research.updated(${@dates.relativeDay(found.updatedAt)})}">Researched: Today</span>
+    </div>
+
+    <p class="text-[13px] text-pretty text-ink/65" th:if="${found == null and !open}" th:text="#{research.hint}">
+        The assistant searches the web for the company…</p>
+
+    <!--/* Asked, not done yet: what to paste into Claude Code while it waits */-->
+    <th:block th:if="${open}">
+        <div class="flex items-center gap-2">
+            <span class="tag st-interviewing">
+                <i class="ph ph-arrow-clockwise animate-spin" th:if="${status == 'WORKING'}"></i>
+                <span th:text="#{|ai.status.${status}|}">Waiting for the AI Assistant</span>
+            </span>
+            <span class="flex-1"></span>
+            <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button"
+                    th:hx-post="@{/applications/{id}/research/cancel(id=${researchJobId})}"
+                    hx-target="#company-research" hx-swap="outerHTML" th:text="#{ai.cancel}">Cancel</button>
+        </div>
+        <th:block th:if="${status == 'WAITING'}">
+            <div th:replace="~{applications/claude :: prompt(${researchPrompt})}"></div>
+        </th:block>
+    </th:block>
+    <p class="text-[13px] text-danger" role="alert" th:if="${status == 'FAILED'}"
+       th:text="#{research.failed(${researchRequest.summary} ?: '')}">The assistant couldn’t research it: …</p>
+
+    <!--/* What was found: each part only when the assistant found it */-->
+    <th:block th:if="${found}">
+        <p class="text-[13px] whitespace-pre-line text-pretty text-ink/85" th:text="${found.company}">Tires Easy sells tyres online…</p>
+        <div class="flex flex-wrap gap-1.5" th:unless="${found.ratings.isEmpty()}" th:aria-label="#{research.ratings}">
+            <span class="tag" th:each="rating : ${found.ratings}">
+                <i class="ph ph-star text-[var(--jw-orange)]"></i><span th:text="${rating}">Glassdoor 3.9/5 (24 reviews)</span>
+            </span>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2" th:unless="${found.pros.isEmpty() and found.cons.isEmpty()}">
+            <div class="flex flex-col gap-1" th:unless="${found.pros.isEmpty()}">
+                <h3 class="flex items-center gap-1.5 text-xs text-ink/60">
+                    <i class="ph ph-thumbs-up text-success"></i><span th:text="#{research.pros}">What people like</span>
+                </h3>
+                <ul class="list-disc space-y-1 pl-5 text-[13px] text-ink/85">
+                    <li th:each="pro : ${found.pros}" th:text="${pro}">Friendly team</li>
+                </ul>
+            </div>
+            <div class="flex flex-col gap-1" th:unless="${found.cons.isEmpty()}">
+                <h3 class="flex items-center gap-1.5 text-xs text-ink/60">
+                    <i class="ph ph-thumbs-down text-danger"></i><span th:text="#{research.cons}">What they complain about</span>
+                </h3>
+                <ul class="list-disc space-y-1 pl-5 text-[13px] text-ink/85">
+                    <li th:each="con : ${found.cons}" th:text="${con}">No holidays</li>
+                </ul>
+            </div>
+        </div>
+        <div class="flex flex-col gap-1" th:unless="${found.salaries.isEmpty()}">
+            <h3 class="flex items-center gap-1.5 text-xs text-ink/60">
+                <i class="ph ph-money"></i><span th:text="#{research.salaries}">What they pay</span>
+            </h3>
+            <ul class="list-disc space-y-1 pl-5 text-[13px] text-ink/85">
+                <li th:each="salary : ${found.salaries}" th:text="${salary}">Senior Java Developer: 40–45 EUR an hour</li>
+            </ul>
+        </div>
+        <div class="flex flex-col gap-1" th:unless="${found.benefits.isEmpty()}">
+            <h3 class="flex items-center gap-1.5 text-xs text-ink/60">
+                <i class="ph ph-gift"></i><span th:text="#{research.benefits}">Benefits and how they work</span>
+            </h3>
+            <ul class="list-disc space-y-1 pl-5 text-[13px] text-ink/85">
+                <li th:each="benefit : ${found.benefits}" th:text="${benefit}">Remote, flexible hours</li>
+            </ul>
+        </div>
+        <div class="flex flex-col gap-1" th:unless="${found.news.isEmpty()}">
+            <h3 class="flex items-center gap-1.5 text-xs text-ink/60">
+                <i class="ph ph-newspaper"></i><span th:text="#{research.news}">News</span>
+            </h3>
+            <ul class="list-disc space-y-1 pl-5 text-[13px] text-ink/85">
+                <li th:each="item : ${found.news}" th:text="${item}">2025: moved to SAP Commerce Cloud</li>
+            </ul>
+        </div>
+        <div class="flex flex-col gap-1" th:if="${found.interviews}">
+            <h3 class="flex items-center gap-1.5 text-xs text-ink/60">
+                <i class="ph ph-chats"></i><span th:text="#{research.interviews}">How their interviews go</span>
+            </h3>
+            <p class="text-[13px] whitespace-pre-line text-pretty text-ink/85" th:text="${found.interviews}">Two rounds…</p>
+        </div>
+        <div class="flex items-start gap-2 rounded-lg bg-[color-mix(in_srgb,var(--jw-orange)_12%,transparent)] p-2.5" th:if="${found.watchOut}">
+            <i class="ph ph-warning mt-0.5 text-[15px] text-[var(--jw-orange)]"></i>
+            <div class="flex flex-col gap-0.5">
+                <h3 class="text-xs font-medium" th:text="#{prep.watchOut}">Look into before saying yes</h3>
+                <p class="text-[13px] whitespace-pre-line text-pretty text-ink/85" th:text="${found.watchOut}">Layoffs in March…</p>
+            </div>
+        </div>
+        <div class="flex flex-col gap-1" th:unless="${found.sources.isEmpty()}">
+            <h3 class="text-xs text-ink/60" th:text="#{prep.sources}">Where the AI Assistant read it</h3>
+            <ul class="flex flex-col gap-0.5 text-xs">
+                <!--/* Only http(s) links: the assistant wrote them, from pages it read */-->
+                <li class="truncate" th:each="source : ${found.sources}">
+                    <a class="link" th:if="${#strings.startsWith(source, 'http')}" th:href="${source}" target="_blank"
+                       rel="noopener noreferrer" th:text="${source}">https://www.glassdoor.com/Reviews/Tires-Easy</a>
+                    <span class="text-ink/60" th:unless="${#strings.startsWith(source, 'http')}" th:text="${source}">Reddit</span>
+                </li>
+            </ul>
+        </div>
+        <button class="btn btn-ghost self-start" type="button" th:hx-post="@{/applications/{id}/research/delete(id=${researchJobId})}"
+                th:hx-confirm="#{research.deleteConfirm}" hx-target="#company-research" hx-swap="outerHTML">
+            <i class="ph ph-trash"></i><span th:text="#{action.delete}">Delete</span>
+        </button>
+    </th:block>
+
+    <button class="btn btn-secondary self-start" type="button" th:unless="${open}"
+            th:hx-post="@{/applications/{id}/research/request(id=${researchJobId})}" hx-target="#company-research" hx-swap="outerHTML">
+        <i class="ph ph-sparkle"></i><span th:text="${found} ? #{research.again} : #{research.ask}">Ask the AI Assistant to research the company</span>
+    </button>
+</section>
+
+</body>
+</html>

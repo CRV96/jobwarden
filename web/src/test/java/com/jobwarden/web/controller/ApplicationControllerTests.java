@@ -18,6 +18,10 @@ import java.util.Optional;
 import java.util.Set;
 
 import com.jobwarden.common.exception.BusinessRuleException;
+import com.jobwarden.discover.dto.AiRequest;
+import com.jobwarden.discover.dto.AiRequirements;
+import com.jobwarden.discover.enums.AiRequestKind;
+import com.jobwarden.discover.enums.AiRequestStatus;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.service.UserService;
@@ -246,10 +250,92 @@ class ApplicationControllerTests {
 			.containsPattern("class=\"company-logo[^\"]*\"[^>]*>\\s*A\\s*</span>")
 			.doesNotContain("/applications/7/logo");
 
-		given(this.applications.findApplicationsWithLogo(1)).willReturn(Set.of(7L));
-		assertThat(this.mvc.get().uri("/applications")).bodyText().contains("src=\"/applications/7/logo\"");
-		assertThat(this.mvc.get().uri("/applications/7")).bodyText().contains("src=\"/applications/7/logo\"");
-		assertThat(this.mvc.get().uri("/applications/7/drawer")).bodyText().contains("src=\"/applications/7/logo\"");
+		// The logo's address has its version: a new logo is asked for again
+		given(this.applications.findLogoVersions(1)).willReturn(Map.of(7L, 1795699000L));
+		assertThat(this.mvc.get().uri("/applications")).bodyText().contains("src=\"/applications/7/logo?v=1795699000\"");
+		assertThat(this.mvc.get().uri("/applications/7")).bodyText().contains("src=\"/applications/7/logo?v=1795699000\"");
+		assertThat(this.mvc.get().uri("/applications/7/drawer")).bodyText()
+			.contains("src=\"/applications/7/logo?v=1795699000\"");
+	}
+
+	@Test
+	void offersToFindTheLogoAndToRemoveOneThereIs() {
+		assertThat(this.mvc.get().uri("/applications/7")).bodyText()
+			.contains("popovertarget=\"logo-menu-page-7\"", "Ask the AI Assistant to find the logo",
+					"hx-post=\"/applications/7/logo/request\"", "hx-target=\"#logo-finder-page-7\"",
+					"hx-get=\"/applications/7/logo/finder\"")
+			.doesNotContain("Remove the logo");
+
+		given(this.applications.findLogoVersions(1)).willReturn(Map.of(7L, 1795699000L));
+		assertThat(this.mvc.get().uri("/applications/7/drawer")).bodyText()
+			.contains("popovertarget=\"logo-menu-drawer-7\"", "Remove the logo", "hx-post=\"/applications/7/logo/delete\"");
+	}
+
+	@Test
+	void asksTheAssistantForTheLogoAndFollowsTheRequest() {
+		AiRequest waiting = logoRequest(AiRequestStatus.WAITING);
+		given(this.discovery.createRequest(1, AiRequestKind.FIND_LOGO, 7)).willReturn(waiting);
+		given(this.discovery.findLatestRequest(1, AiRequestKind.FIND_LOGO, 7)).willReturn(Optional.of(waiting));
+
+		assertThat(this.mvc.post().uri("/applications/7/logo/request").param("view", "DRAWER")).hasStatusOk()
+			.bodyText()
+			.contains("id=\"logo-finder-drawer-7\"", "Finding the company’s logo",
+					"Do JobWarden request 51: call get_request with request_id 51",
+					"hx-get=\"/applications/7/logo/finder?asked=51\"", "every 5s");
+		then(this.discovery).should().createRequest(1, AiRequestKind.FIND_LOGO, 7);
+
+		// Done: the job's part comes back in the finder's place, with the logo
+		given(this.discovery.findLatestRequest(1, AiRequestKind.FIND_LOGO, 7))
+			.willReturn(Optional.of(logoRequest(AiRequestStatus.DONE)));
+		assertThat(this.mvc.get().uri("/applications/7/logo/finder").param("asked", "51").param("view", "DRAWER"))
+			.hasStatusOk()
+			.satisfies(result -> assertThat(result).headers()
+				.hasValue("HX-Retarget", "#drawer-application")
+				.hasValue("HX-Reswap", "outerHTML"))
+			.bodyText()
+			.contains("id=\"drawer-application\"");
+		// Loaded afresh, a request done before shows nothing
+		assertThat(this.mvc.get().uri("/applications/7/logo/finder")).hasStatusOk()
+			.satisfies(result -> assertThat(result).headers().doesNotContainHeader("HX-Retarget"))
+			.bodyText()
+			.doesNotContain("Finding the company’s logo", "every 5s");
+	}
+
+	@Test
+	void saysWhyTheAssistantFoundNoLogoOnce() {
+		given(this.discovery.findLatestRequest(1, AiRequestKind.FIND_LOGO, 7)).willReturn(Optional.of(AiRequest.builder()
+			.id(51)
+			.kind(AiRequestKind.FIND_LOGO)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.FAILED)
+			.summary("Its site has an SVG logo only")
+			.createdAt(Instant.now())
+			.build()));
+
+		assertThat(this.mvc.get().uri("/applications/7/logo/finder").param("asked", "51")).bodyText()
+			.contains("The assistant couldn’t find the logo: Its site has an SVG logo only");
+		assertThat(this.mvc.get().uri("/applications/7/logo/finder")).bodyText()
+			.doesNotContain("couldn’t find the logo");
+	}
+
+	@Test
+	void removesTheLogo() {
+		assertThat(this.mvc.post().uri("/applications/7/logo/delete")).hasStatusOk()
+			.bodyText()
+			.contains("id=\"application\"");
+		then(this.applications).should().changeCompanyLogo(1, 7, null);
+	}
+
+	private static AiRequest logoRequest(AiRequestStatus status) {
+		return AiRequest.builder()
+			.id(51)
+			.kind(AiRequestKind.FIND_LOGO)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(status)
+			.createdAt(Instant.now())
+			.build();
 	}
 
 	@Test
@@ -315,6 +401,54 @@ class ApplicationControllerTests {
 					"href=\"https://jobs.example.com/7\"", "&lt;b&gt;Not bold&lt;/b&gt;", "How it works", "id=\"how-job\"",
 					"A status is said once")
 			.doesNotContain("<b>Not bold</b>");
+	}
+
+	@Test
+	void showsTheDescriptionsBoldAndListsAndOpensItsEditor() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(APPLICATION.toBuilder()
+			.description("**Requirements**\n- Java\n- Spring")
+			.build()));
+
+		assertThat(this.mvc.get().uri("/applications/7")).hasStatusOk()
+			.bodyText()
+			.contains("<p><strong>Requirements</strong></p><ul><li>Java</li><li>Spring</li></ul>",
+					"hx-put=\"/applications/7/description\"", "data-rich-command=\"bold\"", "data-rich-editor",
+					"aria-label=\"Job description\">**Requirements**\n- Java\n- Spring</textarea>")
+			.doesNotContain("Add a description");
+	}
+
+	@Test
+	void offersToWriteADescriptionForAJobWithout() {
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(APPLICATION.toBuilder().description(null).build()));
+
+		assertThat(this.mvc.get().uri("/applications/7")).hasStatusOk()
+			.bodyText()
+			.contains("Add a description", "hx-put=\"/applications/7/description\"");
+	}
+
+	@Test
+	void savesTheDescriptionAsTyped() {
+		assertThat(this.mvc.put()
+			.uri("/applications/7/description")
+			.param("description", "**Requirements**\r\n- Java\r\n")
+			.param("view", "DRAWER")).hasStatusOk()
+			.satisfies(result -> assertThat(result).headers().hasValue("HX-Trigger", "applications-changed"))
+			.bodyText()
+			.contains("id=\"drawer-application\"");
+		then(this.applications).should().updateDescription(1, 7, "**Requirements**\n- Java");
+
+		assertThat(this.mvc.put().uri("/applications/7/description").param("description", " ")).hasStatusOk();
+		then(this.applications).should().updateDescription(1, 7, null);
+	}
+
+	@Test
+	void keepsTheEditorOpenWithADescriptionTooLong() {
+		assertThat(this.mvc.put()
+			.uri("/applications/7/description")
+			.param("description", "x".repeat(100_001))).hasStatusOk()
+			.bodyText()
+			.contains("The description can be at most 100000 characters long.");
+		then(this.applications).should(never()).updateDescription(anyLong(), anyLong(), any());
 	}
 
 	@Test
@@ -747,6 +881,10 @@ class ApplicationControllerTests {
 	void savesTheLocationAndTheSalaryTypedIn() {
 		assertThat(this.mvc.post()
 			.uri("/applications/7/details")
+			.param("title", " Backend engineer ")
+			.param("company", " Tires Easy ")
+			.param("link", "https://www.techtalent.ro/careers/7")
+			.param("employmentType", " B2B ")
 			.param("location", " Bucharest, hybrid ")
 			.param("salaryFrom", "8000")
 			.param("salaryTo", "6000")
@@ -757,6 +895,8 @@ class ApplicationControllerTests {
 			.bodyText()
 			.contains("id=\"application\"")
 			.doesNotContain("<html");
+		then(this.applications).should().updatePosting(1, 7, "Backend engineer", "Tires Easy",
+				"https://www.techtalent.ro/careers/7", "B2B");
 		then(this.applications).should().updateLocation(1, 7, "Bucharest, hybrid");
 		ArgumentCaptor<SalaryRange> range = ArgumentCaptor.forClass(SalaryRange.class);
 		then(this.salaries).should().change(eq(1L), eq(7L), range.capture(), any(Locale.class));
@@ -768,6 +908,9 @@ class ApplicationControllerTests {
 	void savesNoSalaryWithoutAmounts() {
 		assertThat(this.mvc.post()
 			.uri("/applications/7/details")
+			.param("title", "Backend engineer")
+			.param("company", "")
+			.param("link", "")
 			.param("location", "")
 			.param("salaryFrom", "")
 			.param("salaryTo", "")
@@ -775,14 +918,57 @@ class ApplicationControllerTests {
 			.param("period", "")
 			.param("basis", "")
 			.param("view", "DRAWER")).hasStatusOk().bodyText().contains("id=\"drawer-application\"");
+		then(this.applications).should().updatePosting(1, 7, "Backend engineer", null, null, null);
 		then(this.applications).should().updateLocation(1, 7, null);
 		then(this.salaries).should().change(eq(1L), eq(7L), isNull(), any(Locale.class));
+	}
+
+	@Test
+	void keepsTheTitleAndAWebLink() {
+		assertThat(this.mvc.post()
+			.uri("/applications/7/details")
+			.param("title", " ")
+			.param("link", "javascript:alert(1)")
+			.param("currency", "EUR")).hasStatusOk()
+			.bodyText()
+			.contains("Give the job a title.");
+		assertThat(this.mvc.post()
+			.uri("/applications/7/details")
+			.param("title", "Backend engineer")
+			.param("link", "ftp://acme.com/jobs/7")
+			.param("currency", "EUR")).hasStatusOk()
+			.bodyText()
+			.contains("The link must be a full web address, starting with https://");
+		then(this.applications).should(never()).updatePosting(anyLong(), anyLong(), any(), any(), any(), any());
+	}
+
+	@Test
+	void opensTheFactsFormAtTheCompanyAndTheLink() {
+		assertThat(this.mvc.get().uri("/applications/7")).hasStatusOk()
+			.bodyText()
+			.contains("data-focus=\"[name=company]\"", "data-focus=\"[name=link]\"", "name=\"title\"",
+					"name=\"company\"", "name=\"link\"");
+	}
+
+	@Test
+	void showsTheEmploymentTypeAlwaysAndOffersTheCommonOnes() {
+		assertThat(this.mvc.get().uri("/applications/7")).bodyText()
+			.contains("data-focus=\"[name=employmentType]\"", "name=\"employmentType\"", "value=\"Full-time\"",
+					"data-fill=\"[name=employmentType]\"", "data-value=\"Full-time\"", "data-value=\"Part-time\"",
+					"data-value=\"Contractor\"", "data-value=\"B2B\"", "data-value=\"Internship\"");
+
+		// Not said: a dash, and the pencil to say it
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(APPLICATION.toBuilder().employmentType(null).build()));
+		assertThat(this.mvc.get().uri("/applications/7")).bodyText()
+			.containsPattern("Employment type</dt>\\s*<dd[^>]*>\\s*<span[^>]*>—</span>")
+			.contains("data-focus=\"[name=employmentType]\"");
 	}
 
 	@Test
 	void keepsTheDetailsFormOpenWithWhatIsWrong() {
 		assertThat(this.mvc.post()
 			.uri("/applications/7/details")
+			.param("title", "Backend engineer")
 			.param("location", "Cluj")
 			.param("salaryFrom", "-5")
 			.param("currency", "")).hasStatusOk()
@@ -790,6 +976,7 @@ class ApplicationControllerTests {
 			.contains("Type the amounts as numbers above zero", "Pick the salary’s currency.", "value=\"Cluj\"")
 			.doesNotContain("hx-post=\"/applications/7/details\" hidden");
 		then(this.applications).should(never()).updateLocation(anyLong(), anyLong(), any());
+		then(this.applications).should(never()).updatePosting(anyLong(), anyLong(), any(), any(), any(), any());
 		then(this.salaries).should(never()).change(anyLong(), anyLong(), any(), any());
 	}
 

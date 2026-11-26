@@ -13,6 +13,7 @@ import com.jobwarden.web.view.Links;
 import com.jobwarden.web.view.Money;
 import com.jobwarden.web.view.Names;
 import com.jobwarden.web.view.QuerySyntax;
+import com.jobwarden.web.view.RichText;
 import com.jobwarden.web.view.Sharing;
 
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -27,8 +28,8 @@ import org.springframework.context.annotation.Import;
  * call, and those the page controllers are made with, are imported here, for every web test.
  */
 @SpringBootApplication
-@Import({ CountryNames.class, Dates.class, Links.class, Money.class, Names.class, QuerySyntax.class, Sharing.class,
-		FormTexts.class, Ideas.class, JobImages.class, PromptCards.class, ExtensionStores.class })
+@Import({ CountryNames.class, Dates.class, Links.class, Money.class, Names.class, QuerySyntax.class, RichText.class,
+		Sharing.class, FormTexts.class, Ideas.class, JobImages.class, PromptCards.class, ExtensionStores.class })
 class WebTestApplication {
 
 	/** "Now", as the app's own JobWardenApplication gives it to every module. */

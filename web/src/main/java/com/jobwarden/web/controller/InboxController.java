@@ -351,6 +351,8 @@ class InboxController {
 		model.addAttribute(ModelAttributes.READING_INTERVAL,
 				account.map(mailbox -> ReadingInterval.of(mailbox.readEveryMinutes())).orElse(null));
 		model.addAttribute(ModelAttributes.MAIL_PROVIDERS, MailProvider.values());
+		// Proton Mail Bridge's server: 127.0.0.1, or the computer as a container names it, when JobWarden runs in one
+		model.addAttribute(ModelAttributes.LOCAL_MAIL_HOST, this.inbox.localServerHost());
 		model.addAttribute(ModelAttributes.MAIL_PROVIDER,
 				(model.getAttribute(ModelAttributes.MAIL_FORM) instanceof MailAccountForm form)
 						? MailProvider.of(form.host()) : MailProvider.GMAIL);

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<!--/* A job's company logo before its title, on its page and in the side panel, which asks the AI Assistant to find the
+       logo on the web, for a job saved without one or with the wrong one (ApplicationController, /applications/{id}/logo).
+       Inside the job's own HTMX element (jobApplication, view), whose target, swap and view its requests inherit unless
+       they name their own. */-->
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <!--/* Only fragments are taken from this file: the title is never shown */-->
+    <title>Company logo · JobWarden</title>
+</head>
+<body>
+
+<!--/* The logo as a button, whose menu asks the AI Assistant to find it, or removes the one there is: then the initials
+       show. Asking answers with the finder under the header, which follows the request. */-->
+<th:block th:fragment="menu"
+          th:with="key=|${view.name().toLowerCase()}-${jobApplication.id}|,
+                   hasLogo=${logoApplications != null and logoApplications.containsKey(jobApplication.id)}">
+    <button class="logo-button" type="button" th:id="|logo-button-${key}|" th:popovertarget="|logo-menu-${key}|"
+            aria-haspopup="menu" th:title="#{logo.button}" th:aria-label="#{logo.button}">
+        <span th:replace="~{applications/fragments :: company-logo(${jobApplication.id}, ${jobApplication.company}, 40)}"></span>
+    </button>
+    <div class="menu" popover role="menu" th:id="|logo-menu-${key}|" th:aria-labelledby="|logo-button-${key}|"
+         th:data-anchor="|logo-button-${key}|" data-align="start">
+        <button class="menu-item" type="button" role="menuitem" th:popovertarget="|logo-menu-${key}|"
+                popovertargetaction="hide" th:hx-post="@{/applications/{id}/logo/request(id=${jobApplication.id})}"
+                th:hx-target="|#logo-finder-${key}|" hx-swap="outerHTML">
+            <i class="ph ph-sparkle text-[15px]"></i><span th:text="#{logo.find}">Ask the AI Assistant to find the logo</span>
+        </button>
+        <button class="menu-item" type="button" role="menuitem" th:if="${hasLogo}"
+                th:hx-post="@{/applications/{id}/logo/delete(id=${jobApplication.id})}" th:hx-confirm="#{logo.removeConfirm}">
+            <i class="ph ph-trash text-[15px]"></i><span th:text="#{logo.remove}">Remove the logo</span>
+        </button>
+    </div>
+</th:block>
+
+<!--/* Where the finder goes, under the header: it asks for it after the job, in case a request is open already */-->
+<div th:fragment="loader" th:id="|logo-finder-${view.name().toLowerCase()}-${jobApplication.id}|"
+     th:hx-get="@{/applications/{id}/logo/finder(id=${jobApplication.id})}" hx-trigger="load" hx-target="this"
+     hx-swap="outerHTML"></div>
+
+<!--/* While the AI Assistant looks for the logo (logoRequest, open): what to paste into Claude Code while it waits
+       (logoPrompt), and Cancel; it asks again every few seconds, naming the request it follows (asked). Once that's done,
+       the job's part comes back in its place, with the logo (ApplicationController). When it couldn't find one, it says
+       why, once (logoAsked). Nothing otherwise. */-->
+<div th:fragment="finder" th:id="|logo-finder-${view.name().toLowerCase()}-${logoJobId}|"
+     th:with="status=${logoRequest != null} ? ${logoRequest.status.name()},
+              open=${logoRequest != null and logoRequest.status.isOpen()},
+              failed=${status == 'FAILED' and logoAsked != null}"
+     th:classappend="${open or failed} ? 'flex flex-col gap-2 rounded-md p-3 shadow-sm'"
+     th:hx-get="${open} ? @{/applications/{id}/logo/finder(id=${logoJobId},asked=${logoRequest.id})}"
+     th:hx-trigger="${open} ? 'every 5s'" hx-target="this" hx-swap="outerHTML">
+    <th:block th:if="${open}">
+        <div class="flex items-center gap-2">
+            <i class="ph ph-image text-accent"></i>
+            <span class="text-[13px] font-medium" th:text="#{logo.finding}">Finding the company’s logo</span>
+            <span class="tag st-interviewing">
+                <i class="ph ph-arrow-clockwise animate-spin" th:if="${status == 'WORKING'}"></i>
+                <span th:text="#{|ai.status.${status}|}">Waiting for the AI Assistant</span>
+            </span>
+            <span class="flex-1"></span>
+            <button class="btn btn-ghost px-1.5 py-1 text-xs" type="button"
+                    th:hx-post="@{/applications/{id}/logo/cancel(id=${logoJobId})}" th:text="#{ai.cancel}">Cancel</button>
+        </div>
+        <th:block th:if="${status == 'WAITING'}">
+            <div th:replace="~{applications/claude :: prompt(${logoPrompt})}"></div>
+        </th:block>
+    </th:block>
+    <p class="text-[13px] text-danger" role="alert" th:if="${failed}"
+       th:text="#{logo.failed(${logoRequest.summary} ?: '')}">The assistant couldn’t find the logo: …</p>
+</div>
+
+</body>
+</html>

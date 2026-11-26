@@ -101,6 +101,9 @@ class AssistantRunnerTests {
 		then(this.discovery).should(never()).finishRequest(anyLong(), anyLong(), anyBoolean(), anyString());
 		assertThat(AssistantRunner.signInCommand(Assistant.CLAUDE_CODE)).isEqualTo("claude auth login");
 		assertThat(AssistantRunner.signInCommand(Assistant.CODEX)).isEqualTo("codex login");
+		// In JobWarden's container, where the assistant runs
+		assertThat(AssistantRunner.signInCommand(Assistant.CLAUDE_CODE, true))
+			.isEqualTo("docker compose exec -it jobwarden claude auth login");
 	}
 
 	@Test

@@ -22,10 +22,20 @@ RUN java -Djarmode=tools -jar /jobwarden.jar extract --layers --destination /ext
 # For each platform the image is published for, those Java 25's runtime image has: amd64 (Intel and AMD), arm64 (Apple
 # Silicon, ARM laptops, Raspberry Pi 4 and 5, ARM NAS), ppc64le and s390x. Not 32-bit ARM, which Java 25 isn't built for.
 FROM eclipse-temurin:25-jre
+# curl, for Anthropic's installer of Claude Code, which a profile may put in the container for Run it here (Settings:
+# docker compose exec jobwarden bash -c "… curl -fsSL https://claude.ai/install.sh | bash"). Claude Code itself isn't
+# in the image: each installs their own.
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 # Never as root. The key that encrypts the mailbox passwords and GitHub tokens is made in ~/.jobwarden on the first
-# start: the volume keeps it, and with it what was encrypted, when the container is made anew.
+# start: the volume keeps it, and with it what was encrypted, when the container is made anew. So does it keep what's
+# installed in ~/.local (Claude Code: the installer makes ~/.jobwarden/local first), and Claude Code's sign-in and
+# settings (CLAUDE_CONFIG_DIR).
 RUN useradd --system --create-home --home-dir /home/jobwarden --uid 10001 jobwarden \
-    && mkdir /home/jobwarden/.jobwarden && chown jobwarden /home/jobwarden/.jobwarden
+    && mkdir /home/jobwarden/.jobwarden && chown jobwarden /home/jobwarden/.jobwarden \
+    && ln -s /home/jobwarden/.jobwarden/local /home/jobwarden/.local && chown -h jobwarden /home/jobwarden/.local
+ENV CLAUDE_CONFIG_DIR=/home/jobwarden/.jobwarden/claude
+# Where the installer puts claude, so docker compose exec finds it to sign it in
+ENV PATH=/home/jobwarden/.local/bin:$PATH
 USER jobwarden
 WORKDIR /app
 COPY --from=build /extracted/dependencies/ ./

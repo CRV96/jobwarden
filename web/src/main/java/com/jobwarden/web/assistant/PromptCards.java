@@ -51,6 +51,14 @@ public class PromptCards {
 	}
 
 	/**
+	 * Whether Run can start the assistant where JobWarden runs: false without a runner (a test of one controller).
+	 */
+	public boolean canRun(Assistant assistant) {
+		AssistantRunner assistantRunner = this.runner.getIfAvailable();
+		return assistantRunner != null && assistantRunner.canRun(assistant);
+	}
+
+	/**
 	 * Whether the assistant has JobWarden's MCP server on this computer; unknown without a way to tell.
 	 */
 	public Connection connection(Assistant assistant) {

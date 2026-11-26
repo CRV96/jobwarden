@@ -206,6 +206,28 @@ public class ApplicationEntity {
 		this.location = location;
 	}
 
+	/**
+	 * The posting's own facts, as the profile corrected them, e.g. the company of one the browser extension saved.
+	 *
+	 * @param link the posting's address, or {@code null} for none; {@code source} is its site
+	 * @param employmentType e.g. Full-time or B2B, as the profile wrote it; {@code null} when the posting doesn't say
+	 */
+	public void changePosting(String title, @Nullable String company, @Nullable String link, @Nullable String source,
+			@Nullable String employmentType) {
+		this.title = title;
+		this.company = company;
+		this.link = link;
+		this.source = source;
+		this.employmentType = employmentType;
+	}
+
+	/**
+	 * @param description the posting's text, its bold and lists as Markdown; {@code null} to clear it
+	 */
+	public void changeDescription(@Nullable String description) {
+		this.description = description;
+	}
+
 	public void changeFollowUp(FollowUp followUp) {
 		this.contactName = followUp.contactName();
 		this.contactRole = followUp.contactRole();

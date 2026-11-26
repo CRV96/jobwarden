@@ -74,7 +74,22 @@ class AssistantRunControllerTests {
 		assertThat(run("12", "http://localhost")).hasStatusOk()
 			.bodyText()
 			.contains("data-run", "Started: Codex works on it in the background.");
-		then(this.runner).should().run(Assistant.CODEX, 1, List.of(12L), "http://localhost/mcp");
+		then(this.runner).should().run(Assistant.CODEX, 1, List.of(12L), "http://localhost:80/mcp");
+	}
+
+	/** Docker publishing the server on another port: the run, in the container, reaches it at its own. */
+	@Test
+	void givesTheRunTheServersOwnPortWhicheverTheBrowserCameThrough() {
+		assertThat(this.mvc.post()
+			.uri("http://localhost:9090/assistant/run")
+			.param("requests", "12")
+			.header("HX-Request", "true")
+			.header(HttpHeaders.ORIGIN, "http://localhost:9090")
+			.with(request -> {
+				request.setLocalPort(9273);
+				return request;
+			})).hasStatusOk();
+		then(this.runner).should().run(Assistant.CODEX, 1, List.of(12L), "http://localhost:9273/mcp");
 	}
 
 	@Test

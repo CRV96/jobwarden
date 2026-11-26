@@ -240,7 +240,7 @@
             <span class="field-label" th:text="#{inbox.provider}">Provider</span>
             <select class="input" data-mail-provider>
                 <option th:each="provider : ${mailProviders}" th:value="${provider}" th:selected="${provider == mailProvider}"
-                        th:data-host="${provider.host}" th:data-port="${provider.port}" th:data-local="${provider.local} ? 'true'"
+                        th:data-host="${provider.local} ? ${localMailHost} : ${provider.host}" th:data-port="${provider.port}" th:data-local="${provider.local} ? 'true'"
                         th:text="#{|inbox.provider.${provider}|}">Gmail</option>
             </select>
         </label>
@@ -248,7 +248,7 @@
             <label class="flex flex-col">
                 <span class="field-label" th:text="#{inbox.host}">IMAP server</span>
                 <input class="input" type="text" name="host" required data-mail-host
-                       th:value="${form != null} ? ${form.host} : ${mailProvider.host}" autocomplete="off">
+                       th:value="${form != null} ? ${form.host} : (${mailProvider.local} ? ${localMailHost} : ${mailProvider.host})" autocomplete="off">
             </label>
             <label class="flex flex-col">
                 <span class="field-label" th:text="#{inbox.port}">Port</span>

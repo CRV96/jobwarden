@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -138,8 +139,24 @@ class DefaultApplicationService implements ApplicationService {
 	}
 
 	@Override
-	public Set<Long> findApplicationsWithLogo(long userId) {
-		return this.images.findApplicationsWithLogo(userId);
+	public Map<Long, Long> findLogoVersions(long userId) {
+		return this.images.findLogoVersions(userId);
+	}
+
+	/**
+	 * @throws ApplicationNotFoundException if the user has no such application
+	 */
+	@Override
+	@Transactional
+	public void changeCompanyLogo(long userId, long applicationId, @Nullable PngImage logo) {
+		ApplicationEntity application = getOwnedApplication(userId, applicationId);
+		if (logo == null) {
+			this.images.deleteCompanyLogo(application);
+			log.info("Removed the company logo of application {}", applicationId);
+		} else {
+			this.images.saveCompanyLogo(application, logo);
+			log.info("Changed the company logo of application {}", applicationId);
+		}
 	}
 
 	@Override
@@ -312,6 +329,32 @@ class DefaultApplicationService implements ApplicationService {
 	public void updateLocation(long userId, long applicationId, @Nullable String location) {
 		getOwnedApplication(userId, applicationId).changeLocation(location);
 		log.info("Updated the location of application {}", applicationId);
+	}
+
+	/**
+	 * @throws ApplicationNotFoundException if the user has no such application
+	 */
+	@Override
+	@Transactional
+	public void updatePosting(long userId, long applicationId, String title, @Nullable String company,
+			@Nullable String link, @Nullable String employmentType) {
+		ApplicationEntity application = getOwnedApplication(userId, applicationId);
+		String source = JobImageStore.sourceOf(link);
+		if (!Objects.equals(source, application.getSource())) {
+			log.debug("Application {} comes from {} now, not {}", applicationId, source, application.getSource());
+		}
+		application.changePosting(title, company, link, source, employmentType);
+		log.info("Updated the title, company, link and employment type of application {}", applicationId);
+	}
+
+	/**
+	 * @throws ApplicationNotFoundException if the user has no such application
+	 */
+	@Override
+	@Transactional
+	public void updateDescription(long userId, long applicationId, @Nullable String description) {
+		getOwnedApplication(userId, applicationId).changeDescription(description);
+		log.info("Updated the description of application {}", applicationId);
 	}
 
 	@Override

@@ -26,6 +26,7 @@ import java.util.stream.Stream;
 
 import com.jobwarden.common.exception.CommonErrorCode;
 import com.jobwarden.common.exception.JobWardenException;
+import com.jobwarden.common.runtime.Containers;
 import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.enums.Assistant;
 import com.jobwarden.web.view.AssistantPrompts;
@@ -38,8 +39,9 @@ import org.springframework.stereotype.Component;
 /**
  * Runs the profile's AI assistant on this computer, in the background, when a page's Run is clicked: claude -p or
  * codex exec on the requests asked, as the terminal loop would, with no one to answer it. It runs on the profile's own
- * plan, signed in as the user JobWarden runs as; in Docker there's no assistant to run, and the pages keep only their
- * prompts to paste.
+ * plan, signed in as the user JobWarden runs as. In Docker, the container has none until it's installed there
+ * ({@link #DOCKER_INSTALL}, which keeps it on JobWarden's volume): until then the pages keep only their prompts to
+ * paste, and once it is, Run shows without a restart, as an assistant not found is looked for again.
  * <p>
  * It asks the assistant first whether it's signed in, and when it isn't, the page says how to sign it in. A run that
  * stops before ending its requests (a crash, too long) fails them, saying why, so the page doesn't wait forever. What it printed is kept in the runs directory, a file per run.
@@ -61,6 +63,17 @@ public class AssistantRunner {
 			"/Applications/Codex.app/Contents/Resources/codex-cli/bin",
 			"~/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin");
 
+	/**
+	 * Installs Claude Code in JobWarden's container, from Anthropic, run from the folder of JobWarden's compose.yaml:
+	 * the image's ~/.local is on its volume, so it stays across updates (Dockerfile). Anthropic's binary isn't in the
+	 * image itself: each installs their own.
+	 */
+	public static final String DOCKER_INSTALL = "docker compose exec jobwarden bash -c "
+			+ "\"mkdir -p ~/.jobwarden/local && curl -fsSL https://claude.ai/install.sh | bash\"";
+
+	/** What runs a command in JobWarden's container, from the folder of its compose.yaml, for a person to type in. */
+	private static final String IN_THE_CONTAINER = "docker compose exec -it jobwarden ";
+
 	/** How each says whether it's signed in: it ends with 0 when it is. */
 	private static final Map<Assistant, List<String>> SIGN_IN_STATUS = Map.of(Assistant.CLAUDE_CODE,
 			List.of("auth", "status"), Assistant.CODEX, List.of("login", "status"));
@@ -81,7 +94,11 @@ public class AssistantRunner {
 
 	private final boolean enabled;
 
-	private final Map<Assistant, Optional<Path>> executables = new EnumMap<>(Assistant.class);
+	/** Each one's command, as configured */
+	private final Map<Assistant, String> commands = new EnumMap<>(Assistant.class);
+
+	/** Where each was found: looked for again while it isn't, as it may be installed while JobWarden runs */
+	private final Map<Assistant, Path> executables = new ConcurrentHashMap<>();
 
 	private final Path directory;
 
@@ -110,17 +127,17 @@ public class AssistantRunner {
 		this.enabled = enabled;
 		this.directory = directory;
 		this.timeout = timeout;
-		this.executables.put(Assistant.CLAUDE_CODE, find(claudeCommand));
-		this.executables.put(Assistant.CODEX, find(codexCommand));
-		this.executables.forEach((assistant, path) -> log.info("{}: {}", assistant.product(),
-				path.map(Path::toString).orElse("not found, so the pages offer no Run")));
+		this.commands.put(Assistant.CLAUDE_CODE, claudeCommand);
+		this.commands.put(Assistant.CODEX, codexCommand);
+		this.commands.keySet().forEach(assistant -> log.info("{}: {}", assistant.product(),
+				executable(assistant).map(Path::toString).orElse("not found, so the pages offer no Run")));
 	}
 
 	/**
 	 * @return whether Run can start the assistant here
 	 */
 	public boolean canRun(Assistant assistant) {
-		return this.enabled && this.executables.getOrDefault(assistant, Optional.empty()).isPresent();
+		return this.enabled && executable(assistant).isPresent();
 	}
 
 	/**
@@ -131,13 +148,38 @@ public class AssistantRunner {
 	}
 
 	/**
-	 * How one signs the assistant in on this computer, in a terminal, for Run to work.
+	 * Where the assistant is, found now or before: one installed while JobWarden runs is found the next time a page asks.
+	 * A few files looked at, while it's missing.
+	 */
+	private Optional<Path> executable(Assistant assistant) {
+		Path found = this.executables.get(assistant);
+		if (found == null) {
+			found = find(this.commands.getOrDefault(assistant, "")).orElse(null);
+			if (found != null) {
+				this.executables.put(assistant, found);
+				log.info("{} found: {}", assistant.product(), found);
+			}
+		}
+		return Optional.ofNullable(found);
+	}
+
+	/**
+	 * How one signs the assistant in where JobWarden runs, in a terminal, for Run to work: in its container, when it
+	 * runs in one.
 	 */
 	public static String signInCommand(Assistant assistant) {
-		return switch (assistant) {
+		return signInCommand(assistant, Containers.inside());
+	}
+
+	/**
+	 * @param inContainer whether JobWarden runs in a container: then the command runs in it
+	 */
+	public static String signInCommand(Assistant assistant, boolean inContainer) {
+		String command = switch (assistant) {
 			case CLAUDE_CODE -> "claude auth login";
 			case CODEX -> "codex login";
 		};
+		return inContainer ? IN_THE_CONTAINER + command : command;
 	}
 
 	/**
@@ -149,7 +191,7 @@ public class AssistantRunner {
 	 * or too many runs are going on
 	 */
 	public void run(Assistant assistant, long userId, List<Long> requestIds, String mcpUrl) {
-		Path executable = this.executables.getOrDefault(assistant, Optional.empty())
+		Path executable = executable(assistant)
 			.filter(path -> this.enabled)
 			.orElseThrow(() -> refuse(assistant, requestIds, new RunRefusedException(RunRefusedException.Reason.UNAVAILABLE)));
 		// Asked first, so a run that couldn't do anything doesn't fail the requests: they keep waiting, to run again

@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import com.jobwarden.common.exception.BusinessRuleException;
+import com.jobwarden.common.runtime.Containers;
 import com.jobwarden.database.service.DatabasePasswordService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.enums.Assistant;
@@ -19,6 +20,7 @@ import com.jobwarden.inbox.service.InboxService;
 import com.jobwarden.market.enums.AdzunaKeyCheck;
 import com.jobwarden.market.service.AdzunaKeyService;
 import com.jobwarden.web.assistant.AssistantConnections.Connection;
+import com.jobwarden.web.assistant.AssistantRunner;
 import com.jobwarden.web.assistant.PromptCards;
 import com.jobwarden.web.constants.ControllerConstants;
 import com.jobwarden.web.constants.ModelAttributes;
@@ -108,6 +110,11 @@ class SettingsController {
 		String mcpUrl = serverUrl + this.mcpPath;
 		model.addAttribute(ModelAttributes.MCP_URL, mcpUrl);
 		model.addAttribute(ModelAttributes.ASSISTANTS, Assistant.values());
+		// In Docker, Run needs Claude Code in JobWarden's container: how to put it there, and whether it is
+		model.addAttribute(ModelAttributes.IN_CONTAINER, Containers.inside());
+		model.addAttribute(ModelAttributes.CLAUDE_RUNS_HERE, this.promptCards.canRun(Assistant.CLAUDE_CODE));
+		model.addAttribute(ModelAttributes.DOCKER_INSTALL, AssistantRunner.DOCKER_INSTALL);
+		model.addAttribute(ModelAttributes.DOCKER_SIGN_IN, AssistantRunner.signInCommand(Assistant.CLAUDE_CODE, true));
 		// How to connect each assistant: the profile may work with both
 		String profileKey = (model.getAttribute(ModelAttributes.CURRENT_PROFILE) instanceof User profile)
 				? profile.publicId().toString() : null;

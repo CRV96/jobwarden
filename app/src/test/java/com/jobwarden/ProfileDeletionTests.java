@@ -14,6 +14,7 @@ import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.identity.exception.UserNotFoundException;
 import com.jobwarden.identity.service.UserService;
+import com.jobwarden.jobs.dto.CompanyResearch;
 import com.jobwarden.jobs.dto.JobOffer;
 import com.jobwarden.jobs.dto.NewApplication;
 import com.jobwarden.jobs.dto.OfferExtra;
@@ -21,6 +22,7 @@ import com.jobwarden.jobs.enums.ApplicationStatus;
 import com.jobwarden.jobs.enums.OfferExtraKind;
 import com.jobwarden.jobs.enums.PayFrequency;
 import com.jobwarden.jobs.service.ApplicationService;
+import com.jobwarden.jobs.service.CompanyResearchService;
 import com.jobwarden.jobs.service.OfferService;
 import com.jobwarden.search.SearchCriteria;
 import org.junit.jupiter.api.BeforeEach;
@@ -56,6 +58,9 @@ class ProfileDeletionTests {
 
 	@Autowired
 	private OfferService offers;
+
+	@Autowired
+	private CompanyResearchService research;
 
 	@Autowired
 	private DiscoveryService discovery;
@@ -94,7 +99,7 @@ class ProfileDeletionTests {
 		assertThatExceptionOfType(UserNotFoundException.class).isThrownBy(() -> this.users.delete(robert.id()));
 	}
 
-	/** A job at Offer with its terms, a saved search, a request for the assistant, a story. */
+	/** A job at Offer with its terms and its company's research, a saved search, requests for the assistant, a story. */
 	private void fill(User user) {
 		long job = this.applications.create(NewApplication.builder()
 			.userId(user.id())
@@ -112,6 +117,11 @@ class ProfileDeletionTests {
 		this.discovery.saveSearch(user.id(), "Java", SearchCriteria.builder().titles(List.of("Java Developer")).build());
 		this.discovery.createRequest(user.id(), AiRequestKind.FIND_JOBS, AiRequirements.NONE);
 		this.discovery.createRequest(user.id(), AiRequestKind.SCORE_JOB, job);
+		this.discovery.createRequest(user.id(), AiRequestKind.RESEARCH_COMPANY, job);
+		this.research.save(user.id(), job, CompanyResearch.builder()
+			.company("Acme makes payment terminals.")
+			.ratings(List.of("Glassdoor 3.9/5 (210 reviews)"))
+			.build());
 		this.stories.save(user.id(), Story.builder().title("Moved the payments to Kafka").skills(List.of("Kafka")).build());
 	}
 

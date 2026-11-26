@@ -35,13 +35,14 @@
        th:classappend="${source} ? 'ph-globe-simple' : 'ph-pencil-simple'"></i>
 </th:block>
 
-<!--/* The company's logo, from the posting (logoApplications, see BaseController), or else the company's initials.
-       size is its side in pixels: 28 in the lists, 40 in the side panel and on the job's page. */-->
+<!--/* The company's logo, from the posting or the AI Assistant (logoApplications, by job its version, see JobImages), or
+       else the company's initials. size is its side in pixels: 28 in the lists, 40 in the side panel and on the job's
+       page. The address has the version: browsers keep a logo a day, and ask again for a new one. */-->
 <span th:fragment="company-logo(id, company, size)" class="company-logo" aria-hidden="true"
       th:classappend="${size >= 40} ? 'size-10 rounded-[9px] text-sm' : 'size-7 rounded-md text-[11px]'">
-    <img th:if="${logoApplications != null and logoApplications.contains(id)}" alt=""
-         th:src="@{/applications/{id}/logo(id=${id})}" th:width="${size}" th:height="${size}">
-    <th:block th:unless="${logoApplications != null and logoApplications.contains(id)}"
+    <img th:if="${logoApplications != null and logoApplications.containsKey(id)}" alt=""
+         th:src="@{/applications/{id}/logo(id=${id},v=${logoApplications.get(id)})}" th:width="${size}" th:height="${size}">
+    <th:block th:unless="${logoApplications != null and logoApplications.containsKey(id)}"
               th:text="${company != null and !#strings.isEmpty(company)} ? ${@names.initials(company)} : '·'">AC</th:block>
 </span>
 
@@ -60,10 +61,11 @@
     <span class="min-w-0 truncate" th:unless="${isLink}" th:text="${source} ?: #{source.manual}">linkedin.com</span>
 </th:block>
 
-<!--/* The job's facts. The location and the salary change from here (POST /applications/{id}/details): a pencil next
-       to either opens the form under them, which has the salary as amounts. salaryRange is what the salary's text reads
-       as, or null; text that reads as none stays until amounts replace it. When what was typed is wrong, the form comes
-       back open, with it and why (detailsForm, detailsError). */-->
+<!--/* The job's facts. The posting's title, company and link, the location and the salary change from here (POST
+       /applications/{id}/details): a pencil next to one (the company's is in the header) opens the form under them,
+       which has the salary as amounts. salaryRange is what the salary's text reads as, or null; text that reads as none
+       stays until amounts replace it. When what was typed is wrong, the form comes back open, with it and why
+       (detailsForm, detailsError). */-->
 <div th:fragment="facts" class="flex flex-col gap-3"
      th:with="formId=|details-${jobApplication.id}|, open=${detailsError != null}">
     <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[13px]">
@@ -77,10 +79,11 @@
             <span class="min-w-0 flex-1" th:text="${jobApplication.salary} ?: '—'">€5,000 a month</span>
             <button th:replace="~{applications/fragments :: details-button(${formId}, 'salaryFrom', #{details.salary.change})}"></button>
         </dd>
-        <th:block th:if="${jobApplication.employmentType}">
-            <dt class="text-ink/55" th:text="#{newApplication.employmentType}">Employment type</dt>
-            <dd th:text="${jobApplication.employmentType}">Full-time</dd>
-        </th:block>
+        <dt class="text-ink/55" th:text="#{newApplication.employmentType}">Employment type</dt>
+        <dd class="flex min-w-0 items-start gap-1">
+            <span class="min-w-0 flex-1" th:text="${jobApplication.employmentType} ?: '—'">Full-time</span>
+            <button th:replace="~{applications/fragments :: details-button(${formId}, 'employmentType', #{details.employmentType.change})}"></button>
+        </dd>
         <dt class="text-ink/55" th:text="#{jobs.column.source}">Source</dt>
         <dd class="flex min-w-0 items-center gap-1.5"
             th:with="isLink=${jobApplication.link != null and (#strings.startsWith(jobApplication.link, 'https://') or #strings.startsWith(jobApplication.link, 'http://'))}">
@@ -89,7 +92,9 @@
             <a class="link min-w-0 truncate" th:if="${isLink}" th:href="${jobApplication.link}" target="_blank"
                rel="noopener noreferrer" th:title="${jobApplication.link}"
                th:text="${#strings.replace(#strings.replace(jobApplication.link, 'https://', ''), 'http://', '')}">linkedin.com/jobs/view/7</a>
-            <span class="min-w-0 truncate" th:unless="${isLink}" th:text="${jobApplication.source} ?: #{source.addedByHand}">linkedin.com</span>
+            <span class="min-w-0 flex-1 truncate" th:unless="${isLink}" th:text="${jobApplication.source} ?: #{source.addedByHand}">linkedin.com</span>
+            <span class="flex-1" th:if="${isLink}"></span>
+            <button th:replace="~{applications/fragments :: details-button(${formId}, 'link', #{details.link.change})}"></button>
         </dd>
         <dt class="text-ink/55" th:text="#{jobs.column.added}">Added</dt>
         <dd th:text="${@dates.relativeDay(jobApplication.capturedAt)}" th:title="${@dates.date(jobApplication.capturedAt)}">Today</dd>
@@ -103,6 +108,35 @@
                    currency=${form != null} ? ${form.currency} : (${range != null} ? ${range.currency} : 'EUR'),
                    period=${form != null} ? ${form.period} : (${range != null} ? ${range.period} : null),
                    basis=${form != null} ? ${form.basis} : (${range != null} ? ${range.basis} : null)">
+        <label class="flex flex-col">
+            <span class="field-label" th:text="#{newApplication.jobTitle}">Job title</span>
+            <input class="input" type="text" name="title" required maxlength="300" autocomplete="off"
+                   th:value="${form != null} ? ${form.title} : ${jobApplication.title}">
+        </label>
+        <label class="flex flex-col">
+            <span class="field-label" th:text="#{newApplication.company}">Company</span>
+            <input class="input" type="text" name="company" maxlength="200" autocomplete="off"
+                   th:value="${form != null} ? ${form.company} : ${jobApplication.company}">
+        </label>
+        <label class="flex flex-col">
+            <span class="field-label" th:text="#{newApplication.link}">Link to the posting</span>
+            <input class="input" type="url" name="link" maxlength="2000" autocomplete="off" placeholder="https://"
+                   th:value="${form != null} ? ${form.link} : ${jobApplication.link}">
+        </label>
+        <!--/* Typed, or picked: the chips fill it in (app.js: data-fill), in the words the browser extension saves */-->
+        <div class="flex flex-col gap-1.5">
+            <label class="flex flex-col">
+                <span class="field-label" th:text="#{newApplication.employmentType}">Employment type</span>
+                <input class="input" type="text" name="employmentType" maxlength="100" autocomplete="off"
+                       th:value="${form != null} ? ${form.employmentType} : ${jobApplication.employmentType}"
+                       th:placeholder="#{newApplication.employmentType.placeholder}">
+            </label>
+            <div class="flex flex-wrap gap-1" role="group" th:aria-label="#{details.employmentType.choices}">
+                <button class="chip chip-small" type="button" data-fill="[name=employmentType]"
+                        th:each="type : ${ {'FULL_TIME', 'PART_TIME', 'CONTRACTOR', 'B2B', 'TEMPORARY', 'INTERN'} }"
+                        th:data-value="#{|employmentType.${type}|}" th:text="#{|employmentType.${type}|}">Full-time</button>
+            </div>
+        </div>
         <label class="flex flex-col">
             <span class="field-label" th:text="#{jobs.column.location}">Location</span>
             <input class="input" type="text" name="location" maxlength="200" autocomplete="off"
@@ -241,16 +275,66 @@
     </form>
 </div>
 
-<!--/* A long description starts folded to 12 lines, with a button to show the rest. */-->
+<!--/* The posting's text, with its paragraphs, lists, bold and italics (@richText, which escapes everything else, and
+       links its web addresses; called in th:with, the only attribute Thymeleaf lets call a bean). A long one starts folded, with a button to show the rest. The pencil opens the editor
+       in its place (PUT /applications/{id}/description): its buttons and Ctrl/⌘+B or I make text bold or italic, or a
+       list (rich-text.js), and it's sent as Markdown, in the hidden field. A job without a description has the button
+       to write one. When what was sent is wrong, the editor comes back open, with it and why (descriptionForm,
+       descriptionError). */-->
 <section th:fragment="description" class="flex flex-col gap-2" data-collapse="description"
-         th:with="long=${#strings.length(jobApplication.description) > 500}">
-    <h2 class="flex items-center gap-2 text-xs text-ink/60"><span th:text="#{application.description}">Description</span></h2>
-    <!--/* Its web addresses are links (linked-text) */-->
-    <p class="text-[13px] leading-relaxed whitespace-pre-line text-pretty text-ink/85" th:classappend="${long} ? 'line-clamp-12'"
-       ><th:block th:replace="~{applications/fragments :: linked-text(${jobApplication.description})}">The posting’s text.</th:block></p>
-    <button th:if="${long}" class="btn btn-ghost self-start" type="button" data-expand
-            th:data-more="#{application.showMore}" th:data-less="#{application.showLess}"
-            th:text="#{application.showMore}">Show more</button>
+         th:with="description=${jobApplication.description}, formId=|description-${jobApplication.id}|,
+                  open=${descriptionError != null},
+                  typed=${descriptionForm != null} ? ${descriptionForm.description} : ${description},
+                  long=${description != null and #strings.length(description) > 500},
+                  shown=${@richText.html(description)}, editing=${@richText.html(typed)}">
+    <h2 class="flex items-center gap-2 text-xs text-ink/60">
+        <span th:text="#{application.description}">Description</span>
+        <button class="btn btn-ghost -my-0.5 flex-none px-1 py-0.5 text-ink/45" type="button" th:if="${description}"
+                th:data-toggle-hidden="${formId}" data-focus="[data-rich-editor]" th:aria-controls="${formId}"
+                th:title="#{description.edit}" th:aria-label="#{description.edit}">
+            <i class="ph ph-pencil-simple text-xs"></i>
+        </button>
+    </h2>
+    <th:block th:if="${description}">
+        <div class="rich-text" data-description-view th:classappend="${long} ? 'rich-text-folded'"
+             th:utext="${shown}"><p>The posting’s text.</p></div>
+        <button th:if="${long}" class="btn btn-ghost self-start" type="button" data-expand data-clamp="rich-text-folded"
+                data-description-view th:data-more="#{application.showMore}" th:data-less="#{application.showLess}"
+                th:text="#{application.showMore}">Show more</button>
+    </th:block>
+    <th:block th:unless="${description}">
+        <p class="text-[13px] text-pretty text-ink/60" data-description-view th:text="#{description.none}">
+            The posting had no description.</p>
+        <button class="btn btn-secondary self-start" type="button" data-description-view th:data-toggle-hidden="${formId}"
+                data-focus="[data-rich-editor]" th:aria-controls="${formId}">
+            <i class="ph ph-pencil-simple"></i><span th:text="#{description.write}">Add a description</span>
+        </button>
+    </th:block>
+
+    <form class="flex flex-col gap-2" th:id="${formId}" th:hidden="${!open}" data-description-form
+          th:hx-put="@{/applications/{id}/description(id=${jobApplication.id})}">
+        <div class="rich-toolbar" role="toolbar" th:aria-label="#{description.toolbar}" th:aria-controls="|${formId}-editor|">
+            <button class="btn btn-ghost btn-icon" type="button" data-rich-command="bold"
+                    th:title="#{description.bold}" th:aria-label="#{description.bold}"><i class="ph ph-text-b"></i></button>
+            <button class="btn btn-ghost btn-icon" type="button" data-rich-command="italic"
+                    th:title="#{description.italic}" th:aria-label="#{description.italic}"><i class="ph ph-text-italic"></i></button>
+            <button class="btn btn-ghost btn-icon" type="button" data-rich-command="insertUnorderedList"
+                    th:title="#{description.bullets}" th:aria-label="#{description.bullets}"><i class="ph ph-list-bullets"></i></button>
+            <button class="btn btn-ghost btn-icon" type="button" data-rich-command="insertOrderedList"
+                    th:title="#{description.numbers}" th:aria-label="#{description.numbers}"><i class="ph ph-list-numbers"></i></button>
+        </div>
+        <!--/* What's typed, written as HTML by @richText; what the page started with stays in the template, for Cancel */-->
+        <div class="rich-text rich-editor input" contenteditable="true" role="textbox" aria-multiline="true" data-rich-editor
+             th:id="|${formId}-editor|" th:aria-label="#{application.description}" th:data-placeholder="#{description.placeholder}"
+             th:utext="${editing}"></div>
+        <template data-rich-original th:utext="${shown}"></template>
+        <textarea name="description" hidden data-rich-markdown th:aria-label="#{application.description}" th:text="${typed}"></textarea>
+        <p class="text-[13px] text-danger" role="alert" th:if="${descriptionError}" th:text="${descriptionError}">Too long.</p>
+        <div class="flex gap-2">
+            <button class="btn btn-primary" type="submit"><i class="ph ph-check"></i><span th:text="#{details.save}">Save</span></button>
+            <button class="btn btn-ghost" type="reset" th:data-toggle-hidden="${formId}" th:text="#{action.cancel}">Cancel</button>
+        </div>
+    </form>
 </section>
 
 <!--/* The events, oldest first, and the form that adds one. Dates and times use the language's format.date and

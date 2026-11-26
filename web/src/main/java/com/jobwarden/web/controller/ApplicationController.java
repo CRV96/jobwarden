@@ -15,8 +15,13 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 import com.jobwarden.common.exception.BusinessRuleException;
+import com.jobwarden.discover.dto.AiRequest;
+import com.jobwarden.discover.enums.AiRequestKind;
+import com.jobwarden.discover.enums.AiRequestStatus;
+import com.jobwarden.discover.service.DiscoveryService;
 import com.jobwarden.identity.dto.User;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.ApplicationSummary;
@@ -30,12 +35,14 @@ import com.jobwarden.jobs.service.ApplicationCsvService;
 import com.jobwarden.jobs.service.ApplicationService;
 import com.jobwarden.jobs.service.JobFitService;
 import com.jobwarden.jobs.service.SalaryService;
+import com.jobwarden.web.assistant.PromptCards;
 import com.jobwarden.web.constants.ControllerConstants;
 import com.jobwarden.web.constants.HtmxEvents;
 import com.jobwarden.web.constants.HtmxHeaders;
 import com.jobwarden.web.constants.ModelAttributes;
 import com.jobwarden.web.constants.Views;
 import com.jobwarden.web.dto.ApplicationListParams;
+import com.jobwarden.web.dto.DescriptionForm;
 import com.jobwarden.web.dto.FollowUpForm;
 import com.jobwarden.web.dto.JobDetailsForm;
 import com.jobwarden.web.dto.NewApplicationForm;
@@ -103,6 +110,10 @@ class ApplicationController {
 	private final FormTexts formTexts;
 
 	private final JobImages jobImages;
+
+	private final DiscoveryService discovery;
+
+	private final PromptCards promptCards;
 
 	/**
 	 * The Jobs page as a list, searched, filtered, sorted and paged as its address says (the board is the other view,
@@ -269,8 +280,9 @@ class ApplicationController {
 	}
 
 	/**
-	 * Called by HTMX from the job's facts, with its location and its salary as amounts. Like {@link #addEvent},
-	 * returns the part the form is in; when something typed is wrong, with the form still open, saying what.
+	 * Called by HTMX from the job's facts, with the posting's title, company and link, its location, and its salary
+	 * as amounts. Like {@link #addEvent}, returns the part the form is in; when something typed is wrong, with the form
+	 * still open, saying what.
 	 */
 	@PostMapping("/{id}/details")
 	String updateDetails(@PathVariable long id, @Valid JobDetailsForm form, BindingResult result,
@@ -278,16 +290,107 @@ class ApplicationController {
 			HttpServletResponse response) {
 		long userId = requireProfile(model).id();
 		if (result.hasErrors()) {
-			log.debug("Location and salary of application {} not saved, fields with errors: {}", id,
+			log.debug("Facts of application {} not saved, fields with errors: {}", id,
 					this.formTexts.fieldErrors(result).keySet());
 			model.addAttribute(ModelAttributes.DETAILS_ERROR, this.formTexts.errorMessage(result));
 			model.addAttribute(ModelAttributes.DETAILS_FORM, form);
 			addApplication(model, userId, id, view);
 			return view.getFragment();
 		}
+		this.applications.updatePosting(userId, id, form.toTitle(), form.toCompany(), form.toLink(),
+				form.toEmploymentType());
 		this.applications.updateLocation(userId, id, form.toLocation());
 		this.salaries.change(userId, id, form.toSalaryRange(), locale);
 		return showChangedApplication(model, response, userId, id, view, null);
+	}
+
+	/**
+	 * Called by HTMX from the description's editor, with its text as Markdown. Like {@link #addEvent}, returns the part
+	 * the form is in; when it's too long, with the editor still open, saying so.
+	 */
+	@PutMapping("/{id}/description")
+	String updateDescription(@PathVariable long id, @Valid DescriptionForm form, BindingResult result,
+			@RequestParam(defaultValue = "PAGE") ApplicationView view, Model model, HttpServletResponse response) {
+		long userId = requireProfile(model).id();
+		if (result.hasErrors()) {
+			log.debug("Description of application {} not saved: {}", id, this.formTexts.fieldErrors(result).keySet());
+			model.addAttribute(ModelAttributes.DESCRIPTION_ERROR, this.formTexts.errorMessage(result));
+			model.addAttribute(ModelAttributes.DESCRIPTION_FORM, form);
+			addApplication(model, userId, id, view);
+			return view.getFragment();
+		}
+		this.applications.updateDescription(userId, id, form.toDescription());
+		return showChangedApplication(model, response, userId, id, view, null);
+	}
+
+	/**
+	 * Called by HTMX from the logo's menu: asks the AI Assistant to find the company's logo on the web. Answers with the
+	 * finder under the job's header, which follows the request.
+	 */
+	@PostMapping("/{id}/logo/request")
+	String askForLogo(@PathVariable long id, @RequestParam(defaultValue = "PAGE") ApplicationView view, Model model) {
+		long userId = requireProfile(model).id();
+		AiRequest request = this.discovery.createRequest(userId, AiRequestKind.FIND_LOGO, id);
+		return showLogoFinder(model, userId, id, view, request.id());
+	}
+
+	/**
+	 * The finder under the job's header: HTMX loads it after the job, and again every few seconds while the AI Assistant
+	 * looks for the logo. Once the request it followed ({@code asked}) is done, the job's part comes back in its place,
+	 * with the new logo.
+	 */
+	@GetMapping("/{id}/logo/finder")
+	String logoFinder(@PathVariable long id, @RequestParam(required = false) @Nullable Long asked,
+			@RequestParam(defaultValue = "PAGE") ApplicationView view, Model model, HttpServletResponse response) {
+		long userId = requireProfile(model).id();
+		long followed = (asked != null) ? asked : -1;
+		boolean found = latestLogoRequest(userId, id)
+			.filter(request -> request.id() == followed && request.status() == AiRequestStatus.DONE)
+			.isPresent();
+		if (found) {
+			response.setHeader(HtmxHeaders.RETARGET, (view == ApplicationView.DRAWER) ? "#drawer-application" : "#application");
+			response.setHeader(HtmxHeaders.RESWAP, "outerHTML");
+			return showChangedApplication(model, response, userId, id, view, null);
+		}
+		return showLogoFinder(model, userId, id, view, asked);
+	}
+
+	@PostMapping("/{id}/logo/cancel")
+	String cancelLogo(@PathVariable long id, @RequestParam(defaultValue = "PAGE") ApplicationView view, Model model) {
+		long userId = requireProfile(model).id();
+		latestLogoRequest(userId, id).filter(request -> request.status().isOpen())
+			.ifPresent(request -> this.discovery.cancelRequest(userId, request.id()));
+		return showLogoFinder(model, userId, id, view, null);
+	}
+
+	/**
+	 * Called by HTMX from the logo's menu: the job shows its company's initials instead. Like {@link #addEvent}, returns
+	 * the part it's in.
+	 */
+	@PostMapping("/{id}/logo/delete")
+	String deleteLogo(@PathVariable long id, @RequestParam(defaultValue = "PAGE") ApplicationView view, Model model,
+			HttpServletResponse response) {
+		long userId = requireProfile(model).id();
+		this.applications.changeCompanyLogo(userId, id, null);
+		return showChangedApplication(model, response, userId, id, view, null);
+	}
+
+	private String showLogoFinder(Model model, long userId, long applicationId, ApplicationView view,
+			@Nullable Long asked) {
+		Optional<AiRequest> request = latestLogoRequest(userId, applicationId);
+		model.addAttribute(ModelAttributes.VIEW, view);
+		model.addAttribute(ModelAttributes.LOGO_JOB_ID, applicationId);
+		model.addAttribute(ModelAttributes.LOGO_REQUEST, request.orElse(null));
+		model.addAttribute(ModelAttributes.LOGO_ASKED, asked);
+		model.addAttribute(ModelAttributes.LOGO_PROMPT,
+				request.filter(found -> found.status().isOpen())
+					.map(found -> this.promptCards.prompt(requireProfile(model), found.id()))
+					.orElse(null));
+		return Views.LOGO_FINDER_FRAGMENT;
+	}
+
+	private Optional<AiRequest> latestLogoRequest(long userId, long applicationId) {
+		return this.discovery.findLatestRequest(userId, AiRequestKind.FIND_LOGO, applicationId);
 	}
 
 	/**

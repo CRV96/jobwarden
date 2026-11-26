@@ -1,6 +1,8 @@
 package com.jobwarden.jobs.service.impl;
 
 import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -10,6 +12,7 @@ import com.jobwarden.jobs.entity.CompanyLogoEntity;
 import com.jobwarden.jobs.entity.SourceIconEntity;
 import com.jobwarden.jobs.entity.SourceIconKey;
 import com.jobwarden.jobs.repository.CompanyLogoRepository;
+import com.jobwarden.jobs.repository.LogoVersion;
 import com.jobwarden.jobs.repository.SourceIconRepository;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -44,8 +47,12 @@ class JobImageStore {
 		return this.companyLogos.findOwned(userId, applicationId).map(logo -> new PngImage(logo.getImage()));
 	}
 
-	Set<Long> findApplicationsWithLogo(long userId) {
-		return this.companyLogos.findApplicationIds(userId);
+	Map<Long, Long> findLogoVersions(long userId) {
+		Map<Long, Long> versions = new HashMap<>();
+		for (LogoVersion logo : this.companyLogos.findVersions(userId)) {
+			versions.put(logo.applicationId(), logo.updatedAt().getEpochSecond());
+		}
+		return versions;
 	}
 
 	/**
@@ -91,6 +98,13 @@ class JobImageStore {
 			.ifPresentOrElse(existing -> existing.changeImage(logo.png()),
 					() -> this.companyLogos.save(new CompanyLogoEntity(applicationId, logo.png())));
 		log.debug("Kept the company logo of application {} for profile {}", applicationId, application.getUserId());
+	}
+
+	/**
+	 * Removes the application's company logo, if it has one: its initials show instead.
+	 */
+	void deleteCompanyLogo(ApplicationEntity application) {
+		this.companyLogos.findById(application.getId()).ifPresent(this.companyLogos::delete);
 	}
 
 }

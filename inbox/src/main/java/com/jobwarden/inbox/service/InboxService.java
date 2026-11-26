@@ -3,6 +3,7 @@ package com.jobwarden.inbox.service;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import com.jobwarden.inbox.dto.CheckResult;
 import com.jobwarden.inbox.dto.EmailUpdate;
@@ -23,13 +24,28 @@ import org.jspecify.annotations.Nullable;
 public interface InboxService {
 
 	/**
+	 * The names of the computer JobWarden runs on, for a mail server there such as Proton Mail Bridge: its own address,
+	 * and from inside a container (Docker Desktop, OrbStack, Podman), the name the container has for the computer. A
+	 * server at one of them signs its own certificate, which JobWarden trusts once it's connected, and only that one.
+	 */
+	Set<String> THIS_COMPUTER = Set.of("127.0.0.1", "::1", "[::1]", "localhost", "host.docker.internal",
+			"host.orb.internal", "host.containers.internal");
+
+	/**
+	 * @return the address of a mail server on the computer JobWarden runs on: 127.0.0.1, or host.docker.internal
+	 * when JobWarden runs in a container, where 127.0.0.1 is the container itself
+	 */
+	String localServerHost();
+
+	/**
 	 * @return the profile's mailbox, without its password; empty when it has none
 	 */
 	Optional<MailAccount> findAccount(long userId);
 
 	/**
 	 * Signs in to the mailbox to check it, then keeps it, its password encrypted, in place of the one there was. It's
-	 * read from a few weeks back the first time.
+	 * read from a few weeks back the first time. In a container, a server at 127.0.0.1 that doesn't answer is tried at
+	 * {@link #localServerHost()}, and kept there when it answers.
 	 *
 	 * @throws com.jobwarden.common.exception.BusinessRuleException if the mailbox can't be read, with the server's
 	 * reason, e.g. a refused password

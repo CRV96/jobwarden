@@ -45,7 +45,7 @@
 
     <ol class="flex flex-col gap-4" th:unless="${releases.isEmpty()}">
         <li th:each="release : ${releases}">
-            <article class="card flex flex-col gap-3 p-4" th:aria-labelledby="|release-${release.version}|">
+            <article class="card flex min-w-0 flex-col gap-3 p-4" th:aria-labelledby="|release-${release.version}|">
                 <div th:replace="~{updates/updates :: release-header(${release}, ${update?.version})}"></div>
                 <div th:replace="~{updates/updates :: notes(${release})}"></div>
             </article>
@@ -88,9 +88,9 @@
                 th:aria-label="#{action.close}"><i class="ph ph-x"></i></button>
     </div>
 
-    <!--/* The notes scroll, between the title and the buttons, which stay in sight */-->
-    <div class="-mx-4 flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto border-y border-line px-4 py-4">
-        <article class="flex flex-col gap-3" th:each="release : ${whatsNew}">
+    <!--/* The notes scroll, down only, between the title and the buttons, which stay in sight */-->
+    <div class="-mx-4 flex min-h-0 min-w-0 flex-1 flex-col gap-6 overflow-x-hidden overflow-y-auto border-y border-line px-4 py-4">
+        <article class="flex min-w-0 flex-col gap-3" th:each="release : ${whatsNew}">
             <!--/* A release's own heading only when there are several: one alone is the popup's title */-->
             <th:block th:if="${whatsNew.size() > 1}">
                 <div th:replace="~{updates/updates :: release-header(${release}, null)}"></div>

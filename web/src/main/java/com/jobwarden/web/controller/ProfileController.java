@@ -230,7 +230,8 @@ class ProfileController {
 	}
 
 	/**
-	 * Removes the current profile's password, given the password: then it opens without one.
+	 * Removes the current profile's password, given the password: then it opens without one. A wrong one brings the
+	 * form to remove it back open, saying so.
 	 */
 	@PostMapping("/password/remove")
 	String removePassword(@RequestParam(defaultValue = "") String current, Model model, RedirectAttributes redirect) {
@@ -240,7 +241,7 @@ class ProfileController {
 			redirect.addFlashAttribute(ModelAttributes.PROFILE_PASSWORD_REMOVED, true);
 		} catch (BusinessRuleException refused) {
 			log.debug("Password of profile {} not removed: {}", userId, refused.getErrorCode());
-			redirect.addFlashAttribute(ModelAttributes.PROFILE_PASSWORD_ERROR, this.formTexts.message(refused));
+			redirect.addFlashAttribute(ModelAttributes.PROFILE_PASSWORD_REMOVE_ERROR, this.formTexts.message(refused));
 		}
 		return redirectTo(PASSWORD_SECTION);
 	}

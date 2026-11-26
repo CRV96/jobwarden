@@ -36,6 +36,9 @@ public final class ModelAttributes {
 	public static final String MAIL_PROVIDERS = "mailProviders";
 	/** The provider the mailbox form starts on. */
 	public static final String MAIL_PROVIDER = "mailProvider";
+
+	/** Where a mail server on this computer answers, such as Proton Mail Bridge: 127.0.0.1, or from a container its name for the computer */
+	public static final String LOCAL_MAIL_HOST = "localMailHost";
 	public static final String MAIL_FORM = "mailForm";
 	public static final String MAIL_ERROR = "mailError";
 	/** While the mailbox is read in the background: since when, for the card to ask until it's read after that. */
@@ -68,6 +71,8 @@ public final class ModelAttributes {
 	public static final String PROFILE_PASSWORD_SAVED = "profilePasswordSaved";
 	public static final String PROFILE_PASSWORD_REMOVED = "profilePasswordRemoved";
 	public static final String PROFILE_PASSWORD_ERROR = "profilePasswordError";
+	/** Why the password wasn't removed: the form to remove it comes back open, saying so */
+	public static final String PROFILE_PASSWORD_REMOVE_ERROR = "profilePasswordRemoveError";
 	/** The profile chosen, which asks for its password first; why the one typed didn't open it. */
 	public static final String UNLOCKING_PROFILE = "unlockingProfile";
 	public static final String UNLOCK_ERROR = "unlockError";
@@ -99,7 +104,10 @@ public final class ModelAttributes {
 	public static final String STATUS_COUNTS = "statusCounts";
 	/** The sites the profile has an icon for (a set of sources): the pages show it instead of a generic one. */
 	public static final String ICON_SOURCES = "iconSources";
-	/** The profile's applications with a company logo (a set of ids): the pages show it before the job's title. */
+	/**
+	 * The profile's applications with a company logo, each with its version (a map of ids to when it last changed): the
+	 * pages show it before the job's title, at an address with the version.
+	 */
 	public static final String LOGO_APPLICATIONS = "logoApplications";
 	/**
 	 * The calendar page's view (a {@code CalendarView}), the views it offers, and the day it shows the month,
@@ -140,6 +148,30 @@ public final class ModelAttributes {
 	public static final String INTERVIEW_BRIEF = "interviewBrief";
 	public static final String PREP_REQUEST = "prepRequest";
 	public static final String PREP_PROMPT = "prepPrompt";
+	/**
+	 * A job's company research card: the job's id, what the AI Assistant found (a {@code CompanyResearch}) or
+	 * {@code null}, the latest request for it or {@code null}, and while that waits, what to paste into Claude Code.
+	 */
+	public static final String RESEARCH_JOB_ID = "researchJobId";
+	/**
+	 * While the AI Assistant looks for a job's logo: the job's id, the latest request for it or {@code null}, what to
+	 * paste into Claude Code, and the request the finder followed, or {@code null}.
+	 */
+	public static final String LOGO_JOB_ID = "logoJobId";
+	/**
+	 * In a container: that it is one, whether Claude Code is in it for Run, and the commands that install it there and
+	 * sign it in, which Settings shows.
+	 */
+	public static final String IN_CONTAINER = "inContainer";
+	public static final String CLAUDE_RUNS_HERE = "claudeRunsHere";
+	public static final String DOCKER_INSTALL = "dockerInstall";
+	public static final String DOCKER_SIGN_IN = "dockerSignIn";
+	public static final String LOGO_REQUEST = "logoRequest";
+	public static final String LOGO_PROMPT = "logoPrompt";
+	public static final String LOGO_ASKED = "logoAsked";
+	public static final String COMPANY_RESEARCH = "companyResearch";
+	public static final String RESEARCH_REQUEST = "researchRequest";
+	public static final String RESEARCH_PROMPT = "researchPrompt";
 	/** A job's entries from today on, each with its reminders (a list of {@code CalendarEntry}), and the job. */
 	public static final String REMINDER_ENTRIES = "reminderEntries";
 	public static final String REMINDER_JOB_ID = "reminderJobId";
@@ -256,6 +288,11 @@ public final class ModelAttributes {
 	/** Why the location and salary weren't saved, and what was typed, a {@code JobDetailsForm}. */
 	public static final String DETAILS_ERROR = "detailsError";
 	public static final String DETAILS_FORM = "detailsForm";
+
+	/** Why the description wasn't saved, and what was sent, for the editor to come back open with */
+	public static final String DESCRIPTION_ERROR = "descriptionError";
+
+	public static final String DESCRIPTION_FORM = "descriptionForm";
 	public static final String PROFILES = "profiles";
 	public static final String NAME = "name";
 	public static final String NAME_ERROR = "nameError";

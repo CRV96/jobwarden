@@ -60,6 +60,7 @@ import com.jobwarden.inbox.enums.UpdateDecision;
 import com.jobwarden.inbox.service.InboxService;
 import com.jobwarden.jobs.dto.ApplicationDetails;
 import com.jobwarden.jobs.dto.ApplicationSummary;
+import com.jobwarden.jobs.dto.CompanyResearch;
 import com.jobwarden.jobs.dto.ComparedOffer;
 import com.jobwarden.jobs.dto.FitRequirement;
 import com.jobwarden.jobs.dto.FollowUp;
@@ -71,6 +72,7 @@ import com.jobwarden.jobs.dto.NewTimelineEvent;
 import com.jobwarden.jobs.dto.OfferComparison;
 import com.jobwarden.jobs.dto.OfferExtra;
 import com.jobwarden.jobs.dto.OfferTotal;
+import com.jobwarden.jobs.dto.PngImage;
 import com.jobwarden.jobs.dto.SalaryEntry;
 import com.jobwarden.jobs.dto.TidyResult;
 import com.jobwarden.jobs.enums.ApplicationStatus;
@@ -82,6 +84,7 @@ import com.jobwarden.jobs.enums.RequirementImportance;
 import com.jobwarden.jobs.enums.RequirementMatch;
 import com.jobwarden.jobs.enums.SalaryPeriod;
 import com.jobwarden.jobs.service.ApplicationService;
+import com.jobwarden.jobs.service.CompanyResearchService;
 import com.jobwarden.jobs.service.InterviewBriefService;
 import com.jobwarden.jobs.service.JobFitService;
 import com.jobwarden.jobs.service.OfferService;
@@ -131,7 +134,7 @@ import static org.mockito.Mockito.never;
  */
 @WebMvcTest(McpController.class)
 @Import({ JobTools.class, DiscoverTools.class, CvTools.class, RequestTools.class, HiringTools.class, ApplyTools.class,
-		PrepTools.class, FitTools.class, InboxTools.class, ProjectTools.class, WatchlistTools.class, OfferTools.class,
+		PrepTools.class, ResearchTools.class, FitTools.class, InboxTools.class, ProjectTools.class, WatchlistTools.class, OfferTools.class,
 		LetterTools.class, StoryTools.class, Profiles.class })
 class McpControllerTests {
 
@@ -165,6 +168,12 @@ class McpControllerTests {
 
 	@MockitoBean
 	private InterviewBriefService briefs;
+
+	@MockitoBean
+	private CompanyResearchService research;
+
+	@MockitoBean
+	private CompanyLogos logos;
 
 	@MockitoBean
 	private JobFitService fits;
@@ -500,6 +509,95 @@ class McpControllerTests {
 				.contains("job is the posting", "short question", "save_interview_brief and job_id 7",
 						"finish_request with request_id 31")
 				.doesNotContain("get_job", "get_cv", "list_stories", "Claude");
+		});
+	}
+
+	@Test
+	void handsOutARequestToResearchACompany() {
+		given(this.discovery.startRequest(1, 32)).willReturn(AiRequest.builder()
+			.id(32)
+			.kind(AiRequestKind.RESEARCH_COMPANY)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.INTERVIEWING)));
+
+		assertThat(callTool("get_request", "{\"request_id\": 32}")).bodyJson().satisfies(body -> {
+			// The job comes with it; no CV, which researching a company doesn't need
+			assertThat(result(body)).extractingPath("$.job.id").isEqualTo(7);
+			assertThat(result(body)).doesNotHavePath("$.cv");
+			assertThat(result(body)).extractingPath("$.instructions").asString()
+				.contains("Glassdoor", "salaries", "the company it hires for", "save_company_research and job_id 7",
+						"Never make up a rating", "finish_request with request_id 32");
+		});
+	}
+
+	@Test
+	void savesTheCompanyResearch() {
+		given(this.research.save(eq(1L), eq(7L), any())).willAnswer(answer -> answer.getArgument(2));
+
+		assertThat(callTool("save_company_research", """
+				{"job_id": 7, "company": "Tires Easy sells tyres online in the US.",
+				 "ratings": ["Glassdoor 3.9/5 (24 reviews)"], "pros": ["Friendly team"], "cons": ["No holidays on B2B"],
+				 "salaries": ["Senior Java Developer: 40-45 EUR an hour, B2B (the posting)"],
+				 "news": ["2025: moved to SAP Commerce Cloud"], "interviews": "Two rounds: a recruiter, then a technical call.",
+				 "sources": ["https://www.glassdoor.com/Reviews/Tires-Easy"]}
+				""")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.ratings").isEqualTo(1);
+			assertThat(result(body)).extractingPath("$.page").isEqualTo("/applications/7");
+		});
+		then(this.research).should().save(1, 7, CompanyResearch.builder()
+			.company("Tires Easy sells tyres online in the US.")
+			.ratings(List.of("Glassdoor 3.9/5 (24 reviews)"))
+			.pros(List.of("Friendly team"))
+			.cons(List.of("No holidays on B2B"))
+			.salaries(List.of("Senior Java Developer: 40-45 EUR an hour, B2B (the posting)"))
+			.news(List.of("2025: moved to SAP Commerce Cloud"))
+			.interviews("Two rounds: a recruiter, then a technical call.")
+			.sources(List.of("https://www.glassdoor.com/Reviews/Tires-Easy"))
+			.build());
+	}
+
+	@Test
+	void handsOutARequestToFindALogo() {
+		given(this.discovery.startRequest(1, 33)).willReturn(AiRequest.builder()
+			.id(33)
+			.kind(AiRequestKind.FIND_LOGO)
+			.applicationId(7L)
+			.requirements(AiRequirements.NONE)
+			.status(AiRequestStatus.WAITING)
+			.createdAt(Instant.now())
+			.build());
+		given(this.applications.findById(1, 7)).willReturn(Optional.of(job(ApplicationStatus.SAVED)));
+
+		assertThat(callTool("get_request", "{\"request_id\": 33}")).bodyJson().satisfies(body -> {
+			assertThat(result(body)).extractingPath("$.job.id").isEqualTo(7);
+			assertThat(result(body)).doesNotHavePath("$.cv");
+			assertThat(result(body)).extractingPath("$.instructions").asString()
+				.contains("apple-touch-icon", "not SVG, WebP or ICO", "save_company_logo with job_id 7",
+						"finish_request with request_id 33");
+		});
+	}
+
+	@Test
+	void savesTheLogoJobWardenDownloadsAndSaysWhyItCouldnt() {
+		PngImage logo = new PngImage(new byte[] { (byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n', 0 });
+		given(this.logos.download("https://acme.example.com/apple-touch-icon.png")).willReturn(logo);
+
+		assertThat(callTool("save_company_logo", """
+				{"job_id": 7, "url": "https://acme.example.com/apple-touch-icon.png"}
+				""")).bodyJson().satisfies(body -> assertThat(result(body)).extractingPath("$.saved").isEqualTo(true));
+		then(this.applications).should().changeCompanyLogo(1, 7, logo);
+
+		given(this.logos.download("https://acme.example.com/logo.svg"))
+			.willThrow(new ToolException("JobWarden couldn't use that image: Not an image Java reads"));
+		assertThat(callTool("save_company_logo", """
+				{"job_id": 7, "url": "https://acme.example.com/logo.svg"}
+				""")).bodyJson().satisfies(body -> {
+			assertThat(body).extractingPath("$.result.isError").isEqualTo(true);
+			assertThat(body).extractingPath("$.result.content[0].text").asString().contains("Not an image Java reads");
 		});
 	}
 
