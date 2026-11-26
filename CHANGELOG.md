@@ -6,6 +6,43 @@ what to do when upgrading. The release notes on GitHub list the pull requests as
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Add to *Unreleased* with each change;
 a release renames it to its version and date.
 
+## 1.1.2 - 2026-11-26
+
+### Added
+
+- **Company research**: on a job's page, the AI Assistant finds out about the company on the web: its ratings and
+  reviews, what the people who work there like and complain about, what it pays, its benefits, its news, how its
+  interviews go, and what to look into before saying yes. For an agency's posting, it researches the company the
+  agency hires for.
+- **The company's logo, found by the AI Assistant**: click a job's logo, or its initials, for a job saved without one
+  or with the wrong one. The same menu removes a wrong logo.
+- **Edit a job's title, company, link and employment type** from its facts, like its location and salary, e.g. the
+  company of a job saved from an agency's site. The employment type always shows, with the common ones to pick from.
+- **Edit a job's description**, with bold, italics and lists, which text pasted from a posting keeps too. A posting's
+  `•` lines show as a list.
+- **Run it here with JobWarden in Docker**: Settings → AI Assistant shows the two commands that put Claude Code in
+  JobWarden's container, from Anthropic, and sign it in, once; it stays on JobWarden's volume across updates. The
+  image has `curl` for Anthropic's installer, not Claude Code itself.
+
+### Changed
+
+- **What's new** starts with what changed, in points like these, and its notes no longer scroll sideways: long
+  commands and code wrap.
+- **Remove password**, in Settings → Your profile, is a form of its own: pressing Enter there no longer changes the
+  password instead.
+
+### Fixed
+
+- **Run it here** reaches JobWarden at the server's own port, also when Docker publishes it on another.
+- **Proton Mail Bridge with JobWarden in Docker**: the Inbox connects to Bridge, or any mail server on your computer,
+  from Docker Desktop, OrbStack or Podman. The Proton Mail (Bridge) choice fills in `host.docker.internal`, the
+  computer as the container names it, and a server typed as 127.0.0.1 is tried there too. On Linux, run the container
+  with `network_mode: host`.
+
+### Upgrading
+
+- Two database migrations (V11, V12) run as the new version starts: nothing to do.
+
 ## 1.1.1 - 2026-11-24
 
 ### Fixed
